@@ -5,6 +5,7 @@ public struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var discoveryViewModel: DiscoveryViewModel
     @State private var deviceViewModel: DeviceViewModel
+    @State private var feedPreviewViewModel: FeedPreviewViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var isShowingFeedEditor = false
@@ -14,6 +15,7 @@ public struct MainView: View {
         self._viewModel = State(initialValue: viewModel)
         self._discoveryViewModel = State(initialValue: DiscoveryViewModel())
         self._deviceViewModel = State(initialValue: DeviceViewModel())
+        self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
     }
 
     public var body: some View {
@@ -21,6 +23,7 @@ public struct MainView: View {
             header
             deviceSection
             discoverySection
+            feedPreviewSection
 
             if viewModel.hasFeeds {
                 feedList
@@ -44,6 +47,12 @@ public struct MainView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
+
+            if let feedPreviewErrorMessage = feedPreviewViewModel.lastErrorMessage {
+                Text(feedPreviewErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
         .padding(20)
         .frame(minWidth: 720, minHeight: 460)
@@ -53,6 +62,9 @@ public struct MainView: View {
             }
             if !deviceViewModel.hasLoadedDevices {
                 deviceViewModel.refresh()
+            }
+            if viewModel.hasFeeds && !feedPreviewViewModel.hasPreviewData {
+                await refreshFeedPreview()
             }
         }
         .sheet(isPresented: $isShowingFeedEditor) {
@@ -65,6 +77,7 @@ public struct MainView: View {
                 } else {
                     viewModel.updateFeed(from: updatedDraft)
                 }
+                Task { await refreshFeedPreview() }
             }
         }
         .sheet(isPresented: $isShowingSettings) {
@@ -124,6 +137,74 @@ public struct MainView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var feedPreviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Feed Preview")
+                        .font(.headline)
+                    Text("Preview the latest retained episodes for your enabled feeds before downloads are implemented.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(feedPreviewViewModel.isLoading ? "Refreshing..." : "Refresh Feeds") {
+                    Task { await refreshFeedPreview() }
+                }
+                .disabled(feedPreviewViewModel.isLoading || !viewModel.hasFeeds)
+            }
+
+            if feedPreviewViewModel.hasPreviewData {
+                VStack(alignment: .leading, spacing: 10) {
+                    if !feedPreviewViewModel.selectedEpisodes.isEmpty {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 8) {
+                                ForEach(feedPreviewViewModel.selectedEpisodes) { episode in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(episode.title)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                        Text(episode.podcastTitle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        if let publicationDate = episode.publicationDate {
+                                            Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                        }
+                        .frame(minHeight: 120, maxHeight: 180)
+                    }
+
+                    if !feedPreviewViewModel.failures.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Feed issues")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            ForEach(feedPreviewViewModel.failures) { failure in
+                                Text("\(failure.subscriptionTitle): \(failure.message)")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(viewModel.hasFeeds ? "No preview data yet. Refresh feeds to inspect the current retained episode set." : "Add at least one feed to preview retained episodes.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var deviceSection: some View {
@@ -262,6 +343,10 @@ public struct MainView: View {
         Task {
             await discoveryViewModel.search(using: viewModel.settings)
         }
+    }
+
+    private func refreshFeedPreview() async {
+        await feedPreviewViewModel.refreshPreview(for: viewModel.feedSubscriptions)
     }
 }
 

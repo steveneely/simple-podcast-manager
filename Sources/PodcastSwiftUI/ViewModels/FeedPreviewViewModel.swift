@@ -1,0 +1,42 @@
+import Foundation
+import Observation
+import PodcastSwiftCore
+
+@MainActor
+@Observable
+public final class FeedPreviewViewModel {
+    public private(set) var selectedEpisodes: [Episode]
+    public private(set) var failures: [FeedFetchFailure]
+    public private(set) var isLoading: Bool
+    public private(set) var lastErrorMessage: String?
+
+    private let service: any FeedService
+
+    public init(service: any FeedService = RSSFeedService()) {
+        self.service = service
+        self.selectedEpisodes = []
+        self.failures = []
+        self.isLoading = false
+        self.lastErrorMessage = nil
+    }
+
+    public var hasPreviewData: Bool {
+        !selectedEpisodes.isEmpty || !failures.isEmpty
+    }
+
+    public func refreshPreview(for subscriptions: [FeedSubscription]) async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let result = try await service.fetchLatestEpisodes(for: subscriptions)
+            self.selectedEpisodes = result.selectedEpisodes
+            self.failures = result.failures
+            self.lastErrorMessage = nil
+        } catch {
+            self.selectedEpisodes = []
+            self.failures = []
+            self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+}

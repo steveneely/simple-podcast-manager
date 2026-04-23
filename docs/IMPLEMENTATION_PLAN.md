@@ -108,7 +108,7 @@ Depends on:
 
 ## Milestone 5: Feed Reading And Episode Selection
 
-Status: next
+Status: complete
 
 Implement RSS fetch/parsing and choose desired episodes for each enabled feed.
 
@@ -133,7 +133,7 @@ Depends on:
 
 ## Milestone 6: Download And MP3 Conversion
 
-Status: pending
+Status: next
 
 Normalize remote media into local files ready for sync.
 

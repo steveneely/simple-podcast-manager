@@ -93,18 +93,6 @@ public final class MainViewModel {
         }
     }
 
-    public func setDryRunByDefault(_ value: Bool) {
-        mutateConfiguration {
-            $0.settings.dryRunByDefault = value
-        }
-    }
-
-    public func setEjectAfterSyncByDefault(_ value: Bool) {
-        mutateConfiguration {
-            $0.settings.ejectAfterSyncByDefault = value
-        }
-    }
-
     public func setFFmpegExecutablePath(_ value: String?) {
         mutateConfiguration {
             let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines)

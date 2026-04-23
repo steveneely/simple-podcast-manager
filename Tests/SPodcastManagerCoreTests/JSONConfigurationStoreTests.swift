@@ -25,9 +25,7 @@ struct JSONConfigurationStoreTests {
         let store = JSONConfigurationStore(fileURL: fileURL)
         let configuration = AppConfiguration(
             settings: AppSettings(
-                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
-                dryRunByDefault: false,
-                ejectAfterSyncByDefault: true
+                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg"
             ),
             feedSubscriptions: [
                 FeedSubscription(

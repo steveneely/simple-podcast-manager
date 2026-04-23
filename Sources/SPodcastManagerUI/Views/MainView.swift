@@ -16,6 +16,8 @@ public struct MainView: View {
     @State private var isShowingFeedEditor = false
     @State private var isShowingSettings = false
     @State private var isShowingSyncPreview = false
+    @State private var isDryRunEnabled = true
+    @State private var isEjectAfterSyncEnabled = false
     @State private var isShowingDeviceDetails = false
     @State private var expandedEpisodeFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
@@ -491,6 +493,18 @@ public struct MainView: View {
                 .disabled(!canSync)
             }
 
+            Toggle("Preview only (dry run)", isOn: $isDryRunEnabled)
+                .toggleStyle(.checkbox)
+                .onChange(of: isDryRunEnabled) {
+                    rebuildSyncPlan()
+                }
+
+            Toggle("Eject after sync", isOn: $isEjectAfterSyncEnabled)
+                .toggleStyle(.checkbox)
+                .onChange(of: isEjectAfterSyncEnabled) {
+                    rebuildSyncPlan()
+                }
+
             if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
                 syncProgressSection(progress)
             }
@@ -665,8 +679,8 @@ public struct MainView: View {
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
             subscriptions: viewModel.feedSubscriptions,
             manualDeleteTargets: manuallySelectedDeletionTargets,
-            ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
-            isDryRun: viewModel.settings.dryRunByDefault
+            ejectAfterSync: isEjectAfterSyncEnabled,
+            isDryRun: isDryRunEnabled
         )
     }
 
@@ -863,15 +877,15 @@ public struct MainView: View {
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
             subscriptions: viewModel.feedSubscriptions,
             manualDeleteTargets: manuallySelectedDeletionTargets,
-            ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
-            isDryRun: viewModel.settings.dryRunByDefault
+            ejectAfterSync: isEjectAfterSyncEnabled,
+            isDryRun: isDryRunEnabled
         )
         refreshDeviceLibrary()
         rebuildSyncPlan()
         if viewModel.hasFeeds {
             await refreshFeedPreview()
         }
-        if viewModel.settings.ejectAfterSyncByDefault {
+        if isEjectAfterSyncEnabled {
             deviceViewModel.refresh()
         }
     }
@@ -903,7 +917,7 @@ public struct MainView: View {
     @ViewBuilder
     private func deviceFilesSection(for subscription: FeedSubscription) -> some View {
         let deviceFiles = deviceLibraryViewModel.files(for: subscription)
-        let deletions = plannedDeletionTargets(for: subscription)
+        let deletions = selectedDeletionTargets(for: subscription)
 
         VStack(alignment: .leading, spacing: 8) {
             Text("On Device")
@@ -914,7 +928,7 @@ public struct MainView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text(viewModel.settings.dryRunByDefault
+                Text(isDryRunEnabled
                     ? "Checked files stay on the device. Uncheck a file to preview deleting it."
                     : "Checked files stay on the device. Uncheck a file to delete it on the next sync.")
                     .font(.caption)
@@ -943,18 +957,9 @@ public struct MainView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    private func plannedDeletionTargets(for subscription: FeedSubscription) -> Set<URL> {
-        guard let plan = syncPlanViewModel.plan else { return [] }
-        return Set(
-            plan.actions.compactMap { action in
-                guard case .deleteFromDevice(let targetURL) = action else { return nil }
-                let expectedDirectory = deviceViewModel.selectedDevice?.musicURL
-                    .appendingPathComponent(subscription.title, isDirectory: true)
-                    .standardizedFileURL
-                guard targetURL.deletingLastPathComponent().standardizedFileURL == expectedDirectory else { return nil }
-                return targetURL.standardizedFileURL
-            }
-        )
+    private func selectedDeletionTargets(for subscription: FeedSubscription) -> Set<URL> {
+        let deviceFiles = Set(deviceLibraryViewModel.files(for: subscription).map(\.standardizedFileURL))
+        return manuallySelectedDeletionTargets.intersection(deviceFiles)
     }
 
     private func syncResultSummary(_ result: SyncResult) -> String {
@@ -965,36 +970,10 @@ public struct MainView: View {
         return "Last sync at \(finishedText): \(result.copiedCount) copied, \(result.deletedCount) deleted, \(result.skippedCount) skipped."
     }
 
-    private var syncButtonTitle: String {
-        if syncExecutionViewModel.isSyncing {
-            return viewModel.settings.dryRunByDefault ? "Previewing..." : "Syncing..."
-        }
-        return viewModel.settings.dryRunByDefault ? "Preview Sync" : "Sync"
-    }
-
     private var sheetSyncButtonTitle: String {
         if syncExecutionViewModel.isSyncing {
-            return viewModel.settings.dryRunByDefault ? "Previewing..." : "Syncing..."
+            return isDryRunEnabled ? "Previewing..." : "Syncing..."
         }
-        return viewModel.settings.dryRunByDefault ? "Run Preview" : "Start Sync"
-    }
-
-    private var dryRunBanner: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "eye")
-                .foregroundStyle(.orange)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Dry Run Mode")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                Text("Sync will preview copies and deletions without changing files on the device.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        return isDryRunEnabled ? "Run Preview" : "Start Sync"
     }
 }

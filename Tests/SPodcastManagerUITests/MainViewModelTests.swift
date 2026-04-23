@@ -10,9 +10,7 @@ struct MainViewModelTests {
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
                 settings: AppSettings(
-                    ffmpegExecutablePath: "/usr/local/bin/ffmpeg",
-                    dryRunByDefault: false,
-                    ejectAfterSyncByDefault: true
+                    ffmpegExecutablePath: "/usr/local/bin/ffmpeg"
                 ),
                 feedSubscriptions: [
                     FeedSubscription(title: "ATP", rssURL: URL(string: "https://atp.fm/rss")!)
@@ -25,8 +23,7 @@ struct MainViewModelTests {
 
         #expect(viewModel.hasLoadedConfiguration)
         #expect(viewModel.feedSubscriptions.count == 1)
-        #expect(viewModel.settings.dryRunByDefault == false)
-        #expect(viewModel.settings.ejectAfterSyncByDefault)
+        #expect(viewModel.settings.ffmpegExecutablePath == "/usr/local/bin/ffmpeg")
     }
 
     @Test
@@ -82,15 +79,11 @@ struct MainViewModelTests {
 
         viewModel.replaceSettings(
             AppSettings(
-                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
-                dryRunByDefault: false,
-                ejectAfterSyncByDefault: true
+                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg"
             )
         )
 
         #expect(viewModel.settings.ffmpegExecutablePath == "/opt/homebrew/bin/ffmpeg")
-        #expect(viewModel.settings.dryRunByDefault == false)
-        #expect(viewModel.settings.ejectAfterSyncByDefault == true)
         #expect(store.configuration.settings == viewModel.settings)
     }
 

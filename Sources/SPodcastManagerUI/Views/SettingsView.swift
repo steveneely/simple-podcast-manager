@@ -5,8 +5,6 @@ public struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var ffmpegExecutablePath: String
-    @State private var dryRunByDefault: Bool
-    @State private var ejectAfterSyncByDefault: Bool
     @FocusState private var focusedField: Field?
     private let onSave: (AppSettings) -> Void
 
@@ -19,8 +17,6 @@ public struct SettingsView: View {
         onSave: @escaping (AppSettings) -> Void
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
-        self._dryRunByDefault = State(initialValue: settings.dryRunByDefault)
-        self._ejectAfterSyncByDefault = State(initialValue: settings.ejectAfterSyncByDefault)
         self.onSave = onSave
     }
 
@@ -40,13 +36,6 @@ public struct SettingsView: View {
                         .inputFieldStyle(isFocused: focusedField == .ffmpeg)
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Dry-run by default", isOn: $dryRunByDefault)
-                    Toggle("Eject after sync by default", isOn: $ejectAfterSyncByDefault)
-                }
-                .padding(12)
-                .background(Color(NSColor.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
 
             HStack {
@@ -59,9 +48,7 @@ public struct SettingsView: View {
                 Button("Save") {
                     onSave(
                         AppSettings(
-                            ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
-                            dryRunByDefault: dryRunByDefault,
-                            ejectAfterSyncByDefault: ejectAfterSyncByDefault
+                            ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines)
                         )
                     )
                     dismiss()

@@ -16,23 +16,23 @@ public struct SyncPlanner: Sendable {
         device: DeviceInfo,
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
+        manualDeleteTargets: Set<URL> = [],
         ejectAfterSync: Bool,
         isDryRun: Bool
     ) throws -> SyncPlan {
         try safetyValidator.validateDevice(device)
 
-        let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
         var actions: [SyncAction] = []
+        var plannedDeletionTargets: Set<URL> = []
 
         let preparedBySubscription = Dictionary(grouping: preparedEpisodes.compactMap { preparedEpisode -> (UUID, PreparedEpisode)? in
             guard let subscriptionID = preparedEpisode.episode.subscriptionID else { return nil }
             return (subscriptionID, preparedEpisode)
         }, by: { $0.0 })
+        let manualDeleteTargets = Set(manualDeleteTargets.map(\.standardizedFileURL))
 
-        for (subscriptionID, groupedPreparedEpisodes) in preparedBySubscription {
-            guard let subscription = subscriptionsByID[subscriptionID] else { continue }
-
-            let preparedEpisodes = groupedPreparedEpisodes.map(\.1)
+        for subscription in subscriptions {
+            let preparedEpisodes = preparedBySubscription[subscription.id]?.map(\.1) ?? []
             let managedDirectory = managedDirectoryURL(for: subscription, on: device)
             let existingFiles = try deviceLibrary.files(in: managedDirectory)
             let existingFileNames = Set(existingFiles.map(\.lastPathComponent))
@@ -48,6 +48,15 @@ public struct SyncPlanner: Sendable {
                 }
             }
 
+            let manuallySelectedFiles = existingFiles
+                .filter { manualDeleteTargets.contains($0.standardizedFileURL) }
+                .sorted { $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending }
+            for fileURL in manuallySelectedFiles where !plannedDeletionTargets.contains(fileURL.standardizedFileURL) {
+                try safetyValidator.validateDeleteTarget(fileURL, on: device)
+                actions.append(.deleteFromDevice(targetURL: fileURL))
+                plannedDeletionTargets.insert(fileURL.standardizedFileURL)
+            }
+
             let retainedFileNames = Set(preparedEpisodes.map { $0.preparedFileURL.lastPathComponent })
             let retentionLimit = subscription.retentionPolicy.episodeLimit
             if existingFiles.count + preparedEpisodes.count > retentionLimit {
@@ -57,8 +66,10 @@ public struct SyncPlanner: Sendable {
 
                 let deleteCount = max(existingFiles.count + preparedEpisodes.count - retentionLimit, 0)
                 for fileURL in deletableFiles.prefix(deleteCount) {
+                    guard !plannedDeletionTargets.contains(fileURL.standardizedFileURL) else { continue }
                     try safetyValidator.validateDeleteTarget(fileURL, on: device)
                     actions.append(.deleteFromDevice(targetURL: fileURL))
+                    plannedDeletionTargets.insert(fileURL.standardizedFileURL)
                 }
             }
         }

@@ -43,8 +43,12 @@ public struct FeedDraft: Equatable, Sendable {
         let normalizedURLString = rssURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         let scheme = URL(string: normalizedURLString)?.scheme?.lowercased()
 
-        return (scheme == "http" || scheme == "https")
-            && retentionEpisodeLimit > 0
+        return retentionEpisodeLimit > 0
+            && (
+                id != nil
+                || scheme == "http"
+                || scheme == "https"
+            )
     }
 
     public func resolvedRSSURL() throws -> URL {

@@ -84,10 +84,10 @@ Current subscription setup:
 Current verification command:
 
 ```bash
-CLANG_MODULE_CACHE_PATH=/Users/sneely/code/spodcast-manaager/.swift-cache/clang-module-cache \
-SWIFTPM_CACHE_PATH=/Users/sneely/code/spodcast-manaager/.swift-cache/swiftpm-cache \
-swift test
+./scripts/swift-test.sh
 ```
+
+This wrapper keeps Swift build artifacts in a temporary per-repo cache so the test command stays stable even if the repo folder is renamed.
 
 Current app launch command:
 

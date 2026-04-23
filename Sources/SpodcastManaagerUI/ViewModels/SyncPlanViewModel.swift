@@ -20,13 +20,14 @@ public final class SyncPlanViewModel {
 
     public var actionDescriptions: [String] {
         guard let plan else { return [] }
-        return plan.actions.map(Self.describe(action:))
+        return plan.actions.map(\.summaryDescription)
     }
 
     public func buildPlan(
         device: DeviceInfo?,
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
+        manualDeleteTargets: Set<URL> = [],
         ejectAfterSync: Bool,
         isDryRun: Bool
     ) {
@@ -44,6 +45,7 @@ public final class SyncPlanViewModel {
                 device: device,
                 preparedEpisodes: preparedEpisodes,
                 subscriptions: subscriptions,
+                manualDeleteTargets: manualDeleteTargets,
                 ejectAfterSync: ejectAfterSync,
                 isDryRun: isDryRun
             )
@@ -57,20 +59,5 @@ public final class SyncPlanViewModel {
     public func clearPlan() {
         plan = nil
         lastErrorMessage = nil
-    }
-
-    private static func describe(action: SyncAction) -> String {
-        switch action {
-        case .copyToDevice(_, let destinationURL):
-            return "Copy to device: \(destinationURL.lastPathComponent)"
-        case .deleteFromDevice(let targetURL):
-            return "Delete old episode: \(targetURL.lastPathComponent)"
-        case .clearDeviceTrash:
-            return "Clear device trash"
-        case .ejectDevice:
-            return "Eject device after sync"
-        case .skip(let reason):
-            return "Skip: \(reason)"
-        }
     }
 }

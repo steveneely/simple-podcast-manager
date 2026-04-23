@@ -79,6 +79,42 @@ struct SyncExecutorTests {
         #expect(ejector.didEject)
     }
 
+    @Test
+    func executeReportsProgressAcrossPlannedActions() throws {
+        let device = makeDevice()
+        let destinationURL = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+            .appendingPathComponent("Episode_2.mp3", isDirectory: false)
+        let sourceURL = URL(fileURLWithPath: "/tmp/Episode_2.mp3")
+
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [device.trashURL],
+            directoryContents: [:]
+        )
+        let executor = SyncExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
+        let collector = SyncProgressCollector()
+
+        _ = try executor.execute(
+            plan: SyncPlan(
+                device: device,
+                isDryRun: false,
+                actions: [
+                    .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL),
+                    .clearDeviceTrash(trashURL: device.trashURL),
+                    .skip(reason: "Already on device"),
+                ]
+            ),
+            progress: { collector.append($0) }
+        )
+
+        let updates = collector.values
+        #expect(updates.count == 4)
+        #expect(updates[0] == SyncExecutionProgress(totalCount: 3, completedCount: 0, currentActionDescription: "Copy to device: Example Podcast / Episode_2.mp3"))
+        #expect(updates[1] == SyncExecutionProgress(totalCount: 3, completedCount: 1, currentActionDescription: "Clear device trash"))
+        #expect(updates[2] == SyncExecutionProgress(totalCount: 3, completedCount: 2, currentActionDescription: "Skip: Already on device"))
+        #expect(updates[3] == SyncExecutionProgress(totalCount: 3, completedCount: 3))
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "WALKMAN",
@@ -148,5 +184,17 @@ private final class RecordingDeviceEjector: DeviceEjecting, @unchecked Sendable 
 
     func eject(device: DeviceInfo) throws {
         didEject = true
+    }
+}
+
+private final class SyncProgressCollector: @unchecked Sendable {
+    private var updates: [SyncExecutionProgress] = []
+
+    func append(_ progress: SyncExecutionProgress) {
+        updates.append(progress)
+    }
+
+    var values: [SyncExecutionProgress] {
+        updates
     }
 }

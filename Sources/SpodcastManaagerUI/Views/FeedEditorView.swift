@@ -8,7 +8,9 @@ public struct FeedEditorView: View {
     @State private var isSaving = false
     @FocusState private var focusedField: Field?
     private let title: String
+    private let initialDraft: FeedDraft
     private let onSave: @Sendable (FeedDraft) async throws -> Void
+    private let retentionOptions: [Int] = [1, 2, 3, 5, 10, 20, .max]
 
     private enum Field: Hashable {
         case rssURL
@@ -20,50 +22,34 @@ public struct FeedEditorView: View {
         onSave: @escaping @Sendable (FeedDraft) async throws -> Void
     ) {
         self.title = title
+        self.initialDraft = draft
         self._draft = State(initialValue: draft)
         self.onSave = onSave
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(title)
+            Text(dialogTitle)
                 .font(.title2)
                 .fontWeight(.semibold)
 
             VStack(alignment: .leading, spacing: 14) {
-                LabeledField(title: "RSS Feed URL") {
+                LabeledField(title: "Feed URL") {
                     TextField("https://example.com/feed.xml", text: $draft.rssURLString)
                         .focused($focusedField, equals: .rssURL)
                         .inputFieldStyle(isFocused: focusedField == .rssURL)
                 }
 
-                if let currentTitle = draft.currentTitle, !currentTitle.isEmpty {
-                    LabeledField(
-                        title: "Podcast Title",
-                        detail: "This comes from the RSS feed and updates when you refresh."
-                    ) {
-                        Text(currentTitle)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(Color(NSColor.controlBackgroundColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                LabeledField(title: "Keep Episodes") {
+                    Picker("Keep", selection: $draft.retentionEpisodeLimit) {
+                        ForEach(retentionOptions, id: \.self) { option in
+                            Text(retentionLabel(for: option))
+                                .tag(option)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
                 }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Episode Retention")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Stepper(
-                        "Keep latest \(draft.retentionEpisodeLimit) episode\(draft.retentionEpisodeLimit == 1 ? "" : "s")",
-                        value: $draft.retentionEpisodeLimit,
-                        in: 1...100
-                    )
-                }
-                .padding(12)
-                .background(Color(NSColor.controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 Toggle("Feed enabled", isOn: $draft.isEnabled)
 
@@ -101,7 +87,23 @@ public struct FeedEditorView: View {
         .padding(20)
         .frame(minWidth: 460)
         .onAppear {
-            focusedField = .rssURL
+            draft = initialDraft
+            focusedField = isCreatingFeed ? .rssURL : nil
         }
+    }
+
+    private var isCreatingFeed: Bool {
+        draft.id == nil
+    }
+
+    private var dialogTitle: String {
+        if let currentTitle = draft.currentTitle, !currentTitle.isEmpty {
+            return currentTitle
+        }
+        return title
+    }
+
+    private func retentionLabel(for value: Int) -> String {
+        value == .max ? "∞" : "\(value)"
     }
 }

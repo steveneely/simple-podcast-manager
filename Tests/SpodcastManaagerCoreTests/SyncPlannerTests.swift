@@ -144,6 +144,32 @@ struct SyncPlannerTests {
         #expect(plan.actions.contains(.ejectDevice(deviceRootURL: device.rootURL)))
     }
 
+    @Test
+    func includesManuallySelectedDeviceFilesInDeletionPlan() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let existingFileURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    managedDirectory.standardizedFileURL.path: [existingFileURL]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            manualDeleteTargets: [existingFileURL],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "WALKMAN",

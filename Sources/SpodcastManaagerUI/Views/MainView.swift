@@ -12,8 +12,13 @@ public struct MainView: View {
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
+    @State private var feedEditorPresentationID = UUID()
     @State private var isShowingFeedEditor = false
     @State private var isShowingSettings = false
+    @State private var isShowingSyncPreview = false
+    @State private var isShowingDeviceDetails = false
+    @State private var isHoveringDeviceStatus = false
+    @State private var manuallySelectedDeletionTargets: Set<URL> = []
 
     public init(viewModel: MainViewModel) {
         self._viewModel = State(initialValue: viewModel)
@@ -105,11 +110,15 @@ public struct MainView: View {
             ) { updatedDraft in
                 try await saveFeed(updatedDraft)
             }
+            .id(feedEditorPresentationID)
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(settings: viewModel.settings) { updatedSettings in
                 viewModel.replaceSettings(updatedSettings)
             }
+        }
+        .sheet(isPresented: $isShowingSyncPreview) {
+            syncPreviewSheet
         }
         .onReceive(NotificationCenter.default.publisher(for: .spodcastManaagerOpenSettings)) { _ in
             isShowingSettings = true
@@ -141,8 +150,34 @@ public struct MainView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Device")
                         .font(.headline)
-                    Text(deviceViewModel.statusMessage)
-                        .foregroundStyle(.secondary)
+                    if let selectedDevice = deviceViewModel.selectedDevice {
+                        Button(deviceViewModel.statusMessage) {
+                            isShowingDeviceDetails.toggle()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(isHoveringDeviceStatus ? Color.blue : Color.white)
+                        .onHover { isHoveringDeviceStatus = $0 }
+                        .popover(isPresented: $isShowingDeviceDetails, arrowEdge: .bottom) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(selectedDevice.name)
+                                    .font(.headline)
+                                Text("Mounted at: \(selectedDevice.rootURL.path)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Music folder: \(selectedDevice.musicURL.path)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Trash folder: \(selectedDevice.trashURL.path)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(12)
+                            .frame(minWidth: 320, alignment: .leading)
+                        }
+                    } else {
+                        Text(deviceViewModel.statusMessage)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Spacer()
@@ -159,7 +194,10 @@ public struct MainView: View {
                     }
                 }
 
-                Button("Refresh Devices") {
+                HoverIconButton(
+                    systemName: "arrow.clockwise",
+                    helpText: "Refresh devices"
+                ) {
                     deviceViewModel.refresh()
                     refreshDeviceLibrary()
                     rebuildSyncPlan()
@@ -178,24 +216,8 @@ public struct MainView: View {
                 .pickerStyle(.menu)
             }
 
-            if let selectedDevice = deviceViewModel.selectedDevice {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Mounted at: \(selectedDevice.rootURL.path)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("Music folder: \(selectedDevice.musicURL.path)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("Trash folder: \(selectedDevice.trashURL.path)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let lastResult = syncExecutionViewModel.lastResult {
-                Text(syncResultSummary(lastResult))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if viewModel.hasFeeds {
+                syncControlsRow
             }
 
             if let deviceErrorMessage = deviceViewModel.lastErrorMessage {
@@ -233,6 +255,7 @@ public struct MainView: View {
                     helpText: "Add show"
                 ) {
                     editorDraft = FeedDraft()
+                    feedEditorPresentationID = UUID()
                     isShowingFeedEditor = true
                 }
                 .keyboardShortcut("n")
@@ -280,6 +303,7 @@ public struct MainView: View {
                                     helpText: "Edit show"
                                 ) {
                                     editorDraft = FeedDraft(subscription: subscription)
+                                    feedEditorPresentationID = UUID()
                                     isShowingFeedEditor = true
                                 }
 
@@ -334,37 +358,7 @@ public struct MainView: View {
                             }
                         }
                         .disabled(preparationPreviewViewModel.isPreparing || episodes(for: selectedSubscription).isEmpty)
-
-                        Button(syncButtonTitle) {
-                            Task {
-                                await syncExecutionViewModel.sync(
-                                    device: deviceViewModel.selectedDevice,
-                                    preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
-                                    subscriptions: viewModel.feedSubscriptions,
-                                    ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
-                                    isDryRun: viewModel.settings.dryRunByDefault
-                                )
-                                refreshDeviceLibrary()
-                                rebuildSyncPlan()
-                                if viewModel.hasFeeds {
-                                    await refreshFeedPreview()
-                                }
-                                if viewModel.settings.ejectAfterSyncByDefault {
-                                    deviceViewModel.refresh()
-                                }
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canSync)
                     }
-                }
-
-                if viewModel.settings.dryRunByDefault {
-                    dryRunBanner
-                }
-
-                if !preparedEpisodes(for: selectedSubscription).isEmpty {
-                    syncSummaryCard(for: selectedSubscription)
                 }
 
                 if deviceViewModel.selectedDevice != nil {
@@ -424,12 +418,91 @@ public struct MainView: View {
     }
 
     @ViewBuilder
-    private func syncSummaryCard(for subscription: FeedSubscription) -> some View {
+    private var syncControlsRow: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Whole Library Sync")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(syncPlanSummaryText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Preview Sync") {
+                    openSyncPreview()
+                }
+                .disabled(!canOpenSyncPreview)
+            }
+
+            if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
+                syncProgressSection(progress)
+            }
+
+            if let lastResult = syncExecutionViewModel.lastResult {
+                Text(syncResultSummary(lastResult))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var syncPreviewSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sync Preview")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Text(syncPlanSummaryText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Close") {
+                    isShowingSyncPreview = false
+                }
+
+                Button(sheetSyncButtonTitle) {
+                    Task {
+                        await runSync()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canSync)
+            }
+
+            if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
+                syncProgressSection(progress)
+            }
+
+            if let lastResult = syncExecutionViewModel.lastResult {
+                syncResultCard(lastResult)
+            }
+
+            syncSummaryCard
+
+            if !syncPlanViewModel.actionDescriptions.isEmpty {
+                plannedActionsSection
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 560, minHeight: 420, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private var syncSummaryCard: some View {
         let plan = syncPlanViewModel.plan
-        let relevantPreparedCount = preparedEpisodes(for: subscription).count
+        let preparedCount = preparationPreviewViewModel.preparedEpisodes.count
 
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sync Summary")
+            Text("Plan Summary")
                 .font(.headline)
 
             if let plan {
@@ -451,15 +524,40 @@ public struct MainView: View {
                     return false
                 }.count
 
-                Text("\(relevantPreparedCount) ready, \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
+                Text("\(preparedCount) episode\(preparedCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) show\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Choose a compatible device to build the full sync plan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private var plannedActionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Planned Actions")
+                .font(.headline)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(syncPlanViewModel.actionDescriptions.enumerated()), id: \.offset) { _, description in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: iconName(for: description))
+                                .foregroundStyle(iconColor(for: description))
+                                .frame(width: 14)
+                            Text(description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+            }
+            .frame(minHeight: 100, maxHeight: 180)
+        }
     }
 
     @ViewBuilder
@@ -553,6 +651,7 @@ public struct MainView: View {
             device: deviceViewModel.selectedDevice,
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
             subscriptions: viewModel.feedSubscriptions,
+            manualDeleteTargets: manuallySelectedDeletionTargets,
             ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
             isDryRun: viewModel.settings.dryRunByDefault
         )
@@ -563,6 +662,7 @@ public struct MainView: View {
             device: deviceViewModel.selectedDevice,
             subscriptions: viewModel.feedSubscriptions
         )
+        pruneManualDeletionTargets()
     }
 
     private func handleDeviceTopologyChange() {
@@ -612,6 +712,145 @@ public struct MainView: View {
         })
     }
 
+    private var canOpenSyncPreview: Bool {
+        deviceViewModel.selectedDevice != nil && !viewModel.feedSubscriptions.isEmpty
+    }
+
+    private var enabledSubscriptionCount: Int {
+        viewModel.feedSubscriptions.filter(\.isEnabled).count
+    }
+
+    private var syncPlanSummaryText: String {
+        guard let plan = syncPlanViewModel.plan else {
+            return deviceViewModel.selectedDevice == nil
+                ? "Pick a compatible device to preview the full sync."
+                : "The full sync plan will appear here once episodes are prepared."
+        }
+
+        let actionCount = plan.actions.count
+        return "Review the full-device plan for all shows before \(plan.isDryRun ? "previewing" : "syncing"). \(actionCount) action\(actionCount == 1 ? "" : "s") currently planned."
+    }
+
+    @ViewBuilder
+    private func syncProgressSection(_ progress: SyncExecutionProgress) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(progress.currentActionDescription ?? "Finishing sync")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            ProgressView(value: progress.fractionCompleted)
+                .progressViewStyle(.linear)
+            Text("\(progress.completedCount) of \(progress.totalCount) actions complete")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func syncResultCard(_ result: SyncResult) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(result.isDryRun ? "Last Preview" : "Last Sync")
+                .font(.headline)
+
+            Text(syncResultSummary(result))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if result.ejected {
+                Text("The device was ejected after the sync finished.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(result.warnings, id: \.self) { warning in
+                Text(warning)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func iconName(for description: String) -> String {
+        if description.hasPrefix("Copy to device") {
+            return "arrow.down.circle"
+        }
+        if description.hasPrefix("Delete old episode") {
+            return "trash"
+        }
+        if description.hasPrefix("Skip") {
+            return "arrow.right"
+        }
+        if description == "Clear device trash" {
+            return "trash.slash"
+        }
+        if description == "Eject device after sync" {
+            return "eject"
+        }
+        return "circle"
+    }
+
+    private func iconColor(for description: String) -> Color {
+        if description.hasPrefix("Delete old episode") {
+            return .red
+        }
+        if description.hasPrefix("Copy to device") {
+            return .accentColor
+        }
+        if description == "Clear device trash" {
+            return .orange
+        }
+        if description == "Eject device after sync" {
+            return .secondary
+        }
+        return .secondary
+    }
+
+    private func runSync() async {
+        await syncExecutionViewModel.sync(
+            device: deviceViewModel.selectedDevice,
+            preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
+            subscriptions: viewModel.feedSubscriptions,
+            manualDeleteTargets: manuallySelectedDeletionTargets,
+            ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
+            isDryRun: viewModel.settings.dryRunByDefault
+        )
+        refreshDeviceLibrary()
+        rebuildSyncPlan()
+        if viewModel.hasFeeds {
+            await refreshFeedPreview()
+        }
+        if viewModel.settings.ejectAfterSyncByDefault {
+            deviceViewModel.refresh()
+        }
+    }
+
+    private func openSyncPreview() {
+        rebuildSyncPlan()
+        isShowingSyncPreview = true
+    }
+
+    private func toggleDeletionSelection(for fileURL: URL) {
+        let fileURL = fileURL.standardizedFileURL
+        if manuallySelectedDeletionTargets.contains(fileURL) {
+            manuallySelectedDeletionTargets.remove(fileURL)
+        } else {
+            manuallySelectedDeletionTargets.insert(fileURL)
+        }
+        rebuildSyncPlan()
+    }
+
+    private func pruneManualDeletionTargets() {
+        let allKnownFiles = Set(
+            viewModel.feedSubscriptions
+                .flatMap { deviceLibraryViewModel.files(for: $0) }
+                .map(\.standardizedFileURL)
+        )
+        manuallySelectedDeletionTargets = manuallySelectedDeletionTargets.intersection(allKnownFiles)
+    }
+
     @ViewBuilder
     private func deviceFilesSection(for subscription: FeedSubscription) -> some View {
         let deviceFiles = deviceLibraryViewModel.files(for: subscription)
@@ -627,18 +866,25 @@ public struct MainView: View {
                     .foregroundStyle(.secondary)
             } else {
                 Text(viewModel.settings.dryRunByDefault
-                    ? "Checked files would be deleted in a real sync."
-                    : "Checked files will be deleted on the next sync.")
+                    ? "Checked files stay on the device. Uncheck a file to preview deleting it."
+                    : "Checked files stay on the device. Uncheck a file to delete it on the next sync.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 ForEach(deviceFiles, id: \.path) { fileURL in
-                    HStack(spacing: 10) {
-                        Image(systemName: deletions.contains(fileURL.standardizedFileURL) ? "checkmark.square.fill" : "square")
-                            .foregroundStyle(deletions.contains(fileURL.standardizedFileURL) ? Color.red : Color.secondary)
-                        Text(fileURL.lastPathComponent)
-                            .font(.caption)
+                    Button {
+                        toggleDeletionSelection(for: fileURL)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: deletions.contains(fileURL.standardizedFileURL) ? "square" : "checkmark.square.fill")
+                                .foregroundStyle(deletions.contains(fileURL.standardizedFileURL) ? Color.red : Color.accentColor)
+                            Text(fileURL.lastPathComponent)
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -675,6 +921,13 @@ public struct MainView: View {
             return viewModel.settings.dryRunByDefault ? "Previewing..." : "Syncing..."
         }
         return viewModel.settings.dryRunByDefault ? "Preview Sync" : "Sync"
+    }
+
+    private var sheetSyncButtonTitle: String {
+        if syncExecutionViewModel.isSyncing {
+            return viewModel.settings.dryRunByDefault ? "Previewing..." : "Syncing..."
+        }
+        return viewModel.settings.dryRunByDefault ? "Run Preview" : "Start Sync"
     }
 
     private var dryRunBanner: some View {

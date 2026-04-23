@@ -6,6 +6,7 @@ import SpodcastManaagerCore
 @Observable
 public final class SyncExecutionViewModel {
     public private(set) var isSyncing: Bool
+    public private(set) var progress: SyncExecutionProgress?
     public private(set) var lastResult: SyncResult?
     public private(set) var lastErrorMessage: String?
     public private(set) var lastPlan: SyncPlan?
@@ -20,6 +21,7 @@ public final class SyncExecutionViewModel {
         self.planner = planner
         self.executor = executor
         self.isSyncing = false
+        self.progress = nil
         self.lastResult = nil
         self.lastErrorMessage = nil
         self.lastPlan = nil
@@ -29,6 +31,7 @@ public final class SyncExecutionViewModel {
         device: DeviceInfo?,
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
+        manualDeleteTargets: Set<URL> = [],
         ejectAfterSync: Bool,
         isDryRun: Bool
     ) async {
@@ -37,22 +40,34 @@ public final class SyncExecutionViewModel {
             return
         }
 
-        isSyncing = true
-        defer { isSyncing = false }
-
         do {
             let plan = try planner.makePlan(
                 device: device,
                 preparedEpisodes: preparedEpisodes,
                 subscriptions: subscriptions,
+                manualDeleteTargets: manualDeleteTargets,
                 ejectAfterSync: ejectAfterSync,
                 isDryRun: isDryRun
             )
             lastPlan = plan
-            let result = if isDryRun {
-                Self.previewResult(for: plan)
+            isSyncing = true
+            progress = SyncExecutionProgress(totalCount: plan.actions.count, completedCount: 0)
+            defer {
+                isSyncing = false
+                progress = nil
+            }
+            let result: SyncResult
+            if isDryRun {
+                result = Self.previewResult(for: plan)
             } else {
-                try executor.execute(plan: plan)
+                let executor = self.executor
+                result = try await Task.detached(priority: .userInitiated) { [weak self] in
+                    try executor.execute(plan: plan) { progress in
+                        Task { @MainActor in
+                            self?.progress = progress
+                        }
+                    }
+                }.value
             }
             lastResult = result
             lastErrorMessage = nil

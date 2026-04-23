@@ -39,6 +39,7 @@ struct SyncPlanViewModelTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [subscription],
+            manualDeleteTargets: [],
             ejectAfterSync: true,
             isDryRun: true
         )
@@ -57,6 +58,7 @@ struct SyncPlanViewModelTests {
             device: nil,
             preparedEpisodes: [],
             subscriptions: [],
+            manualDeleteTargets: [],
             ejectAfterSync: false,
             isDryRun: true
         )

@@ -15,12 +15,23 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         self.ejector = ejector
     }
 
-    public func execute(plan: SyncPlan) throws -> SyncResult {
+    public func execute(
+        plan: SyncPlan,
+        progress: (@Sendable (SyncExecutionProgress) -> Void)? = nil
+    ) throws -> SyncResult {
         var result = SyncResult(startedAt: Date(), isDryRun: false)
+        let totalCount = plan.actions.count
 
         try safetyValidator.validateDevice(plan.device)
 
-        for action in plan.actions {
+        for (index, action) in plan.actions.enumerated() {
+            progress?(
+                SyncExecutionProgress(
+                    totalCount: totalCount,
+                    completedCount: index,
+                    currentActionDescription: action.summaryDescription
+                )
+            )
             try safetyValidator.validate(action, on: plan.device)
 
             switch action {
@@ -60,6 +71,12 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         }
 
         result.finishedAt = Date()
+        progress?(
+            SyncExecutionProgress(
+                totalCount: totalCount,
+                completedCount: totalCount
+            )
+        )
         return result
     }
 

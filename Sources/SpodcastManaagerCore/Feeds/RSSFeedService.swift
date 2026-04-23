@@ -2,14 +2,9 @@ import Foundation
 
 public struct RSSFeedService: FeedService {
     public let session: URLSession
-    public let parserFactory: @Sendable () -> RSSFeedParser
 
-    public init(
-        session: URLSession = CachedHTTPSession.shared,
-        parserFactory: @escaping @Sendable () -> RSSFeedParser = RSSFeedParser.init
-    ) {
+    public init(session: URLSession = CachedHTTPSession.shared) {
         self.session = session
-        self.parserFactory = parserFactory
     }
 
     public func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
@@ -31,7 +26,7 @@ public struct RSSFeedService: FeedService {
                     throw FeedServiceError.requestFailed(statusCode: httpResponse.statusCode)
                 }
 
-                let parser = parserFactory()
+                let parser = RSSFeedParser()
                 let parsedFeed = try parser.parse(data: data, sourceFeedURL: subscription.rssURL, subscriptionID: subscription.id)
                 allEpisodes.append(contentsOf: parsedFeed.episodes)
                 let chosenEpisodes = EpisodeSelector.selectEpisodes(from: parsedFeed.episodes, for: subscription)

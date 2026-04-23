@@ -2,14 +2,9 @@ import Foundation
 
 public struct RSSFeedMetadataService: FeedMetadataResolving {
     public let session: URLSession
-    public let parserFactory: @Sendable () -> RSSFeedParser
 
-    public init(
-        session: URLSession = CachedHTTPSession.shared,
-        parserFactory: @escaping @Sendable () -> RSSFeedParser = RSSFeedParser.init
-    ) {
+    public init(session: URLSession = CachedHTTPSession.shared) {
         self.session = session
-        self.parserFactory = parserFactory
     }
 
     public func resolveMetadata(for rssURL: URL, subscriptionID: UUID?) async throws -> FeedSummary {
@@ -24,7 +19,7 @@ public struct RSSFeedMetadataService: FeedMetadataResolving {
             throw FeedServiceError.requestFailed(statusCode: httpResponse.statusCode)
         }
 
-        let parser = parserFactory()
+        let parser = RSSFeedParser()
         let parsedFeed = try parser.parse(data: data, sourceFeedURL: rssURL, subscriptionID: subscriptionID)
         return FeedSummary(
             subscriptionID: subscriptionID ?? UUID(),

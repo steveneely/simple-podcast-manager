@@ -20,9 +20,15 @@ let package = Package(
             targets: ["SpodcastManaagerApp"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/nmdias/FeedKit", from: "10.4.0"),
+    ],
     targets: [
         .target(
             name: "SpodcastManaagerCore",
+            dependencies: [
+                .product(name: "FeedKit", package: "FeedKit"),
+            ],
             path: "Sources/SpodcastManaagerCore"
         ),
         .target(

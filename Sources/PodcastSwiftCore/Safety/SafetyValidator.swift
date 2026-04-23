@@ -9,8 +9,8 @@ public struct SafetyValidator: Sendable {
 
     public func validateDevice(_ device: DeviceInfo) throws {
         let rootURL = canonicalDirectoryURL(device.rootURL)
-        let expectedMusicURL = rootURL.appending(path: "music", directoryHint: .isDirectory)
-        let expectedTrashURL = rootURL.appending(path: ".Trashes", directoryHint: .isDirectory)
+        let expectedMusicURL = canonicalDirectoryURL(rootURL.appending(path: "music", directoryHint: .isDirectory))
+        let expectedTrashURL = canonicalDirectoryURL(rootURL.appending(path: ".Trashes", directoryHint: .isDirectory))
         let actualMusicURL = canonicalDirectoryURL(device.musicURL)
         let actualTrashURL = canonicalDirectoryURL(device.trashURL)
 

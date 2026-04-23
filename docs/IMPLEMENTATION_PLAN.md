@@ -82,7 +82,7 @@ Depends on:
 
 ## Milestone 4: Device Detection And Validation
 
-Status: next
+Status: complete
 
 Build mounted-volume discovery and strict sync target validation.
 
@@ -108,7 +108,7 @@ Depends on:
 
 ## Milestone 5: Feed Reading And Episode Selection
 
-Status: pending
+Status: next
 
 Implement RSS fetch/parsing and choose desired episodes for each enabled feed.
 

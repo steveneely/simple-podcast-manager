@@ -68,6 +68,7 @@ Implemented so far:
 - milestone 1: domain models and safety validator
 - milestone 2: JSON-backed configuration store and basic SwiftUI state/editor flow
 - milestone 3: Podcast Index-backed discovery flow and subscribe-from-search support
+- milestone 4: mounted-device detection, candidate selection, and validation UI state
 
 Current package targets:
 

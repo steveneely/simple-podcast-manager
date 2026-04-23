@@ -4,6 +4,7 @@ import PodcastSwiftCore
 public struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var discoveryViewModel: DiscoveryViewModel
+    @State private var deviceViewModel: DeviceViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var isShowingFeedEditor = false
@@ -12,11 +13,13 @@ public struct MainView: View {
     public init(viewModel: MainViewModel) {
         self._viewModel = State(initialValue: viewModel)
         self._discoveryViewModel = State(initialValue: DiscoveryViewModel())
+        self._deviceViewModel = State(initialValue: DeviceViewModel())
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
+            deviceSection
             discoverySection
 
             if viewModel.hasFeeds {
@@ -47,6 +50,9 @@ public struct MainView: View {
         .task {
             if !viewModel.hasLoadedConfiguration {
                 viewModel.load()
+            }
+            if !deviceViewModel.hasLoadedDevices {
+                deviceViewModel.refresh()
             }
         }
         .sheet(isPresented: $isShowingFeedEditor) {
@@ -120,6 +126,60 @@ public struct MainView: View {
         }
     }
 
+    private var deviceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Device")
+                        .font(.headline)
+                    Text(deviceViewModel.statusMessage)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Refresh Devices") {
+                    deviceViewModel.refresh()
+                }
+            }
+
+            if deviceViewModel.hasMultipleDevices {
+                Picker("Target device", selection: deviceSelectionBinding) {
+                    Text("Choose a device")
+                        .tag("")
+                    ForEach(deviceViewModel.devices) { device in
+                        Text(device.name)
+                            .tag(device.id)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            if let selectedDevice = deviceViewModel.selectedDevice {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Mounted at: \(selectedDevice.rootURL.path)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Music folder: \(selectedDevice.musicURL.path)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Trash folder: \(selectedDevice.trashURL.path)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let deviceErrorMessage = deviceViewModel.lastErrorMessage {
+                Text(deviceErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(14)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
     private var feedList: some View {
         VStack(alignment: .leading, spacing: 12) {
             List(selection: $selectedFeedID) {
@@ -186,6 +246,16 @@ public struct MainView: View {
 
     private var discoveryResults: [DiscoveryResult] {
         discoveryViewModel.results
+    }
+
+    private var deviceSelectionBinding: Binding<String> {
+        Binding(
+            get: { deviceViewModel.selectedDevice?.id ?? "" },
+            set: { newValue in
+                guard !newValue.isEmpty else { return }
+                deviceViewModel.selectDevice(id: newValue)
+            }
+        )
     }
 
     private func runDiscoverySearch() {

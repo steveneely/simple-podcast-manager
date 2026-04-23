@@ -70,6 +70,7 @@ Implemented so far:
 - milestone 3: Podcast Index-backed discovery flow and subscribe-from-search support
 - milestone 4: mounted-device detection, candidate selection, and validation UI state
 - milestone 5: RSS feed parsing and retained-episode preview for enabled feeds
+- milestone 6: temporary-media preparation with download preview and MP3 conversion decisions
 
 Current package targets:
 

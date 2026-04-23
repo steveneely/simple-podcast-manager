@@ -133,7 +133,7 @@ Depends on:
 
 ## Milestone 6: Download And MP3 Conversion
 
-Status: next
+Status: complete
 
 Normalize remote media into local files ready for sync.
 
@@ -157,7 +157,7 @@ Depends on:
 
 ## Milestone 7: Sync Planning
 
-Status: pending
+Status: next
 
 Create the planning layer that compares desired episodes with the device state and produces executable actions.
 

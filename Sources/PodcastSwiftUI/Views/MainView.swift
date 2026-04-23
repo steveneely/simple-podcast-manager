@@ -6,6 +6,7 @@ public struct MainView: View {
     @State private var discoveryViewModel: DiscoveryViewModel
     @State private var deviceViewModel: DeviceViewModel
     @State private var feedPreviewViewModel: FeedPreviewViewModel
+    @State private var preparationPreviewViewModel: PreparationPreviewViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var isShowingFeedEditor = false
@@ -16,6 +17,7 @@ public struct MainView: View {
         self._discoveryViewModel = State(initialValue: DiscoveryViewModel())
         self._deviceViewModel = State(initialValue: DeviceViewModel())
         self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
+        self._preparationPreviewViewModel = State(initialValue: PreparationPreviewViewModel())
     }
 
     public var body: some View {
@@ -24,6 +26,7 @@ public struct MainView: View {
             deviceSection
             discoverySection
             feedPreviewSection
+            preparationSection
 
             if viewModel.hasFeeds {
                 feedList
@@ -50,6 +53,12 @@ public struct MainView: View {
 
             if let feedPreviewErrorMessage = feedPreviewViewModel.lastErrorMessage {
                 Text(feedPreviewErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            if let preparationErrorMessage = preparationPreviewViewModel.lastErrorMessage {
+                Text(preparationErrorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
@@ -254,6 +263,75 @@ public struct MainView: View {
                 Text(deviceErrorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
+            }
+        }
+        .padding(14)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var preparationSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Preparation Preview")
+                        .font(.headline)
+                    Text("Download preview episodes into a temporary workspace and show MP3 passthrough or conversion decisions.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(preparationPreviewViewModel.isPreparing ? "Preparing..." : "Prepare Media") {
+                    Task {
+                        await preparationPreviewViewModel.prepare(feedPreviewViewModel.selectedEpisodes, settings: viewModel.settings)
+                    }
+                }
+                .disabled(preparationPreviewViewModel.isPreparing || feedPreviewViewModel.selectedEpisodes.isEmpty)
+            }
+
+            if preparationPreviewViewModel.hasResults {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let workspaceURL = preparationPreviewViewModel.workspaceURL {
+                        Text("Workspace: \(workspaceURL.path)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !preparationPreviewViewModel.preparedEpisodes.isEmpty {
+                        ForEach(preparationPreviewViewModel.preparedEpisodes) { preparedEpisode in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(preparedEpisode.episode.title)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                Text(preparedEpisode.preparationAction == .passthroughMP3 ? "MP3 passthrough" : "Converted to MP3")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(preparedEpisode.preparedFileURL.lastPathComponent)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+
+                    if !preparationPreviewViewModel.failures.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Preparation issues")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            ForEach(preparationPreviewViewModel.failures) { failure in
+                                Text("\(failure.episodeTitle): \(failure.message)")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(feedPreviewViewModel.selectedEpisodes.isEmpty ? "Refresh feeds first so there are retained episodes to prepare." : "Prepare preview episodes to validate downloading and MP3 conversion behavior.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(14)

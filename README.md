@@ -71,6 +71,7 @@ Implemented so far:
 - milestone 4: mounted-device detection, candidate selection, and validation UI state
 - milestone 5: RSS feed parsing and retained-episode preview for enabled feeds
 - milestone 6: temporary-media preparation with download preview and MP3 conversion decisions
+- milestone 7: dry-run sync planning with copy/skip/delete/trash/eject action preview
 
 Current package targets:
 

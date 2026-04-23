@@ -91,10 +91,10 @@ struct RSSFeedServiceTests {
 }
 
 private final class FeedURLProtocolStub: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) private static var stubs: [String: String] = [:]
+    private static let store = FeedURLStubStore()
 
     static func stub(feedURL: URL, responseBody: String) {
-        stubs[feedURL.absoluteString] = responseBody
+        store.set(responseBody, for: feedURL.absoluteString)
     }
 
     override class func canInit(with request: URLRequest) -> Bool {
@@ -108,7 +108,7 @@ private final class FeedURLProtocolStub: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         guard
             let url = request.url,
-            let body = Self.stubs[url.absoluteString],
+            let body = Self.store.body(for: url.absoluteString),
             let data = body.data(using: .utf8)
         else {
             client?.urlProtocol(
@@ -130,4 +130,21 @@ private final class FeedURLProtocolStub: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {}
+}
+
+private final class FeedURLStubStore: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stubs: [String: String] = [:]
+
+    func set(_ body: String, for urlString: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        stubs[urlString] = body
+    }
+
+    func body(for urlString: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return stubs[urlString]
+    }
 }

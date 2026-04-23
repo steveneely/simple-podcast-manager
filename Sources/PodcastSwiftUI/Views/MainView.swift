@@ -7,6 +7,7 @@ public struct MainView: View {
     @State private var deviceViewModel: DeviceViewModel
     @State private var feedPreviewViewModel: FeedPreviewViewModel
     @State private var preparationPreviewViewModel: PreparationPreviewViewModel
+    @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var isShowingFeedEditor = false
@@ -18,6 +19,7 @@ public struct MainView: View {
         self._deviceViewModel = State(initialValue: DeviceViewModel())
         self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
         self._preparationPreviewViewModel = State(initialValue: PreparationPreviewViewModel())
+        self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
     }
 
     public var body: some View {
@@ -27,6 +29,7 @@ public struct MainView: View {
             discoverySection
             feedPreviewSection
             preparationSection
+            syncPlanSection
 
             if viewModel.hasFeeds {
                 feedList
@@ -59,6 +62,12 @@ public struct MainView: View {
 
             if let preparationErrorMessage = preparationPreviewViewModel.lastErrorMessage {
                 Text(preparationErrorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            if let syncPlanErrorMessage = syncPlanViewModel.lastErrorMessage {
+                Text(syncPlanErrorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
@@ -330,6 +339,53 @@ public struct MainView: View {
                 }
             } else {
                 Text(feedPreviewViewModel.selectedEpisodes.isEmpty ? "Refresh feeds first so there are retained episodes to prepare." : "Prepare preview episodes to validate downloading and MP3 conversion behavior.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var syncPlanSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sync Plan")
+                        .font(.headline)
+                    Text("Build a dry-run action plan from the current device, prepared media, and retention rules.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(syncPlanViewModel.isPlanning ? "Planning..." : "Build Plan") {
+                    syncPlanViewModel.buildPlan(
+                        device: deviceViewModel.selectedDevice,
+                        preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
+                        subscriptions: viewModel.feedSubscriptions,
+                        ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
+                        isDryRun: true
+                    )
+                }
+                .disabled(syncPlanViewModel.isPlanning || preparationPreviewViewModel.preparedEpisodes.isEmpty)
+            }
+
+            if let plan = syncPlanViewModel.plan {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Planned actions: \(plan.actions.count)")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    ForEach(Array(syncPlanViewModel.actionDescriptions.enumerated()), id: \.offset) { _, description in
+                        Text(description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                Text(preparationPreviewViewModel.preparedEpisodes.isEmpty ? "Prepare media first to build a sync plan." : "Build a dry-run plan to inspect copy, skip, delete, trash cleanup, and eject actions.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

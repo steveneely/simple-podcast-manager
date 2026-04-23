@@ -157,7 +157,7 @@ Depends on:
 
 ## Milestone 7: Sync Planning
 
-Status: next
+Status: complete
 
 Create the planning layer that compares desired episodes with the device state and produces executable actions.
 
@@ -183,7 +183,7 @@ Depends on:
 
 ## Milestone 8: Execution, Progress, And Eject
 
-Status: pending
+Status: next
 
 Execute the validated plan and report results in the UI.
 

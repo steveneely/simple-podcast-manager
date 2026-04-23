@@ -1,2 +1,3 @@
 .build/
 DerivedData/
+.swift-cache/

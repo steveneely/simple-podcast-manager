@@ -3,6 +3,8 @@ import Testing
 @testable import SPodcastManagerCore
 
 struct SyncExecutorTests {
+    private let userTrashURL = URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes/501", isDirectory: true)
+
     @Test
     func executeCopiesDeletesToTrashAndCountsSkippedActions() throws {
         let device = makeDevice()
@@ -24,7 +26,7 @@ struct SyncExecutorTests {
             ]
         )
         let ejector = RecordingDeviceEjector()
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector)
+        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector, userID: 501)
 
         let result = try executor.execute(
             plan: SyncPlan(
@@ -42,9 +44,10 @@ struct SyncExecutorTests {
         #expect(result.deletedCount == 1)
         #expect(result.skippedCount == 1)
         #expect(fileSystem.createdDirectories.contains(destinationURL.deletingLastPathComponent()))
+        #expect(fileSystem.createdDirectories.contains(userTrashURL.standardizedFileURL))
         #expect(fileSystem.copiedItems.contains(where: { $0.source == sourceURL && $0.destination == destinationURL }))
-        #expect(fileSystem.movedItems.contains(where: { $0.source == deleteTargetURL && $0.destination == device.trashURL.appendingPathComponent("Episode_1.mp3") }))
-        #expect(fileSystem.movedItems.contains(where: { $0.source == sidecarURL && $0.destination == device.trashURL.appendingPathComponent("._Episode_1.mp3") }))
+        #expect(fileSystem.movedItems.contains(where: { $0.source == deleteTargetURL && $0.destination == userTrashURL.appendingPathComponent("Episode_1.mp3") }))
+        #expect(fileSystem.movedItems.contains(where: { $0.source == sidecarURL && $0.destination == userTrashURL.appendingPathComponent("._Episode_1.mp3") }))
         #expect(!fileSystem.removedItems.contains(managedDirectory.standardizedFileURL))
         #expect(!ejector.didEject)
     }
@@ -57,19 +60,19 @@ struct SyncExecutorTests {
         let deleteTargetURL = device.musicURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("Episode_1.mp3", isDirectory: false)
-        let collidingTrashURL = device.trashURL.appendingPathComponent("Episode_1.mp3", isDirectory: false)
-        let suffixedTrashURL = device.trashURL.appendingPathComponent("Episode_1-1.mp3", isDirectory: false)
-        let staleTrashURL = device.trashURL.appendingPathComponent("old.tmp", isDirectory: false)
+        let collidingTrashURL = userTrashURL.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let suffixedTrashURL = userTrashURL.appendingPathComponent("Episode_1-1.mp3", isDirectory: false)
+        let staleTrashURL = userTrashURL.appendingPathComponent("old.tmp", isDirectory: false)
 
         let fileSystem = RecordingFileSystem(
-            existingURLs: [deleteTargetURL, collidingTrashURL, device.trashURL, staleTrashURL, managedDirectory],
+            existingURLs: [deleteTargetURL, collidingTrashURL, userTrashURL, staleTrashURL, managedDirectory],
             directoryContents: [
                 managedDirectory.standardizedFileURL.path: [deleteTargetURL],
-                device.trashURL.standardizedFileURL.path: [collidingTrashURL, staleTrashURL]
+                userTrashURL.standardizedFileURL.path: [collidingTrashURL, staleTrashURL]
             ]
         )
         let ejector = RecordingDeviceEjector()
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector)
+        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector, userID: 501)
 
         let result = try executor.execute(
             plan: SyncPlan(
@@ -106,7 +109,7 @@ struct SyncExecutorTests {
                 managedDirectory.standardizedFileURL.path: [deleteTargetURL, remainingEpisodeURL]
             ]
         )
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
+        let executor = SyncExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector(), userID: 501)
 
         _ = try executor.execute(
             plan: SyncPlan(

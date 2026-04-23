@@ -1,18 +1,22 @@
 import Foundation
+import Darwin
 
 public struct SyncExecutor: Sendable, SyncExecuting {
     private let fileSystem: any FileSystemOperating
     private let safetyValidator: SafetyValidator
     private let ejector: any DeviceEjecting
+    private let userID: UInt32
 
     public init(
         fileSystem: any FileSystemOperating = LocalFileSystem(),
         safetyValidator: SafetyValidator = SafetyValidator(),
-        ejector: any DeviceEjecting = DiskUtilityDeviceEjector()
+        ejector: any DeviceEjecting = DiskUtilityDeviceEjector(),
+        userID: UInt32 = getuid()
     ) {
         self.fileSystem = fileSystem
         self.safetyValidator = safetyValidator
         self.ejector = ejector
+        self.userID = userID
     }
 
     public func execute(
@@ -47,19 +51,21 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                 result.copiedCount += 1
 
             case .deleteFromDevice(let targetURL):
-                let trashDestinationURL = uniqueTrashDestination(for: targetURL, in: plan.device.trashURL)
-                try fileSystem.createDirectory(at: plan.device.trashURL)
+                let effectiveTrashURL = userTrashURL(in: plan.device.trashURL)
+                let trashDestinationURL = uniqueTrashDestination(for: targetURL, in: effectiveTrashURL)
+                try fileSystem.createDirectory(at: effectiveTrashURL)
                 if fileSystem.fileExists(at: trashDestinationURL) {
                     try fileSystem.removeItem(at: trashDestinationURL)
                 }
                 try fileSystem.moveItem(at: targetURL, to: trashDestinationURL)
-                try moveAppleDoubleSidecarIfPresent(for: targetURL, to: plan.device.trashURL)
+                try moveAppleDoubleSidecarIfPresent(for: targetURL, to: effectiveTrashURL)
                 try removeEmptyManagedDirectoryIfNeeded(containing: targetURL, on: plan.device)
                 result.deletedCount += 1
 
             case .clearDeviceTrash(let trashURL):
-                guard fileSystem.fileExists(at: trashURL) else { continue }
-                for childURL in try fileSystem.contentsOfDirectory(at: trashURL) {
+                let effectiveTrashURL = userTrashURL(in: trashURL)
+                guard fileSystem.fileExists(at: effectiveTrashURL) else { continue }
+                for childURL in try fileSystem.contentsOfDirectory(at: effectiveTrashURL) {
                     try fileSystem.removeItem(at: childURL)
                 }
 
@@ -127,5 +133,9 @@ public struct SyncExecutor: Sendable, SyncExecuting {
 
         try safetyValidator.validateDeleteTarget(managedDirectoryURL, on: device)
         try fileSystem.removeItem(at: managedDirectoryURL)
+    }
+
+    private func userTrashURL(in trashRootURL: URL) -> URL {
+        trashRootURL.appendingPathComponent(String(userID), isDirectory: true)
     }
 }

@@ -2,7 +2,7 @@
 
 ## Project Goal
 
-PodcastSwift should feel extremely simple:
+Spodcast Manaager should feel extremely simple:
 
 plug in device -> click sync -> everything handled -> done
 
@@ -30,7 +30,7 @@ If a proposed implementation weakens those guarantees, do not take it.
 
 - Build the app in Swift using `SwiftUI`
 - Keep the sync engine in-process and in Swift
-- Treat podcast discovery as a separate service from feed syncing
+- Treat feed metadata refresh as a separate service from media preparation and sync execution
 - Use `ffmpeg` as an external process for conversion
 - Prefer Foundation and direct platform APIs before adding packages
 - Avoid unnecessary frameworks, services, or abstraction layers
@@ -53,7 +53,7 @@ Implement in this order:
 1. safety model and path validation
 2. config and app state
 3. device detection
-4. podcast discovery and subscription flow
+4. RSS subscription flow
 5. feed parsing and episode selection
 6. download and conversion
 7. sync planning
@@ -71,22 +71,22 @@ Dry-run must use the same plan as real sync and must not mutate the device.
 
 Once code exists, use this structure:
 
-- `Sources/PodcastSwiftCore/`: domain types, persistence, validation, future sync services
-- `Sources/PodcastSwiftUI/`: SwiftUI screens and view models
-- `Tests/PodcastSwiftCoreTests/`: core behavior tests
-- `Tests/PodcastSwiftUITests/`: UI-facing state tests
+- `Sources/SpodcastManaagerCore/`: domain types, persistence, validation, future sync services
+- `Sources/SpodcastManaagerUI/`: SwiftUI screens and view models
+- `Tests/SpodcastManaagerCoreTests/`: core behavior tests
+- `Tests/SpodcastManaagerUITests/`: UI-facing state tests
 
 Recommended service boundaries:
 
-- discovery code should only find and normalize candidate feeds
+- feed metadata should be resolved from RSS and applied to saved subscriptions
 - UI code should not contain sync logic
 - mutation code should be separate from planning code
 - path validation should be reusable and called before every destructive operation
 
 Current package targets:
 
-- `PodcastSwiftCore`
-- `PodcastSwiftUI`
+- `SpodcastManaagerCore`
+- `SpodcastManaagerUI`
 
 ## Testing Expectations
 
@@ -94,8 +94,6 @@ Add tests around behavior with the highest risk first:
 
 - valid device detection
 - invalid or ambiguous device detection
-- discovery result can create a valid feed subscription
-- discovery results without a usable feed URL are not subscribable
 - dry-run parity with real sync planning
 - retention deleting only managed files
 - trash cleanup touching only device `.Trashes`

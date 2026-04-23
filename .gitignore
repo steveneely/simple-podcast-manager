@@ -1,3 +1,5 @@
 .build/
 DerivedData/
 .swift-cache/
+.swiftpm/
+SpodcastManaagerURLCache/

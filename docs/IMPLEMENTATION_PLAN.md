@@ -1,4 +1,4 @@
-# PodcastSwift Implementation Plan
+# Spodcast Manaager Implementation Plan
 
 ## Summary
 
@@ -54,26 +54,24 @@ Depends on:
 
 - milestone 1
 
-## Milestone 3: Podcast Discovery And Subscription Flow
+## Milestone 3: RSS Subscription Flow
 
 Status: complete
 
-Add podcast search so the user can discover shows and subscribe without manually pasting RSS URLs.
+Add a clean RSS subscription flow so the user can add shows by feed URL and have the app resolve metadata automatically.
 
 Deliverables:
 
-- discovery search UI
-- primary discovery provider integration
-- normalized discovery result model
-- subscribe action that creates a local feed subscription
-- fallback manual RSS entry flow remains available
+- add/edit RSS UI
+- feed metadata resolution
+- subscription persistence from resolved metadata
+- manual RSS entry flow
 
 Acceptance criteria:
 
-- a search term returns podcast discovery results
-- a subscribable result can be added to the saved feed list
-- results without a usable RSS feed URL are not treated as subscribable
-- discovery failure does not prevent manual RSS subscription
+- a valid RSS feed URL creates a saved feed subscription
+- feed title and artwork are read from the feed
+- invalid RSS URLs surface a clear error
 
 Depends on:
 

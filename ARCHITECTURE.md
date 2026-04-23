@@ -1,8 +1,8 @@
-# PodcastSwift Architecture
+# Spodcast Manaager Architecture
 
 ## Summary
 
-PodcastSwift is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is the only planned external dependency.
+Spodcast Manaager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is the only planned external dependency.
 
 The architecture should stay simple:
 
@@ -24,9 +24,8 @@ The UI should not contain sync logic. It should call a single coordinator in the
 
 ### UI Layer
 
-- `PodcastSwiftApp`: app lifecycle and main window setup
+- `SpodcastManaagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
-- `DiscoveryView`: search for podcasts and subscribe from results
 - `FeedEditorView`: add or edit feeds and retention values
 - `SettingsView`: `ffmpeg` path, dry-run default, eject-after-sync default
 - `SyncViewModel`: bind UI to sync engine and expose progress/state
@@ -35,7 +34,6 @@ The UI should not contain sync logic. It should call a single coordinator in the
 ### Core Layer
 
 - `SyncCoordinator`: top-level orchestrator for a sync run
-- `PodcastDiscoveryService`: query podcast directories and normalize search results
 - `FeedService`: fetch and parse RSS feeds
 - `DownloadService`: download episode media into a temporary workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
@@ -51,7 +49,6 @@ The UI should not contain sync logic. It should call a single coordinator in the
 
 At minimum, v1 should define:
 
-- `DiscoveryResult`
 - `FeedSubscription`
 - `Episode`
 - `DeviceInfo`
@@ -66,8 +63,8 @@ At minimum, v1 should define:
 Expected runtime flow:
 
 1. The app loads persisted feeds and settings.
-2. If the user searches for a podcast, `PodcastDiscoveryService` queries the discovery provider and returns normalized results.
-3. The user subscribes to a discovery result, which creates a `FeedSubscription` from the resolved RSS feed URL.
+2. The user adds a podcast by entering an RSS feed URL.
+3. The app resolves feed metadata from RSS and creates a `FeedSubscription`.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
 5. The user clicks `Sync`.
 6. `SyncViewModel` calls `SyncCoordinator`.
@@ -85,37 +82,16 @@ Expected runtime flow:
 
 The planner and executor must share the same decision logic. Dry-run is not a separate implementation path.
 
-## Podcast Discovery
+## RSS Subscription
 
-Podcast discovery should be RSS-first. The purpose of discovery is to help the user find a podcast feed to subscribe to, not to integrate with a playback platform.
+Subscription should be RSS-first. The purpose of add/edit flow is to capture a feed URL, resolve title and artwork metadata from the feed itself, and store a clean subscription the sync engine can trust.
 
-Primary provider for v1:
+The flow should be:
 
-- Podcast Index search API
-
-Optional fallback provider after v1:
-
-- Apple iTunes Search API for podcast directory search
-
-Not part of the core design:
-
-- direct Apple Podcasts library integration
-- Spotify-based subscription or sync workflows
-
-Provider behavior:
-
-- user enters a search term
-- the provider returns normalized `DiscoveryResult` items
-- each result should include enough information to show title, publisher or author, artwork, summary, and resolved feed URL when available
-- the user can subscribe by converting a result into a local `FeedSubscription`
-
-If a discovery result does not contain a usable RSS feed URL, it should not be subscribable in v1.
-
-Provider selection defaults:
-
-- use Podcast Index as the primary provider
-- keep manual RSS entry available at all times
-- do not block the app on Apple- or Spotify-specific integrations
+- user enters an RSS feed URL
+- the app fetches the feed and reads title/artwork metadata
+- the app stores the resolved subscription
+- later refreshes can update the stored title and artwork if the feed changes
 
 ## Device Detection
 
@@ -206,8 +182,8 @@ The app should be biased toward refusing unsafe work, even if that occasionally 
 - `SwiftUI` UI
 - single main window
 - JSON or plist-backed local config storage
-- Podcast Index as the primary podcast discovery source
-- manual RSS entry remains supported even when discovery is unavailable
+- direct RSS entry as the subscription path
+- feed title and artwork resolved from RSS metadata
 - per-podcast subfolders under device `music`
 - one retention rule: keep latest `N`
 - `ffmpeg` invoked with `Process`

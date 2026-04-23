@@ -1,0 +1,191 @@
+import Foundation
+import Testing
+@testable import SpodcastManaagerCore
+
+struct SyncPlannerTests {
+    @Test
+    func plansCopyForPreparedEpisodeMissingFromDevice() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "ep-1",
+            title: "Episode 1",
+            preparedFileName: "Episode_1.mp3"
+        )
+        let planner = SyncPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(
+            plan.actions.contains(.copyToDevice(
+                sourceURL: preparedEpisode.preparedFileURL,
+                destinationURL: device.musicURL
+                    .appendingPathComponent("Example Podcast", isDirectory: true)
+                    .appendingPathComponent("Episode_1.mp3", isDirectory: false)
+            ))
+        )
+    }
+
+    @Test
+    func skipsCopyWhenDestinationAlreadyExists() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "ep-1",
+            title: "Episode 1",
+            preparedFileName: "Episode_1.mp3"
+        )
+        let destinationURL = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+            .appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [destinationURL]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(plan.actions.contains(.skip(reason: "Already on device: Episode 1")))
+        #expect(!plan.actions.contains(where: {
+            if case .copyToDevice = $0 { return true }
+            return false
+        }))
+    }
+
+    @Test
+    func deletesOnlyOlderManagedEpisodesBeyondRetentionLimit() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription(retentionLimit: 2)
+        let preparedEpisodes = [
+            makePreparedEpisode(id: "ep-3", title: "Episode 3", preparedFileName: "Episode_3.mp3"),
+            makePreparedEpisode(id: "ep-2", title: "Episode 2", preparedFileName: "Episode_2.mp3"),
+        ]
+        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let olderEpisodeURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let currentEpisodeURL = managedDirectory.appendingPathComponent("Episode_2.mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    managedDirectory.standardizedFileURL.path: [
+                        olderEpisodeURL,
+                        currentEpisodeURL,
+                    ]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: preparedEpisodes,
+            subscriptions: [subscription],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(plan.actions.contains(.deleteFromDevice(targetURL: olderEpisodeURL)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: currentEpisodeURL)))
+    }
+
+    @Test
+    func doesNotDeleteFilesOutsideManagedPodcastFolders() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "ep-1",
+            title: "Episode 1",
+            preparedFileName: "Episode_1.mp3"
+        )
+        let unmanagedFileURL = device.musicURL.appendingPathComponent("random_track.mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    device.musicURL.standardizedFileURL.path: [unmanagedFileURL]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
+    }
+
+    @Test
+    func plansTrashCleanupAndOptionalEject() throws {
+        let device = makeDevice()
+        let planner = SyncPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [makeSubscription()],
+            ejectAfterSync: true,
+            isDryRun: true
+        )
+
+        #expect(plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
+        #expect(plan.actions.contains(.ejectDevice(deviceRootURL: device.rootURL)))
+    }
+
+    private func makeDevice() -> DeviceInfo {
+        DeviceInfo(
+            name: "WALKMAN",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+        )
+    }
+
+    private func makeSubscription(retentionLimit: Int = 3) -> FeedSubscription {
+        FeedSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!,
+            retentionPolicy: .keepLatestEpisodes(retentionLimit)
+        )
+    }
+
+    private func makePreparedEpisode(id: String, title: String, preparedFileName: String) -> PreparedEpisode {
+        let episode = Episode(
+            id: id,
+            subscriptionID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            podcastTitle: "Example Podcast",
+            title: title,
+            publicationDate: Date(timeIntervalSince1970: TimeInterval(Int.random(in: 1...10))),
+            enclosureURL: URL(string: "https://cdn.example.com/\(preparedFileName)")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+
+        return PreparedEpisode(
+            episode: episode,
+            sourceFileURL: URL(fileURLWithPath: "/tmp/\(preparedFileName)", isDirectory: false),
+            preparedFileURL: URL(fileURLWithPath: "/tmp/\(preparedFileName)", isDirectory: false),
+            preparationAction: .passthroughMP3
+        )
+    }
+}
+
+private struct StubDeviceLibrary: DeviceLibraryInspecting {
+    let filesByDirectory: [String: [URL]]
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        filesByDirectory[directoryURL.standardizedFileURL.path] ?? []
+    }
+}

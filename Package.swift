@@ -2,48 +2,48 @@
 import PackageDescription
 
 let package = Package(
-    name: "PodcastSwift",
+    name: "SpodcastManaager",
     platforms: [
         .macOS(.v14),
     ],
     products: [
         .library(
-            name: "PodcastSwiftCore",
-            targets: ["PodcastSwiftCore"]
+            name: "SpodcastManaagerCore",
+            targets: ["SpodcastManaagerCore"]
         ),
         .library(
-            name: "PodcastSwiftUI",
-            targets: ["PodcastSwiftUI"]
+            name: "SpodcastManaagerUI",
+            targets: ["SpodcastManaagerUI"]
         ),
         .executable(
-            name: "Podcast Swift",
-            targets: ["PodcastSwiftApp"]
+            name: "Spodcast Manaager",
+            targets: ["SpodcastManaagerApp"]
         ),
     ],
     targets: [
         .target(
-            name: "PodcastSwiftCore",
-            path: "Sources/PodcastSwiftCore"
+            name: "SpodcastManaagerCore",
+            path: "Sources/SpodcastManaagerCore"
         ),
         .target(
-            name: "PodcastSwiftUI",
-            dependencies: ["PodcastSwiftCore"],
-            path: "Sources/PodcastSwiftUI"
+            name: "SpodcastManaagerUI",
+            dependencies: ["SpodcastManaagerCore"],
+            path: "Sources/SpodcastManaagerUI"
         ),
         .executableTarget(
-            name: "PodcastSwiftApp",
-            dependencies: ["PodcastSwiftCore", "PodcastSwiftUI"],
-            path: "Sources/PodcastSwiftApp"
+            name: "SpodcastManaagerApp",
+            dependencies: ["SpodcastManaagerCore", "SpodcastManaagerUI"],
+            path: "Sources/SpodcastManaagerApp"
         ),
         .testTarget(
-            name: "PodcastSwiftCoreTests",
-            dependencies: ["PodcastSwiftCore"],
-            path: "Tests/PodcastSwiftCoreTests"
+            name: "SpodcastManaagerCoreTests",
+            dependencies: ["SpodcastManaagerCore"],
+            path: "Tests/SpodcastManaagerCoreTests"
         ),
         .testTarget(
-            name: "PodcastSwiftUITests",
-            dependencies: ["PodcastSwiftUI", "PodcastSwiftCore"],
-            path: "Tests/PodcastSwiftUITests"
+            name: "SpodcastManaagerUITests",
+            dependencies: ["SpodcastManaagerUI", "SpodcastManaagerCore"],
+            path: "Tests/SpodcastManaagerUITests"
         ),
     ]
 )

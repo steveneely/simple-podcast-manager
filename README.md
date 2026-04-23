@@ -67,11 +67,18 @@ Implemented so far:
 
 - milestone 1: domain models and safety validator
 - milestone 2: JSON-backed configuration store and basic SwiftUI state/editor flow
+- milestone 3: Podcast Index-backed discovery flow and subscribe-from-search support
 
 Current package targets:
 
 - `PodcastSwiftCore`
 - `PodcastSwiftUI`
+
+Current discovery setup:
+
+- Podcast Index is the implemented search provider
+- discovery requires a Podcast Index API key and secret in app settings
+- manual RSS entry remains available when discovery is not configured
 
 Current verification command:
 
@@ -79,6 +86,14 @@ Current verification command:
 CLANG_MODULE_CACHE_PATH=/Users/sneely/code/podcastswift/.swift-cache/clang-module-cache \
 SWIFTPM_CACHE_PATH=/Users/sneely/code/podcastswift/.swift-cache/swiftpm-cache \
 swift test
+```
+
+Current app launch command:
+
+```bash
+CLANG_MODULE_CACHE_PATH=/Users/sneely/code/podcastswift/.swift-cache/clang-module-cache \
+SWIFTPM_CACHE_PATH=/Users/sneely/code/podcastswift/.swift-cache/swiftpm-cache \
+swift run PodcastSwiftApp
 ```
 
 ## Status

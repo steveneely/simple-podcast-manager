@@ -11,6 +11,8 @@ struct MainViewModelTests {
             configuration: AppConfiguration(
                 settings: AppSettings(
                     ffmpegExecutablePath: "/usr/local/bin/ffmpeg",
+                    podcastIndexAPIKey: "key",
+                    podcastIndexAPISecret: "secret",
                     dryRunByDefault: false,
                     ejectAfterSyncByDefault: true
                 ),
@@ -27,6 +29,7 @@ struct MainViewModelTests {
         #expect(viewModel.feedSubscriptions.count == 1)
         #expect(viewModel.settings.dryRunByDefault == false)
         #expect(viewModel.settings.ejectAfterSyncByDefault)
+        #expect(viewModel.settings.podcastIndexAPIKey == "key")
     }
 
     @Test
@@ -71,14 +74,42 @@ struct MainViewModelTests {
         let store = InMemoryConfigurationStore()
         let viewModel = MainViewModel(store: store)
 
-        viewModel.setFFmpegExecutablePath("/opt/homebrew/bin/ffmpeg")
-        viewModel.setDryRunByDefault(false)
-        viewModel.setEjectAfterSyncByDefault(true)
+        viewModel.replaceSettings(
+            AppSettings(
+                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
+                podcastIndexAPIKey: "key",
+                podcastIndexAPISecret: "secret",
+                dryRunByDefault: false,
+                ejectAfterSyncByDefault: true
+            )
+        )
 
         #expect(viewModel.settings.ffmpegExecutablePath == "/opt/homebrew/bin/ffmpeg")
+        #expect(viewModel.settings.podcastIndexAPIKey == "key")
+        #expect(viewModel.settings.podcastIndexAPISecret == "secret")
         #expect(viewModel.settings.dryRunByDefault == false)
         #expect(viewModel.settings.ejectAfterSyncByDefault == true)
         #expect(store.configuration.settings == viewModel.settings)
+    }
+
+    @Test
+    func subscribesFromDiscoveryResult() throws {
+        let store = InMemoryConfigurationStore()
+        let viewModel = MainViewModel(store: store)
+
+        viewModel.addFeed(
+            from: DiscoveryResult(
+                id: "atp",
+                title: "Accidental Tech Podcast",
+                author: "ATP",
+                summary: "Three nerds talking tech.",
+                feedURL: URL(string: "https://atp.fm/rss"),
+                source: "Podcast Index"
+            )
+        )
+
+        #expect(viewModel.feedSubscriptions.count == 1)
+        #expect(viewModel.feedSubscriptions.first?.rssURL == URL(string: "https://atp.fm/rss"))
     }
 }
 

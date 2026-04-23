@@ -15,6 +15,10 @@ let package = Package(
             name: "PodcastSwiftUI",
             targets: ["PodcastSwiftUI"]
         ),
+        .executable(
+            name: "PodcastSwiftApp",
+            targets: ["PodcastSwiftApp"]
+        ),
     ],
     targets: [
         .target(
@@ -25,6 +29,11 @@ let package = Package(
             name: "PodcastSwiftUI",
             dependencies: ["PodcastSwiftCore"],
             path: "Sources/PodcastSwiftUI"
+        ),
+        .executableTarget(
+            name: "PodcastSwiftApp",
+            dependencies: ["PodcastSwiftCore", "PodcastSwiftUI"],
+            path: "Sources/PodcastSwiftApp"
         ),
         .testTarget(
             name: "PodcastSwiftCoreTests",

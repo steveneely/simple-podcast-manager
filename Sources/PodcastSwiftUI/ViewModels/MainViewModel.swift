@@ -38,7 +38,18 @@ public final class MainViewModel {
 
     public func addFeed(from draft: FeedDraft) {
         mutateConfiguration {
-            $0.feedSubscriptions.append(try draft.makeSubscription())
+            let subscription = try draft.makeSubscription()
+            try ensureUniqueSubscription(subscription, in: $0.feedSubscriptions)
+            $0.feedSubscriptions.append(subscription)
+            $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        }
+    }
+
+    public func addFeed(from discoveryResult: DiscoveryResult, defaultRetentionEpisodeLimit: Int = 3) {
+        mutateConfiguration {
+            let subscription = try discoveryResult.makeSubscription(defaultRetentionEpisodeLimit: defaultRetentionEpisodeLimit)
+            try ensureUniqueSubscription(subscription, in: $0.feedSubscriptions)
+            $0.feedSubscriptions.append(subscription)
             $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
     }
@@ -46,6 +57,7 @@ public final class MainViewModel {
     public func updateFeed(from draft: FeedDraft) {
         mutateConfiguration {
             let updatedSubscription = try draft.makeSubscription()
+            try ensureUniqueSubscription(updatedSubscription, in: $0.feedSubscriptions, excluding: updatedSubscription.id)
             guard let existingIndex = $0.feedSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
                 $0.feedSubscriptions.append(updatedSubscription)
                 $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
@@ -106,6 +118,30 @@ public final class MainViewModel {
             self.hasLoadedConfiguration = true
         } catch {
             self.lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func ensureUniqueSubscription(
+        _ subscription: FeedSubscription,
+        in existingSubscriptions: [FeedSubscription],
+        excluding excludedID: FeedSubscription.ID? = nil
+    ) throws {
+        let normalizedURL = subscription.rssURL.absoluteString.lowercased()
+        if existingSubscriptions.contains(where: {
+            $0.id != excludedID && $0.rssURL.absoluteString.lowercased() == normalizedURL
+        }) {
+            throw MainViewModelError.duplicateSubscription
+        }
+    }
+}
+
+public enum MainViewModelError: LocalizedError, Equatable, Sendable {
+    case duplicateSubscription
+
+    public var errorDescription: String? {
+        switch self {
+        case .duplicateSubscription:
+            return "That podcast feed is already in your subscription list."
         }
     }
 }

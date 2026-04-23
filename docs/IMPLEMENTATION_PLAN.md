@@ -56,7 +56,7 @@ Depends on:
 
 ## Milestone 3: Podcast Discovery And Subscription Flow
 
-Status: next
+Status: complete
 
 Add podcast search so the user can discover shows and subscribe without manually pasting RSS URLs.
 
@@ -82,7 +82,7 @@ Depends on:
 
 ## Milestone 4: Device Detection And Validation
 
-Status: pending
+Status: next
 
 Build mounted-volume discovery and strict sync target validation.
 

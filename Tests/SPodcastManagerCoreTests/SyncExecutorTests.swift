@@ -6,17 +6,22 @@ struct SyncExecutorTests {
     @Test
     func executeCopiesDeletesToTrashAndCountsSkippedActions() throws {
         let device = makeDevice()
+        let managedDirectory = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
         let destinationURL = device.musicURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("Episode_2.mp3", isDirectory: false)
-        let deleteTargetURL = device.musicURL
-            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let deleteTargetURL = managedDirectory
             .appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let sidecarURL = managedDirectory
+            .appendingPathComponent("._Episode_1.mp3", isDirectory: false)
         let sourceURL = URL(fileURLWithPath: "/tmp/Episode_2.mp3")
 
         let fileSystem = RecordingFileSystem(
-            existingURLs: [deleteTargetURL],
-            directoryContents: [:]
+            existingURLs: [deleteTargetURL, sidecarURL, managedDirectory],
+            directoryContents: [
+                managedDirectory.standardizedFileURL.path: [deleteTargetURL, sidecarURL]
+            ]
         )
         let ejector = RecordingDeviceEjector()
         let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector)
@@ -39,12 +44,16 @@ struct SyncExecutorTests {
         #expect(fileSystem.createdDirectories.contains(destinationURL.deletingLastPathComponent()))
         #expect(fileSystem.copiedItems.contains(where: { $0.source == sourceURL && $0.destination == destinationURL }))
         #expect(fileSystem.movedItems.contains(where: { $0.source == deleteTargetURL && $0.destination == device.trashURL.appendingPathComponent("Episode_1.mp3") }))
+        #expect(fileSystem.movedItems.contains(where: { $0.source == sidecarURL && $0.destination == device.trashURL.appendingPathComponent("._Episode_1.mp3") }))
+        #expect(!fileSystem.removedItems.contains(managedDirectory.standardizedFileURL))
         #expect(!ejector.didEject)
     }
 
     @Test
     func executeUsesUniqueTrashNameAndClearsTrashBeforeEject() throws {
         let device = makeDevice()
+        let managedDirectory = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
         let deleteTargetURL = device.musicURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("Episode_1.mp3", isDirectory: false)
@@ -53,8 +62,11 @@ struct SyncExecutorTests {
         let staleTrashURL = device.trashURL.appendingPathComponent("old.tmp", isDirectory: false)
 
         let fileSystem = RecordingFileSystem(
-            existingURLs: [deleteTargetURL, collidingTrashURL, device.trashURL, staleTrashURL],
-            directoryContents: [device.trashURL.standardizedFileURL.path: [collidingTrashURL, staleTrashURL]]
+            existingURLs: [deleteTargetURL, collidingTrashURL, device.trashURL, staleTrashURL, managedDirectory],
+            directoryContents: [
+                managedDirectory.standardizedFileURL.path: [deleteTargetURL],
+                device.trashURL.standardizedFileURL.path: [collidingTrashURL, staleTrashURL]
+            ]
         )
         let ejector = RecordingDeviceEjector()
         let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector)
@@ -74,9 +86,39 @@ struct SyncExecutorTests {
         #expect(result.deletedCount == 1)
         #expect(result.ejected)
         #expect(fileSystem.movedItems.contains(where: { $0.source == deleteTargetURL && $0.destination == suffixedTrashURL }))
+        #expect(fileSystem.removedItems.contains(managedDirectory.standardizedFileURL))
         #expect(fileSystem.removedItems.contains(collidingTrashURL))
         #expect(fileSystem.removedItems.contains(staleTrashURL))
         #expect(ejector.didEject)
+    }
+
+    @Test
+    func executeKeepsPodcastFolderWhenOtherEpisodesRemain() throws {
+        let device = makeDevice()
+        let managedDirectory = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let deleteTargetURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let remainingEpisodeURL = managedDirectory.appendingPathComponent("Episode_2.mp3", isDirectory: false)
+
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [deleteTargetURL, remainingEpisodeURL, managedDirectory],
+            directoryContents: [
+                managedDirectory.standardizedFileURL.path: [deleteTargetURL, remainingEpisodeURL]
+            ]
+        )
+        let executor = SyncExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
+
+        _ = try executor.execute(
+            plan: SyncPlan(
+                device: device,
+                isDryRun: false,
+                actions: [
+                    .deleteFromDevice(targetURL: deleteTargetURL)
+                ]
+            )
+        )
+
+        #expect(!fileSystem.removedItems.contains(managedDirectory.standardizedFileURL))
     }
 
     @Test
@@ -137,7 +179,7 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
     }
 
     private var existingURLs: Set<URL>
-    private let directoryContents: [String: [URL]]
+    private var directoryContents: [String: Set<URL>]
 
     private(set) var createdDirectories: [URL] = []
     private(set) var copiedItems: [CopyRecord] = []
@@ -146,7 +188,9 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     init(existingURLs: [URL], directoryContents: [String: [URL]]) {
         self.existingURLs = Set(existingURLs.map(\.standardizedFileURL))
-        self.directoryContents = directoryContents
+        self.directoryContents = directoryContents.reduce(into: [:]) { result, entry in
+            result[entry.key] = Set(entry.value.map(\.standardizedFileURL))
+        }
     }
 
     func fileExists(at url: URL) -> Bool {
@@ -154,28 +198,52 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
     }
 
     func createDirectory(at url: URL) throws {
-        createdDirectories.append(url.standardizedFileURL)
-        existingURLs.insert(url.standardizedFileURL)
+        let standardizedURL = url.standardizedFileURL
+        createdDirectories.append(standardizedURL)
+        existingURLs.insert(standardizedURL)
+        directoryContents[standardizedURL.path] = directoryContents[standardizedURL.path] ?? []
+        addChild(standardizedURL, to: standardizedURL.deletingLastPathComponent())
     }
 
     func copyItem(at sourceURL: URL, to destinationURL: URL) throws {
-        copiedItems.append(.init(source: sourceURL, destination: destinationURL.standardizedFileURL))
-        existingURLs.insert(destinationURL.standardizedFileURL)
+        let standardizedDestination = destinationURL.standardizedFileURL
+        copiedItems.append(.init(source: sourceURL, destination: standardizedDestination))
+        existingURLs.insert(standardizedDestination)
+        addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
     }
 
     func moveItem(at sourceURL: URL, to destinationURL: URL) throws {
-        movedItems.append(.init(source: sourceURL.standardizedFileURL, destination: destinationURL.standardizedFileURL))
-        existingURLs.remove(sourceURL.standardizedFileURL)
-        existingURLs.insert(destinationURL.standardizedFileURL)
+        let standardizedSource = sourceURL.standardizedFileURL
+        let standardizedDestination = destinationURL.standardizedFileURL
+        movedItems.append(.init(source: standardizedSource, destination: standardizedDestination))
+        existingURLs.remove(standardizedSource)
+        existingURLs.insert(standardizedDestination)
+        removeChild(standardizedSource, from: standardizedSource.deletingLastPathComponent())
+        addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
     }
 
     func removeItem(at url: URL) throws {
-        removedItems.append(url.standardizedFileURL)
-        existingURLs.remove(url.standardizedFileURL)
+        let standardizedURL = url.standardizedFileURL
+        removedItems.append(standardizedURL)
+        existingURLs.remove(standardizedURL)
+        removeChild(standardizedURL, from: standardizedURL.deletingLastPathComponent())
+        directoryContents.removeValue(forKey: standardizedURL.path)
     }
 
     func contentsOfDirectory(at url: URL) throws -> [URL] {
-        directoryContents[url.standardizedFileURL.path] ?? []
+        Array(directoryContents[url.standardizedFileURL.path] ?? []).sorted {
+            $0.path < $1.path
+        }
+    }
+
+    private func addChild(_ childURL: URL, to parentURL: URL) {
+        let parentPath = parentURL.standardizedFileURL.path
+        directoryContents[parentPath, default: []].insert(childURL.standardizedFileURL)
+    }
+
+    private func removeChild(_ childURL: URL, from parentURL: URL) {
+        let parentPath = parentURL.standardizedFileURL.path
+        directoryContents[parentPath]?.remove(childURL.standardizedFileURL)
     }
 }
 

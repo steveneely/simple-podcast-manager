@@ -53,6 +53,8 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     try fileSystem.removeItem(at: trashDestinationURL)
                 }
                 try fileSystem.moveItem(at: targetURL, to: trashDestinationURL)
+                try moveAppleDoubleSidecarIfPresent(for: targetURL, to: plan.device.trashURL)
+                try removeEmptyManagedDirectoryIfNeeded(containing: targetURL, on: plan.device)
                 result.deletedCount += 1
 
             case .clearDeviceTrash(let trashURL):
@@ -95,5 +97,35 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         }
 
         return candidateURL
+    }
+
+    private func moveAppleDoubleSidecarIfPresent(for targetURL: URL, to trashURL: URL) throws {
+        let sidecarURL = targetURL.deletingLastPathComponent()
+            .appendingPathComponent("._" + targetURL.lastPathComponent, isDirectory: false)
+        guard fileSystem.fileExists(at: sidecarURL) else { return }
+
+        let trashDestinationURL = uniqueTrashDestination(for: sidecarURL, in: trashURL)
+        if fileSystem.fileExists(at: trashDestinationURL) {
+            try fileSystem.removeItem(at: trashDestinationURL)
+        }
+        try fileSystem.moveItem(at: sidecarURL, to: trashDestinationURL)
+    }
+
+    private func removeEmptyManagedDirectoryIfNeeded(containing targetURL: URL, on device: DeviceInfo) throws {
+        let managedDirectoryURL = targetURL.deletingLastPathComponent().standardizedFileURL
+        guard managedDirectoryURL.deletingLastPathComponent().standardizedFileURL == device.musicURL.standardizedFileURL else {
+            return
+        }
+        guard fileSystem.fileExists(at: managedDirectoryURL) else {
+            return
+        }
+
+        let remainingChildren = try fileSystem.contentsOfDirectory(at: managedDirectoryURL)
+        guard remainingChildren.isEmpty else {
+            return
+        }
+
+        try safetyValidator.validateDeleteTarget(managedDirectoryURL, on: device)
+        try fileSystem.removeItem(at: managedDirectoryURL)
     }
 }

@@ -94,7 +94,7 @@ Current app launch command:
 ```bash
 CLANG_MODULE_CACHE_PATH=/Users/sneely/code/podcastswift/.swift-cache/clang-module-cache \
 SWIFTPM_CACHE_PATH=/Users/sneely/code/podcastswift/.swift-cache/swiftpm-cache \
-swift run PodcastSwiftApp
+swift run "Podcast Swift"
 ```
 
 ## Status

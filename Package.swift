@@ -16,7 +16,7 @@ let package = Package(
             targets: ["PodcastSwiftUI"]
         ),
         .executable(
-            name: "PodcastSwiftApp",
+            name: "Podcast Swift",
             targets: ["PodcastSwiftApp"]
         ),
     ],

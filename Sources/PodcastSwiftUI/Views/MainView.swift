@@ -77,7 +77,7 @@ public struct MainView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("PodcastSwift")
+                Text("Podcast Swift")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 Text("Discover podcasts, manage subscriptions, and get the app ready for sync.")

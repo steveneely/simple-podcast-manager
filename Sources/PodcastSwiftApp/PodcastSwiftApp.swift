@@ -11,7 +11,7 @@ struct PodcastSwiftDesktopApp: App {
     )
 
     var body: some Scene {
-        WindowGroup("PodcastSwift") {
+        WindowGroup("Podcast Swift") {
             MainView(viewModel: viewModel)
         }
         .defaultSize(width: 900, height: 720)

@@ -1,4 +1,4 @@
-# Spodcast Manaager Implementation Plan
+# S Podcast Manager Implementation Plan
 
 ## Summary
 

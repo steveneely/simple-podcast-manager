@@ -1,6 +1,6 @@
-# Spodcast Manaager
+# S Podcast Manager
 
-Spodcast Manaager is a macOS app for getting podcasts onto a Sony MP3 player with as little friction as possible:
+S Podcast Manager is a macOS app for getting podcasts onto a Sony MP3 player with as little friction as possible:
 
 plug in device -> click sync -> done
 
@@ -19,7 +19,7 @@ The app should feel fast, obvious, and safe. It should handle the full happy pat
 
 ## Technical Direction
 
-Spodcast Manaager is planned as:
+S Podcast Manager is planned as:
 
 - a native macOS app built with `SwiftUI`
 - an in-process sync engine written in Swift
@@ -52,12 +52,12 @@ The v1 app is a single-window SwiftUI app with:
 
 High-level code organization:
 
-- `Sources/SpodcastManaagerCore/`: models, persistence, safety validation
-- `Sources/SpodcastManaagerUI/`: SwiftUI views and view models
-- `Tests/SpodcastManaagerCoreTests/`: core persistence and safety tests
-- `Tests/SpodcastManaagerUITests/`: UI-facing state tests
+- `Sources/SPodcastManagerCore/`: models, persistence, safety validation
+- `Sources/SPodcastManagerUI/`: SwiftUI views and view models
+- `Tests/SPodcastManagerCoreTests/`: core persistence and safety tests
+- `Tests/SPodcastManagerUITests/`: UI-facing state tests
 
-See [ARCHITECTURE.md](/Users/sneely/code/spodcast-manaager/ARCHITECTURE.md) for the implementation source of truth and [docs/IMPLEMENTATION_PLAN.md](/Users/sneely/code/spodcast-manaager/docs/IMPLEMENTATION_PLAN.md) for milestone order.
+See [ARCHITECTURE.md](/Users/sneely/code/s-podcast-manager/ARCHITECTURE.md) for the implementation source of truth and [docs/IMPLEMENTATION_PLAN.md](/Users/sneely/code/s-podcast-manager/docs/IMPLEMENTATION_PLAN.md) for milestone order.
 
 ## Current Status
 
@@ -73,8 +73,8 @@ Implemented so far:
 
 Current package targets:
 
-- `SpodcastManaagerCore`
-- `SpodcastManaagerUI`
+- `SPodcastManagerCore`
+- `SPodcastManagerUI`
 
 Current subscription setup:
 
@@ -92,9 +92,9 @@ This wrapper keeps Swift build artifacts in a temporary per-repo cache so the te
 Current app launch command:
 
 ```bash
-CLANG_MODULE_CACHE_PATH=/Users/sneely/code/spodcast-manaager/.swift-cache/clang-module-cache \
-SWIFTPM_CACHE_PATH=/Users/sneely/code/spodcast-manaager/.swift-cache/swiftpm-cache \
-swift run "Spodcast Manaager"
+CLANG_MODULE_CACHE_PATH=/Users/sneely/code/s-podcast-manager/.swift-cache/clang-module-cache \
+SWIFTPM_CACHE_PATH=/Users/sneely/code/s-podcast-manager/.swift-cache/swiftpm-cache \
+swift run "S Podcast Manager"
 ```
 
 ## Status

@@ -91,6 +91,46 @@ struct RSSFeedServiceTests {
         #expect(result.selectedEpisodes.isEmpty)
         #expect(result.failures.isEmpty)
     }
+
+    @Test
+    func parsesEpisodesFromTransistorEmbedWhenEnclosureIsBlank() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+
+        let feedURL = URL(string: "https://example.com/transistor.xml")!
+        FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: """
+        <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+          <channel>
+            <title>Example Podcast</title>
+            <item>
+              <title>Episode 1</title>
+              <guid>ep-1</guid>
+              <pubDate>Mon, 21 Apr 2026 12:00:00 +0000</pubDate>
+              <content:encoded><![CDATA[
+                <figure><iframe src="https://share.transistor.fm/e/14615be3/?color=444444&amp;background=ffffff"></iframe></figure>
+              ]]></content:encoded>
+              <enclosure url="" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        """)
+
+        let service = RSSFeedService(session: URLSession(configuration: configuration))
+
+        let result = try await service.fetchLatestEpisodes(for: [
+            FeedSubscription(
+                title: "Example Podcast",
+                rssURL: feedURL,
+                retentionPolicy: .keepLatestEpisodes(3),
+                isEnabled: true
+            )
+        ])
+
+        #expect(result.failures.isEmpty)
+        #expect(result.selectedEpisodes.count == 1)
+        #expect(result.selectedEpisodes.first?.title == "Episode 1")
+        #expect(result.selectedEpisodes.first?.enclosureURL == URL(string: "https://share.transistor.fm/e/14615be3/?color=444444&background=ffffff"))
+    }
 }
 
 private final class FeedURLProtocolStub: URLProtocol, @unchecked Sendable {

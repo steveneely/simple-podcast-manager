@@ -102,6 +102,12 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
                 if !text.isEmpty { itemBuilder.guid = text }
             case "pubdate":
                 if !text.isEmpty { itemBuilder.publicationDate = RSSDateParser.parse(text) }
+            case "description":
+                if !text.isEmpty { itemBuilder.descriptionHTML = text }
+            case "itunes:summary":
+                if !text.isEmpty { itemBuilder.summaryHTML = text }
+            case "content:encoded":
+                if !text.isEmpty { itemBuilder.contentHTML = text }
             case "enclosure":
                 break
             default:
@@ -156,12 +162,17 @@ private struct RSSItemBuilder {
     var guid: String?
     var publicationDate: Date?
     var enclosureURL: String?
+    var descriptionHTML: String?
+    var summaryHTML: String?
+    var contentHTML: String?
 
     func makeEpisode(feedTitle: String, sourceFeedURL: URL, subscriptionID: UUID?) -> Episode? {
+        let resolvedURLString = normalizedEnclosureURL ?? fallbackEmbedURLString
+
         guard
             let title, !title.isEmpty,
-            let enclosureURL,
-            let parsedEnclosureURL = URL(string: enclosureURL)
+            let resolvedURLString,
+            let parsedEnclosureURL = URL(string: resolvedURLString)
         else {
             return nil
         }
@@ -177,6 +188,39 @@ private struct RSSItemBuilder {
             enclosureURL: parsedEnclosureURL,
             sourceFeedURL: sourceFeedURL
         )
+    }
+
+    private var normalizedEnclosureURL: String? {
+        guard let enclosureURL = enclosureURL?.trimmingCharacters(in: .whitespacesAndNewlines), !enclosureURL.isEmpty else {
+            return nil
+        }
+
+        return enclosureURL
+    }
+
+    private var fallbackEmbedURLString: String? {
+        [contentHTML, summaryHTML, descriptionHTML]
+            .compactMap(Self.extractTransistorEmbedURL(from:))
+            .first
+    }
+
+    private static func extractTransistorEmbedURL(from text: String?) -> String? {
+        guard let text, !text.isEmpty else {
+            return nil
+        }
+
+        let pattern = #"https://share\.transistor\.fm/e/[A-Za-z0-9]+(?:/[^\s"'<>]*)?"#
+        guard
+            let regex = try? NSRegularExpression(pattern: pattern, options: []),
+            let match = regex.firstMatch(in: text, options: [], range: NSRange(text.startIndex..., in: text)),
+            let range = Range(match.range, in: text)
+        else {
+            return nil
+        }
+
+        return text[range]
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

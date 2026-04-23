@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PreparedEpisode: Equatable, Sendable, Identifiable {
+public struct PreparedEpisode: Codable, Equatable, Sendable, Identifiable {
     public var id: String { episode.id }
     public var episode: Episode
     public var sourceFileURL: URL
@@ -20,7 +20,7 @@ public struct PreparedEpisode: Equatable, Sendable, Identifiable {
     }
 }
 
-public enum PreparationAction: Equatable, Sendable {
+public enum PreparationAction: String, Codable, Equatable, Sendable {
     case passthroughMP3
     case convertedToMP3
 }

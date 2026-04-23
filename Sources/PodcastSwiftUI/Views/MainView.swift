@@ -12,6 +12,7 @@ public struct MainView: View {
     @State private var editorDraft = FeedDraft()
     @State private var isShowingFeedEditor = false
     @State private var isShowingSettings = false
+    @FocusState private var searchFieldFocused: Bool
 
     public init(viewModel: MainViewModel) {
         self._viewModel = State(initialValue: viewModel)
@@ -27,12 +28,9 @@ public struct MainView: View {
             header
             deviceSection
             discoverySection
-            feedPreviewSection
-            preparationSection
-            syncPlanSection
 
             if viewModel.hasFeeds {
-                feedList
+                librarySection
             } else {
                 ContentUnavailableView(
                     "No Podcasts Yet",
@@ -84,6 +82,13 @@ public struct MainView: View {
             if viewModel.hasFeeds && !feedPreviewViewModel.hasPreviewData {
                 await refreshFeedPreview()
             }
+            if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
+                preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+            }
+            if selectedFeedID == nil {
+                selectedFeedID = viewModel.feedSubscriptions.first?.id
+            }
+            rebuildSyncPlan()
         }
         .sheet(isPresented: $isShowingFeedEditor) {
             FeedEditorView(
@@ -95,7 +100,13 @@ public struct MainView: View {
                 } else {
                     viewModel.updateFeed(from: updatedDraft)
                 }
-                Task { await refreshFeedPreview() }
+                Task {
+                    await refreshFeedPreview()
+                    if selectedFeedID == nil {
+                        selectedFeedID = viewModel.feedSubscriptions.first?.id
+                    }
+                    rebuildSyncPlan()
+                }
             }
         }
         .sheet(isPresented: $isShowingSettings) {
@@ -133,7 +144,8 @@ public struct MainView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 TextField("Search podcasts", text: $discoveryViewModel.searchText)
-                    .textFieldStyle(.roundedBorder)
+                    .focused($searchFieldFocused)
+                    .inputFieldStyle(isFocused: searchFieldFocused)
                     .onSubmit {
                         runDiscoverySearch()
                     }
@@ -155,74 +167,6 @@ public struct MainView: View {
                     .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private var feedPreviewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Feed Preview")
-                        .font(.headline)
-                    Text("Preview the latest retained episodes for your enabled feeds before downloads are implemented.")
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button(feedPreviewViewModel.isLoading ? "Refreshing..." : "Refresh Feeds") {
-                    Task { await refreshFeedPreview() }
-                }
-                .disabled(feedPreviewViewModel.isLoading || !viewModel.hasFeeds)
-            }
-
-            if feedPreviewViewModel.hasPreviewData {
-                VStack(alignment: .leading, spacing: 10) {
-                    if !feedPreviewViewModel.selectedEpisodes.isEmpty {
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 8) {
-                                ForEach(feedPreviewViewModel.selectedEpisodes) { episode in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(episode.title)
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                        Text(episode.podcastTitle)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        if let publicationDate = episode.publicationDate {
-                                            Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .padding(.vertical, 2)
-                                }
-                            }
-                        }
-                        .frame(minHeight: 120, maxHeight: 180)
-                    }
-
-                    if !feedPreviewViewModel.failures.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Feed issues")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            ForEach(feedPreviewViewModel.failures) { failure in
-                                Text("\(failure.subscriptionTitle): \(failure.message)")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text(viewModel.hasFeeds ? "No preview data yet. Refresh feeds to inspect the current retained episode set." : "Add at least one feed to preview retained episodes.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(14)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var deviceSection: some View {
@@ -279,184 +223,256 @@ public struct MainView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private var preparationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Preparation Preview")
-                        .font(.headline)
-                    Text("Download preview episodes into a temporary workspace and show MP3 passthrough or conversion decisions.")
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button(preparationPreviewViewModel.isPreparing ? "Preparing..." : "Prepare Media") {
-                    Task {
-                        await preparationPreviewViewModel.prepare(feedPreviewViewModel.selectedEpisodes, settings: viewModel.settings)
-                    }
-                }
-                .disabled(preparationPreviewViewModel.isPreparing || feedPreviewViewModel.selectedEpisodes.isEmpty)
-            }
-
-            if preparationPreviewViewModel.hasResults {
-                VStack(alignment: .leading, spacing: 10) {
-                    if let workspaceURL = preparationPreviewViewModel.workspaceURL {
-                        Text("Workspace: \(workspaceURL.path)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if !preparationPreviewViewModel.preparedEpisodes.isEmpty {
-                        ForEach(preparationPreviewViewModel.preparedEpisodes) { preparedEpisode in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(preparedEpisode.episode.title)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                Text(preparedEpisode.preparationAction == .passthroughMP3 ? "MP3 passthrough" : "Converted to MP3")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(preparedEpisode.preparedFileURL.lastPathComponent)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
-
-                    if !preparationPreviewViewModel.failures.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Preparation issues")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            ForEach(preparationPreviewViewModel.failures) { failure in
-                                Text("\(failure.episodeTitle): \(failure.message)")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text(feedPreviewViewModel.selectedEpisodes.isEmpty ? "Refresh feeds first so there are retained episodes to prepare." : "Prepare preview episodes to validate downloading and MP3 conversion behavior.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    private var librarySection: some View {
+        HSplitView {
+            feedSidebar
+                .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
+            episodeDetailSection
+                .frame(minWidth: 420)
         }
-        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private var syncPlanSection: some View {
+    private var feedSidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Sync Plan")
-                        .font(.headline)
-                    Text("Build a dry-run action plan from the current device, prepared media, and retention rules.")
-                        .foregroundStyle(.secondary)
-                }
-
+                Text("Shows")
+                    .font(.headline)
                 Spacer()
-
-                Button(syncPlanViewModel.isPlanning ? "Planning..." : "Build Plan") {
-                    syncPlanViewModel.buildPlan(
-                        device: deviceViewModel.selectedDevice,
-                        preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
-                        subscriptions: viewModel.feedSubscriptions,
-                        ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
-                        isDryRun: true
-                    )
+                Button(feedPreviewViewModel.isLoading ? "Refreshing..." : "Refresh") {
+                    Task { await refreshFeedPreview() }
                 }
-                .disabled(syncPlanViewModel.isPlanning || preparationPreviewViewModel.preparedEpisodes.isEmpty)
+                .disabled(feedPreviewViewModel.isLoading)
             }
 
-            if let plan = syncPlanViewModel.plan {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Planned actions: \(plan.actions.count)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-
-                    ForEach(Array(syncPlanViewModel.actionDescriptions.enumerated()), id: \.offset) { _, description in
-                        Text(description)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } else {
-                Text(preparationPreviewViewModel.preparedEpisodes.isEmpty ? "Prepare media first to build a sync plan." : "Build a dry-run plan to inspect copy, skip, delete, trash cleanup, and eject actions.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(14)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var feedList: some View {
-        VStack(alignment: .leading, spacing: 12) {
             List(selection: $selectedFeedID) {
                 ForEach(viewModel.feedSubscriptions) { subscription in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(subscription.title)
-                                .font(.headline)
-                            if !subscription.isEnabled {
-                                Text("Disabled")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    HStack(alignment: .top, spacing: 10) {
+                        PodcastArtworkView(
+                            artworkURL: artworkURL(for: subscription),
+                            size: 42,
+                            cornerRadius: 9
+                        )
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(subscription.title)
+                                    .font(.headline)
+                                if !subscription.isEnabled {
+                                    Text("Disabled")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+
+                            Text("\(episodes(for: subscription).count) episode\(episodes(for: subscription).count == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-
-                        Text(subscription.rssURL.absoluteString)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Text("Keep latest \(subscription.retentionPolicy.episodeLimit) episode\(subscription.retentionPolicy.episodeLimit == 1 ? "" : "s")")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
                     .tag(subscription.id)
                 }
-                .onDelete(perform: viewModel.removeFeeds)
+                .onDelete(perform: deleteFeeds)
             }
 
             HStack {
-                Button("Edit Selected") {
+                Button("Edit") {
                     guard let selectedSubscription else { return }
                     editorDraft = FeedDraft(subscription: selectedSubscription)
                     isShowingFeedEditor = true
                 }
                 .disabled(selectedSubscription == nil)
 
-                Button("Remove Selected") {
+                Button("Remove") {
                     guard let selectedFeedID else { return }
                     guard let selectedIndex = viewModel.feedSubscriptions.firstIndex(where: { $0.id == selectedFeedID }) else { return }
-                    viewModel.removeFeeds(at: IndexSet(integer: selectedIndex))
-                    self.selectedFeedID = nil
+                    deleteFeeds(at: IndexSet(integer: selectedIndex))
                 }
                 .disabled(selectedSubscription == nil)
+            }
+        }
+        .padding(14)
+    }
 
-                Spacer()
+    private var episodeDetailSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let selectedSubscription {
+                HStack(alignment: .top) {
+                    HStack(alignment: .top, spacing: 12) {
+                        PodcastArtworkView(
+                            artworkURL: artworkURL(for: selectedSubscription),
+                            size: 72,
+                            cornerRadius: 16
+                        )
 
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Dry-run default: \(viewModel.settings.dryRunByDefault ? "On" : "Off")")
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(selectedSubscription.title)
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            Text(selectedSubscription.rssURL.absoluteString)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button(preparationPreviewViewModel.isPreparing ? "Downloading..." : "Download All") {
+                        Task {
+                            await preparationPreviewViewModel.prepare(episodes(for: selectedSubscription), settings: viewModel.settings)
+                            rebuildSyncPlan()
+                        }
+                    }
+                    .disabled(preparationPreviewViewModel.isPreparing || episodes(for: selectedSubscription).isEmpty)
+                }
+
+                syncSummaryCard(for: selectedSubscription)
+
+                if let progress = preparationPreviewViewModel.progress {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(progress.currentEpisodeTitle.map { "Downloading \($0)" } ?? "Finishing downloads")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        ProgressView(value: progress.fractionCompleted)
+                            .progressViewStyle(.linear)
+                        Text("\(progress.completedCount) of \(progress.totalCount) complete")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !feedIssues(for: selectedSubscription).isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Feed Issues")
+                            .font(.headline)
+                        ForEach(feedIssues(for: selectedSubscription)) { failure in
+                            Text(failure.message)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+
+                if episodes(for: selectedSubscription).isEmpty {
+                    ContentUnavailableView(
+                        "No Episodes Yet",
+                        systemImage: "waveform",
+                        description: Text("Refresh feeds to load the latest retained episodes for this show.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(episodes(for: selectedSubscription)) { episode in
+                            episodeRow(for: episode)
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            } else {
+                ContentUnavailableView(
+                    "Choose a Show",
+                    systemImage: "music.note.list",
+                    description: Text("Select a feed to browse its current episodes.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding(14)
+    }
+
+    @ViewBuilder
+    private func syncSummaryCard(for subscription: FeedSubscription) -> some View {
+        let plan = syncPlanViewModel.plan
+        let relevantPreparedCount = preparedEpisodes(for: subscription).count
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sync Summary")
+                .font(.headline)
+
+            if let plan {
+                let copyCount = plan.actions.filter {
+                    if case .copyToDevice = $0 { return true }
+                    return false
+                }.count
+                let deleteCount = plan.actions.filter {
+                    if case .deleteFromDevice = $0 { return true }
+                    return false
+                }.count
+                let skipCount = plan.actions.filter {
+                    if case .skip = $0 { return true }
+                    return false
+                }.count
+
+                Text("\(relevantPreparedCount) ready, \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(relevantPreparedCount == 0 ? "Download episodes to build a sync plan." : "\(relevantPreparedCount) ready to sync. Sync plan will be rebuilt automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func episodeRow(for episode: Episode) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(episode.title)
+                    .font(.body)
+                    .fontWeight(.medium)
+                if let publicationDate = episode.publicationDate {
+                    Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Eject after sync: \(viewModel.settings.ejectAfterSyncByDefault ? "On" : "Off")")
+                }
+
+                if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
+                    Text(preparedEpisode.preparationAction == .passthroughMP3 ? "Downloaded MP3" : "Downloaded and converted to MP3")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Spacer()
+
+            if preparationPreviewViewModel.preparedEpisode(for: episode) != nil {
+                Button {
+                    preparationPreviewViewModel.removePreparedEpisode(for: episode)
+                    rebuildSyncPlan()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Remove downloaded media")
+            } else {
+                Button {
+                    Task {
+                        await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
+                        rebuildSyncPlan()
+                    }
+                } label: {
+                    Image(systemName: "arrow.down.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Download episode")
+            }
         }
+        .padding(.vertical, 4)
     }
 
     private var selectedSubscription: FeedSubscription? {
-        guard let selectedFeedID else { return nil }
-        return viewModel.feedSubscriptions.first(where: { $0.id == selectedFeedID })
+        if let selectedFeedID {
+            return viewModel.feedSubscriptions.first(where: { $0.id == selectedFeedID })
+        }
+        return viewModel.feedSubscriptions.first
     }
 
     private var discoveryResults: [DiscoveryResult] {
@@ -481,6 +497,44 @@ public struct MainView: View {
 
     private func refreshFeedPreview() async {
         await feedPreviewViewModel.refreshPreview(for: viewModel.feedSubscriptions)
+        rebuildSyncPlan()
+    }
+
+    private func rebuildSyncPlan() {
+        syncPlanViewModel.buildPlan(
+            device: deviceViewModel.selectedDevice,
+            preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
+            subscriptions: viewModel.feedSubscriptions,
+            ejectAfterSync: viewModel.settings.ejectAfterSyncByDefault,
+            isDryRun: true
+        )
+    }
+
+    private func deleteFeeds(at offsets: IndexSet) {
+        viewModel.removeFeeds(at: offsets)
+        if let selectedFeedID, !viewModel.feedSubscriptions.contains(where: { $0.id == selectedFeedID }) {
+            self.selectedFeedID = viewModel.feedSubscriptions.first?.id
+        }
+        Task { await refreshFeedPreview() }
+    }
+
+    private func episodes(for subscription: FeedSubscription) -> [Episode] {
+        feedPreviewViewModel.selectedEpisodes
+            .filter { $0.subscriptionID == subscription.id }
+            .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+    }
+
+    private func preparedEpisodes(for subscription: FeedSubscription) -> [PreparedEpisode] {
+        preparationPreviewViewModel.preparedEpisodes
+            .filter { $0.episode.subscriptionID == subscription.id }
+    }
+
+    private func feedIssues(for subscription: FeedSubscription) -> [FeedFetchFailure] {
+        feedPreviewViewModel.failures.filter { $0.subscriptionID == subscription.id }
+    }
+
+    private func artworkURL(for subscription: FeedSubscription) -> URL? {
+        subscription.artworkURL ?? feedPreviewViewModel.artworkURL(for: subscription.id)
     }
 }
 
@@ -504,32 +558,40 @@ private struct DiscoveryResultRow: View {
     let onSubscribe: (DiscoveryResult) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(result.title)
-                    .font(.headline)
-                if let author = result.author, !author.isEmpty {
-                    Text(author)
+        HStack(alignment: .top, spacing: 12) {
+            PodcastArtworkView(
+                artworkURL: result.artworkURL,
+                size: 56,
+                cornerRadius: 12
+            )
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(result.title)
+                        .font(.headline)
+                    if let author = result.author, !author.isEmpty {
+                        Text(author)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Subscribe") {
+                        onSubscribe(result)
+                    }
+                    .disabled(!result.isSubscribable)
+                }
+
+                if let summary = result.summary, !summary.isEmpty {
+                    Text(summary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(3)
                 }
-                Spacer()
-                Button("Subscribe") {
-                    onSubscribe(result)
-                }
-                .disabled(!result.isSubscribable)
-            }
 
-            if let summary = result.summary, !summary.isEmpty {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                Text(result.feedURL?.absoluteString ?? "No RSS feed URL available")
+                    .font(.caption2)
+                    .foregroundStyle(result.isSubscribable ? Color.secondary : Color.orange)
             }
-
-            Text(result.feedURL?.absoluteString ?? "No RSS feed URL available")
-                .font(.caption2)
-                .foregroundStyle(result.isSubscribable ? Color.secondary : Color.orange)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)

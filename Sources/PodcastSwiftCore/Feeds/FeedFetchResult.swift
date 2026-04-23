@@ -3,13 +3,29 @@ import Foundation
 public struct FeedFetchResult: Equatable, Sendable {
     public var selectedEpisodes: [Episode]
     public var failures: [FeedFetchFailure]
+    public var feedSummaries: [FeedSummary]
 
     public init(
         selectedEpisodes: [Episode],
-        failures: [FeedFetchFailure] = []
+        failures: [FeedFetchFailure] = [],
+        feedSummaries: [FeedSummary] = []
     ) {
         self.selectedEpisodes = selectedEpisodes
         self.failures = failures
+        self.feedSummaries = feedSummaries
+    }
+}
+
+public struct FeedSummary: Equatable, Sendable, Identifiable {
+    public var id: UUID { subscriptionID }
+    public var subscriptionID: UUID
+    public var title: String
+    public var artworkURL: URL?
+
+    public init(subscriptionID: UUID, title: String, artworkURL: URL? = nil) {
+        self.subscriptionID = subscriptionID
+        self.title = title
+        self.artworkURL = artworkURL
     }
 }
 

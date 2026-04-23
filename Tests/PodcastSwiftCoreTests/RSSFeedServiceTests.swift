@@ -13,6 +13,7 @@ struct RSSFeedServiceTests {
         <rss version="2.0">
           <channel>
             <title>Example Podcast</title>
+            <itunes:image href="https://example.com/artwork.jpg" />
             <item>
               <title>Episode 2</title>
               <guid>ep-2</guid>
@@ -43,6 +44,7 @@ struct RSSFeedServiceTests {
         #expect(result.failures.isEmpty)
         #expect(result.selectedEpisodes.count == 1)
         #expect(result.selectedEpisodes.first?.title == "Episode 2")
+        #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
     }
 
     @Test

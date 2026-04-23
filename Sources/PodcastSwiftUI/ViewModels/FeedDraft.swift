@@ -11,6 +11,7 @@ public struct FeedDraft: Equatable, Sendable {
     public var id: UUID?
     public var title: String
     public var rssURLString: String
+    public var artworkURL: URL?
     public var podcastFolderName: String
     public var retentionEpisodeLimit: Int
     public var isEnabled: Bool
@@ -19,6 +20,7 @@ public struct FeedDraft: Equatable, Sendable {
         id: UUID? = nil,
         title: String = "",
         rssURLString: String = "",
+        artworkURL: URL? = nil,
         podcastFolderName: String = "",
         retentionEpisodeLimit: Int = 3,
         isEnabled: Bool = true
@@ -26,6 +28,7 @@ public struct FeedDraft: Equatable, Sendable {
         self.id = id
         self.title = title
         self.rssURLString = rssURLString
+        self.artworkURL = artworkURL
         self.podcastFolderName = podcastFolderName
         self.retentionEpisodeLimit = retentionEpisodeLimit
         self.isEnabled = isEnabled
@@ -35,6 +38,7 @@ public struct FeedDraft: Equatable, Sendable {
         self.id = subscription.id
         self.title = subscription.title
         self.rssURLString = subscription.rssURL.absoluteString
+        self.artworkURL = subscription.artworkURL
         self.podcastFolderName = subscription.podcastFolderName ?? ""
         self.retentionEpisodeLimit = subscription.retentionPolicy.episodeLimit
         self.isEnabled = subscription.isEnabled
@@ -74,6 +78,7 @@ public struct FeedDraft: Equatable, Sendable {
             id: id ?? UUID(),
             title: normalizedTitle,
             rssURL: rssURL,
+            artworkURL: artworkURL,
             podcastFolderName: folderName.isEmpty ? nil : folderName,
             retentionPolicy: .keepLatestEpisodes(retentionEpisodeLimit),
             isEnabled: isEnabled

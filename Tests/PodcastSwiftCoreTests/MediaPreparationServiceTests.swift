@@ -70,6 +70,42 @@ struct MediaPreparationServiceTests {
         #expect(result.preparedEpisodes.first?.preparationAction == .convertedToMP3)
         #expect(result.preparedEpisodes.first?.preparedFileURL.pathExtension == "mp3")
     }
+
+    @Test
+    func reportsPreparationProgressAcrossEpisodes() async throws {
+        let firstEpisode = Episode(
+            id: "ep-1",
+            podcastTitle: "Example Podcast",
+            title: "Episode 1",
+            enclosureURL: URL(string: "https://cdn.example.com/episode1.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let secondEpisode = Episode(
+            id: "ep-2",
+            podcastTitle: "Example Podcast",
+            title: "Episode 2",
+            enclosureURL: URL(string: "https://cdn.example.com/episode2.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let service = MediaPreparationService(
+            downloadService: StubDownloadService(fileExtension: "mp3"),
+            audioConversionService: StubAudioConversionService(),
+            workspaceProvider: StubWorkspaceProvider()
+        )
+
+        let collector = ProgressCollector()
+        _ = try await service.prepareEpisodes(
+            [firstEpisode, secondEpisode],
+            settings: AppSettings(),
+            progress: { collector.append($0) }
+        )
+        let progressUpdates = collector.values
+
+        #expect(progressUpdates.count == 3)
+        #expect(progressUpdates[0] == PreparationProgress(totalCount: 2, completedCount: 0, currentEpisodeID: "ep-1", currentEpisodeTitle: "Episode 1"))
+        #expect(progressUpdates[1] == PreparationProgress(totalCount: 2, completedCount: 1, currentEpisodeID: "ep-2", currentEpisodeTitle: "Episode 2"))
+        #expect(progressUpdates[2] == PreparationProgress(totalCount: 2, completedCount: 2))
+    }
 }
 
 private struct StubDownloadService: DownloadService {
@@ -107,5 +143,22 @@ private struct StubCommandRunner: CommandRunning {
 
     func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
         try result.get()
+    }
+}
+
+private final class ProgressCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var progressUpdates: [PreparationProgress] = []
+
+    func append(_ progress: PreparationProgress) {
+        lock.lock()
+        defer { lock.unlock() }
+        progressUpdates.append(progress)
+    }
+
+    var values: [PreparationProgress] {
+        lock.lock()
+        defer { lock.unlock() }
+        return progressUpdates
     }
 }

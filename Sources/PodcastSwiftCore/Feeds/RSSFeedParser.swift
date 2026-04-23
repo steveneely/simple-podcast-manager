@@ -18,10 +18,12 @@ public final class RSSFeedParser: NSObject {
 
 public struct ParsedRSSFeed: Equatable, Sendable {
     public var title: String
+    public var artworkURL: URL?
     public var episodes: [Episode]
 
-    public init(title: String, episodes: [Episode]) {
+    public init(title: String, artworkURL: URL? = nil, episodes: [Episode]) {
         self.title = title
+        self.artworkURL = artworkURL
         self.episodes = episodes
     }
 }
@@ -31,11 +33,13 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
     private let subscriptionID: UUID?
 
     private var feedTitle: String?
+    private var feedArtworkURLString: String?
     private var parsedEpisodes: [Episode] = []
 
     private var currentElement = ""
     private var currentText = ""
     private var channelDepth = 0
+    private var imageDepth = 0
     private var itemDepth = 0
     private var itemBuilder = RSSItemBuilder()
 
@@ -51,11 +55,17 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String : String] = [:]
     ) {
-        currentElement = elementName.lowercased()
+        let normalizedElement = RSSFeedParserDelegate.normalizedElementName(
+            elementName: elementName,
+            qualifiedName: qName
+        )
+        currentElement = normalizedElement
         currentText = ""
 
         if currentElement == "channel" {
             channelDepth += 1
+        } else if channelDepth > 0 && itemDepth == 0 && currentElement == "image" {
+            imageDepth += 1
         } else if currentElement == "item" {
             itemDepth += 1
             itemBuilder = RSSItemBuilder()
@@ -63,6 +73,8 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
 
         if itemDepth > 0 && currentElement == "enclosure" {
             itemBuilder.enclosureURL = attributeDict["url"]
+        } else if channelDepth > 0 && itemDepth == 0 && currentElement == "itunes:image" {
+            feedArtworkURLString = attributeDict["href"] ?? feedArtworkURLString
         }
     }
 
@@ -76,7 +88,10 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
         namespaceURI: String?,
         qualifiedName qName: String?
     ) {
-        let normalizedElement = elementName.lowercased()
+        let normalizedElement = RSSFeedParserDelegate.normalizedElementName(
+            elementName: elementName,
+            qualifiedName: qName
+        )
         let text = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if itemDepth > 0 {
@@ -107,6 +122,12 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
             if normalizedElement == "title", feedTitle == nil, !text.isEmpty {
                 feedTitle = text
             }
+            if normalizedElement == "url", imageDepth > 0, !text.isEmpty, feedArtworkURLString == nil {
+                feedArtworkURLString = text
+            }
+            if normalizedElement == "image", imageDepth > 0 {
+                imageDepth -= 1
+            }
 
             if normalizedElement == "channel" {
                 channelDepth -= 1
@@ -120,8 +141,13 @@ private final class RSSFeedParserDelegate: NSObject, XMLParserDelegate {
     func makeParsedFeed() -> ParsedRSSFeed {
         ParsedRSSFeed(
             title: feedTitle ?? sourceFeedURL.absoluteString,
+            artworkURL: feedArtworkURLString.flatMap(URL.init(string:)),
             episodes: parsedEpisodes
         )
+    }
+
+    private static func normalizedElementName(elementName: String, qualifiedName: String?) -> String {
+        (qualifiedName ?? elementName).lowercased()
     }
 }
 

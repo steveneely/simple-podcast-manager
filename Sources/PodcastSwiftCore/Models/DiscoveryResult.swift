@@ -39,6 +39,7 @@ public struct DiscoveryResult: Codable, Equatable, Sendable, Identifiable {
         return FeedSubscription(
             title: title,
             rssURL: feedURL,
+            artworkURL: artworkURL,
             retentionPolicy: .keepLatestEpisodes(defaultRetentionEpisodeLimit)
         )
     }

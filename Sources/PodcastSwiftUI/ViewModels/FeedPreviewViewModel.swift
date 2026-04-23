@@ -7,6 +7,7 @@ import PodcastSwiftCore
 public final class FeedPreviewViewModel {
     public private(set) var selectedEpisodes: [Episode]
     public private(set) var failures: [FeedFetchFailure]
+    public private(set) var feedSummaries: [UUID: FeedSummary]
     public private(set) var isLoading: Bool
     public private(set) var lastErrorMessage: String?
 
@@ -16,12 +17,13 @@ public final class FeedPreviewViewModel {
         self.service = service
         self.selectedEpisodes = []
         self.failures = []
+        self.feedSummaries = [:]
         self.isLoading = false
         self.lastErrorMessage = nil
     }
 
     public var hasPreviewData: Bool {
-        !selectedEpisodes.isEmpty || !failures.isEmpty
+        !selectedEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
     }
 
     public func refreshPreview(for subscriptions: [FeedSubscription]) async {
@@ -32,11 +34,17 @@ public final class FeedPreviewViewModel {
             let result = try await service.fetchLatestEpisodes(for: subscriptions)
             self.selectedEpisodes = result.selectedEpisodes
             self.failures = result.failures
+            self.feedSummaries = Dictionary(uniqueKeysWithValues: result.feedSummaries.map { ($0.subscriptionID, $0) })
             self.lastErrorMessage = nil
         } catch {
             self.selectedEpisodes = []
             self.failures = []
+            self.feedSummaries = [:]
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    public func artworkURL(for subscriptionID: UUID) -> URL? {
+        feedSummaries[subscriptionID]?.artworkURL
     }
 }

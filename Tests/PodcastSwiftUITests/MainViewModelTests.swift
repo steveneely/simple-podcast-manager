@@ -103,6 +103,7 @@ struct MainViewModelTests {
                 title: "Accidental Tech Podcast",
                 author: "ATP",
                 summary: "Three nerds talking tech.",
+                artworkURL: URL(string: "https://cdn.example.com/atp.jpg"),
                 feedURL: URL(string: "https://atp.fm/rss"),
                 source: "Podcast Index"
             )
@@ -110,6 +111,7 @@ struct MainViewModelTests {
 
         #expect(viewModel.feedSubscriptions.count == 1)
         #expect(viewModel.feedSubscriptions.first?.rssURL == URL(string: "https://atp.fm/rss"))
+        #expect(viewModel.feedSubscriptions.first?.artworkURL == URL(string: "https://cdn.example.com/atp.jpg"))
     }
 }
 

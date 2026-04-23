@@ -27,6 +27,13 @@ struct FeedPreviewViewModelTests {
                             subscriptionTitle: "Broken Feed",
                             message: "The feed data could not be parsed."
                         )
+                    ],
+                    feedSummaries: [
+                        FeedSummary(
+                            subscriptionID: UUID(uuidString: "A267D8AC-6904-43C7-96A8-8B58A36A5E50")!,
+                            title: "Example Podcast",
+                            artworkURL: URL(string: "https://cdn.example.com/artwork.jpg")
+                        )
                     ]
                 )
             )
@@ -36,6 +43,7 @@ struct FeedPreviewViewModelTests {
 
         #expect(viewModel.selectedEpisodes.count == 1)
         #expect(viewModel.failures.count == 1)
+        #expect(viewModel.artworkURL(for: UUID(uuidString: "A267D8AC-6904-43C7-96A8-8B58A36A5E50")!) == URL(string: "https://cdn.example.com/artwork.jpg"))
         #expect(viewModel.lastErrorMessage == nil)
     }
 }

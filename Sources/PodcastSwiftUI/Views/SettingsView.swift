@@ -9,7 +9,14 @@ public struct SettingsView: View {
     @State private var podcastIndexAPISecret: String
     @State private var dryRunByDefault: Bool
     @State private var ejectAfterSyncByDefault: Bool
+    @FocusState private var focusedField: Field?
     private let onSave: (AppSettings) -> Void
+
+    private enum Field: Hashable {
+        case ffmpeg
+        case apiKey
+        case apiSecret
+    }
 
     public init(
         settings: AppSettings,
@@ -29,14 +36,39 @@ public struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Form {
-                TextField("ffmpeg path (optional)", text: $ffmpegExecutablePath)
-                TextField("Podcast Index API key (optional)", text: $podcastIndexAPIKey)
-                SecureField("Podcast Index API secret (optional)", text: $podcastIndexAPISecret)
-                Toggle("Dry-run by default", isOn: $dryRunByDefault)
-                Toggle("Eject after sync by default", isOn: $ejectAfterSyncByDefault)
+            VStack(alignment: .leading, spacing: 14) {
+                LabeledField(
+                    title: "ffmpeg Path",
+                    detail: "Required for converting non-MP3 audio."
+                ) {
+                    TextField("/opt/homebrew/bin/ffmpeg", text: $ffmpegExecutablePath)
+                        .focused($focusedField, equals: .ffmpeg)
+                        .inputFieldStyle(isFocused: focusedField == .ffmpeg)
+                }
+
+                LabeledField(
+                    title: "Podcast Index API Key",
+                    detail: "Needed for in-app podcast discovery."
+                ) {
+                    TextField("API key", text: $podcastIndexAPIKey)
+                        .focused($focusedField, equals: .apiKey)
+                        .inputFieldStyle(isFocused: focusedField == .apiKey)
+                }
+
+                LabeledField(title: "Podcast Index API Secret") {
+                    SecureField("API secret", text: $podcastIndexAPISecret)
+                        .focused($focusedField, equals: .apiSecret)
+                        .inputFieldStyle(isFocused: focusedField == .apiSecret)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Dry-run by default", isOn: $dryRunByDefault)
+                    Toggle("Eject after sync by default", isOn: $ejectAfterSyncByDefault)
+                }
+                .padding(12)
+                .background(Color(NSColor.controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .formStyle(.grouped)
 
             HStack {
                 Spacer()
@@ -61,6 +93,9 @@ public struct SettingsView: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 420)
+        .frame(minWidth: 480)
+        .onAppear {
+            focusedField = .ffmpeg
+        }
     }
 }

@@ -15,6 +15,7 @@ public struct RSSFeedService: FeedService {
     public func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
         var selectedEpisodes: [Episode] = []
         var failures: [FeedFetchFailure] = []
+        var feedSummaries: [FeedSummary] = []
 
         for subscription in subscriptions where subscription.isEnabled {
             do {
@@ -33,6 +34,13 @@ public struct RSSFeedService: FeedService {
                 let parsedFeed = try parser.parse(data: data, sourceFeedURL: subscription.rssURL, subscriptionID: subscription.id)
                 let chosenEpisodes = EpisodeSelector.selectEpisodes(from: parsedFeed.episodes, for: subscription)
                 selectedEpisodes.append(contentsOf: chosenEpisodes)
+                feedSummaries.append(
+                    FeedSummary(
+                        subscriptionID: subscription.id,
+                        title: parsedFeed.title,
+                        artworkURL: subscription.artworkURL ?? parsedFeed.artworkURL
+                    )
+                )
             } catch {
                 failures.append(
                     FeedFetchFailure(
@@ -46,7 +54,8 @@ public struct RSSFeedService: FeedService {
 
         return FeedFetchResult(
             selectedEpisodes: selectedEpisodes.sorted(by: EpisodeSelector.isHigherPriority(_:than:)),
-            failures: failures
+            failures: failures,
+            feedSummaries: feedSummaries
         )
     }
 }

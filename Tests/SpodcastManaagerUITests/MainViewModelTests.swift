@@ -47,8 +47,7 @@ struct MainViewModelTests {
 
         try await viewModel.addFeed(
             from: FeedDraft(
-                rssURLString: "https://relay.fm/connected/feed",
-                retentionEpisodeLimit: 4
+                rssURLString: "https://relay.fm/connected/feed"
             )
         )
 
@@ -62,13 +61,12 @@ struct MainViewModelTests {
                 rssURLString: "https://relay.fm/connected/feed",
                 artworkURL: existingSubscription.artworkURL,
                 currentTitle: existingSubscription.title,
-                retentionEpisodeLimit: 6,
                 isEnabled: false
             )
         )
 
         #expect(viewModel.feedSubscriptions.first?.title == "Connected")
-        #expect(viewModel.feedSubscriptions.first?.retentionPolicy.episodeLimit == 6)
+        #expect(viewModel.feedSubscriptions.first?.retentionPolicy.episodeLimit == .max)
         #expect(viewModel.feedSubscriptions.first?.isEnabled == false)
 
         viewModel.removeFeeds(at: IndexSet(integer: 0))

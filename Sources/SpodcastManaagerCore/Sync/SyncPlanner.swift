@@ -56,22 +56,6 @@ public struct SyncPlanner: Sendable {
                 actions.append(.deleteFromDevice(targetURL: fileURL))
                 plannedDeletionTargets.insert(fileURL.standardizedFileURL)
             }
-
-            let retainedFileNames = Set(preparedEpisodes.map { $0.preparedFileURL.lastPathComponent })
-            let retentionLimit = subscription.retentionPolicy.episodeLimit
-            if existingFiles.count + preparedEpisodes.count > retentionLimit {
-                let deletableFiles = existingFiles
-                    .filter { retainedFileNames.contains($0.lastPathComponent) == false }
-                    .sorted { $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending }
-
-                let deleteCount = max(existingFiles.count + preparedEpisodes.count - retentionLimit, 0)
-                for fileURL in deletableFiles.prefix(deleteCount) {
-                    guard !plannedDeletionTargets.contains(fileURL.standardizedFileURL) else { continue }
-                    try safetyValidator.validateDeleteTarget(fileURL, on: device)
-                    actions.append(.deleteFromDevice(targetURL: fileURL))
-                    plannedDeletionTargets.insert(fileURL.standardizedFileURL)
-                }
-            }
         }
 
         try safetyValidator.validateClearTrashTarget(device.trashURL, on: device)

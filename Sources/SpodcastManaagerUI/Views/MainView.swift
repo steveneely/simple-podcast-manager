@@ -17,7 +17,9 @@ public struct MainView: View {
     @State private var isShowingSettings = false
     @State private var isShowingSyncPreview = false
     @State private var isShowingDeviceDetails = false
+    @State private var expandedEpisodeFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
+    @State private var hoveringEpisodeToggleFeedID: UUID?
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
 
     public init(viewModel: MainViewModel) {
@@ -289,7 +291,7 @@ public struct MainView: View {
                                 }
                             }
 
-                            Text("\(episodes(for: subscription).count) episode\(episodes(for: subscription).count == 1 ? "" : "s")")
+                            Text("\(allEpisodes(for: subscription).count) episode\(allEpisodes(for: subscription).count == 1 ? "" : "s")")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -353,11 +355,11 @@ public struct MainView: View {
                     HStack(spacing: 10) {
                         Button(preparationPreviewViewModel.isPreparing ? "Downloading..." : "Download All") {
                             Task {
-                                await preparationPreviewViewModel.prepare(episodes(for: selectedSubscription), settings: viewModel.settings)
+                                await preparationPreviewViewModel.prepare(syncSelectedEpisodes(for: selectedSubscription), settings: viewModel.settings)
                                 rebuildSyncPlan()
                             }
                         }
-                        .disabled(preparationPreviewViewModel.isPreparing || episodes(for: selectedSubscription).isEmpty)
+                        .disabled(preparationPreviewViewModel.isPreparing || syncSelectedEpisodes(for: selectedSubscription).isEmpty)
                     }
                 }
 
@@ -390,7 +392,7 @@ public struct MainView: View {
                     }
                 }
 
-                if episodes(for: selectedSubscription).isEmpty {
+                if allEpisodes(for: selectedSubscription).isEmpty {
                     ContentUnavailableView(
                         "No Episodes Yet",
                         systemImage: "waveform",
@@ -398,8 +400,19 @@ public struct MainView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
+                    if shouldOfferEpisodeExpansion(for: selectedSubscription) {
+                        Button(isShowingAllEpisodes(for: selectedSubscription) ? "Show recent" : "Show all (\(allEpisodes(for: selectedSubscription).count))") {
+                            toggleEpisodeExpansion(for: selectedSubscription)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(hoveringEpisodeToggleFeedID == selectedSubscription.id ? Color.blue : Color.white)
+                        .onHover { isHovering in
+                            hoveringEpisodeToggleFeedID = isHovering ? selectedSubscription.id : nil
+                        }
+                    }
+
                     List {
-                        ForEach(episodes(for: selectedSubscription)) { episode in
+                        ForEach(displayedEpisodes(for: selectedSubscription)) { episode in
                             episodeRow(for: episode)
                         }
                     }
@@ -680,6 +693,42 @@ public struct MainView: View {
     }
 
     private func episodes(for subscription: FeedSubscription) -> [Episode] {
+        feedPreviewViewModel.selectedEpisodes
+            .filter { $0.subscriptionID == subscription.id }
+            .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+    }
+
+    private func allEpisodes(for subscription: FeedSubscription) -> [Episode] {
+        feedPreviewViewModel.allEpisodes
+            .filter { $0.subscriptionID == subscription.id }
+            .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+    }
+
+    private func displayedEpisodes(for subscription: FeedSubscription) -> [Episode] {
+        let episodes = allEpisodes(for: subscription)
+        if isShowingAllEpisodes(for: subscription) {
+            return episodes
+        }
+        return Array(episodes.prefix(8))
+    }
+
+    private func isShowingAllEpisodes(for subscription: FeedSubscription) -> Bool {
+        expandedEpisodeFeedIDs.contains(subscription.id)
+    }
+
+    private func shouldOfferEpisodeExpansion(for subscription: FeedSubscription) -> Bool {
+        allEpisodes(for: subscription).count > 8
+    }
+
+    private func toggleEpisodeExpansion(for subscription: FeedSubscription) {
+        if expandedEpisodeFeedIDs.contains(subscription.id) {
+            expandedEpisodeFeedIDs.remove(subscription.id)
+        } else {
+            expandedEpisodeFeedIDs.insert(subscription.id)
+        }
+    }
+
+    private func syncSelectedEpisodes(for subscription: FeedSubscription) -> [Episode] {
         feedPreviewViewModel.selectedEpisodes
             .filter { $0.subscriptionID == subscription.id }
             .sorted(by: EpisodeSelector.isHigherPriority(_:than:))

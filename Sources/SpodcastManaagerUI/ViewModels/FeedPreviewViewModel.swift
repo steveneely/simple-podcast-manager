@@ -5,6 +5,7 @@ import SpodcastManaagerCore
 @MainActor
 @Observable
 public final class FeedPreviewViewModel {
+    public private(set) var allEpisodes: [Episode]
     public private(set) var selectedEpisodes: [Episode]
     public private(set) var failures: [FeedFetchFailure]
     public private(set) var feedSummaries: [UUID: FeedSummary]
@@ -15,6 +16,7 @@ public final class FeedPreviewViewModel {
 
     public init(service: any FeedService = RSSFeedService()) {
         self.service = service
+        self.allEpisodes = []
         self.selectedEpisodes = []
         self.failures = []
         self.feedSummaries = [:]
@@ -23,7 +25,7 @@ public final class FeedPreviewViewModel {
     }
 
     public var hasPreviewData: Bool {
-        !selectedEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
+        !allEpisodes.isEmpty || !selectedEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
     }
 
     public func refreshPreview(for subscriptions: [FeedSubscription]) async {
@@ -32,11 +34,13 @@ public final class FeedPreviewViewModel {
 
         do {
             let result = try await service.fetchLatestEpisodes(for: subscriptions)
+            self.allEpisodes = result.allEpisodes
             self.selectedEpisodes = result.selectedEpisodes
             self.failures = result.failures
             self.feedSummaries = Dictionary(uniqueKeysWithValues: result.feedSummaries.map { ($0.subscriptionID, $0) })
             self.lastErrorMessage = nil
         } catch {
+            self.allEpisodes = []
             self.selectedEpisodes = []
             self.failures = []
             self.feedSummaries = [:]

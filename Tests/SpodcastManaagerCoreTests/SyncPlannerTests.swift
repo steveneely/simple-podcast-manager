@@ -66,7 +66,7 @@ struct SyncPlannerTests {
     }
 
     @Test
-    func deletesOnlyOlderManagedEpisodesBeyondRetentionLimit() throws {
+    func doesNotAutoDeleteManagedEpisodesWithoutManualSelection() throws {
         let device = makeDevice()
         let subscription = makeSubscription(retentionLimit: 2)
         let preparedEpisodes = [
@@ -95,7 +95,7 @@ struct SyncPlannerTests {
             isDryRun: true
         )
 
-        #expect(plan.actions.contains(.deleteFromDevice(targetURL: olderEpisodeURL)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: olderEpisodeURL)))
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: currentEpisodeURL)))
     }
 

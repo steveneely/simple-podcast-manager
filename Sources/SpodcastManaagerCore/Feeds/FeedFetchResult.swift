@@ -1,15 +1,18 @@
 import Foundation
 
 public struct FeedFetchResult: Equatable, Sendable {
+    public var allEpisodes: [Episode]
     public var selectedEpisodes: [Episode]
     public var failures: [FeedFetchFailure]
     public var feedSummaries: [FeedSummary]
 
     public init(
+        allEpisodes: [Episode] = [],
         selectedEpisodes: [Episode],
         failures: [FeedFetchFailure] = [],
         feedSummaries: [FeedSummary] = []
     ) {
+        self.allEpisodes = allEpisodes
         self.selectedEpisodes = selectedEpisodes
         self.failures = failures
         self.feedSummaries = feedSummaries

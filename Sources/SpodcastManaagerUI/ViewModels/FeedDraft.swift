@@ -3,7 +3,6 @@ import SpodcastManaagerCore
 
 public enum FeedDraftError: Error, Equatable, Sendable {
     case invalidRSSURL
-    case retentionMustBePositive
 }
 
 public struct FeedDraft: Equatable, Sendable {
@@ -11,7 +10,6 @@ public struct FeedDraft: Equatable, Sendable {
     public var rssURLString: String
     public var artworkURL: URL?
     public var currentTitle: String?
-    public var retentionEpisodeLimit: Int
     public var isEnabled: Bool
 
     public init(
@@ -19,14 +17,12 @@ public struct FeedDraft: Equatable, Sendable {
         rssURLString: String = "",
         artworkURL: URL? = nil,
         currentTitle: String? = nil,
-        retentionEpisodeLimit: Int = 3,
         isEnabled: Bool = true
     ) {
         self.id = id
         self.rssURLString = rssURLString
         self.artworkURL = artworkURL
         self.currentTitle = currentTitle
-        self.retentionEpisodeLimit = retentionEpisodeLimit
         self.isEnabled = isEnabled
     }
 
@@ -35,7 +31,6 @@ public struct FeedDraft: Equatable, Sendable {
         self.rssURLString = subscription.rssURL.absoluteString
         self.artworkURL = subscription.artworkURL
         self.currentTitle = subscription.title
-        self.retentionEpisodeLimit = subscription.retentionPolicy.episodeLimit
         self.isEnabled = subscription.isEnabled
     }
 
@@ -43,19 +38,10 @@ public struct FeedDraft: Equatable, Sendable {
         let normalizedURLString = rssURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         let scheme = URL(string: normalizedURLString)?.scheme?.lowercased()
 
-        return retentionEpisodeLimit > 0
-            && (
-                id != nil
-                || scheme == "http"
-                || scheme == "https"
-            )
+        return id != nil || scheme == "http" || scheme == "https"
     }
 
     public func resolvedRSSURL() throws -> URL {
-        guard retentionEpisodeLimit > 0 else {
-            throw FeedDraftError.retentionMustBePositive
-        }
-
         guard
             let rssURL = URL(string: rssURLString.trimmingCharacters(in: .whitespacesAndNewlines)),
             let scheme = rssURL.scheme?.lowercased(),
@@ -73,7 +59,7 @@ public struct FeedDraft: Equatable, Sendable {
             title: title,
             rssURL: try resolvedRSSURL(),
             artworkURL: artworkURL,
-            retentionPolicy: .keepLatestEpisodes(retentionEpisodeLimit),
+            retentionPolicy: .keepLatestEpisodes(.max),
             isEnabled: isEnabled
         )
     }

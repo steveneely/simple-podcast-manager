@@ -2,9 +2,7 @@ import Foundation
 
 public enum EpisodeSelector {
     public static func selectEpisodes(from episodes: [Episode], for subscription: FeedSubscription) -> [Episode] {
-        let sortedEpisodes = episodes.sorted(by: isHigherPriority(_:than:))
-        let episodeLimit = max(subscription.retentionPolicy.episodeLimit, 0)
-        return Array(sortedEpisodes.prefix(episodeLimit))
+        episodes.sorted(by: isHigherPriority(_:than:))
     }
 
     public static func isHigherPriority(_ lhs: Episode, than rhs: Episode) -> Bool {

@@ -42,8 +42,9 @@ struct RSSFeedServiceTests {
         ])
 
         #expect(result.failures.isEmpty)
-        #expect(result.selectedEpisodes.count == 1)
+        #expect(result.selectedEpisodes.count == 2)
         #expect(result.selectedEpisodes.first?.title == "Episode 2")
+        #expect(result.selectedEpisodes.last?.title == "Episode 1")
         #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
     }
 

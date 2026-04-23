@@ -13,7 +13,7 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
         title: String,
         rssURL: URL,
         artworkURL: URL? = nil,
-        retentionPolicy: RetentionPolicy = .keepLatestEpisodes(3),
+        retentionPolicy: RetentionPolicy = .keepLatestEpisodes(.max),
         isEnabled: Bool = true
     ) {
         self.id = id

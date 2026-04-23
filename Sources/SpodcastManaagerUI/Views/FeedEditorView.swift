@@ -10,7 +10,6 @@ public struct FeedEditorView: View {
     private let title: String
     private let initialDraft: FeedDraft
     private let onSave: @Sendable (FeedDraft) async throws -> Void
-    private let retentionOptions: [Int] = [1, 2, 3, 5, 10, 20, .max]
 
     private enum Field: Hashable {
         case rssURL
@@ -38,17 +37,6 @@ public struct FeedEditorView: View {
                     TextField("https://example.com/feed.xml", text: $draft.rssURLString)
                         .focused($focusedField, equals: .rssURL)
                         .inputFieldStyle(isFocused: focusedField == .rssURL)
-                }
-
-                LabeledField(title: "Keep Episodes") {
-                    Picker("Keep", selection: $draft.retentionEpisodeLimit) {
-                        ForEach(retentionOptions, id: \.self) { option in
-                            Text(retentionLabel(for: option))
-                                .tag(option)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
                 }
 
                 Toggle("Feed enabled", isOn: $draft.isEnabled)
@@ -101,9 +89,5 @@ public struct FeedEditorView: View {
             return currentTitle
         }
         return title
-    }
-
-    private func retentionLabel(for value: Int) -> String {
-        value == .max ? "∞" : "\(value)"
     }
 }

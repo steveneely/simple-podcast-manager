@@ -28,12 +28,14 @@ struct URLSessionDownloadServiceTests {
                 id: "ep-1",
                 podcastTitle: "Example Podcast",
                 title: "Episode 1",
+                publicationDate: Date(timeIntervalSince1970: 1_713_713_388),
                 enclosureURL: embedURL,
                 sourceFeedURL: URL(string: "https://example.com/feed.xml")!
             ),
             into: workspaceURL
         )
 
+        #expect(fileURL.lastPathComponent == "2024.04.21-Episode 1-(Example Podcast).mp3")
         #expect(fileURL.pathExtension == "mp3")
         #expect(FileManager.default.fileExists(atPath: fileURL.path))
         #expect(try Data(contentsOf: fileURL) == Data("audio".utf8))

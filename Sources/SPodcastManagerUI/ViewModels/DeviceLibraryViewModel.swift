@@ -9,9 +9,11 @@ public final class DeviceLibraryViewModel {
     public private(set) var lastErrorMessage: String?
 
     private let deviceLibrary: any DeviceLibraryInspecting
+    private let managedDirectoryResolver: ManagedDirectoryResolver
 
     public init(deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary()) {
         self.deviceLibrary = deviceLibrary
+        self.managedDirectoryResolver = ManagedDirectoryResolver(deviceLibrary: deviceLibrary)
         self.filesBySubscriptionID = [:]
         self.lastErrorMessage = nil
     }
@@ -26,11 +28,10 @@ public final class DeviceLibraryViewModel {
         do {
             var updatedFiles: [UUID: [URL]] = [:]
             for subscription in subscriptions {
-                let managedDirectoryURL = device.musicURL.appendingPathComponent(subscription.title, isDirectory: true)
+                let managedDirectoryURL = try managedDirectoryResolver.managedDirectoryURL(for: subscription, on: device)
                 let files = try deviceLibrary.files(in: managedDirectoryURL)
-                    .filter { $0.hasDirectoryPath == false }
-                    .sorted { $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending }
-                updatedFiles[subscription.id] = files
+                    .filter { $0.hasDirectoryPath == false && !EpisodeFileName.isMetadataSidecar($0) }
+                updatedFiles[subscription.id] = sortFiles(files)
             }
             filesBySubscriptionID = updatedFiles
             lastErrorMessage = nil
@@ -42,5 +43,24 @@ public final class DeviceLibraryViewModel {
 
     public func files(for subscription: FeedSubscription) -> [URL] {
         filesBySubscriptionID[subscription.id] ?? []
+    }
+
+    private func sortFiles(_ files: [URL]) -> [URL] {
+        files.sorted { lhs, rhs in
+            switch (EpisodeFileName.publicationDate(from: lhs), EpisodeFileName.publicationDate(from: rhs)) {
+            case let (lhsDate?, rhsDate?):
+                if lhsDate != rhsDate {
+                    return lhsDate > rhsDate
+                }
+            case (.some, .none):
+                return true
+            case (.none, .some):
+                return false
+            case (.none, .none):
+                break
+            }
+
+            return lhs.lastPathComponent.localizedCaseInsensitiveCompare(rhs.lastPathComponent) == .orderedAscending
+        }
     }
 }

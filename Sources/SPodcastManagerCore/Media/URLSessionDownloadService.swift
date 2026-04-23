@@ -35,7 +35,7 @@ public struct URLSessionDownloadService: DownloadService {
 
     private func fileName(for episode: Episode, mediaURL: URL) -> String {
         let enclosureExtension = mediaURL.pathExtension.isEmpty ? "bin" : mediaURL.pathExtension
-        return sanitizedBaseName(for: episode.title) + "." + enclosureExtension.lowercased()
+        return EpisodeFileName.fileName(for: episode, fileExtension: enclosureExtension)
     }
 
     private func resolvedMediaURL(for enclosureURL: URL) async throws -> URL {
@@ -79,13 +79,5 @@ public struct URLSessionDownloadService: DownloadService {
 
         let urlString = decodedHTML[urlRange].replacingOccurrences(of: "\\/", with: "/")
         return URL(string: urlString)
-    }
-
-    private func sanitizedBaseName(for title: String) -> String {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let disallowed = CharacterSet(charactersIn: "/:\\?%*|\"<>")
-        let components = trimmed.components(separatedBy: disallowed)
-        let collapsed = components.joined(separator: "-").replacingOccurrences(of: " ", with: "_")
-        return collapsed.isEmpty ? UUID().uuidString : collapsed
     }
 }

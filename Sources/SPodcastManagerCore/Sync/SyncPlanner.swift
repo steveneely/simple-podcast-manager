@@ -3,6 +3,7 @@ import Foundation
 public struct SyncPlanner: Sendable {
     private let deviceLibrary: any DeviceLibraryInspecting
     private let safetyValidator: SafetyValidator
+    private let managedDirectoryResolver: ManagedDirectoryResolver
 
     public init(
         deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
@@ -10,6 +11,7 @@ public struct SyncPlanner: Sendable {
     ) {
         self.deviceLibrary = deviceLibrary
         self.safetyValidator = safetyValidator
+        self.managedDirectoryResolver = ManagedDirectoryResolver(deviceLibrary: deviceLibrary)
     }
 
     public func makePlan(
@@ -35,6 +37,7 @@ public struct SyncPlanner: Sendable {
             let preparedEpisodes = preparedBySubscription[subscription.id]?.map(\.1) ?? []
             let managedDirectory = managedDirectoryURL(for: subscription, on: device)
             let existingFiles = try deviceLibrary.files(in: managedDirectory)
+                .filter { $0.hasDirectoryPath == false && !EpisodeFileName.isMetadataSidecar($0) }
             let existingFileNames = Set(existingFiles.map(\.lastPathComponent))
 
             for preparedEpisode in preparedEpisodes {
@@ -69,6 +72,7 @@ public struct SyncPlanner: Sendable {
     }
 
     private func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) -> URL {
-        return device.musicURL.appendingPathComponent(subscription.title, isDirectory: true)
+        (try? managedDirectoryResolver.managedDirectoryURL(for: subscription, on: device))
+            ?? device.musicURL.appendingPathComponent(subscription.title, isDirectory: true)
     }
 }

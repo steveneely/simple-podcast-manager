@@ -66,6 +66,39 @@ struct SyncPlannerTests {
     }
 
     @Test
+    func appleDoubleSidecarDoesNotCountAsExistingEpisodeOnDevice() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "ep-1",
+            title: "Episode 1",
+            preparedFileName: "2026.04.21-Episode 1-(Example Podcast).mp3"
+        )
+        let sidecarURL = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+            .appendingPathComponent("._2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [sidecarURL]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(plan.actions.contains(where: {
+            guard case .copyToDevice(_, let destinationURL) = $0 else { return false }
+            return destinationURL.lastPathComponent == preparedEpisode.preparedFileURL.lastPathComponent
+        }))
+    }
+
+    @Test
     func doesNotAutoDeleteManagedEpisodesWithoutManualSelection() throws {
         let device = makeDevice()
         let subscription = makeSubscription(retentionLimit: 2)
@@ -170,6 +203,48 @@ struct SyncPlannerTests {
         #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
     }
 
+    @Test
+    func reusesExistingManagedFolderWhenSubscriptionTitlePunctuationChanges() throws {
+        let device = makeDevice()
+        let subscription = FeedSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "Sean Carroll's Mindscape: Science, Society, Philosophy, Culture, Arts, and Ideas",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let preparedEpisode = makePreparedEpisode(
+            id: "ep-1",
+            title: "Episode 1",
+            preparedFileName: "2026.04.21-Episode 1-(Sean Carroll).mp3"
+        )
+        let actualDirectory = device.musicURL.appendingPathComponent(
+            "Sean Carroll's Mindscape, Science, Society, Philosophy, Culture, Arts, and Ideas",
+            isDirectory: true
+        )
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    actualDirectory.standardizedFileURL.path: []
+                ],
+                directoriesByDirectory: [
+                    device.musicURL.standardizedFileURL.path: [actualDirectory]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(plan.actions.contains(where: {
+            guard case .copyToDevice(_, let destinationURL) = $0 else { return false }
+            return destinationURL.deletingLastPathComponent().standardizedFileURL == actualDirectory.standardizedFileURL
+        }))
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "WALKMAN",
@@ -210,8 +285,18 @@ struct SyncPlannerTests {
 
 private struct StubDeviceLibrary: DeviceLibraryInspecting {
     let filesByDirectory: [String: [URL]]
+    let directoriesByDirectory: [String: [URL]]
+
+    init(filesByDirectory: [String: [URL]], directoriesByDirectory: [String: [URL]] = [:]) {
+        self.filesByDirectory = filesByDirectory
+        self.directoriesByDirectory = directoriesByDirectory
+    }
 
     func files(in directoryURL: URL) throws -> [URL] {
         filesByDirectory[directoryURL.standardizedFileURL.path] ?? []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        directoriesByDirectory[directoryURL.standardizedFileURL.path] ?? []
     }
 }

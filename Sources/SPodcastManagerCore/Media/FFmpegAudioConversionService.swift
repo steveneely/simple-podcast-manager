@@ -55,11 +55,6 @@ public struct FFmpegAudioConversionService: AudioConversionService {
     }
 
     private func convertedFileName(for episode: Episode) -> String {
-        let baseName = episode.title
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .components(separatedBy: CharacterSet(charactersIn: "/:\\?%*|\"<>"))
-            .joined(separator: "-")
-            .replacingOccurrences(of: " ", with: "_")
-        return (baseName.isEmpty ? UUID().uuidString : baseName) + ".mp3"
+        EpisodeFileName.fileName(for: episode, fileExtension: "mp3")
     }
 }

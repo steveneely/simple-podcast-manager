@@ -62,9 +62,13 @@ Run the test suite with:
 Run the app with:
 
 ```bash
-CLANG_MODULE_CACHE_PATH=/Users/sneely/code/simple-podcast-manager/.swift-cache/clang-module-cache \
-SWIFTPM_CACHE_PATH=/Users/sneely/code/simple-podcast-manager/.swift-cache/swiftpm-cache \
 swift run "Simple Podcast Manager"
+```
+
+If SwiftPM gets confused after a local folder rename or stale build cache, run:
+
+```bash
+swift package clean
 ```
 
 See [ARCHITECTURE.md](/Users/sneely/code/simple-podcast-manager/ARCHITECTURE.md) for the codebase structure and [docs/IMPLEMENTATION_PLAN.md](/Users/sneely/code/simple-podcast-manager/docs/IMPLEMENTATION_PLAN.md) for the original milestone plan.

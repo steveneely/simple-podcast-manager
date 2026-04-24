@@ -80,3 +80,7 @@ swift package clean
 
 - [Architecture](ARCHITECTURE.md)
 - [User Manual](docs/USER_MANUAL.md)
+
+## License
+
+Simple Podcast Manager is available under the [MIT License](LICENSE). Third-party components are licensed separately; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -16,6 +16,19 @@ struct SimplePodcastManagerDesktopApp: App {
         }
         .defaultSize(width: 900, height: 720)
         .commands {
+            CommandGroup(after: .newItem) {
+                Button("Export App Data…") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerExportAppData, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+
+                Button("Import App Data…") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerImportAppData, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+
+                Divider()
+            }
             CommandGroup(replacing: .appInfo) {
                 Button("About Simple Podcast Manager") {
                     NSApplication.shared.orderFrontStandardAboutPanel(

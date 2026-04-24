@@ -24,6 +24,7 @@ public struct MainView: View {
     @State private var isHoveringDeviceStatus = false
     @State private var hoveringEpisodeToggleFeedID: UUID?
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
+    @State private var appDataMessage: String?
 
     public init(viewModel: MainViewModel) {
         self._viewModel = State(initialValue: viewModel)
@@ -87,6 +88,12 @@ public struct MainView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
+
+            if let appDataMessage {
+                Text(appDataMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(20)
         .frame(minWidth: 720, minHeight: 460)
@@ -131,6 +138,12 @@ public struct MainView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
             isShowingSettings = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerExportAppData)) { _ in
+            exportAppData()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerImportAppData)) { _ in
+            importAppData()
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in
             handleDeviceTopologyChange()
@@ -705,6 +718,57 @@ public struct MainView: View {
 
     private func handleDeviceTopologyChange() {
         deviceViewModel.refresh()
+        refreshDeviceLibrary()
+        rebuildSyncPlan()
+    }
+
+    private func exportAppData() {
+        let panel = NSSavePanel()
+        panel.title = "Export App Data"
+        panel.nameFieldStringValue = AppDataBackupService.defaultBackupFileName()
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+
+        guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
+
+        do {
+            let backupURL = try AppDataBackupService().exportBackup(to: destinationURL)
+            appDataMessage = "Exported app data to \(backupURL.lastPathComponent)."
+        } catch {
+            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func importAppData() {
+        let panel = NSOpenPanel()
+        panel.title = "Import App Data"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+
+        guard panel.runModal() == .OK, let backupURL = panel.url else { return }
+
+        do {
+            let previousBackupURL = try AppDataBackupService().importBackup(from: backupURL)
+            reloadAppData()
+            if let previousBackupURL {
+                appDataMessage = "Imported app data. Previous data was backed up to \(previousBackupURL.lastPathComponent)."
+            } else {
+                appDataMessage = "Imported app data."
+            }
+        } catch {
+            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func reloadAppData() {
+        viewModel.load()
+        preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+        removedEpisodeHistoryViewModel.load()
+        selectedFeedID = viewModel.feedSubscriptions.first?.id
+        manuallySelectedDeletionTargets = []
+        expandedEpisodeFeedIDs = []
+        Task { await refreshFeedPreview() }
         refreshDeviceLibrary()
         rebuildSyncPlan()
     }

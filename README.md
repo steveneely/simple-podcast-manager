@@ -1,12 +1,22 @@
 # Simple Podcast Manager
 
-Simple Podcast Manager is a native macOS app for one very specific job: subscribe to podcasts with RSS, download episodes, sync them to an MP3 player, and clean old episodes off the device without a bunch of extra ceremony.
+Simple Podcast Manager is a native macOS app for people who still want a plain RSS-to-MP3-player workflow.
 
-I built it after my iPod mini finally died and I replaced it with a Sony Walkman MP3 player. There still are not many simple desktop apps for the "plain RSS feeds + local files + sync to a standalone player" workflow, so this project is focused entirely on that use case.
+Paste RSS feeds, download episodes, sync them to a standalone MP3 player, and remove old episodes from the device when you are done with them.
 
-The goal is:
+The goal is simple:
 
 plug in device -> click sync -> done
+
+## Install
+
+The easiest way to try the app is to download the DMG from the latest GitHub release:
+
+[GitHub Releases](https://github.com/steveneely/simple-podcast-manager/releases)
+
+Open the DMG, drag `Simple Podcast Manager.app` to Applications, and launch it like a normal Mac app.
+
+Current prerelease builds are for testing. They are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
 
 ## What It Does
 
@@ -14,58 +24,41 @@ plug in device -> click sync -> done
 - fetch feed metadata directly from RSS
 - preview recent retained episodes for each show
 - download episode audio locally
-- convert audio to MP3 with bundled `ffmpeg` when needed
+- convert audio to MP3 with bundled `ffmpeg` in release builds, or a custom `ffmpeg` path in Settings
 - sync managed episodes to an MP3 player
-- delete older episodes from the device when you choose to remove them
+- show a sync preview before changing the device
+- let you choose on-device episodes to delete during sync
+- move deleted device files through the device trash and clear it only when needed
+- remember removed episodes locally
 - keep a preview-first sync flow so you can inspect changes before running them
+- export and import app data backups for subscriptions, settings, and local history
 
-## What It Is
+The app is local-first. There is no backend service, hosted account, Apple Podcasts library integration, or Spotify dependency.
 
-- a macOS app
-- written in Swift
-- built with `SwiftUI`
-- intentionally local-first and simple
+## Backup And Restore
 
-There is no backend service, no hosted account system, and no dependency on Apple Podcasts or Spotify libraries.
+Use the File menu to move app data between builds or machines:
 
-## Safety Rules
+- `File > Export App Data…`
+- `File > Import App Data…`
 
-The app is conservative on purpose:
-
-- only write inside `[device root]/music`
-- only clear `[device root]/.Trashes`
-- never touch the Mac's local Trash
-- never modify files outside the mounted external device
-- abort destructive work when path validation is uncertain
-
-## Current Structure
-
-- `Sources/SimplePodcastManagerCore/`: sync logic, persistence, RSS, safety validation
-- `Sources/SimplePodcastManagerUI/`: SwiftUI views and view models
-- `Tests/SimplePodcastManagerCoreTests/`: core behavior tests
-- `Tests/SimplePodcastManagerUITests/`: UI-facing state tests
-
-Internal package/module names are still:
-
-- `SimplePodcastManagerCore`
-- `SimplePodcastManagerUI`
-- `SimplePodcastManagerApp`
+Backups are saved as `.spmbackup` folders and include subscriptions, settings, prepared episode metadata, and removed episode history. They do not include downloaded audio files.
 
 ## Development
 
-Run the test suite with:
+Run the test suite:
 
 ```bash
 ./scripts/swift-test.sh
 ```
 
-Run the app with:
+Run the app from source:
 
 ```bash
 swift run "Simple Podcast Manager"
 ```
 
-Package a local release DMG with:
+Package a local release DMG:
 
 ```bash
 FFMPEG_PATH=/path/to/ffmpeg \
@@ -75,10 +68,13 @@ FFMPEG_SOURCE_URL=https://example.com/ffmpeg-source-or-build-recipe \
 
 For public releases, also set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` so the generated DMG is signed, notarized, and stapled.
 
-If SwiftPM gets confused after a local folder rename or stale build cache, run:
+If SwiftPM gets confused after a local folder rename or stale build cache:
 
 ```bash
 swift package clean
 ```
 
-See [ARCHITECTURE.md](/Users/sneely/code/simple-podcast-manager/ARCHITECTURE.md) for the codebase structure and [docs/IMPLEMENTATION_PLAN.md](/Users/sneely/code/simple-podcast-manager/docs/IMPLEMENTATION_PLAN.md) for the original milestone plan.
+## Project Docs
+
+- [Architecture](ARCHITECTURE.md)
+- [User Manual](docs/USER_MANUAL.md)

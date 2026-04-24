@@ -9,7 +9,6 @@ public struct SafetyValidator: Sendable {
 
     public func validateDevice(_ device: DeviceInfo) throws {
         let rootURL = canonicalDirectoryURL(device.rootURL)
-        let expectedMusicURL = canonicalDirectoryURL(rootURL.appending(path: "music", directoryHint: .isDirectory))
         let expectedTrashURL = canonicalDirectoryURL(rootURL.appending(path: ".Trashes", directoryHint: .isDirectory))
         let actualMusicURL = canonicalDirectoryURL(device.musicURL)
         let actualTrashURL = canonicalDirectoryURL(device.trashURL)
@@ -18,8 +17,8 @@ public struct SafetyValidator: Sendable {
             throw SafetyValidationError.invalidDeviceRoot(device.rootURL)
         }
 
-        guard actualMusicURL == expectedMusicURL else {
-            throw SafetyValidationError.invalidMusicDirectory(expected: expectedMusicURL, actual: actualMusicURL)
+        guard isValidMusicDirectory(actualMusicURL, for: rootURL) else {
+            throw SafetyValidationError.invalidMusicDirectory(expected: rootURL.appending(path: "music", directoryHint: .isDirectory), actual: actualMusicURL)
         }
 
         guard actualTrashURL == expectedTrashURL else {
@@ -95,5 +94,14 @@ public struct SafetyValidator: Sendable {
         let directoryPath = canonicalDirectoryURL(directory).path
         let candidatePath = canonicalFileURL(candidate).path
         return candidatePath.hasPrefix(directoryPath)
+    }
+
+    private func isValidMusicDirectory(_ actualMusicURL: URL, for rootURL: URL) -> Bool {
+        let canonicalRootURL = canonicalDirectoryURL(rootURL)
+        let canonicalMusicURL = canonicalDirectoryURL(actualMusicURL)
+        guard canonicalMusicURL.deletingLastPathComponent().standardizedFileURL == canonicalRootURL.standardizedFileURL else {
+            return false
+        }
+        return canonicalMusicURL.lastPathComponent.caseInsensitiveCompare("music") == .orderedSame
     }
 }

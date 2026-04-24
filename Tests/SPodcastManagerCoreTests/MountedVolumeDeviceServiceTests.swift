@@ -18,8 +18,10 @@ struct MountedVolumeDeviceServiceTests {
                         isEjectable: true
                     ),
                 ],
-                directories: [
-                    "/Volumes/WALKMAN/music",
+                childDirectories: [
+                    "/Volumes/WALKMAN": [
+                        URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+                    ]
                 ]
             ),
             safetyValidator: SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
@@ -30,6 +32,36 @@ struct MountedVolumeDeviceServiceTests {
         #expect(devices.count == 1)
         #expect(devices.first?.name == "WALKMAN")
         #expect(devices.first?.musicURL == URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true))
+    }
+
+    @Test
+    func detectsRemovableVolumeWithUppercaseMusicDirectory() throws {
+        let service = MountedVolumeDeviceService(
+            mountedVolumeProvider: StubMountedVolumeProvider(urls: [
+                URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            ]),
+            metadataProvider: StubVolumeMetadataProvider(
+                resourceValues: [
+                    "/Volumes/WALKMAN": MountedVolumeResourceValues(
+                        volumeName: "WALKMAN",
+                        isDirectory: true,
+                        isRemovable: true,
+                        isEjectable: true
+                    ),
+                ],
+                childDirectories: [
+                    "/Volumes/WALKMAN": [
+                        URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true)
+                    ]
+                ]
+            ),
+            safetyValidator: SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+        )
+
+        let devices = try service.discoverDevices()
+
+        #expect(devices.count == 1)
+        #expect(devices.first?.musicURL == URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true))
     }
 
     @Test
@@ -47,7 +79,7 @@ struct MountedVolumeDeviceServiceTests {
                         isEjectable: true
                     ),
                 ],
-                directories: []
+                childDirectories: [:]
             ),
             safetyValidator: SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
         )
@@ -72,8 +104,10 @@ struct MountedVolumeDeviceServiceTests {
                         isEjectable: false
                     ),
                 ],
-                directories: [
-                    "/Volumes/InternalDisk/music",
+                childDirectories: [
+                    "/Volumes/InternalDisk": [
+                        URL(fileURLWithPath: "/Volumes/InternalDisk/music", isDirectory: true)
+                    ]
                 ]
             ),
             safetyValidator: SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
@@ -95,7 +129,7 @@ private struct StubMountedVolumeProvider: MountedVolumeProviding {
 
 private struct StubVolumeMetadataProvider: VolumeMetadataProviding {
     let resourceValues: [String: MountedVolumeResourceValues]
-    let directories: Set<String>
+    let childDirectories: [String: [URL]]
 
     func resourceValues(for url: URL) throws -> MountedVolumeResourceValues {
         resourceValues[url.standardizedFileURL.path] ?? MountedVolumeResourceValues(
@@ -107,6 +141,11 @@ private struct StubVolumeMetadataProvider: VolumeMetadataProviding {
     }
 
     func directoryExists(at url: URL) -> Bool {
-        directories.contains(url.standardizedFileURL.path)
+        childDirectories[url.deletingLastPathComponent().standardizedFileURL.path]?
+            .contains(url.standardizedFileURL) == true
+    }
+
+    func childDirectories(in url: URL) throws -> [URL] {
+        childDirectories[url.standardizedFileURL.path] ?? []
     }
 }

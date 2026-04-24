@@ -3,6 +3,7 @@ import Foundation
 public protocol VolumeMetadataProviding: Sendable {
     func resourceValues(for url: URL) throws -> MountedVolumeResourceValues
     func directoryExists(at url: URL) -> Bool
+    func childDirectories(in url: URL) throws -> [URL]
 }
 
 public struct FileSystemVolumeMetadataProvider: VolumeMetadataProviding {
@@ -28,5 +29,14 @@ public struct FileSystemVolumeMetadataProvider: VolumeMetadataProviding {
         var isDirectory: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: url.path(), isDirectory: &isDirectory)
         return exists && isDirectory.boolValue
+    }
+
+    public func childDirectories(in url: URL) throws -> [URL] {
+        try FileManager.default.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+        .filter { $0.hasDirectoryPath }
     }
 }

@@ -48,8 +48,7 @@ public struct MountedVolumeDeviceService: DeviceService {
         }
 
         let rootURL = volumeURL.resolvingSymlinksInPath().standardizedFileURL
-        let musicURL = rootURL.appending(path: "music", directoryHint: .isDirectory)
-        guard metadataProvider.directoryExists(at: musicURL) else {
+        guard let musicURL = resolvedMusicDirectoryURL(in: rootURL) else {
             return nil
         }
 
@@ -59,5 +58,16 @@ public struct MountedVolumeDeviceService: DeviceService {
             musicURL: musicURL,
             trashURL: rootURL.appending(path: ".Trashes", directoryHint: .isDirectory)
         )
+    }
+
+    private func resolvedMusicDirectoryURL(in rootURL: URL) -> URL? {
+        if let childDirectory = try? metadataProvider.childDirectories(in: rootURL).first(where: {
+            $0.lastPathComponent.caseInsensitiveCompare("music") == .orderedSame
+        }) {
+            return childDirectory.standardizedFileURL
+        }
+
+        let fallbackURL = rootURL.appending(path: "music", directoryHint: .isDirectory)
+        return metadataProvider.directoryExists(at: fallbackURL) ? fallbackURL : nil
     }
 }

@@ -8,6 +8,7 @@ public struct MainView: View {
     @State private var deviceLibraryViewModel: DeviceLibraryViewModel
     @State private var feedPreviewViewModel: FeedPreviewViewModel
     @State private var preparationPreviewViewModel: PreparationPreviewViewModel
+    @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
@@ -30,6 +31,7 @@ public struct MainView: View {
         self._deviceLibraryViewModel = State(initialValue: DeviceLibraryViewModel())
         self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
         self._preparationPreviewViewModel = State(initialValue: PreparationPreviewViewModel())
+        self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
     }
@@ -100,6 +102,9 @@ public struct MainView: View {
             }
             if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
                 preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+            }
+            if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
+                removedEpisodeHistoryViewModel.load()
             }
             if selectedFeedID == nil {
                 selectedFeedID = viewModel.feedSubscriptions.first?.id
@@ -605,6 +610,12 @@ public struct MainView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                if let removedAt = removedEpisodeHistoryViewModel.removedAt(for: episode) {
+                    Text("Removed \(removedAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
 
             Spacer()
@@ -706,12 +717,6 @@ public struct MainView: View {
         Task { await refreshFeedPreview() }
     }
 
-    private func episodes(for subscription: FeedSubscription) -> [Episode] {
-        feedPreviewViewModel.selectedEpisodes
-            .filter { $0.subscriptionID == subscription.id }
-            .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
-    }
-
     private func allEpisodes(for subscription: FeedSubscription) -> [Episode] {
         feedPreviewViewModel.allEpisodes
             .filter { $0.subscriptionID == subscription.id }
@@ -746,11 +751,6 @@ public struct MainView: View {
         feedPreviewViewModel.selectedEpisodes
             .filter { $0.subscriptionID == subscription.id }
             .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
-    }
-
-    private func preparedEpisodes(for subscription: FeedSubscription) -> [PreparedEpisode] {
-        preparationPreviewViewModel.preparedEpisodes
-            .filter { $0.episode.subscriptionID == subscription.id }
     }
 
     private func feedIssues(for subscription: FeedSubscription) -> [FeedFetchFailure] {
@@ -872,6 +872,14 @@ public struct MainView: View {
     }
 
     private func runSync() async {
+        let filesBySubscriptionID = Dictionary(uniqueKeysWithValues: viewModel.feedSubscriptions.map {
+            ($0.id, deviceLibraryViewModel.files(for: $0))
+        })
+        let episodesBySubscriptionID = Dictionary(grouping: feedPreviewViewModel.allEpisodes.compactMap { episode -> (UUID, Episode)? in
+            guard let subscriptionID = episode.subscriptionID else { return nil }
+            return (subscriptionID, episode)
+        }, by: \.0).mapValues { $0.map(\.1) }
+
         await syncExecutionViewModel.sync(
             device: deviceViewModel.selectedDevice,
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
@@ -880,6 +888,24 @@ public struct MainView: View {
             ejectAfterSync: isEjectAfterSyncEnabled,
             isDryRun: isDryRunEnabled
         )
+
+        if
+            let result = syncExecutionViewModel.lastResult,
+            !result.isDryRun,
+            let lastPlan = syncExecutionViewModel.lastPlan
+        {
+            let deletedTargetURLs = lastPlan.actions.compactMap { action -> URL? in
+                guard case .deleteFromDevice(let targetURL) = action else { return nil }
+                return targetURL
+            }
+            removedEpisodeHistoryViewModel.recordDeletedEpisodes(
+                deletedTargetURLs: deletedTargetURLs,
+                filesBySubscriptionID: filesBySubscriptionID,
+                episodesBySubscriptionID: episodesBySubscriptionID,
+                removedAt: result.finishedAt ?? Date()
+            )
+        }
+
         refreshDeviceLibrary()
         rebuildSyncPlan()
         if viewModel.hasFeeds {

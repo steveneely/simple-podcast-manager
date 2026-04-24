@@ -14,6 +14,21 @@ struct SafetyValidatorTests {
     }
 
     @Test
+    func validatesUppercaseMusicDirectoryLayout() throws {
+        let device = DeviceInfo(
+            name: "Sony Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+        )
+        let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+
+        #expect(throws: Never.self) {
+            try validator.validateDevice(device)
+        }
+    }
+
+    @Test
     func rejectsMusicDirectoryOutsideDeviceRoot() throws {
         let device = DeviceInfo(
             name: "Sony Walkman",

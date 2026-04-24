@@ -93,13 +93,6 @@ public final class MainViewModel {
         }
     }
 
-    public func setFFmpegExecutablePath(_ value: String?) {
-        mutateConfiguration {
-            let trimmedValue = value?.trimmingCharacters(in: .whitespacesAndNewlines)
-            $0.settings.ffmpegExecutablePath = (trimmedValue?.isEmpty == false) ? trimmedValue : nil
-        }
-    }
-
     public func replaceSettings(_ settings: AppSettings) {
         mutateConfiguration {
             $0.settings = settings

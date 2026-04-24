@@ -2,7 +2,7 @@
 
 ## Project Goal
 
-S Podcast Manager should feel extremely simple:
+Simple Podcast Manager should feel extremely simple:
 
 plug in device -> click sync -> everything handled -> done
 
@@ -71,10 +71,10 @@ Dry-run must use the same plan as real sync and must not mutate the device.
 
 Once code exists, use this structure:
 
-- `Sources/SPodcastManagerCore/`: domain types, persistence, validation, future sync services
-- `Sources/SPodcastManagerUI/`: SwiftUI screens and view models
-- `Tests/SPodcastManagerCoreTests/`: core behavior tests
-- `Tests/SPodcastManagerUITests/`: UI-facing state tests
+- `Sources/SimplePodcastManagerCore/`: domain types, persistence, validation, future sync services
+- `Sources/SimplePodcastManagerUI/`: SwiftUI screens and view models
+- `Tests/SimplePodcastManagerCoreTests/`: core behavior tests
+- `Tests/SimplePodcastManagerUITests/`: UI-facing state tests
 
 Recommended service boundaries:
 
@@ -85,8 +85,8 @@ Recommended service boundaries:
 
 Current package targets:
 
-- `SPodcastManagerCore`
-- `SPodcastManagerUI`
+- `SimplePodcastManagerCore`
+- `SimplePodcastManagerUI`
 
 ## Testing Expectations
 

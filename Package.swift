@@ -2,22 +2,22 @@
 import PackageDescription
 
 let package = Package(
-    name: "SPodcastManager",
+    name: "SimplePodcastManager",
     platforms: [
         .macOS(.v14),
     ],
     products: [
         .library(
-            name: "SPodcastManagerCore",
-            targets: ["SPodcastManagerCore"]
+            name: "SimplePodcastManagerCore",
+            targets: ["SimplePodcastManagerCore"]
         ),
         .library(
-            name: "SPodcastManagerUI",
-            targets: ["SPodcastManagerUI"]
+            name: "SimplePodcastManagerUI",
+            targets: ["SimplePodcastManagerUI"]
         ),
         .executable(
-            name: "S Podcast Manager",
-            targets: ["SPodcastManagerApp"]
+            name: "Simple Podcast Manager",
+            targets: ["SimplePodcastManagerApp"]
         ),
     ],
     dependencies: [
@@ -25,31 +25,31 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "SPodcastManagerCore",
+            name: "SimplePodcastManagerCore",
             dependencies: [
                 .product(name: "FeedKit", package: "FeedKit"),
             ],
-            path: "Sources/SPodcastManagerCore"
+            path: "Sources/SimplePodcastManagerCore"
         ),
         .target(
-            name: "SPodcastManagerUI",
-            dependencies: ["SPodcastManagerCore"],
-            path: "Sources/SPodcastManagerUI"
+            name: "SimplePodcastManagerUI",
+            dependencies: ["SimplePodcastManagerCore"],
+            path: "Sources/SimplePodcastManagerUI"
         ),
         .executableTarget(
-            name: "SPodcastManagerApp",
-            dependencies: ["SPodcastManagerCore", "SPodcastManagerUI"],
-            path: "Sources/SPodcastManagerApp"
+            name: "SimplePodcastManagerApp",
+            dependencies: ["SimplePodcastManagerCore", "SimplePodcastManagerUI"],
+            path: "Sources/SimplePodcastManagerApp"
         ),
         .testTarget(
-            name: "SPodcastManagerCoreTests",
-            dependencies: ["SPodcastManagerCore"],
-            path: "Tests/SPodcastManagerCoreTests"
+            name: "SimplePodcastManagerCoreTests",
+            dependencies: ["SimplePodcastManagerCore"],
+            path: "Tests/SimplePodcastManagerCoreTests"
         ),
         .testTarget(
-            name: "SPodcastManagerUITests",
-            dependencies: ["SPodcastManagerUI", "SPodcastManagerCore"],
-            path: "Tests/SPodcastManagerUITests"
+            name: "SimplePodcastManagerUITests",
+            dependencies: ["SimplePodcastManagerUI", "SimplePodcastManagerCore"],
+            path: "Tests/SimplePodcastManagerUITests"
         ),
     ]
 )

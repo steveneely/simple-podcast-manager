@@ -1,102 +1,70 @@
-# S Podcast Manager
+# Simple Podcast Manager
 
-S Podcast Manager is a macOS app for getting podcasts onto a Sony MP3 player with as little friction as possible:
+Simple Podcast Manager is a native macOS app for one very specific job: subscribe to podcasts with RSS, download episodes, sync them to an MP3 player, and clean old episodes off the device without a bunch of extra ceremony.
+
+I built it after my iPod mini finally died and I replaced it with a Sony Walkman MP3 player. There still are not many simple desktop apps for the "plain RSS feeds + local files + sync to a standalone player" workflow, so this project is focused entirely on that use case.
+
+The goal is:
 
 plug in device -> click sync -> done
 
-## Product Intent
+## What It Does
 
-The app should feel fast, obvious, and safe. It should handle the full happy path for a plugged-in device:
-
-- subscribe to podcasts by adding their RSS feeds
-- read podcast RSS feeds
-- download the latest episodes
+- subscribe to podcasts by pasting RSS feed URLs
+- fetch feed metadata directly from RSS
+- preview recent retained episodes for each show
+- download episode audio locally
 - convert audio to MP3 with `ffmpeg` when needed
-- sync files to the device
-- remove older managed episodes based on retention rules
-- clear only the device's `.Trashes`
-- optionally eject the device after a successful sync
+- sync managed episodes to an MP3 player
+- delete older episodes from the device when you choose to remove them
+- keep a preview-first sync flow so you can inspect changes before running them
 
-## Technical Direction
+## What It Is
 
-S Podcast Manager is planned as:
+- a macOS app
+- written in Swift
+- built with `SwiftUI`
+- intentionally local-first and simple
 
-- a native macOS app built with `SwiftUI`
-- an in-process sync engine written in Swift
-- feed metadata resolved directly from RSS
-- `ffmpeg` invoked as an external command for audio conversion
+There is no backend service, no hosted account system, and no dependency on Apple Podcasts or Spotify libraries.
 
-No Python backend is planned for v1. The project is intentionally native and minimal.
+## Safety Rules
 
-## Safety Guarantees
+The app is conservative on purpose:
 
-Safety is the main product requirement, not a nice-to-have.
+- only write inside `[device root]/music`
+- only clear `[device root]/.Trashes`
+- never touch the Mac's local Trash
+- never modify files outside the mounted external device
+- abort destructive work when path validation is uncertain
 
-- Only write inside `[device root]/music`
-- Only permanently clear `[device root]/.Trashes`
-- Never touch files outside the mounted device root
-- Never touch the Mac's local Trash
-- Refuse destructive work when path validation is uncertain
+## Current Structure
 
-## Planned App Shape
+- `Sources/SimplePodcastManagerCore/`: sync logic, persistence, RSS, safety validation
+- `Sources/SimplePodcastManagerUI/`: SwiftUI views and view models
+- `Tests/SimplePodcastManagerCoreTests/`: core behavior tests
+- `Tests/SimplePodcastManagerUITests/`: UI-facing state tests
 
-The v1 app is a single-window SwiftUI app with:
+Internal package/module names are still:
 
-- a feed list and feed editor
-- device connection status
-- dry-run and eject-after-sync options
-- a single `Sync` action
-- progress and result reporting
+- `SimplePodcastManagerCore`
+- `SimplePodcastManagerUI`
+- `SimplePodcastManagerApp`
 
-## Planned Structure
+## Development
 
-High-level code organization:
-
-- `Sources/SPodcastManagerCore/`: models, persistence, safety validation
-- `Sources/SPodcastManagerUI/`: SwiftUI views and view models
-- `Tests/SPodcastManagerCoreTests/`: core persistence and safety tests
-- `Tests/SPodcastManagerUITests/`: UI-facing state tests
-
-See [ARCHITECTURE.md](/Users/sneely/code/s-podcast-manager/ARCHITECTURE.md) for the implementation source of truth and [docs/IMPLEMENTATION_PLAN.md](/Users/sneely/code/s-podcast-manager/docs/IMPLEMENTATION_PLAN.md) for milestone order.
-
-## Current Status
-
-Implemented so far:
-
-- milestone 1: domain models and safety validator
-- milestone 2: JSON-backed configuration store and basic SwiftUI state/editor flow
-- milestone 3: RSS subscription flow with metadata resolution
-- milestone 4: mounted-device detection, candidate selection, and validation UI state
-- milestone 5: RSS feed parsing and retained-episode preview for enabled feeds
-- milestone 6: temporary-media preparation with download preview and MP3 conversion decisions
-- milestone 7: dry-run sync planning with copy/skip/delete/trash/eject action preview
-
-Current package targets:
-
-- `SPodcastManagerCore`
-- `SPodcastManagerUI`
-
-Current subscription setup:
-
-- shows are added directly from RSS feed URLs
-- feed title and artwork are resolved from the feed itself
-
-Current verification command:
+Run the test suite with:
 
 ```bash
 ./scripts/swift-test.sh
 ```
 
-This wrapper keeps Swift build artifacts in a temporary per-repo cache so the test command stays stable even if the repo folder is renamed.
-
-Current app launch command:
+Run the app with:
 
 ```bash
-CLANG_MODULE_CACHE_PATH=/Users/sneely/code/s-podcast-manager/.swift-cache/clang-module-cache \
-SWIFTPM_CACHE_PATH=/Users/sneely/code/s-podcast-manager/.swift-cache/swiftpm-cache \
-swift run "S Podcast Manager"
+CLANG_MODULE_CACHE_PATH=/Users/sneely/code/simple-podcast-manager/.swift-cache/clang-module-cache \
+SWIFTPM_CACHE_PATH=/Users/sneely/code/simple-podcast-manager/.swift-cache/swiftpm-cache \
+swift run "Simple Podcast Manager"
 ```
 
-## Status
-
-This repo now contains the initial Swift package foundation plus planning docs for the remaining milestones.
+See [ARCHITECTURE.md](/Users/sneely/code/simple-podcast-manager/ARCHITECTURE.md) for the codebase structure and [docs/IMPLEMENTATION_PLAN.md](/Users/sneely/code/simple-podcast-manager/docs/IMPLEMENTATION_PLAN.md) for the original milestone plan.

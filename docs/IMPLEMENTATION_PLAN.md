@@ -1,4 +1,4 @@
-# S Podcast Manager Implementation Plan
+# Simple Podcast Manager Implementation Plan
 
 ## Summary
 

@@ -1,8 +1,8 @@
-# S Podcast Manager Architecture
+# Simple Podcast Manager Architecture
 
 ## Summary
 
-S Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is the only planned external dependency.
+Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is the only planned external dependency.
 
 The architecture should stay simple:
 
@@ -24,7 +24,7 @@ The UI should not contain sync logic. It should call a single coordinator in the
 
 ### UI Layer
 
-- `SPodcastManagerApp`: app lifecycle and main window setup
+- `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds and retention values
 - `SettingsView`: `ffmpeg` path, dry-run default, eject-after-sync default

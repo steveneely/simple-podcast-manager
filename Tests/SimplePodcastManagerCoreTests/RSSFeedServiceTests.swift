@@ -13,6 +13,7 @@ struct RSSFeedServiceTests {
         <rss version="2.0">
           <channel>
             <title>Example Podcast</title>
+            <description><![CDATA[<p>A podcast about <strong>simple</strong> things.</p>]]></description>
             <itunes:image href="https://example.com/artwork.jpg" />
             <item>
               <title>Episode 2</title>
@@ -46,6 +47,7 @@ struct RSSFeedServiceTests {
         #expect(result.selectedEpisodes.first?.title == "Episode 2")
         #expect(result.selectedEpisodes.last?.title == "Episode 1")
         #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
+        #expect(result.feedSummaries.first?.description == "A podcast about simple things.")
     }
 
     @Test

@@ -48,7 +48,8 @@ public final class MainViewModel {
             try commitConfiguration {
                 let subscription = try draft.makeSubscription(
                     title: summary.title,
-                    artworkURL: summary.artworkURL ?? draft.artworkURL
+                    artworkURL: summary.artworkURL ?? draft.artworkURL,
+                    description: summary.description
                 )
                 try ensureUniqueSubscription(subscription, in: $0.feedSubscriptions)
                 $0.feedSubscriptions.append(subscription)
@@ -67,7 +68,8 @@ public final class MainViewModel {
             try commitConfiguration {
                 let updatedSubscription = try draft.makeSubscription(
                     title: summary.title,
-                    artworkURL: summary.artworkURL ?? draft.artworkURL
+                    artworkURL: summary.artworkURL ?? draft.artworkURL,
+                    description: summary.description
                 )
                 try ensureUniqueSubscription(updatedSubscription, in: $0.feedSubscriptions, excluding: updatedSubscription.id)
                 guard let existingIndex = $0.feedSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
@@ -109,7 +111,9 @@ public final class MainViewModel {
 
         let needsUpdate = feedSubscriptions.contains { subscription in
             guard let summary = summariesByID[subscription.id] else { return false }
-            return subscription.title != summary.title || subscription.artworkURL != summary.artworkURL
+            return subscription.title != summary.title
+                || subscription.artworkURL != summary.artworkURL
+                || subscription.description != summary.description
         }
         guard needsUpdate else { return }
 
@@ -124,6 +128,10 @@ public final class MainViewModel {
 
                 if $0.feedSubscriptions[index].artworkURL != summary.artworkURL {
                     $0.feedSubscriptions[index].artworkURL = summary.artworkURL
+                }
+
+                if $0.feedSubscriptions[index].description != summary.description {
+                    $0.feedSubscriptions[index].description = summary.description
                 }
             }
             $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }

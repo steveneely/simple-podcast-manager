@@ -36,7 +36,8 @@ struct MainViewModelTests {
                     "https://relay.fm/connected/feed": FeedSummary(
                         subscriptionID: UUID(),
                         title: "Connected",
-                        artworkURL: URL(string: "https://relay.fm/connected.png")
+                        artworkURL: URL(string: "https://relay.fm/connected.png"),
+                        description: "A show about connected things."
                     )
                 ]
             )
@@ -63,6 +64,7 @@ struct MainViewModelTests {
         )
 
         #expect(viewModel.feedSubscriptions.first?.title == "Connected")
+        #expect(viewModel.feedSubscriptions.first?.description == "A show about connected things.")
         #expect(viewModel.feedSubscriptions.first?.retentionPolicy.episodeLimit == .max)
         #expect(viewModel.feedSubscriptions.first?.isEnabled == false)
 
@@ -88,7 +90,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func applyFeedSummariesUpdatesStoredTitlesAndArtwork() throws {
+    func applyFeedSummariesUpdatesStoredMetadata() throws {
         let subscriptionID = UUID(uuidString: "7B9FEA54-E516-4B39-8156-5B83D0B96768")!
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
@@ -108,12 +110,14 @@ struct MainViewModelTests {
             FeedSummary(
                 subscriptionID: subscriptionID,
                 title: "New Title",
-                artworkURL: URL(string: "https://example.com/artwork.jpg")
+                artworkURL: URL(string: "https://example.com/artwork.jpg"),
+                description: "Fresh feed description."
             )
         ])
 
         #expect(viewModel.feedSubscriptions.first?.title == "New Title")
         #expect(viewModel.feedSubscriptions.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
+        #expect(viewModel.feedSubscriptions.first?.description == "Fresh feed description.")
     }
 }
 
@@ -144,7 +148,8 @@ private struct MockFeedMetadataResolver: FeedMetadataResolving {
         return FeedSummary(
             subscriptionID: subscriptionID ?? summary.subscriptionID,
             title: summary.title,
-            artworkURL: summary.artworkURL
+            artworkURL: summary.artworkURL,
+            description: summary.description
         )
     }
 }

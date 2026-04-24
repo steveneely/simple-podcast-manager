@@ -24,11 +24,13 @@ public struct FeedSummary: Equatable, Sendable, Identifiable {
     public var subscriptionID: UUID
     public var title: String
     public var artworkURL: URL?
+    public var description: String?
 
-    public init(subscriptionID: UUID, title: String, artworkURL: URL? = nil) {
+    public init(subscriptionID: UUID, title: String, artworkURL: URL? = nil, description: String? = nil) {
         self.subscriptionID = subscriptionID
         self.title = title
         self.artworkURL = artworkURL
+        self.description = description
     }
 }
 

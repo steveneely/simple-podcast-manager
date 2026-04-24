@@ -24,7 +24,8 @@ public struct RSSFeedMetadataService: FeedMetadataResolving {
         return FeedSummary(
             subscriptionID: subscriptionID ?? UUID(),
             title: parsedFeed.title,
-            artworkURL: parsedFeed.artworkURL
+            artworkURL: parsedFeed.artworkURL,
+            description: parsedFeed.description
         )
     }
 }

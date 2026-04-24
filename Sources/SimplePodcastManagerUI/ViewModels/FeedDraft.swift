@@ -53,12 +53,13 @@ public struct FeedDraft: Equatable, Sendable {
         return rssURL
     }
 
-    public func makeSubscription(title: String, artworkURL: URL?) throws -> FeedSubscription {
+    public func makeSubscription(title: String, artworkURL: URL?, description: String?) throws -> FeedSubscription {
         return FeedSubscription(
             id: id ?? UUID(),
             title: title,
             rssURL: try resolvedRSSURL(),
             artworkURL: artworkURL,
+            description: description,
             retentionPolicy: .keepLatestEpisodes(.max),
             isEnabled: isEnabled
         )

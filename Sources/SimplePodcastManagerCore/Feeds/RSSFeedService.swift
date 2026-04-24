@@ -35,7 +35,8 @@ public struct RSSFeedService: FeedService {
                     FeedSummary(
                         subscriptionID: subscription.id,
                         title: parsedFeed.title,
-                        artworkURL: subscription.artworkURL ?? parsedFeed.artworkURL
+                        artworkURL: subscription.artworkURL ?? parsedFeed.artworkURL,
+                        description: parsedFeed.description
                     )
                 )
             } catch {

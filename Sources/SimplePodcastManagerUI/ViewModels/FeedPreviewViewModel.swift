@@ -51,4 +51,8 @@ public final class FeedPreviewViewModel {
     public func artworkURL(for subscriptionID: UUID) -> URL? {
         feedSummaries[subscriptionID]?.artworkURL
     }
+
+    public func description(for subscriptionID: UUID) -> String? {
+        feedSummaries[subscriptionID]?.description
+    }
 }

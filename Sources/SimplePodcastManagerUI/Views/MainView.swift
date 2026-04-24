@@ -22,6 +22,7 @@ public struct MainView: View {
     @State private var isDeleteDownloadedAfterSyncEnabled = false
     @State private var isShowingDeviceDetails = false
     @State private var expandedEpisodeFeedIDs: Set<UUID> = []
+    @State private var expandedDescriptionFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
     @State private var hoveringEpisodeToggleFeedID: UUID?
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
@@ -368,6 +369,8 @@ public struct MainView: View {
                             Text(selectedSubscription.rssURL.absoluteString)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+
+                            podcastDescriptionSection(for: selectedSubscription)
                         }
                     }
 
@@ -777,6 +780,7 @@ public struct MainView: View {
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
         expandedEpisodeFeedIDs = []
+        expandedDescriptionFeedIDs = []
         Task { await refreshFeedPreview() }
         refreshDeviceLibrary()
         rebuildSyncPlan()
@@ -817,6 +821,63 @@ public struct MainView: View {
             expandedEpisodeFeedIDs.remove(subscription.id)
         } else {
             expandedEpisodeFeedIDs.insert(subscription.id)
+        }
+    }
+
+    @ViewBuilder
+    private func podcastDescriptionSection(for subscription: FeedSubscription) -> some View {
+        if let description = podcastDescription(for: subscription) {
+            let isExpanded = isPodcastDescriptionExpanded(for: subscription)
+            let displayedDescription = isExpanded ? description : collapsedPodcastDescription(description)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(displayedDescription)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+
+                if displayedDescription != description || isExpanded {
+                    Button(isExpanded ? "Show less" : "Show more") {
+                        togglePodcastDescriptionExpansion(for: subscription)
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private func podcastDescription(for subscription: FeedSubscription) -> String? {
+        [subscription.description, feedPreviewViewModel.description(for: subscription.id)]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+    }
+
+    private func isPodcastDescriptionExpanded(for subscription: FeedSubscription) -> Bool {
+        expandedDescriptionFeedIDs.contains(subscription.id)
+    }
+
+    private func collapsedPodcastDescription(_ description: String) -> String {
+        let maxCollapsedLength = 360
+        guard description.count > maxCollapsedLength else {
+            return description
+        }
+
+        let cutoffIndex = description.index(description.startIndex, offsetBy: maxCollapsedLength)
+        let prefix = description[..<cutoffIndex]
+        let wordBoundary = prefix.lastIndex(where: { $0 == " " || $0 == "\n" }) ?? cutoffIndex
+        let trimmedPrefix = description[..<wordBoundary].trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(trimmedPrefix)..."
+    }
+
+    private func togglePodcastDescriptionExpansion(for subscription: FeedSubscription) {
+        if expandedDescriptionFeedIDs.contains(subscription.id) {
+            expandedDescriptionFeedIDs.remove(subscription.id)
+        } else {
+            expandedDescriptionFeedIDs.insert(subscription.id)
         }
     }
 

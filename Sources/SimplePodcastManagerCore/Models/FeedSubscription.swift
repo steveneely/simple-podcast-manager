@@ -5,6 +5,7 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
     public var title: String
     public var rssURL: URL
     public var artworkURL: URL?
+    public var description: String?
     public var retentionPolicy: RetentionPolicy
     public var isEnabled: Bool
 
@@ -13,6 +14,7 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
         title: String,
         rssURL: URL,
         artworkURL: URL? = nil,
+        description: String? = nil,
         retentionPolicy: RetentionPolicy = .keepLatestEpisodes(.max),
         isEnabled: Bool = true
     ) {
@@ -20,6 +22,7 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
         self.title = title
         self.rssURL = rssURL
         self.artworkURL = artworkURL
+        self.description = description
         self.retentionPolicy = retentionPolicy
         self.isEnabled = isEnabled
     }

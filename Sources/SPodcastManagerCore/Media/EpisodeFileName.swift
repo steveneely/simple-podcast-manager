@@ -1,6 +1,20 @@
 import Foundation
 
 public enum EpisodeFileName {
+    public struct ParsedFileMetadata: Equatable, Sendable {
+        public var fileStem: String
+        public var episodeTitle: String
+        public var podcastTitle: String?
+        public var publicationDate: Date?
+
+        public init(fileStem: String, episodeTitle: String, podcastTitle: String?, publicationDate: Date?) {
+            self.fileStem = fileStem
+            self.episodeTitle = episodeTitle
+            self.podcastTitle = podcastTitle
+            self.publicationDate = publicationDate
+        }
+    }
+
     public static func fileName(for episode: Episode, fileExtension: String) -> String {
         let normalizedExtension = fileExtension.isEmpty ? "bin" : fileExtension.lowercased()
         return fileStem(for: episode) + "." + normalizedExtension
@@ -32,18 +46,47 @@ public enum EpisodeFileName {
     }
 
     public static func publicationDate(from fileURL: URL) -> Date? {
-        let fileName = fileURL.lastPathComponent
-        guard fileName.count >= 11 else { return nil }
+        parsedMetadata(from: fileURL)?.publicationDate
+    }
 
-        let prefixEndIndex = fileName.index(fileName.startIndex, offsetBy: 10)
-        guard prefixEndIndex < fileName.endIndex, fileName[prefixEndIndex] == "-" else { return nil }
-
-        let datePrefix = String(fileName[..<prefixEndIndex])
-        return dateFormatter.date(from: datePrefix)
+    public static func parsedMetadata(from fileURL: URL) -> ParsedFileMetadata? {
+        parsedMetadata(fromFileStem: fileURL.deletingPathExtension().lastPathComponent)
     }
 
     public static func isMetadataSidecar(_ fileURL: URL) -> Bool {
         fileURL.lastPathComponent.hasPrefix("._")
+    }
+
+    private static func parsedMetadata(fromFileStem fileStem: String) -> ParsedFileMetadata {
+        var remainingStem = fileStem
+        var publicationDate: Date?
+        var podcastTitle: String?
+
+        if remainingStem.count >= 11 {
+            let prefixEndIndex = remainingStem.index(remainingStem.startIndex, offsetBy: 10)
+            if prefixEndIndex < remainingStem.endIndex, remainingStem[prefixEndIndex] == "-" {
+                let datePrefix = String(remainingStem[..<prefixEndIndex])
+                publicationDate = dateFormatter.date(from: datePrefix)
+                if publicationDate != nil {
+                    remainingStem = String(remainingStem[remainingStem.index(after: prefixEndIndex)...])
+                }
+            }
+        }
+
+        if
+            remainingStem.hasSuffix(")"),
+            let openRange = remainingStem.range(of: "-(", options: .backwards)
+        {
+            podcastTitle = String(remainingStem[openRange.upperBound..<remainingStem.index(before: remainingStem.endIndex)])
+            remainingStem = String(remainingStem[..<openRange.lowerBound])
+        }
+
+        return ParsedFileMetadata(
+            fileStem: fileStem,
+            episodeTitle: remainingStem,
+            podcastTitle: podcastTitle,
+            publicationDate: publicationDate
+        )
     }
 
     private static func sanitizedComponent(_ value: String) -> String {

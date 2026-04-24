@@ -3,7 +3,7 @@ import Testing
 @testable import SPodcastManagerCore
 
 struct SyncExecutorTests {
-    private let userTrashURL = URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes/501", isDirectory: true)
+    private let userTrashURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes/501", isDirectory: true)
 
     @Test
     func executeCopiesDeletesToTrashAndCountsSkippedActions() throws {
@@ -162,10 +162,10 @@ struct SyncExecutorTests {
 
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            name: "SPM Test Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
         )
     }
 }

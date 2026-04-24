@@ -35,16 +35,26 @@ public final class RemovedEpisodeHistoryViewModel {
     }
 
     public func removedAt(for episode: Episode) -> Date? {
+        removedRecord(for: episode)?.removedAt
+    }
+
+    public func removedRecord(for episode: Episode) -> RemovedEpisodeRecord? {
         guard let subscriptionID = episode.subscriptionID else { return nil }
+        let fileStem = EpisodeFileName.fileStem(for: episode)
         return removedEpisodes.first(where: {
-            $0.subscriptionID == subscriptionID && $0.episodeID == episode.id
-        })?.removedAt
+            guard $0.subscriptionID == subscriptionID else { return false }
+            if let episodeID = $0.episodeID, episodeID == episode.id {
+                return true
+            }
+            return $0.fileStem == fileStem
+        })
     }
 
     public func recordDeletedEpisodes(
         deletedTargetURLs: [URL],
         filesBySubscriptionID: [UUID: [URL]],
         episodesBySubscriptionID: [UUID: [Episode]],
+        deviceName: String?,
         removedAt: Date
     ) {
         guard !deletedTargetURLs.isEmpty else { return }
@@ -55,19 +65,24 @@ public final class RemovedEpisodeHistoryViewModel {
             guard
                 let subscriptionID = filesBySubscriptionID.first(where: { _, files in
                     files.map(\.standardizedFileURL).contains(targetURL)
-                })?.key,
-                let episode = episodesBySubscriptionID[subscriptionID]?.first(where: {
-                    EpisodeFileName.fileStem(for: $0) == targetURL.deletingPathExtension().lastPathComponent
-                })
+                })?.key
             else {
                 continue
             }
 
+            let targetFileStem = targetURL.deletingPathExtension().lastPathComponent
+            let matchedEpisode = episodesBySubscriptionID[subscriptionID]?.first(where: {
+                EpisodeFileName.fileStem(for: $0) == targetFileStem
+            })
+            let parsedMetadata = EpisodeFileName.parsedMetadata(from: targetURL)
+
             let record = RemovedEpisodeRecord(
                 subscriptionID: subscriptionID,
-                episodeID: episode.id,
-                episodeTitle: episode.title,
-                publicationDate: episode.publicationDate,
+                episodeID: matchedEpisode?.id,
+                fileStem: targetFileStem,
+                episodeTitle: matchedEpisode?.title ?? parsedMetadata?.episodeTitle ?? targetFileStem,
+                publicationDate: matchedEpisode?.publicationDate ?? parsedMetadata?.publicationDate,
+                deviceName: deviceName,
                 removedAt: removedAt
             )
             recordsByID[record.id] = record

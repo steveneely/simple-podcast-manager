@@ -611,8 +611,8 @@ public struct MainView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let removedAt = removedEpisodeHistoryViewModel.removedAt(for: episode) {
-                    Text("Removed \(removedAt.formatted(date: .abbreviated, time: .omitted))")
+                if let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode) {
+                    Text(removedEpisodeLabel(for: removedRecord))
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -902,6 +902,7 @@ public struct MainView: View {
                 deletedTargetURLs: deletedTargetURLs,
                 filesBySubscriptionID: filesBySubscriptionID,
                 episodesBySubscriptionID: episodesBySubscriptionID,
+                deviceName: deviceViewModel.selectedDevice?.name,
                 removedAt: result.finishedAt ?? Date()
             )
         }
@@ -919,6 +920,15 @@ public struct MainView: View {
     private func openSyncPreview() {
         rebuildSyncPlan()
         isShowingSyncPreview = true
+    }
+
+    private func removedEpisodeLabel(for record: RemovedEpisodeRecord) -> String {
+        let removedDate = record.removedAt.formatted(date: .abbreviated, time: .omitted)
+        let deviceName = record.deviceName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let deviceName, !deviceName.isEmpty {
+            return "Removed from \(deviceName) \(removedDate)"
+        }
+        return "Removed from device \(removedDate)"
     }
 
     private func toggleDeletionSelection(for fileURL: URL) {

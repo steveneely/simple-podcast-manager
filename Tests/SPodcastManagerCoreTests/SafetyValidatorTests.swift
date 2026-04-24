@@ -17,9 +17,9 @@ struct SafetyValidatorTests {
     func validatesUppercaseMusicDirectoryLayout() throws {
         let device = DeviceInfo(
             name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/MUSIC", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
         )
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
 
@@ -32,13 +32,13 @@ struct SafetyValidatorTests {
     func rejectsMusicDirectoryOutsideDeviceRoot() throws {
         let device = DeviceInfo(
             name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Podcasts", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
         )
         let validator = SafetyValidator()
 
-        #expect(throws: SafetyValidationError.invalidMusicDirectory(expected: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true), actual: URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true))) {
+        #expect(throws: SafetyValidationError.invalidMusicDirectory(expected: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true), actual: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Podcasts", isDirectory: true))) {
             try validator.validateDevice(device)
         }
     }
@@ -47,7 +47,7 @@ struct SafetyValidatorTests {
     func allowsWritesInsideDeviceMusic() throws {
         let device = makeDeviceInfo()
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
-        let targetURL = URL(fileURLWithPath: "/Volumes/WALKMAN/music/Accidental Tech Podcast/001.mp3")
+        let targetURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music/Accidental Tech Podcast/001.mp3")
 
         #expect(throws: Never.self) {
             try validator.validateWriteTarget(targetURL, on: device)
@@ -58,9 +58,9 @@ struct SafetyValidatorTests {
     func rejectsWritesOutsideDeviceMusic() throws {
         let device = makeDeviceInfo()
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
-        let targetURL = URL(fileURLWithPath: "/Volumes/WALKMAN/Documents/001.mp3")
+        let targetURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Documents/001.mp3")
 
-        #expect(throws: SafetyValidationError.pathOutsideDeviceMusic(URL(fileURLWithPath: "/Volumes/WALKMAN/Documents/001.mp3"))) {
+        #expect(throws: SafetyValidationError.pathOutsideDeviceMusic(URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Documents/001.mp3"))) {
             try validator.validateWriteTarget(targetURL, on: device)
         }
     }
@@ -85,9 +85,9 @@ struct SafetyValidatorTests {
             try validator.validateClearTrashTarget(device.trashURL, on: device)
         }
 
-        #expect(throws: SafetyValidationError.clearTrashRequiresExactDeviceTrash(URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes/subdir", isDirectory: true))) {
+        #expect(throws: SafetyValidationError.clearTrashRequiresExactDeviceTrash(URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes/subdir", isDirectory: true))) {
             try validator.validateClearTrashTarget(
-                URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes/subdir", isDirectory: true),
+                URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes/subdir", isDirectory: true),
                 on: device
             )
         }
@@ -111,9 +111,9 @@ struct SafetyValidatorTests {
     private func makeDeviceInfo() -> DeviceInfo {
         DeviceInfo(
             name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
         )
     }
 }

@@ -161,20 +161,51 @@ struct SyncPlannerTests {
     }
 
     @Test
-    func plansTrashCleanupAndOptionalEject() throws {
+    func plansTrashCleanupWhenDeletingAndOptionalEject() throws {
         let device = makeDevice()
-        let planner = SyncPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+        let subscription = makeSubscription()
+        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let existingFileURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    managedDirectory.standardizedFileURL.path: [existingFileURL]
+                ]
+            )
+        )
 
         let plan = try planner.makePlan(
             device: device,
             preparedEpisodes: [],
-            subscriptions: [makeSubscription()],
+            subscriptions: [subscription],
+            manualDeleteTargets: [existingFileURL],
             ejectAfterSync: true,
             isDryRun: true
         )
 
         #expect(plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
         #expect(plan.actions.contains(.ejectDevice(deviceRootURL: device.rootURL)))
+    }
+
+    @Test
+    func doesNotPlanTrashCleanupWithoutDeletes() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "ep-1",
+            title: "Episode 1",
+            preparedFileName: "Episode_1.mp3"
+        )
+        let planner = SyncPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(!plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
     }
 
     @Test

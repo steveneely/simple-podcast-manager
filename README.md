@@ -22,7 +22,7 @@ Current prerelease builds are for testing. They are not Developer ID signed or n
 
 - subscribe to podcasts by pasting RSS feed URLs
 - fetch feed metadata directly from RSS
-- preview recent retained episodes for each show
+- preview current episodes for each show
 - download episode audio locally
 - convert audio to MP3 with bundled `ffmpeg` in release builds, or a custom `ffmpeg` path in Settings
 - sync managed episodes to an MP3 player
@@ -33,18 +33,9 @@ Current prerelease builds are for testing. They are not Developer ID signed or n
 - remember removed episodes locally
 - show when an episode was previously downloaded or removed
 - keep a preview-first sync flow so you can inspect changes before running them
-- export and import app data backups for subscriptions, settings, and local history
+- back up and restore subscriptions, settings, and local history
 
 The app is local-first. There is no backend service, hosted account, Apple Podcasts library integration, or Spotify dependency.
-
-## Backup And Restore
-
-Use the File menu to move app data between builds or machines:
-
-- `File > Export App Data…`
-- `File > Import App Data…`
-
-Backups are saved as `.spmbackup` folders and include subscriptions, settings, prepared episode metadata, download history, and removed episode history. They do not include downloaded audio files.
 
 ## Development
 

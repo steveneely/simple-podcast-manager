@@ -38,17 +38,17 @@ The app only writes podcast files inside that `music` folder. It will not write 
 1. Open Simple Podcast Manager.
 2. Click the plus button in the Shows list.
 3. Paste the podcast's RSS feed URL.
-4. Choose how many recent episodes to keep.
+4. Leave `Feed enabled` checked if you want the show included in sync planning.
 5. Save the show.
 
 The app reads the podcast title and artwork from the RSS feed.
 
 ## Download Episodes
 
-Select a show to see its retained episodes.
+Select a show to see its current feed episodes.
 
 - Click the download button next to one episode to prepare that episode.
-- Click `Download All` to prepare all currently selected episodes for that show.
+- Click `Download All` to prepare every episode loaded from that show's feed. Some feeds include a lot of episodes, so this can download a lot of files.
 
 Release builds can include bundled `ffmpeg` for converting non-MP3 audio. If your build does not include bundled `ffmpeg`, set an `ffmpeg` path in Settings before downloading non-MP3 episodes.
 

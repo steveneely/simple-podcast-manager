@@ -72,6 +72,35 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
+    func convertsNonMp3EpisodesWithBundledFfmpegWhenPathBlank() async throws {
+        let episode = Episode(
+            id: "ep-wav",
+            podcastTitle: "Example Podcast",
+            title: "Episode WAV",
+            enclosureURL: URL(string: "https://cdn.example.com/episode.wav")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let bundledURL = URL(fileURLWithPath: "/Applications/Simple Podcast Manager.app/Contents/Resources/ffmpeg")
+        let commandRunner = CapturingCommandRunner(
+            result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
+        )
+        let service = MediaPreparationService(
+            downloadService: StubDownloadService(fileExtension: "wav"),
+            audioConversionService: FFmpegAudioConversionService(
+                commandRunner: commandRunner,
+                bundledExecutableURL: bundledURL
+            ),
+            workspaceProvider: StubWorkspaceProvider()
+        )
+
+        let result = try await service.prepareEpisodes([episode], settings: AppSettings())
+
+        #expect(result.preparedEpisodes.count == 1)
+        #expect(result.preparedEpisodes.first?.preparationAction == .convertedToMP3)
+        #expect(commandRunner.executableURLs == [bundledURL])
+    }
+
+    @Test
     func reportsPreparationProgressAcrossEpisodes() async throws {
         let firstEpisode = Episode(
             id: "ep-1",
@@ -143,6 +172,24 @@ private struct StubCommandRunner: CommandRunning {
 
     func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
         try result.get()
+    }
+}
+
+private final class CapturingCommandRunner: CommandRunning, @unchecked Sendable {
+    private let result: CommandRunResult
+    private var capturedExecutableURLs: [URL] = []
+
+    init(result: CommandRunResult) {
+        self.result = result
+    }
+
+    func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
+        capturedExecutableURLs.append(executableURL)
+        return result
+    }
+
+    var executableURLs: [URL] {
+        capturedExecutableURLs
     }
 }
 

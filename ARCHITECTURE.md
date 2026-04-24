@@ -2,7 +2,7 @@
 
 ## Summary
 
-Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is the only planned external dependency.
+Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is provided as a bundled external executable in release builds, with an optional custom path override for development and advanced users.
 
 The architecture should stay simple:
 
@@ -27,7 +27,7 @@ The UI should not contain sync logic. It should call a single coordinator in the
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds and retention values
-- `SettingsView`: `ffmpeg` path, dry-run default, eject-after-sync default
+- `SettingsView`: optional custom `ffmpeg` path
 - `SyncViewModel`: bind UI to sync engine and expose progress/state
 - `DeviceViewModel`: monitor device availability and selected target
 
@@ -155,7 +155,7 @@ All synced output on the device should be MP3.
 - otherwise convert it through `ffmpeg`
 - conversion happens in a temporary workspace on the Mac before copy-to-device
 
-The app should surface missing `ffmpeg` or conversion failures clearly in the UI.
+Release builds should bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI.
 
 ## Safety Model
 
@@ -186,5 +186,5 @@ The app should be biased toward refusing unsafe work, even if that occasionally 
 - feed title and artwork resolved from RSS metadata
 - per-podcast subfolders under device `music`
 - one retention rule: keep latest `N`
-- `ffmpeg` invoked with `Process`
+- bundled `ffmpeg` invoked with `Process`
 - dry-run uses the exact same planner as real sync

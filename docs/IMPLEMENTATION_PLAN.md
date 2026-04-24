@@ -214,7 +214,6 @@ Out of scope for v1:
 - a Python backend
 - database-backed persistence
 - advanced episode filtering rules
-- bundled `ffmpeg`
 - Apple Podcasts library integration
 - Spotify-based download or sync integration
 - multi-provider ranking or recommendation engines

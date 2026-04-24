@@ -14,7 +14,7 @@ plug in device -> click sync -> done
 - fetch feed metadata directly from RSS
 - preview recent retained episodes for each show
 - download episode audio locally
-- convert audio to MP3 with `ffmpeg` when needed
+- convert audio to MP3 with bundled `ffmpeg` when needed
 - sync managed episodes to an MP3 player
 - delete older episodes from the device when you choose to remove them
 - keep a preview-first sync flow so you can inspect changes before running them
@@ -64,6 +64,16 @@ Run the app with:
 ```bash
 swift run "Simple Podcast Manager"
 ```
+
+Package a local release DMG with:
+
+```bash
+FFMPEG_PATH=/path/to/ffmpeg \
+FFMPEG_SOURCE_URL=https://example.com/ffmpeg-source-or-build-recipe \
+./scripts/build-release.sh
+```
+
+For public releases, also set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` so the generated DMG is signed, notarized, and stapled.
 
 If SwiftPM gets confused after a local folder rename or stale build cache, run:
 

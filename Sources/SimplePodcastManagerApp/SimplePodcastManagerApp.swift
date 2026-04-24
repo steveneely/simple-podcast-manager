@@ -36,8 +36,13 @@ struct SimplePodcastManagerDesktopApp: App {
     }
 
     private func aboutCredits() -> NSAttributedString {
-        NSAttributedString(
-            string: "A simple macOS app for subscribing via RSS, downloading episodes, syncing them to an MP3 player, and deleting older podcasts you no longer want on the device.",
+        var credits = "A simple macOS app for subscribing via RSS, downloading episodes, syncing them to an MP3 player, and deleting older podcasts you no longer want on the device."
+        if Bundle.main.url(forResource: "ffmpeg", withExtension: nil) != nil {
+            credits += "\n\nIncludes FFmpeg for audio conversion. FFmpeg is licensed separately; see the third-party notices included with this release."
+        }
+
+        return NSAttributedString(
+            string: credits,
             attributes: [
                 .font: NSFont.systemFont(ofSize: 12),
                 .foregroundColor: NSColor.secondaryLabelColor,

@@ -29,7 +29,7 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 LabeledField(
                     title: "ffmpeg Path",
-                    detail: "Required for converting non-MP3 audio."
+                    detail: "Optional. The bundled ffmpeg is used when this is blank."
                 ) {
                     TextField("/opt/homebrew/bin/ffmpeg", text: $ffmpegExecutablePath)
                         .focused($focusedField, equals: .ffmpeg)

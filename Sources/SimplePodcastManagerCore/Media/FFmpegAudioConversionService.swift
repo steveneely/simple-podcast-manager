@@ -2,9 +2,14 @@ import Foundation
 
 public struct FFmpegAudioConversionService: AudioConversionService {
     private let commandRunner: any CommandRunning
+    private let bundledExecutableURL: URL?
 
-    public init(commandRunner: any CommandRunning = ProcessCommandRunner()) {
+    public init(
+        commandRunner: any CommandRunning = ProcessCommandRunner(),
+        bundledExecutableURL: URL? = Bundle.main.url(forResource: "ffmpeg", withExtension: nil)
+    ) {
         self.commandRunner = commandRunner
+        self.bundledExecutableURL = bundledExecutableURL
     }
 
     public func prepareAudio(for episode: Episode, sourceFileURL: URL, in workspaceURL: URL, settings: AppSettings) async throws -> PreparedEpisode {
@@ -47,11 +52,12 @@ public struct FFmpegAudioConversionService: AudioConversionService {
     }
 
     private func ffmpegExecutableURL(from settings: AppSettings) -> URL? {
-        guard let ffmpegExecutablePath = settings.ffmpegExecutablePath?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !ffmpegExecutablePath.isEmpty else {
-            return nil
+        if let ffmpegExecutablePath = settings.ffmpegExecutablePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !ffmpegExecutablePath.isEmpty {
+            return URL(fileURLWithPath: ffmpegExecutablePath, isDirectory: false)
         }
-        return URL(fileURLWithPath: ffmpegExecutablePath, isDirectory: false)
+
+        return bundledExecutableURL
     }
 
     private func convertedFileName(for episode: Episode) -> String {

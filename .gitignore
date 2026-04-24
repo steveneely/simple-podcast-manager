@@ -2,5 +2,7 @@
 DerivedData/
 .swift-cache/
 .swiftpm/
+dist/
+Packaging/AppIcon.iconset/
 SpodcastManaagerURLCache/
 s-podcast-manager-url-cache/

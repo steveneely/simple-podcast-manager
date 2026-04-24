@@ -1,5 +1,9 @@
 # Simple Podcast Manager
 
+<p align="center">
+  <img src="Packaging/AppIcon.png" alt="Simple Podcast Manager icon" width="128">
+</p>
+
 Simple Podcast Manager is a native macOS app for people who still want a plain RSS-to-MP3-player workflow.
 
 Paste RSS feeds, download episodes, sync them to a standalone MP3 player, and remove old episodes from the device when you are done with them.

@@ -14,9 +14,7 @@ plug in device -> click sync -> done
 
 ## Install
 
-The easiest way to try the app is to download the DMG from the latest GitHub release:
-
-[GitHub Releases](https://github.com/steveneely/simple-podcast-manager/releases)
+The easiest way to try the app is to download the DMG from the latest [GitHub Releases](https://github.com/steveneely/simple-podcast-manager/releases)
 
 Open the DMG, drag `Simple Podcast Manager.app` to Applications, and launch it like a normal Mac app.
 

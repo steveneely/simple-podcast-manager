@@ -6,6 +6,7 @@ import SimplePodcastManagerCore
 @Observable
 public final class PreparationPreviewViewModel {
     public private(set) var preparedEpisodes: [PreparedEpisode]
+    public private(set) var downloadedEpisodes: [DownloadedEpisodeRecord]
     public private(set) var failures: [PreparationFailure]
     public private(set) var workspaceURL: URL?
     public private(set) var progress: PreparationProgress?
@@ -15,14 +16,18 @@ public final class PreparationPreviewViewModel {
 
     private let service: MediaPreparationService
     private let store: any PreparedEpisodeStore
+    private let downloadedEpisodeStore: any DownloadedEpisodeStore
 
     public init(
         service: MediaPreparationService = MediaPreparationService(),
-        store: any PreparedEpisodeStore = JSONPreparedEpisodeStore(fileURL: JSONPreparedEpisodeStore.defaultFileURL())
+        store: any PreparedEpisodeStore = JSONPreparedEpisodeStore(fileURL: JSONPreparedEpisodeStore.defaultFileURL()),
+        downloadedEpisodeStore: any DownloadedEpisodeStore = JSONDownloadedEpisodeStore(fileURL: JSONDownloadedEpisodeStore.defaultFileURL())
     ) {
         self.service = service
         self.store = store
+        self.downloadedEpisodeStore = downloadedEpisodeStore
         self.preparedEpisodes = []
+        self.downloadedEpisodes = []
         self.failures = []
         self.workspaceURL = nil
         self.progress = nil
@@ -57,7 +62,9 @@ public final class PreparationPreviewViewModel {
                 }
             )
             merge(result)
+            recordDownloadedEpisodes(result.preparedEpisodes)
             persistPreparedEpisodes()
+            persistDownloadedEpisodes()
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -72,6 +79,12 @@ public final class PreparationPreviewViewModel {
             }
             self.preparedEpisodes = existingPreparedEpisodes.sorted {
                 $0.episode.title.localizedCaseInsensitiveCompare($1.episode.title) == .orderedAscending
+            }
+            self.downloadedEpisodes = try downloadedEpisodeStore.loadDownloadedEpisodes().sorted {
+                if $0.downloadedAt != $1.downloadedAt {
+                    return $0.downloadedAt > $1.downloadedAt
+                }
+                return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
             }
             self.workspaceURL = existingPreparedEpisodes.first?.preparedFileURL.deletingLastPathComponent()
             self.hasLoadedPreparedEpisodes = true
@@ -89,16 +102,29 @@ public final class PreparationPreviewViewModel {
         preparedEpisodes.first(where: { $0.episode.id == episode.id })
     }
 
+    public func downloadedRecord(for episode: Episode) -> DownloadedEpisodeRecord? {
+        guard let subscriptionID = episode.subscriptionID else { return nil }
+        return downloadedEpisodes.first(where: {
+            $0.subscriptionID == subscriptionID && $0.episodeID == episode.id
+        })
+    }
+
     public func removePreparedEpisode(for episode: Episode) {
         guard let existingPreparedEpisode = preparedEpisode(for: episode) else { return }
 
-        try? FileManager.default.removeItem(at: existingPreparedEpisode.preparedFileURL)
-        if existingPreparedEpisode.preparedFileURL != existingPreparedEpisode.sourceFileURL {
-            try? FileManager.default.removeItem(at: existingPreparedEpisode.sourceFileURL)
-        }
-
+        removeFiles(for: existingPreparedEpisode)
         preparedEpisodes.removeAll(where: { $0.episode.id == episode.id })
         failures.removeAll(where: { $0.episodeID == episode.id })
+        persistPreparedEpisodes()
+    }
+
+    public func removeAllPreparedEpisodes() {
+        for preparedEpisode in preparedEpisodes {
+            removeFiles(for: preparedEpisode)
+        }
+        preparedEpisodes = []
+        failures = []
+        workspaceURL = nil
         persistPreparedEpisodes()
     }
 
@@ -123,6 +149,45 @@ public final class PreparationPreviewViewModel {
             try store.savePreparedEpisodes(preparedEpisodes)
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func recordDownloadedEpisodes(_ preparedEpisodes: [PreparedEpisode]) {
+        guard !preparedEpisodes.isEmpty else { return }
+
+        var recordsByID = Dictionary(uniqueKeysWithValues: downloadedEpisodes.map { ($0.id, $0) })
+        for preparedEpisode in preparedEpisodes {
+            guard let subscriptionID = preparedEpisode.episode.subscriptionID else { continue }
+            let record = DownloadedEpisodeRecord(
+                subscriptionID: subscriptionID,
+                episodeID: preparedEpisode.episode.id,
+                episodeTitle: preparedEpisode.episode.title,
+                preparationAction: preparedEpisode.preparationAction,
+                downloadedAt: preparedEpisode.preparedAt ?? Date()
+            )
+            recordsByID[record.id] = record
+        }
+
+        downloadedEpisodes = recordsByID.values.sorted {
+            if $0.downloadedAt != $1.downloadedAt {
+                return $0.downloadedAt > $1.downloadedAt
+            }
+            return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
+        }
+    }
+
+    private func persistDownloadedEpisodes() {
+        do {
+            try downloadedEpisodeStore.saveDownloadedEpisodes(downloadedEpisodes)
+        } catch {
+            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func removeFiles(for preparedEpisode: PreparedEpisode) {
+        try? FileManager.default.removeItem(at: preparedEpisode.preparedFileURL)
+        if preparedEpisode.preparedFileURL != preparedEpisode.sourceFileURL {
+            try? FileManager.default.removeItem(at: preparedEpisode.sourceFileURL)
         }
     }
 }

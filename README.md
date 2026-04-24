@@ -28,8 +28,10 @@ Current prerelease builds are for testing. They are not Developer ID signed or n
 - sync managed episodes to an MP3 player
 - show a sync preview before changing the device
 - let you choose on-device episodes to delete during sync
+- optionally delete locally downloaded episodes after a successful sync
 - move deleted device files through the device trash and clear it only when needed
 - remember removed episodes locally
+- show when an episode was previously downloaded or removed
 - keep a preview-first sync flow so you can inspect changes before running them
 - export and import app data backups for subscriptions, settings, and local history
 
@@ -42,7 +44,7 @@ Use the File menu to move app data between builds or machines:
 - `File > Export App Data…`
 - `File > Import App Data…`
 
-Backups are saved as `.spmbackup` folders and include subscriptions, settings, prepared episode metadata, and removed episode history. They do not include downloaded audio files.
+Backups are saved as `.spmbackup` folders and include subscriptions, settings, prepared episode metadata, download history, and removed episode history. They do not include downloaded audio files.
 
 ## Development
 

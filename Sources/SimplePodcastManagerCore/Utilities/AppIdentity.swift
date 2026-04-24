@@ -4,6 +4,7 @@ public enum AppIdentity {
     public static let displayName = "Simple Podcast Manager"
     public static let supportDirectoryName = "SimplePodcastManager"
     public static let legacySupportDirectoryNames = [
+        "SPodcastManager",
         String(supportDirectoryName.prefix(1)) + "podcast" + "Manaager",
         "Podcast" + "Swift",
     ]

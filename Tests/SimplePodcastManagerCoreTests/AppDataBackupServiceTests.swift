@@ -21,13 +21,14 @@ struct AppDataBackupServiceTests {
         #expect(backupURL.pathExtension == AppDataBackupService.backupPathExtension)
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "config.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "prepared-episodes.json").path))
+        #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "downloaded-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "removed-episodes.json").path))
 
         let manifestData = try Data(contentsOf: backupURL.appending(path: "manifest.json"))
         let manifest = try JSONDecoder.iso8601Decoder.decode(AppDataBackupManifest.self, from: manifestData)
         #expect(manifest.appName == AppIdentity.displayName)
         #expect(manifest.formatVersion == 1)
-        #expect(manifest.files == ["config.json", "prepared-episodes.json", "removed-episodes.json"])
+        #expect(manifest.files == ["config.json", "downloaded-episodes.json", "prepared-episodes.json", "removed-episodes.json"])
     }
 
     @Test
@@ -54,6 +55,10 @@ struct AppDataBackupServiceTests {
             fileURL: destinationSupportURL.appending(path: "config.json")
         ).loadConfiguration()
         #expect(restoredConfiguration.feedSubscriptions.map(\.title) == ["Example Podcast"])
+        let restoredDownloadHistory = try JSONDownloadedEpisodeStore(
+            fileURL: destinationSupportURL.appending(path: "downloaded-episodes.json")
+        ).loadDownloadedEpisodes()
+        #expect(restoredDownloadHistory.map(\.episodeID) == ["episode-1"])
         #expect(previousBackupURL != nil)
         #expect(FileManager.default.fileExists(atPath: previousBackupURL!.appending(path: "config.json").path))
     }
@@ -112,6 +117,15 @@ struct AppDataBackupServiceTests {
                 sourceFileURL: supportURL.appending(path: "episode.mp3"),
                 preparedFileURL: supportURL.appending(path: "episode.mp3"),
                 preparationAction: .passthroughMP3
+            )
+        ])
+        try JSONDownloadedEpisodeStore(fileURL: supportURL.appending(path: "downloaded-episodes.json")).saveDownloadedEpisodes([
+            DownloadedEpisodeRecord(
+                subscriptionID: subscriptionID,
+                episodeID: "episode-1",
+                episodeTitle: "Episode 1",
+                preparationAction: .passthroughMP3,
+                downloadedAt: Date(timeIntervalSince1970: 2)
             )
         ])
         try JSONRemovedEpisodeStore(fileURL: supportURL.appending(path: "removed-episodes.json")).saveRemovedEpisodes([

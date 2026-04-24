@@ -19,6 +19,7 @@ public struct MainView: View {
     @State private var isShowingSyncPreview = false
     @State private var isDryRunEnabled = true
     @State private var isEjectAfterSyncEnabled = false
+    @State private var isDeleteDownloadedAfterSyncEnabled = false
     @State private var isShowingDeviceDetails = false
     @State private var expandedEpisodeFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
@@ -523,6 +524,10 @@ public struct MainView: View {
                     rebuildSyncPlan()
                 }
 
+            Toggle("Delete downloaded episodes after sync", isOn: $isDeleteDownloadedAfterSyncEnabled)
+                .toggleStyle(.checkbox)
+                .disabled(isDryRunEnabled)
+
             if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
                 syncProgressSection(progress)
             }
@@ -619,7 +624,11 @@ public struct MainView: View {
                 }
 
                 if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
-                    Text(preparedEpisode.preparationAction == .passthroughMP3 ? "Downloaded MP3" : "Downloaded and converted to MP3")
+                    Text(downloadedEpisodeLabel(for: preparedEpisode))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
+                    Text(downloadedEpisodeLabel(for: downloadedRecord))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -971,6 +980,15 @@ public struct MainView: View {
             )
         }
 
+        if
+            isDeleteDownloadedAfterSyncEnabled,
+            syncExecutionViewModel.lastErrorMessage == nil,
+            let result = syncExecutionViewModel.lastResult,
+            !result.isDryRun
+        {
+            preparationPreviewViewModel.removeAllPreparedEpisodes()
+        }
+
         refreshDeviceLibrary()
         rebuildSyncPlan()
         if viewModel.hasFeeds {
@@ -993,6 +1011,21 @@ public struct MainView: View {
             return "Removed from \(deviceName) \(removedDate)"
         }
         return "Removed from device \(removedDate)"
+    }
+
+    private func downloadedEpisodeLabel(for preparedEpisode: PreparedEpisode) -> String {
+        let actionText = preparedEpisode.preparationAction == .passthroughMP3 ? "MP3" : "converted to MP3"
+        guard let preparedAt = preparedEpisode.preparedAt else {
+            return "Downloaded previously (\(actionText))"
+        }
+        let downloadedDate = preparedAt.formatted(date: .abbreviated, time: .omitted)
+        return "Downloaded \(downloadedDate) (\(actionText))"
+    }
+
+    private func downloadedEpisodeLabel(for record: DownloadedEpisodeRecord) -> String {
+        let actionText = record.preparationAction == .passthroughMP3 ? "MP3" : "converted to MP3"
+        let downloadedDate = record.downloadedAt.formatted(date: .abbreviated, time: .omitted)
+        return "Downloaded \(downloadedDate) (\(actionText))"
     }
 
     private func toggleDeletionSelection(for fileURL: URL) {

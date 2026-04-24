@@ -60,7 +60,8 @@ Release builds can include bundled `ffmpeg` for converting non-MP3 audio. If you
 4. Review the planned copies, skips, deletions, trash cleanup, and optional eject.
 5. Leave `Preview only (dry run)` checked to test without changing the device.
 6. Uncheck `Preview only (dry run)` when you are ready to sync for real.
-7. Click `Start Sync`.
+7. Optionally check `Delete downloaded episodes after sync` to remove local downloaded episode files after a successful real sync.
+8. Click `Start Sync`.
 
 The app keeps files organized by show:
 
@@ -80,6 +81,12 @@ When a device is selected, each show can display its current on-device files.
 
 Deleted files are moved through the device's trash and the app only clears the device trash when deletions actually happened.
 
+## Local Download History
+
+The episode list shows whether an episode has already been downloaded locally. When the app knows the date, it shows the last downloaded date.
+
+The episode list also marks episodes that were previously removed from the device.
+
 ## Backup And Restore App Data
 
 Use the File menu:
@@ -92,6 +99,7 @@ Backups are saved as `.spmbackup` folders and include:
 - subscriptions
 - settings
 - prepared episode metadata
+- download history
 - removed episode history
 
 Backups do not include downloaded audio files.

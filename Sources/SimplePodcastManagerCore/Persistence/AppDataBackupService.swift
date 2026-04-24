@@ -123,6 +123,8 @@ public struct AppDataBackupService {
             _ = try Self.makeDecoder().decode(AppConfiguration.self, from: data)
         case "prepared-episodes.json":
             _ = try Self.makeDecoder().decode([PreparedEpisode].self, from: data)
+        case "downloaded-episodes.json":
+            _ = try Self.makeDecoder().decode([DownloadedEpisodeRecord].self, from: data)
         case "removed-episodes.json":
             _ = try Self.makeDecoder().decode([RemovedEpisodeRecord].self, from: data)
         default:
@@ -156,6 +158,7 @@ public struct AppDataBackupService {
     private static let backedUpFileNames: Set<String> = [
         "config.json",
         "prepared-episodes.json",
+        "downloaded-episodes.json",
         "removed-episodes.json",
     ]
 

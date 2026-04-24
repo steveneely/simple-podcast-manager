@@ -6,17 +6,20 @@ public struct PreparedEpisode: Codable, Equatable, Sendable, Identifiable {
     public var sourceFileURL: URL
     public var preparedFileURL: URL
     public var preparationAction: PreparationAction
+    public var preparedAt: Date?
 
     public init(
         episode: Episode,
         sourceFileURL: URL,
         preparedFileURL: URL,
-        preparationAction: PreparationAction
+        preparationAction: PreparationAction,
+        preparedAt: Date? = Date()
     ) {
         self.episode = episode
         self.sourceFileURL = sourceFileURL
         self.preparedFileURL = preparedFileURL
         self.preparationAction = preparationAction
+        self.preparedAt = preparedAt
     }
 }
 

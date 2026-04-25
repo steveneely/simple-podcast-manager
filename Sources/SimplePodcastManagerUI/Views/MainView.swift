@@ -735,7 +735,7 @@ public struct MainView: View {
     private var updateAlertMessage: String {
         if let result = updateCheckViewModel.latestResult {
             if result.isUpdateAvailable {
-                return "\(result.latestRelease.name) is available. You are running \(updateCheckViewModel.displayVersion)."
+                return "\(result.latestRelease.name) is available. You're running \(updateCheckViewModel.displayRelease)."
             }
 
             return "\(result.latestRelease.name) is installed."

@@ -9,6 +9,14 @@ public struct AppReleaseIdentity: Equatable, Sendable {
         self.displayVersion = displayVersion
     }
 
+    public var displayRelease: String {
+        guard let currentReleaseTag else {
+            return "local build \(displayVersion)"
+        }
+
+        return Self.displayName(forReleaseTag: currentReleaseTag)
+    }
+
     public static func current(bundle: Bundle = .main) -> AppReleaseIdentity {
         let releaseTag = bundle.object(forInfoDictionaryKey: "SPMReleaseTag") as? String
         let shortVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -25,5 +33,11 @@ public struct AppReleaseIdentity: Equatable, Sendable {
         }
 
         return AppReleaseIdentity(currentReleaseTag: releaseTag, displayVersion: displayVersion)
+    }
+
+    public static func displayName(forReleaseTag releaseTag: String) -> String {
+        releaseTag
+            .trimmingPrefix("v")
+            .replacingOccurrences(of: "-", with: " ")
     }
 }

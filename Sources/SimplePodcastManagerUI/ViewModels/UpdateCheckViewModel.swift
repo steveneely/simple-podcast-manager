@@ -27,6 +27,10 @@ public final class UpdateCheckViewModel {
         releaseIdentity.displayVersion
     }
 
+    public var displayRelease: String {
+        releaseIdentity.displayRelease
+    }
+
     public func checkForUpdates() async {
         isChecking = true
         defer { isChecking = false }

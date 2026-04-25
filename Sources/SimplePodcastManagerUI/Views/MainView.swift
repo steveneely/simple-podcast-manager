@@ -11,6 +11,7 @@ public struct MainView: View {
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
+    @State private var updateCheckViewModel: UpdateCheckViewModel
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var feedEditorPresentationID = UUID()
@@ -37,6 +38,7 @@ public struct MainView: View {
         self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
+        self._updateCheckViewModel = State(initialValue: UpdateCheckViewModel())
     }
 
     public var body: some View {
@@ -96,6 +98,12 @@ public struct MainView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            if updateCheckViewModel.isChecking {
+                Text("Checking for updates...")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(20)
         .frame(minWidth: 720, minHeight: 460)
@@ -147,6 +155,9 @@ public struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerImportAppData)) { _ in
             importAppData()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerCheckForUpdates)) { _ in
+            Task { await updateCheckViewModel.checkForUpdates() }
+        }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in
             handleDeviceTopologyChange()
         }
@@ -155,6 +166,19 @@ public struct MainView: View {
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didRenameVolumeNotification)) { _ in
             handleDeviceTopologyChange()
+        }
+        .alert(updateAlertTitle, isPresented: updateAlertBinding) {
+            if let releaseURL = updateReleaseURL {
+                Button("Open Release") {
+                    NSWorkspace.shared.open(releaseURL)
+                    updateCheckViewModel.clearResult()
+                }
+            }
+            Button("OK") {
+                updateCheckViewModel.clearResult()
+            }
+        } message: {
+            Text(updateAlertMessage)
         }
     }
 
@@ -686,6 +710,45 @@ public struct MainView: View {
                 rebuildSyncPlan()
             }
         )
+    }
+
+    private var updateAlertBinding: Binding<Bool> {
+        Binding(
+            get: {
+                updateCheckViewModel.latestResult != nil || updateCheckViewModel.lastErrorMessage != nil
+            },
+            set: { isPresented in
+                if !isPresented {
+                    updateCheckViewModel.clearResult()
+                }
+            }
+        )
+    }
+
+    private var updateAlertTitle: String {
+        if let result = updateCheckViewModel.latestResult {
+            return result.isUpdateAvailable ? "Update Available" : "Simple Podcast Manager Is Up to Date"
+        }
+        return "Could Not Check for Updates"
+    }
+
+    private var updateAlertMessage: String {
+        if let result = updateCheckViewModel.latestResult {
+            if result.isUpdateAvailable {
+                return "\(result.latestRelease.name) is available. You are running \(updateCheckViewModel.displayVersion)."
+            }
+
+            return "You are running the latest release: \(result.latestRelease.name)."
+        }
+
+        return updateCheckViewModel.lastErrorMessage ?? "Try again later."
+    }
+
+    private var updateReleaseURL: URL? {
+        guard let result = updateCheckViewModel.latestResult, result.isUpdateAvailable else {
+            return nil
+        }
+        return result.latestRelease.htmlURL
     }
 
     @MainActor

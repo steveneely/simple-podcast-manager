@@ -17,6 +17,12 @@ struct SimplePodcastManagerDesktopApp: App {
         .defaultSize(width: 900, height: 720)
         .commands {
             CommandGroup(after: .newItem) {
+                Button("Check for Updates…") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerCheckForUpdates, object: nil)
+                }
+
+                Divider()
+
                 Button("Export App Data…") {
                     NotificationCenter.default.post(name: .simplePodcastManagerExportAppData, object: nil)
                 }

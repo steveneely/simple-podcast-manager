@@ -119,6 +119,68 @@ struct MainViewModelTests {
         #expect(viewModel.feedSubscriptions.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(viewModel.feedSubscriptions.first?.description == "Fresh feed description.")
     }
+
+    @Test
+    func removeFeedDeletesCachedFeed() throws {
+        let subscriptionID = UUID()
+        let cacheStore = InMemoryFeedCacheStore()
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(
+                feedSubscriptions: [
+                    FeedSubscription(
+                        id: subscriptionID,
+                        title: "Cached Feed",
+                        rssURL: URL(string: "https://example.com/feed.xml")!
+                    )
+                ]
+            )
+        )
+        let viewModel = MainViewModel(store: store, feedCacheStore: cacheStore)
+        viewModel.load()
+
+        viewModel.removeFeeds(at: IndexSet(integer: 0))
+
+        #expect(cacheStore.deletedSubscriptionIDs == [subscriptionID])
+    }
+
+    @Test
+    func updateFeedDeletesCachedFeedWhenURLChanges() async throws {
+        let subscriptionID = UUID()
+        let oldURL = URL(string: "https://example.com/old.xml")!
+        let newURL = URL(string: "https://example.com/new.xml")!
+        let cacheStore = InMemoryFeedCacheStore()
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(
+                feedSubscriptions: [
+                    FeedSubscription(
+                        id: subscriptionID,
+                        title: "Cached Feed",
+                        rssURL: oldURL
+                    )
+                ]
+            )
+        )
+        let viewModel = MainViewModel(
+            store: store,
+            metadataResolver: MockFeedMetadataResolver(
+                summariesByURL: [
+                    newURL.absoluteString: FeedSummary(subscriptionID: subscriptionID, title: "Cached Feed")
+                ]
+            ),
+            feedCacheStore: cacheStore
+        )
+        viewModel.load()
+
+        try await viewModel.updateFeed(
+            from: FeedDraft(
+                id: subscriptionID,
+                rssURLString: newURL.absoluteString,
+                currentTitle: "Cached Feed"
+            )
+        )
+
+        #expect(cacheStore.deletedSubscriptionIDs == [subscriptionID])
+    }
 }
 
 private final class InMemoryConfigurationStore: ConfigurationStore, @unchecked Sendable {
@@ -134,6 +196,20 @@ private final class InMemoryConfigurationStore: ConfigurationStore, @unchecked S
 
     func saveConfiguration(_ configuration: AppConfiguration) throws {
         self.configuration = configuration
+    }
+}
+
+private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable {
+    var deletedSubscriptionIDs: [UUID] = []
+
+    func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
+        nil
+    }
+
+    func saveCachedFeed(_ cachedFeed: CachedFeed) throws {}
+
+    func deleteCachedFeed(for subscriptionID: UUID) throws {
+        deletedSubscriptionIDs.append(subscriptionID)
     }
 }
 

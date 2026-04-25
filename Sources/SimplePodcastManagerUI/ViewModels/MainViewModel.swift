@@ -12,13 +12,16 @@ public final class MainViewModel {
 
     private let store: any ConfigurationStore
     private let metadataResolver: any FeedMetadataResolving
+    private let feedCacheStore: any FeedCacheStore
 
     public init(
         store: any ConfigurationStore,
-        metadataResolver: any FeedMetadataResolving = RSSFeedMetadataService()
+        metadataResolver: any FeedMetadataResolving = RSSFeedMetadataService(),
+        feedCacheStore: any FeedCacheStore = JSONFeedCacheStore(directoryURL: JSONFeedCacheStore.defaultDirectoryURL())
     ) {
         self.store = store
         self.metadataResolver = metadataResolver
+        self.feedCacheStore = feedCacheStore
         self.feedSubscriptions = []
         self.settings = AppSettings()
         self.lastErrorMessage = nil
@@ -65,6 +68,7 @@ public final class MainViewModel {
         do {
             let rssURL = try draft.resolvedRSSURL()
             let summary = try await metadataResolver.resolveMetadata(for: rssURL, subscriptionID: draft.id)
+            let previousSubscription = feedSubscriptions.first { $0.id == draft.id }
             try commitConfiguration {
                 let updatedSubscription = try draft.makeSubscription(
                     title: summary.title,
@@ -81,6 +85,10 @@ public final class MainViewModel {
                 $0.feedSubscriptions[existingIndex] = updatedSubscription
                 $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             }
+
+            if let previousSubscription, previousSubscription.rssURL != rssURL {
+                try? feedCacheStore.deleteCachedFeed(for: previousSubscription.id)
+            }
         } catch {
             self.lastErrorMessage = error.localizedDescription
             throw error
@@ -88,10 +96,17 @@ public final class MainViewModel {
     }
 
     public func removeFeeds(at offsets: IndexSet) {
+        let removedIDs = offsets.compactMap { offset in
+            feedSubscriptions.indices.contains(offset) ? feedSubscriptions[offset].id : nil
+        }
         mutateConfiguration {
             for index in offsets.sorted(by: >) {
                 $0.feedSubscriptions.remove(at: index)
             }
+        }
+
+        for removedID in removedIDs {
+            try? feedCacheStore.deleteCachedFeed(for: removedID)
         }
     }
 

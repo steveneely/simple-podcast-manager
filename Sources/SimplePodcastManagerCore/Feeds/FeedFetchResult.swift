@@ -19,7 +19,7 @@ public struct FeedFetchResult: Equatable, Sendable {
     }
 }
 
-public struct FeedSummary: Equatable, Sendable, Identifiable {
+public struct FeedSummary: Codable, Equatable, Sendable, Identifiable {
     public var id: UUID { subscriptionID }
     public var subscriptionID: UUID
     public var title: String

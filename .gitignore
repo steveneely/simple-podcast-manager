@@ -2,6 +2,7 @@
 DerivedData/
 .swift-cache/
 .swiftpm/
+.vscode/
 dist/
 Packaging/AppIcon.iconset/
 SpodcastManaagerURLCache/

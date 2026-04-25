@@ -727,7 +727,7 @@ public struct MainView: View {
 
     private var updateAlertTitle: String {
         if let result = updateCheckViewModel.latestResult {
-            return result.isUpdateAvailable ? "Update Available" : "Simple Podcast Manager Is Up to Date"
+            return result.isUpdateAvailable ? "Update Available" : "You're Up to Date"
         }
         return "Could Not Check for Updates"
     }
@@ -738,7 +738,7 @@ public struct MainView: View {
                 return "\(result.latestRelease.name) is available. You are running \(updateCheckViewModel.displayVersion)."
             }
 
-            return "You are running the latest release: \(result.latestRelease.name)."
+            return "\(result.latestRelease.name) is installed."
         }
 
         return updateCheckViewModel.lastErrorMessage ?? "Try again later."

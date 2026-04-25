@@ -24,6 +24,7 @@ Current prerelease builds are for testing. They are not Developer ID signed or n
 
 - subscribe to podcasts by pasting RSS feed URLs
 - fetch feed metadata directly from RSS
+- cache feed previews locally so startup stays fast, then refresh feeds in the background
 - preview current episodes for each show
 - download episode audio locally
 - convert audio to MP3 with bundled `ffmpeg` in release builds, or a custom `ffmpeg` path in Settings
@@ -36,6 +37,7 @@ Current prerelease builds are for testing. They are not Developer ID signed or n
 - show when an episode was previously downloaded or removed
 - keep a preview-first sync flow so you can inspect changes before running them
 - back up and restore subscriptions, settings, and local history
+- check GitHub Releases for app updates
 
 The app is local-first. There is no backend service, hosted account, Apple Podcasts library integration, or Spotify dependency.
 

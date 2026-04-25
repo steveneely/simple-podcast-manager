@@ -34,7 +34,8 @@ The UI should not contain sync logic. It should call a single coordinator in the
 ### Core Layer
 
 - `SyncCoordinator`: top-level orchestrator for a sync run
-- `FeedService`: fetch and parse RSS feeds
+- `FeedService`: fetch, cache, and parse RSS feeds
+- `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
 - `DownloadService`: download episode media into a temporary workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
@@ -92,6 +93,35 @@ The flow should be:
 - the app fetches the feed and reads title/artwork metadata
 - the app stores the resolved subscription
 - later refreshes can update the stored title and artwork if the feed changes
+
+## Feed Refresh And Cache
+
+Feed refresh should be fast on startup and polite to RSS hosts.
+
+The app keeps a derived feed cache under app support:
+
+- `feed-cache/<subscription-id>.json`
+
+Each cache file stores:
+
+- subscription ID and RSS URL
+- fetched-at date
+- HTTP `ETag` and `Last-Modified` validators when the host provides them
+- parsed feed summary metadata, including title, artwork, and description
+- parsed episode metadata
+
+Startup loads cached parsed feeds immediately so the episode list can appear before network refresh finishes. A background refresh still runs after startup.
+
+Refresh behavior:
+
+- send `If-None-Match` when a cached `ETag` exists
+- send `If-Modified-Since` when a cached `Last-Modified` exists
+- use cached parsed data when the server returns `304 Not Modified`
+- parse and replace the cache when the server returns a fresh `200 OK` feed
+- if refresh fails and a cache exists, keep showing cached episodes and surface a feed issue that names the saved feed date
+- if refresh fails and no cache exists, show the refresh failure with no feed preview data
+
+The feed cache is derived data. It should not be included in app data export/import, and deleting or retargeting a subscription should remove its stale cache file.
 
 ## Device Detection
 

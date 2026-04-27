@@ -34,7 +34,7 @@ struct DeviceLibraryViewModelTests {
 
         viewModel.refresh(device: device, subscriptions: [subscription])
 
-        #expect(viewModel.files(for: subscription) == [newFile, oldFile, unmatchedFile])
+        #expect(viewModel.files(for: subscription) == [newFile, oldFile])
     }
 
     @Test
@@ -51,11 +51,15 @@ struct DeviceLibraryViewModelTests {
         )
         let alphaFile = device.musicURL.appendingPathComponent("ATP/Alpha.mp3")
         let zuluFile = device.musicURL.appendingPathComponent("ATP/Zulu.mp3")
+        let alphaManagedFile = device.musicURL.appendingPathComponent("ATP/Alpha-(ATP).mp3")
+        let zuluManagedFile = device.musicURL.appendingPathComponent("ATP/Zulu-(ATP).mp3")
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     device.musicURL.appendingPathComponent("ATP", isDirectory: true): [
+                        zuluManagedFile,
                         zuluFile,
+                        alphaManagedFile,
                         alphaFile,
                     ]
                 ]
@@ -64,7 +68,7 @@ struct DeviceLibraryViewModelTests {
 
         viewModel.refresh(device: device, subscriptions: [subscription])
 
-        #expect(viewModel.files(for: subscription) == [alphaFile, zuluFile])
+        #expect(viewModel.files(for: subscription) == [alphaManagedFile, zuluManagedFile])
     }
 
     @Test
@@ -95,6 +99,40 @@ struct DeviceLibraryViewModelTests {
         viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [realFile])
+    }
+
+    @Test
+    func refreshIgnoresFilesThatDoNotLookAppManaged() throws {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+        )
+        let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let unrelatedAudioFile = device.musicURL.appendingPathComponent("ATP/Favorite Song.mp3")
+        let noteFile = device.musicURL.appendingPathComponent("ATP/notes.txt")
+        let otherPodcastFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(Other Podcast).mp3")
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    device.musicURL.appendingPathComponent("ATP", isDirectory: true): [
+                        managedFile,
+                        unrelatedAudioFile,
+                        noteFile,
+                        otherPodcastFile,
+                    ]
+                ]
+            )
+        )
+
+        viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(viewModel.files(for: subscription) == [managedFile])
     }
 
     @Test

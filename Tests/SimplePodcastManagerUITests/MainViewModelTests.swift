@@ -144,6 +144,39 @@ struct MainViewModelTests {
     }
 
     @Test
+    func removeFeedRemovesSelectedSubscriptionEvenWhenStoredOrderDiffers() throws {
+        let alphaID = UUID()
+        let zuluID = UUID()
+        let cacheStore = InMemoryFeedCacheStore()
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(
+                feedSubscriptions: [
+                    FeedSubscription(
+                        id: zuluID,
+                        title: "Zulu Podcast",
+                        rssURL: URL(string: "https://example.com/zulu.xml")!
+                    ),
+                    FeedSubscription(
+                        id: alphaID,
+                        title: "Alpha Podcast",
+                        rssURL: URL(string: "https://example.com/alpha.xml")!
+                    ),
+                ]
+            )
+        )
+        let viewModel = MainViewModel(store: store, feedCacheStore: cacheStore)
+        viewModel.load()
+
+        #expect(viewModel.feedSubscriptions.map(\.id) == [alphaID, zuluID])
+
+        viewModel.removeFeeds(at: IndexSet(integer: 0))
+
+        #expect(store.configuration.feedSubscriptions.map(\.id) == [zuluID])
+        #expect(viewModel.feedSubscriptions.map(\.id) == [zuluID])
+        #expect(cacheStore.deletedSubscriptionIDs == [alphaID])
+    }
+
+    @Test
     func updateFeedDeletesCachedFeedWhenURLChanges() async throws {
         let subscriptionID = UUID()
         let oldURL = URL(string: "https://example.com/old.xml")!

@@ -30,7 +30,7 @@ public final class DeviceLibraryViewModel {
             for subscription in subscriptions {
                 let managedDirectoryURL = try managedDirectoryResolver.managedDirectoryURL(for: subscription, on: device)
                 let files = try deviceLibrary.files(in: managedDirectoryURL)
-                    .filter { $0.hasDirectoryPath == false && !EpisodeFileName.isMetadataSidecar($0) }
+                    .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
                 updatedFiles[subscription.id] = sortFiles(files)
             }
             filesBySubscriptionID = updatedFiles

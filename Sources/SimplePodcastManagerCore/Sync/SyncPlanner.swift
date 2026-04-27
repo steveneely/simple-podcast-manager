@@ -37,7 +37,7 @@ public struct SyncPlanner: Sendable {
             let preparedEpisodes = preparedBySubscription[subscription.id]?.map(\.1) ?? []
             let managedDirectory = managedDirectoryURL(for: subscription, on: device)
             let existingFiles = try deviceLibrary.files(in: managedDirectory)
-                .filter { $0.hasDirectoryPath == false && !EpisodeFileName.isMetadataSidecar($0) }
+                .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
             let existingFileNames = Set(existingFiles.map(\.lastPathComponent))
 
             for preparedEpisode in preparedEpisodes {

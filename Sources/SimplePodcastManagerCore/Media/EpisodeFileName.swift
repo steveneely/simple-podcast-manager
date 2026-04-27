@@ -57,6 +57,24 @@ public enum EpisodeFileName {
         fileURL.lastPathComponent.hasPrefix("._")
     }
 
+    public static func isManagedEpisodeFile(_ fileURL: URL, for subscription: FeedSubscription) -> Bool {
+        guard fileURL.hasDirectoryPath == false else {
+            return false
+        }
+        guard fileURL.pathExtension.caseInsensitiveCompare("mp3") == .orderedSame else {
+            return false
+        }
+        guard !isMetadataSidecar(fileURL) else {
+            return false
+        }
+
+        guard let podcastTitle = parsedMetadata(from: fileURL)?.podcastTitle else {
+            return false
+        }
+
+        return titlesMatch(podcastTitle, subscription.title)
+    }
+
     private static func parsedMetadata(fromFileStem fileStem: String) -> ParsedFileMetadata {
         var remainingStem = fileStem
         var publicationDate: Date?
@@ -98,6 +116,35 @@ public enum EpisodeFileName {
             .filter { !$0.isEmpty }
             .joined(separator: "-")
         return collapsed.isEmpty ? "" : collapsed
+    }
+
+    private static func normalizedTitle(_ value: String) -> String {
+        let scalars = value.unicodeScalars.map { scalar -> Character in
+            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
+        }
+        return String(scalars)
+            .lowercased()
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+    }
+
+    private static func titlesMatch(_ lhs: String, _ rhs: String) -> Bool {
+        let lhsTitle = normalizedTitle(lhs)
+        let rhsTitle = normalizedTitle(rhs)
+        guard !lhsTitle.isEmpty, !rhsTitle.isEmpty else {
+            return false
+        }
+        if lhsTitle == rhsTitle {
+            return true
+        }
+
+        let shorterTitle = lhsTitle.count < rhsTitle.count ? lhsTitle : rhsTitle
+        let longerTitle = lhsTitle.count < rhsTitle.count ? rhsTitle : lhsTitle
+        guard shorterTitle.split(separator: " ").count >= 2 else {
+            return false
+        }
+
+        return longerTitle.contains(shorterTitle)
     }
 
     private static let dateFormatter: DateFormatter = {

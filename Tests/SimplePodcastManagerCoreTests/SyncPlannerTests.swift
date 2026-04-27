@@ -37,11 +37,11 @@ struct SyncPlannerTests {
         let preparedEpisode = makePreparedEpisode(
             id: "ep-1",
             title: "Episode 1",
-            preparedFileName: "Episode_1.mp3"
+            preparedFileName: "2026.04.21-Episode 1-(Example Podcast).mp3"
         )
         let destinationURL = device.musicURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
-            .appendingPathComponent("Episode_1.mp3", isDirectory: false)
+            .appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
@@ -165,7 +165,7 @@ struct SyncPlannerTests {
         let device = makeDevice()
         let subscription = makeSubscription()
         let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
-        let existingFileURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let existingFileURL = managedDirectory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
@@ -185,6 +185,38 @@ struct SyncPlannerTests {
 
         #expect(plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
         #expect(plan.actions.contains(.ejectDevice(deviceRootURL: device.rootURL)))
+    }
+
+    @Test
+    func ignoresManuallySelectedFilesThatAreNotManagedEpisodes() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let unmanagedFileURL = managedDirectory.appendingPathComponent("notes.txt", isDirectory: false)
+        let unrelatedAudioURL = managedDirectory.appendingPathComponent("Favorite Song.mp3", isDirectory: false)
+        let planner = SyncPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    managedDirectory.standardizedFileURL.path: [
+                        unmanagedFileURL,
+                        unrelatedAudioURL,
+                    ]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            manualDeleteTargets: [unmanagedFileURL, unrelatedAudioURL],
+            ejectAfterSync: false,
+            isDryRun: true
+        )
+
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unrelatedAudioURL)))
+        #expect(!plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
     }
 
     @Test
@@ -213,7 +245,7 @@ struct SyncPlannerTests {
         let device = makeDevice()
         let subscription = makeSubscription()
         let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
-        let existingFileURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let existingFileURL = managedDirectory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [

@@ -99,10 +99,9 @@ public final class MainViewModel {
         let removedIDs = offsets.compactMap { offset in
             feedSubscriptions.indices.contains(offset) ? feedSubscriptions[offset].id : nil
         }
+        let removedIDSet = Set(removedIDs)
         mutateConfiguration {
-            for index in offsets.sorted(by: >) {
-                $0.feedSubscriptions.remove(at: index)
-            }
+            $0.feedSubscriptions.removeAll { removedIDSet.contains($0.id) }
         }
 
         for removedID in removedIDs {

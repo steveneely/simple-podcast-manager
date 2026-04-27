@@ -40,6 +40,7 @@ struct SimplePodcastManagerDesktopApp: App {
                     NSApplication.shared.orderFrontStandardAboutPanel(
                         options: [
                             .applicationName: "Simple Podcast Manager",
+                            .version: aboutVersion(),
                             .credits: aboutCredits(),
                         ]
                     )
@@ -52,6 +53,28 @@ struct SimplePodcastManagerDesktopApp: App {
                 .keyboardShortcut(",", modifiers: [.command])
             }
         }
+    }
+
+    private func aboutVersion() -> String {
+        let bundle = Bundle.main
+        let releaseTag = bundle.object(forInfoDictionaryKey: "SPMReleaseTag") as? String
+        let shortVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let buildVersion = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        if let releaseTag, let shortVersion, let buildVersion {
+            let displayTag = AppReleaseIdentity.displayName(forReleaseTag: releaseTag)
+            return "\(displayTag) (\(shortVersion), build \(buildVersion))"
+        }
+
+        if let releaseTag {
+            return AppReleaseIdentity.displayName(forReleaseTag: releaseTag)
+        }
+
+        if let shortVersion, let buildVersion {
+            return "\(shortVersion) (build \(buildVersion))"
+        }
+
+        return shortVersion ?? "Local build"
     }
 
     private func aboutCredits() -> NSAttributedString {

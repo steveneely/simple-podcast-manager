@@ -101,6 +101,55 @@ struct SyncExecutionViewModelTests {
         #expect(viewModel.progress == nil)
         #expect(viewModel.lastErrorMessage == nil)
     }
+
+    @Test
+    func clearLastResultResetsSyncState() async {
+        let device = DeviceInfo(
+            name: "SPM Test Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
+            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
+        )
+        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let preparedEpisode = PreparedEpisode(
+            episode: Episode(
+                id: "ep-1",
+                subscriptionID: subscriptionID,
+                podcastTitle: "Example Podcast",
+                title: "Episode 1",
+                enclosureURL: URL(string: "https://cdn.example.com/ep1.mp3")!,
+                sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+            ),
+            sourceFileURL: URL(fileURLWithPath: "/tmp/Episode_1.mp3"),
+            preparedFileURL: URL(fileURLWithPath: "/tmp/Episode_1.mp3"),
+            preparationAction: .passthroughMP3
+        )
+        let viewModel = SyncExecutionViewModel(
+            planner: SyncPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
+            executor: RecordingSyncExecutor(result: SyncResult(isDryRun: false, copiedCount: 1))
+        )
+
+        await viewModel.sync(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [
+                FeedSubscription(
+                    id: subscriptionID,
+                    title: "Example Podcast",
+                    rssURL: URL(string: "https://example.com/feed.xml")!,
+                    retentionPolicy: .keepLatestEpisodes(3)
+                )
+            ],
+            ejectAfterSync: false,
+            isDryRun: false
+        )
+
+        viewModel.clearLastResult()
+
+        #expect(viewModel.lastResult == nil)
+        #expect(viewModel.lastErrorMessage == nil)
+        #expect(viewModel.lastPlan == nil)
+    }
 }
 
 private struct StubExecutionPlanDeviceLibrary: DeviceLibraryInspecting {

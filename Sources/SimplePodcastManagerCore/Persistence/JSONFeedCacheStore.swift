@@ -17,7 +17,11 @@ public struct JSONFeedCacheStore: FeedCacheStore {
             return nil
         }
 
-        guard cachedFeed.subscriptionID == subscription.id, cachedFeed.rssURL == subscription.rssURL else {
+        guard
+            cachedFeed.formatVersion == CachedFeed.currentFormatVersion,
+            cachedFeed.subscriptionID == subscription.id,
+            cachedFeed.rssURL == subscription.rssURL
+        else {
             return nil
         }
 

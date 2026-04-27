@@ -67,6 +67,33 @@ struct JSONFeedCacheStoreTests {
     }
 
     @Test
+    func ignoresCachedFeedFromOlderFormatVersion() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appending(path: "SimplePodcastManagerTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let store = JSONFeedCacheStore(directoryURL: directoryURL)
+        let subscriptionID = UUID()
+        let rssURL = URL(string: "https://example.com/feed.xml")!
+        try store.saveCachedFeed(
+            CachedFeed(
+                formatVersion: CachedFeed.currentFormatVersion - 1,
+                subscriptionID: subscriptionID,
+                rssURL: rssURL,
+                fetchedAt: Date(),
+                summary: FeedSummary(subscriptionID: subscriptionID, title: "Old"),
+                episodes: []
+            )
+        )
+
+        let subscription = FeedSubscription(
+            id: subscriptionID,
+            title: "Example",
+            rssURL: rssURL
+        )
+
+        #expect(try store.loadCachedFeed(for: subscription) == nil)
+    }
+
+    @Test
     func deletesCachedFeed() throws {
         let directoryURL = FileManager.default.temporaryDirectory
             .appending(path: "SimplePodcastManagerTests-\(UUID().uuidString)", directoryHint: .isDirectory)

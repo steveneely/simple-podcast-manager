@@ -154,6 +154,7 @@ private extension RSSFeedParser {
             podcastTitle: feedTitle,
             title: title,
             publicationDate: item.pubDate,
+            duration: item.iTunes?.duration,
             enclosureURL: enclosureURL,
             sourceFeedURL: sourceFeedURL
         )

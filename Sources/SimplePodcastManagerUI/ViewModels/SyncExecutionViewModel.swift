@@ -76,6 +76,12 @@ public final class SyncExecutionViewModel {
         }
     }
 
+    public func clearLastResult() {
+        lastResult = nil
+        lastErrorMessage = nil
+        lastPlan = nil
+    }
+
     private static func previewResult(for plan: SyncPlan) -> SyncResult {
         var copiedCount = 0
         var deletedCount = 0

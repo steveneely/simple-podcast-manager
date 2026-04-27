@@ -108,7 +108,7 @@ Each cache file stores:
 - fetched-at date
 - HTTP `ETag` and `Last-Modified` validators when the host provides them
 - parsed feed summary metadata, including title, artwork, and description
-- parsed episode metadata
+- parsed episode metadata, including RSS `itunes:duration` when present
 
 Startup loads cached parsed feeds immediately so the episode list can appear before network refresh finishes. A background refresh still runs after startup.
 
@@ -122,6 +122,8 @@ Refresh behavior:
 - if refresh fails and no cache exists, show the refresh failure with no feed preview data
 
 The feed cache is derived data. It should not be included in app data export/import, and deleting or retargeting a subscription should remove its stale cache file.
+
+Cache files include a format version. Bump the format version when adding parsed fields that should appear immediately from cached data, such as episode duration. Otherwise feeds that correctly return `304 Not Modified` can keep serving old cached episode records without the new fields.
 
 ## Device Detection
 

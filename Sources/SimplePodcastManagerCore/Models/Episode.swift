@@ -6,6 +6,7 @@ public struct Episode: Codable, Equatable, Sendable, Identifiable {
     public var podcastTitle: String
     public var title: String
     public var publicationDate: Date?
+    public var duration: TimeInterval?
     public var enclosureURL: URL
     public var sourceFeedURL: URL
 
@@ -15,6 +16,7 @@ public struct Episode: Codable, Equatable, Sendable, Identifiable {
         podcastTitle: String,
         title: String,
         publicationDate: Date? = nil,
+        duration: TimeInterval? = nil,
         enclosureURL: URL,
         sourceFeedURL: URL
     ) {
@@ -23,6 +25,7 @@ public struct Episode: Codable, Equatable, Sendable, Identifiable {
         self.podcastTitle = podcastTitle
         self.title = title
         self.publicationDate = publicationDate
+        self.duration = duration
         self.enclosureURL = enclosureURL
         self.sourceFeedURL = sourceFeedURL
     }

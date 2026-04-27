@@ -530,43 +530,49 @@ public struct MainView: View {
                     isShowingSyncPreview = false
                 }
 
-                Button(sheetSyncButtonTitle) {
-                    Task {
-                        await runSync()
+                if !hasSuccessfulRealSyncResult {
+                    Button(sheetSyncButtonTitle) {
+                        Task {
+                            await runSync()
+                        }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSync)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canSync)
             }
 
-            Toggle("Preview only (dry run)", isOn: $isDryRunEnabled)
-                .toggleStyle(.checkbox)
-                .onChange(of: isDryRunEnabled) {
-                    rebuildSyncPlan()
+            if hasSuccessfulRealSyncResult {
+                syncSuccessConfirmation
+            } else {
+                Toggle("Preview only (dry run)", isOn: $isDryRunEnabled)
+                    .toggleStyle(.checkbox)
+                    .onChange(of: isDryRunEnabled) {
+                        rebuildSyncPlan()
+                    }
+
+                Toggle("Eject after sync", isOn: $isEjectAfterSyncEnabled)
+                    .toggleStyle(.checkbox)
+                    .onChange(of: isEjectAfterSyncEnabled) {
+                        rebuildSyncPlan()
+                    }
+
+                Toggle("Delete downloaded episodes after sync", isOn: $isDeleteDownloadedAfterSyncEnabled)
+                    .toggleStyle(.checkbox)
+                    .disabled(isDryRunEnabled)
+
+                if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
+                    syncProgressSection(progress)
                 }
 
-            Toggle("Eject after sync", isOn: $isEjectAfterSyncEnabled)
-                .toggleStyle(.checkbox)
-                .onChange(of: isEjectAfterSyncEnabled) {
-                    rebuildSyncPlan()
+                if let lastResult = syncExecutionViewModel.lastResult {
+                    syncResultCard(lastResult)
                 }
 
-            Toggle("Delete downloaded episodes after sync", isOn: $isDeleteDownloadedAfterSyncEnabled)
-                .toggleStyle(.checkbox)
-                .disabled(isDryRunEnabled)
+                syncSummaryCard
 
-            if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
-                syncProgressSection(progress)
-            }
-
-            if let lastResult = syncExecutionViewModel.lastResult {
-                syncResultCard(lastResult)
-            }
-
-            syncSummaryCard
-
-            if !syncPlanViewModel.actionDescriptions.isEmpty {
-                plannedActionsSection
+                if !syncPlanViewModel.actionDescriptions.isEmpty {
+                    plannedActionsSection
+                }
             }
         }
         .padding(20)
@@ -613,6 +619,34 @@ public struct MainView: View {
     }
 
     @ViewBuilder
+    private var syncSuccessConfirmation: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sync Complete")
+                .font(.headline)
+
+            Text("Everything synced successfully. You can close this window.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let result = syncExecutionViewModel.lastResult {
+                Text(syncResultSummary(result))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if result.ejected {
+                    Text("The device was ejected after the sync finished.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
     private var plannedActionsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Planned Actions")
@@ -641,9 +675,19 @@ public struct MainView: View {
     private func episodeRow(for episode: Episode) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(episode.title)
-                    .font(.body)
-                    .fontWeight(.medium)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(episode.title)
+                        .font(.body)
+                        .fontWeight(.medium)
+
+                    if let duration = episodeDurationLabel(for: episode) {
+                        Text(duration)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize()
+                    }
+                }
+
                 if let publicationDate = episode.publicationDate {
                     Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
@@ -976,6 +1020,16 @@ public struct MainView: View {
         deviceViewModel.selectedDevice != nil && !viewModel.feedSubscriptions.isEmpty
     }
 
+    private var hasSuccessfulRealSyncResult: Bool {
+        guard !syncExecutionViewModel.isSyncing, syncExecutionViewModel.lastErrorMessage == nil else {
+            return false
+        }
+        guard let result = syncExecutionViewModel.lastResult else {
+            return false
+        }
+        return !result.isDryRun
+    }
+
     private var enabledSubscriptionCount: Int {
         viewModel.feedSubscriptions.filter(\.isEnabled).count
     }
@@ -1124,6 +1178,7 @@ public struct MainView: View {
     }
 
     private func openSyncPreview() {
+        syncExecutionViewModel.clearLastResult()
         rebuildSyncPlan()
         isShowingSyncPreview = true
     }
@@ -1135,6 +1190,24 @@ public struct MainView: View {
             return "Removed from \(deviceName) \(removedDate)"
         }
         return "Removed from device \(removedDate)"
+    }
+
+    private func episodeDurationLabel(for episode: Episode) -> String? {
+        if let duration = episode.duration, duration > 0 {
+            return formatEpisodeDuration(duration)
+        }
+        return nil
+    }
+
+    private func formatEpisodeDuration(_ duration: TimeInterval) -> String {
+        let totalMinutes = max(1, Int((duration / 60).rounded()))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
     }
 
     private func downloadedEpisodeLabel(for preparedEpisode: PreparedEpisode) -> String {

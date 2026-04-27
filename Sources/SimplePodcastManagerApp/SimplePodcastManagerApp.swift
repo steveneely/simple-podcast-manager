@@ -38,11 +38,7 @@ struct SimplePodcastManagerDesktopApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About Simple Podcast Manager") {
                     NSApplication.shared.orderFrontStandardAboutPanel(
-                        options: [
-                            .applicationName: "Simple Podcast Manager",
-                            .version: aboutVersion(),
-                            .credits: aboutCredits(),
-                        ]
+                        options: aboutPanelOptions()
                     )
                 }
             }
@@ -55,26 +51,81 @@ struct SimplePodcastManagerDesktopApp: App {
         }
     }
 
-    private func aboutVersion() -> String {
+    private func aboutPanelOptions() -> [NSApplication.AboutPanelOptionKey: Any] {
+        var options: [NSApplication.AboutPanelOptionKey: Any] = [
+            .applicationName: "Simple Podcast Manager",
+            .applicationVersion: aboutApplicationVersion(),
+            .credits: aboutCredits(),
+        ]
+
+        if let buildDetail = aboutBuildDetail() {
+            options[.version] = buildDetail
+        }
+
+        return options
+    }
+
+    private func aboutApplicationVersion() -> String {
         let bundle = Bundle.main
         let releaseTag = bundle.object(forInfoDictionaryKey: "SPMReleaseTag") as? String
-        let shortVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let buildVersion = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-
-        if let releaseTag, let shortVersion, let buildVersion {
-            let displayTag = AppReleaseIdentity.displayName(forReleaseTag: releaseTag)
-            return "\(displayTag) (\(shortVersion), build \(buildVersion))"
-        }
 
         if let releaseTag {
             return AppReleaseIdentity.displayName(forReleaseTag: releaseTag)
         }
 
-        if let shortVersion, let buildVersion {
-            return "\(shortVersion) (build \(buildVersion))"
+        return "Local build"
+    }
+
+    private func aboutBuildDetail() -> String? {
+        let bundle = Bundle.main
+        let releaseTag = bundle.object(forInfoDictionaryKey: "SPMReleaseTag") as? String
+        let shortVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let buildVersion = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        if releaseTag != nil {
+            return buildVersion.map { "build \($0)" }
         }
 
-        return shortVersion ?? "Local build"
+        var details: [String] = []
+        if let shortVersion, let buildVersion {
+            details.append("\(shortVersion), build \(buildVersion)")
+        } else if let shortVersion {
+            details.append(shortVersion)
+        } else if let buildVersion {
+            details.append("build \(buildVersion)")
+        }
+
+        if let gitRevision = gitRevision() {
+            details.append("git \(gitRevision)")
+        }
+
+        return details.isEmpty ? nil : details.joined(separator: ", ")
+    }
+
+    private func gitRevision() -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["rev-parse", "--short", "HEAD"]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return nil
+        }
+
+        guard process.terminationStatus == 0 else {
+            return nil
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let revision = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return revision?.isEmpty == false ? revision : nil
     }
 
     private func aboutCredits() -> NSAttributedString {

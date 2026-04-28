@@ -96,6 +96,46 @@ struct SyncExecutorTests {
     }
 
     @Test
+    func executeTreatsTrashCleanupFailureAsWarning() throws {
+        let device = makeDevice()
+        let managedDirectory = device.musicURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let deleteTargetURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
+        let staleTrashURL = userTrashURL.appendingPathComponent("old.tmp", isDirectory: false)
+
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [deleteTargetURL, userTrashURL, staleTrashURL, managedDirectory],
+            directoryContents: [
+                managedDirectory.standardizedFileURL.path: [deleteTargetURL],
+                userTrashURL.standardizedFileURL.path: [staleTrashURL],
+            ],
+            contentsErrorURLs: [userTrashURL]
+        )
+        let ejector = RecordingDeviceEjector()
+        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector, userID: 501)
+
+        let result = try executor.execute(
+            plan: SyncPlan(
+                device: device,
+                isDryRun: false,
+                actions: [
+                    .deleteFromDevice(targetURL: deleteTargetURL),
+                    .clearDeviceTrash(trashURL: device.trashURL),
+                    .ejectDevice(deviceRootURL: device.rootURL),
+                ]
+            )
+        )
+
+        #expect(result.deletedCount == 1)
+        #expect(result.ejected)
+        #expect(result.warnings.count == 1)
+        #expect(result.warnings[0].contains("Could not clear device trash"))
+        #expect(fileSystem.removedItems.contains(managedDirectory.standardizedFileURL))
+        #expect(!fileSystem.removedItems.contains(staleTrashURL))
+        #expect(ejector.didEject)
+    }
+
+    @Test
     func executeKeepsPodcastFolderWhenOtherEpisodesRemain() throws {
         let device = makeDevice()
         let managedDirectory = device.musicURL
@@ -183,17 +223,23 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     private var existingURLs: Set<URL>
     private var directoryContents: [String: Set<URL>]
+    private var contentsErrorURLs: Set<URL>
 
     private(set) var createdDirectories: [URL] = []
     private(set) var copiedItems: [CopyRecord] = []
     private(set) var movedItems: [MoveRecord] = []
     private(set) var removedItems: [URL] = []
 
-    init(existingURLs: [URL], directoryContents: [String: [URL]]) {
+    init(
+        existingURLs: [URL],
+        directoryContents: [String: [URL]],
+        contentsErrorURLs: [URL] = []
+    ) {
         self.existingURLs = Set(existingURLs.map(\.standardizedFileURL))
         self.directoryContents = directoryContents.reduce(into: [:]) { result, entry in
             result[entry.key] = Set(entry.value.map(\.standardizedFileURL))
         }
+        self.contentsErrorURLs = Set(contentsErrorURLs.map(\.standardizedFileURL))
     }
 
     func fileExists(at url: URL) -> Bool {
@@ -234,7 +280,11 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
     }
 
     func contentsOfDirectory(at url: URL) throws -> [URL] {
-        Array(directoryContents[url.standardizedFileURL.path] ?? []).sorted {
+        if contentsErrorURLs.contains(url.standardizedFileURL) {
+            throw CocoaError(.fileReadNoPermission)
+        }
+
+        return Array(directoryContents[url.standardizedFileURL.path] ?? []).sorted {
             $0.path < $1.path
         }
     }

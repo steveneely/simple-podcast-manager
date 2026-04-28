@@ -624,7 +624,7 @@ public struct MainView: View {
             Text("Sync Complete")
                 .font(.headline)
 
-            Text("Everything synced successfully. You can close this window.")
+            Text("Sync finished. You can close this window.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -637,6 +637,12 @@ public struct MainView: View {
                     Text("The device was ejected after the sync finished.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                ForEach(result.warnings, id: \.self) { warning in
+                    Text(warning)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
             }
         }

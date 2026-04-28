@@ -65,8 +65,12 @@ public struct SyncExecutor: Sendable, SyncExecuting {
             case .clearDeviceTrash(let trashURL):
                 let effectiveTrashURL = userTrashURL(in: trashURL)
                 guard fileSystem.fileExists(at: effectiveTrashURL) else { continue }
-                for childURL in try fileSystem.contentsOfDirectory(at: effectiveTrashURL) {
-                    try fileSystem.removeItem(at: childURL)
+                do {
+                    for childURL in try fileSystem.contentsOfDirectory(at: effectiveTrashURL) {
+                        try fileSystem.removeItem(at: childURL)
+                    }
+                } catch {
+                    result.warnings.append("Could not clear device trash: \(error.localizedDescription)")
                 }
 
             case .ejectDevice:

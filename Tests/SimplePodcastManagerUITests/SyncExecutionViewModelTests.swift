@@ -10,8 +10,7 @@ struct SyncExecutionViewModelTests {
         let device = DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
         let preparedEpisode = PreparedEpisode(
             episode: Episode(
@@ -58,8 +57,7 @@ struct SyncExecutionViewModelTests {
         let device = DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
         let preparedEpisode = PreparedEpisode(
             episode: Episode(
@@ -107,8 +105,7 @@ struct SyncExecutionViewModelTests {
         let device = DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let preparedEpisode = PreparedEpisode(

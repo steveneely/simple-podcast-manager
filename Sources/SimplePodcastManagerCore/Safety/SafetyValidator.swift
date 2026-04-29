@@ -9,9 +9,7 @@ public struct SafetyValidator: Sendable {
 
     public func validateDevice(_ device: DeviceInfo) throws {
         let rootURL = canonicalDirectoryURL(device.rootURL)
-        let expectedTrashURL = canonicalDirectoryURL(rootURL.appending(path: ".Trashes", directoryHint: .isDirectory))
         let actualMusicURL = canonicalDirectoryURL(device.musicURL)
-        let actualTrashURL = canonicalDirectoryURL(device.trashURL)
 
         guard rootURL.path.hasPrefix("/Volumes/") else {
             throw SafetyValidationError.invalidDeviceRoot(device.rootURL)
@@ -19,10 +17,6 @@ public struct SafetyValidator: Sendable {
 
         guard isValidMusicDirectory(actualMusicURL, for: rootURL) else {
             throw SafetyValidationError.invalidMusicDirectory(expected: rootURL.appending(path: "music", directoryHint: .isDirectory), actual: actualMusicURL)
-        }
-
-        guard actualTrashURL == expectedTrashURL else {
-            throw SafetyValidationError.invalidTrashDirectory(expected: expectedTrashURL, actual: actualTrashURL)
         }
     }
 
@@ -43,27 +37,12 @@ public struct SafetyValidator: Sendable {
         try validateWriteTarget(targetURL, on: device)
     }
 
-    public func validateClearTrashTarget(_ targetURL: URL, on device: DeviceInfo) throws {
-        try validateDevice(device)
-
-        let canonicalTargetURL = canonicalDirectoryURL(targetURL)
-        let canonicalTrashURL = canonicalDirectoryURL(device.trashURL)
-
-        try validateNotMacTrash(canonicalTargetURL)
-
-        guard canonicalTargetURL == canonicalTrashURL else {
-            throw SafetyValidationError.clearTrashRequiresExactDeviceTrash(canonicalTargetURL)
-        }
-    }
-
     public func validate(_ action: SyncAction, on device: DeviceInfo) throws {
         switch action {
         case .copyToDevice(_, let destinationURL):
             try validateWriteTarget(destinationURL, on: device)
         case .deleteFromDevice(let targetURL):
             try validateDeleteTarget(targetURL, on: device)
-        case .clearDeviceTrash(let trashURL):
-            try validateClearTrashTarget(trashURL, on: device)
         case .ejectDevice(let deviceRootURL):
             let canonicalDeviceRootURL = canonicalDirectoryURL(device.rootURL)
             let canonicalActionRootURL = canonicalDirectoryURL(deviceRootURL)

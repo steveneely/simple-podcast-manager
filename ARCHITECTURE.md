@@ -2,7 +2,7 @@
 
 ## Summary
 
-Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, retention, safe deletion, and optional eject behavior. `ffmpeg` is provided as a bundled external executable in release builds, with an optional custom path override for development and advanced users.
+Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, safe deletion, and optional eject behavior. `ffmpeg` is provided as a bundled external executable in release builds, with an optional custom path override for development and advanced users.
 
 The architecture should stay simple:
 
@@ -16,7 +16,7 @@ The architecture should stay simple:
 The app has two layers:
 
 - `UI layer`: configuration, device state, sync controls, progress, results
-- `Core layer`: feed fetch, episode selection, conversion, sync planning, execution, retention, trash cleanup, eject
+- `Core layer`: feed fetch, episode selection, conversion, sync planning, execution, direct device deletion, eject
 
 The UI should not contain sync logic. It should call a single coordinator in the core layer and render progress updates.
 
@@ -26,7 +26,7 @@ The UI should not contain sync logic. It should call a single coordinator in the
 
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
-- `FeedEditorView`: add or edit feeds and retention values
+- `FeedEditorView`: add or edit feeds
 - `SettingsView`: optional custom `ffmpeg` path
 - `SyncViewModel`: bind UI to sync engine and expose progress/state
 - `DeviceViewModel`: monitor device availability and selected target
@@ -39,10 +39,8 @@ The UI should not contain sync logic. It should call a single coordinator in the
 - `DownloadService`: download episode media into a temporary workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
-- `SyncPlanner`: calculate copy, skip, delete, trash cleanup, and eject actions
-- `RetentionService`: apply "keep latest N episodes" logic
+- `SyncPlanner`: calculate copy, skip, delete, and eject actions
 - `DeviceFileService`: perform scoped copies and deletes on the device
-- `TrashCleanupService`: clear only the device `.Trashes`
 - `SafetyValidator`: verify all device paths before any mutation
 - `SyncReporter`: publish structured progress and final result summaries
 
@@ -77,7 +75,7 @@ Expected runtime flow:
    - convert to MP3 if required
    - build a `SyncPlan`
    - if dry-run, stop after planning and report the plan
-   - if real run, execute copy/delete/trash cleanup
+   - if real run, execute copy/delete
    - optionally eject after success
 8. `SyncReporter` emits progress and result events to the UI.
 
@@ -146,22 +144,17 @@ Validation gates before mutation:
 
 - the device root must still be mounted
 - the target sync directory must resolve to exactly `[device root]/music`
-- the trash cleanup directory must resolve to exactly `[device root]/.Trashes`
 - any uncertain or malformed path must abort the destructive portion of the run
 
 V1 does not require Sony-specific identification beyond these rules.
 
-## Sync Layout And Retention
+## Sync Layout And Deletion
 
 Managed files should live under per-podcast folders:
 
 - `[device root]/music/<podcast-name>/`
 
-This is the default layout for v1 because it makes ownership and retention safer than a flat directory.
-
-Retention rule for v1:
-
-- keep latest `N` episodes per feed
+This is the default layout for v1 because it makes ownership safer than a flat directory.
 
 Delete behavior:
 
@@ -169,15 +162,6 @@ Delete behavior:
 - only delete files the app can confidently associate with a configured feed
 - never bulk-delete by loose pattern matching
 - prefer exact planned file URLs over directory-wide operations
-
-## Trash Cleanup
-
-Trash cleanup is intentionally narrow.
-
-- only clear `[device root]/.Trashes`
-- never touch `~/.Trash`
-- never touch any other local Trash location
-- if the device has no `.Trashes`, skip cleanup without error
 
 ## Audio Conversion
 
@@ -195,7 +179,7 @@ These rules are non-negotiable:
 
 - only modify files on the external device
 - only write inside `[device root]/music`
-- only permanently delete by clearing `[device root]/.Trashes`
+- only delete app-managed podcast files inside `[device root]/music`
 - never touch the Mac's local Trash
 - never delete outside app-managed podcast folders
 - refuse mutation if the device path cannot be proven safe
@@ -217,6 +201,5 @@ The app should be biased toward refusing unsafe work, even if that occasionally 
 - direct RSS entry as the subscription path
 - feed title and artwork resolved from RSS metadata
 - per-podcast subfolders under device `music`
-- one retention rule: keep latest `N`
 - bundled `ffmpeg` invoked with `Process`
 - dry-run uses the exact same planner as real sync

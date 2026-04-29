@@ -161,7 +161,7 @@ struct SyncPlannerTests {
     }
 
     @Test
-    func plansTrashCleanupWhenDeletingAndOptionalEject() throws {
+    func plansDirectDeleteAndOptionalEject() throws {
         let device = makeDevice()
         let subscription = makeSubscription()
         let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
@@ -183,7 +183,7 @@ struct SyncPlannerTests {
             isDryRun: true
         )
 
-        #expect(plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
+        #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
         #expect(plan.actions.contains(.ejectDevice(deviceRootURL: device.rootURL)))
     }
 
@@ -216,11 +216,10 @@ struct SyncPlannerTests {
 
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unrelatedAudioURL)))
-        #expect(!plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
     }
 
     @Test
-    func doesNotPlanTrashCleanupWithoutDeletes() throws {
+    func doesNotPlanDeleteWithoutManualSelection() throws {
         let device = makeDevice()
         let preparedEpisode = makePreparedEpisode(
             id: "ep-1",
@@ -237,7 +236,10 @@ struct SyncPlannerTests {
             isDryRun: true
         )
 
-        #expect(!plan.actions.contains(.clearDeviceTrash(trashURL: device.trashURL)))
+        #expect(!plan.actions.contains(where: {
+            if case .deleteFromDevice = $0 { return true }
+            return false
+        }))
     }
 
     @Test
@@ -312,8 +314,7 @@ struct SyncPlannerTests {
         DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
     }
 

@@ -14,8 +14,7 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let oldFile = device.musicURL.appendingPathComponent("Connected/2026.04.20-Old Episode-(Connected).mp3")
         let newFile = device.musicURL.appendingPathComponent("Connected/2026.04.21-New Episode-(Connected).mp3")
@@ -46,8 +45,7 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let alphaFile = device.musicURL.appendingPathComponent("ATP/Alpha.mp3")
         let zuluFile = device.musicURL.appendingPathComponent("ATP/Zulu.mp3")
@@ -80,8 +78,7 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let realFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
         let sidecarFile = device.musicURL.appendingPathComponent("ATP/._2026.04.21-Episode-(ATP).mp3")
@@ -110,8 +107,7 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
         let unrelatedAudioFile = device.musicURL.appendingPathComponent("ATP/Favorite Song.mp3")
@@ -144,8 +140,7 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let actualDirectory = device.musicURL.appendingPathComponent(
             "Sean Carroll's Mindscape, Science, Society, Philosophy, Culture, Arts, and Ideas",

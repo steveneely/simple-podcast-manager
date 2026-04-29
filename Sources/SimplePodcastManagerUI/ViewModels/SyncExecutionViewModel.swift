@@ -95,7 +95,7 @@ public final class SyncExecutionViewModel {
                 deletedCount += 1
             case .skip:
                 skippedCount += 1
-            case .clearDeviceTrash, .ejectDevice:
+            case .ejectDevice:
                 break
             }
         }

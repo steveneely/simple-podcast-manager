@@ -10,8 +10,7 @@ struct SyncPlanViewModelTests {
         let device = DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true),
-            trashURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/.Trashes", isDirectory: true)
+            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
         let preparedEpisode = PreparedEpisode(
             episode: Episode(
@@ -46,7 +45,6 @@ struct SyncPlanViewModelTests {
 
         #expect(viewModel.plan != nil)
         #expect(viewModel.actionDescriptions.contains(where: { $0.contains("Copy to device") }))
-        #expect(!viewModel.actionDescriptions.contains("Clear device trash"))
         #expect(viewModel.actionDescriptions.contains("Eject device after sync"))
     }
 

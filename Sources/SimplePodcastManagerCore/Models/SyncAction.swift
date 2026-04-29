@@ -3,7 +3,6 @@ import Foundation
 public enum SyncAction: Equatable, Sendable {
     case copyToDevice(sourceURL: URL, destinationURL: URL)
     case deleteFromDevice(targetURL: URL)
-    case clearDeviceTrash(trashURL: URL)
     case ejectDevice(deviceRootURL: URL)
     case skip(reason: String)
 
@@ -13,8 +12,6 @@ public enum SyncAction: Equatable, Sendable {
             return "Copy to device: \(podcastLabel(for: destinationURL)) / \(destinationURL.lastPathComponent)"
         case .deleteFromDevice(let targetURL):
             return "Delete old episode: \(podcastLabel(for: targetURL)) / \(targetURL.lastPathComponent)"
-        case .clearDeviceTrash:
-            return "Clear device trash"
         case .ejectDevice:
             return "Eject device after sync"
         case .skip(let reason):

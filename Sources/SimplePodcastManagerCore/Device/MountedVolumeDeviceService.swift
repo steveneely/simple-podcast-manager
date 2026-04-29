@@ -55,8 +55,7 @@ public struct MountedVolumeDeviceService: DeviceService {
         return DeviceInfo(
             name: resourceValues.volumeName ?? rootURL.lastPathComponent,
             rootURL: rootURL,
-            musicURL: musicURL,
-            trashURL: rootURL.appending(path: ".Trashes", directoryHint: .isDirectory)
+            musicURL: musicURL
         )
     }
 

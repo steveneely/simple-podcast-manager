@@ -32,7 +32,7 @@ Current prerelease builds are for testing. They are not Developer ID signed or n
 - show a sync preview before changing the device
 - let you choose on-device episodes to delete during sync
 - optionally delete locally downloaded episodes after a successful sync
-- move deleted device files through the device trash and clear it only when needed
+- directly delete only app-managed podcast files from the device
 - remember removed episodes locally
 - show when an episode was previously downloaded or removed
 - keep a preview-first sync flow so you can inspect changes before running them

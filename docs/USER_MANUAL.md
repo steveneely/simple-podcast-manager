@@ -57,7 +57,7 @@ Release builds can include bundled `ffmpeg` for converting non-MP3 audio. If you
 1. Plug in your MP3 player.
 2. Wait for the Device section to show it as selected.
 3. Click `Preview Sync`.
-4. Review the planned copies, skips, deletions, trash cleanup, and optional eject.
+4. Review the planned copies, skips, deletions, and optional eject.
 5. Leave `Preview only (dry run)` checked to test without changing the device.
 6. Uncheck `Preview only (dry run)` when you are ready to sync for real.
 7. Optionally check `Delete downloaded episodes after sync` to remove local downloaded episode files after a successful real sync.
@@ -79,7 +79,7 @@ When a device is selected, each show can display its current on-device files.
 - Checked files stay on the device.
 - Unchecked files are planned for deletion during the next real sync.
 
-Deleted files are moved through the device's trash and the app only clears the device trash when deletions actually happened.
+Deleted files are removed directly from the device. The app only deletes app-managed podcast files inside the device's `music` folder.
 
 ## Local Download History
 

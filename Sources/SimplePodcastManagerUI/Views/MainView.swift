@@ -215,9 +215,6 @@ public struct MainView: View {
                                 Text("Music folder: \(selectedDevice.musicURL.path)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                Text("Trash folder: \(selectedDevice.trashURL.path)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
                             .padding(12)
                             .frame(minWidth: 320, alignment: .leading)
@@ -624,7 +621,7 @@ public struct MainView: View {
             Text("Sync Complete")
                 .font(.headline)
 
-            Text("Everything synced successfully. You can close this window.")
+            Text("Sync finished. You can close this window.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -637,6 +634,12 @@ public struct MainView: View {
                     Text("The device was ejected after the sync finished.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                ForEach(result.warnings, id: \.self) { warning in
+                    Text(warning)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
             }
         }
@@ -1008,7 +1011,7 @@ public struct MainView: View {
         guard let plan = syncPlanViewModel.plan else { return false }
         return plan.actions.contains(where: {
             switch $0 {
-            case .copyToDevice, .deleteFromDevice, .clearDeviceTrash, .ejectDevice:
+            case .copyToDevice, .deleteFromDevice, .ejectDevice:
                 return true
             case .skip:
                 return false
@@ -1097,9 +1100,6 @@ public struct MainView: View {
         if description.hasPrefix("Skip") {
             return "arrow.right"
         }
-        if description == "Clear device trash" {
-            return "trash.slash"
-        }
         if description == "Eject device after sync" {
             return "eject"
         }
@@ -1112,9 +1112,6 @@ public struct MainView: View {
         }
         if description.hasPrefix("Copy to device") {
             return .accentColor
-        }
-        if description == "Clear device trash" {
-            return .orange
         }
         if description == "Eject device after sync" {
             return .secondary

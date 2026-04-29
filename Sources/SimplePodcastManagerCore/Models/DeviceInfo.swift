@@ -4,7 +4,6 @@ public struct DeviceInfo: Codable, Equatable, Sendable, Identifiable {
     public var name: String
     public var rootURL: URL
     public var musicURL: URL
-    public var trashURL: URL
 
     public var id: String {
         rootURL.resolvingSymlinksInPath().standardizedFileURL.path
@@ -13,12 +12,10 @@ public struct DeviceInfo: Codable, Equatable, Sendable, Identifiable {
     public init(
         name: String,
         rootURL: URL,
-        musicURL: URL,
-        trashURL: URL
+        musicURL: URL
     ) {
         self.name = name
         self.rootURL = rootURL
         self.musicURL = musicURL
-        self.trashURL = trashURL
     }
 }

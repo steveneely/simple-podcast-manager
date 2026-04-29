@@ -61,11 +61,6 @@ public struct SyncPlanner: Sendable {
             }
         }
 
-        if !plannedDeletionTargets.isEmpty {
-            try safetyValidator.validateClearTrashTarget(device.trashURL, on: device)
-            actions.append(.clearDeviceTrash(trashURL: device.trashURL))
-        }
-
         if ejectAfterSync {
             actions.append(.ejectDevice(deviceRootURL: device.rootURL))
         }

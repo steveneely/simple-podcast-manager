@@ -18,7 +18,7 @@ The codebase should optimize for:
 These rules override convenience or speed:
 
 - Only write under `[device root]/music`
-- Only clear `[device root]/.Trashes`
+- Only delete app-managed podcast files under `[device root]/music`
 - Never touch the Mac's local Trash
 - Never modify files outside the mounted external device
 - Never delete files the app does not clearly own
@@ -57,7 +57,7 @@ Implement in this order:
 5. feed parsing and episode selection
 6. download and conversion
 7. sync planning
-8. sync execution, trash cleanup, eject
+8. sync execution, direct device deletion, eject
 
 Prefer a plan-first sync flow:
 
@@ -95,8 +95,7 @@ Add tests around behavior with the highest risk first:
 - valid device detection
 - invalid or ambiguous device detection
 - dry-run parity with real sync planning
-- retention deleting only managed files
-- trash cleanup touching only device `.Trashes`
+- deletion touching only app-managed files under device `music`
 - eject only after successful sync
 
 Prefer small focused tests around planner and safety logic before broader integration coverage.

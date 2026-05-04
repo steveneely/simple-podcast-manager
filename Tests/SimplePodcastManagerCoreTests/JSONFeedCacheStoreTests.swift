@@ -27,12 +27,13 @@ struct JSONFeedCacheStoreTests {
                 Episode(
                     id: "ep-1",
                     subscriptionID: subscriptionID,
-                    podcastTitle: "Example",
-                    title: "Episode 1",
-                    publicationDate: Date(timeIntervalSince1970: 1_713_713_388),
-                    enclosureURL: URL(string: "https://cdn.example.com/ep1.mp3")!,
-                    sourceFeedURL: rssURL
-                )
+	                    podcastTitle: "Example",
+	                    title: "Episode 1",
+	                    publicationDate: Date(timeIntervalSince1970: 1_713_713_388),
+	                    description: "Cached episode notes.",
+	                    enclosureURL: URL(string: "https://cdn.example.com/ep1.mp3")!,
+	                    sourceFeedURL: rssURL
+	                )
             ]
         )
 

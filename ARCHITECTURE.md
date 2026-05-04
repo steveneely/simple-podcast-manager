@@ -106,7 +106,7 @@ Each cache file stores:
 - fetched-at date
 - HTTP `ETag` and `Last-Modified` validators when the host provides them
 - parsed feed summary metadata, including title, artwork, and description
-- parsed episode metadata, including RSS `itunes:duration` when present
+- parsed episode metadata, including RSS `itunes:duration` and episode description when present
 
 Startup loads cached parsed feeds immediately so the episode list can appear before network refresh finishes. A background refresh still runs after startup.
 

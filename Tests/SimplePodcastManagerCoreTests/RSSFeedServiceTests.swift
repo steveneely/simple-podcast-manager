@@ -20,6 +20,7 @@ struct RSSFeedServiceTests {
               <guid>ep-2</guid>
               <pubDate>Tue, 22 Apr 2026 12:00:00 +0000</pubDate>
               <itunes:duration>1:02:03</itunes:duration>
+              <description><![CDATA[<p>The <em>full</em> episode notes &amp; links.</p>]]></description>
               <enclosure url="https://cdn.example.com/ep2.mp3" type="audio/mpeg"/>
             </item>
             <item>
@@ -45,9 +46,10 @@ struct RSSFeedServiceTests {
 
         #expect(result.failures.isEmpty)
         #expect(result.selectedEpisodes.count == 2)
-        #expect(result.selectedEpisodes.first?.title == "Episode 2")
-        #expect(result.selectedEpisodes.first?.duration == 3_723)
-        #expect(result.selectedEpisodes.last?.title == "Episode 1")
+	        #expect(result.selectedEpisodes.first?.title == "Episode 2")
+	        #expect(result.selectedEpisodes.first?.duration == 3_723)
+	        #expect(result.selectedEpisodes.first?.description == "The full episode notes & links.")
+	        #expect(result.selectedEpisodes.last?.title == "Episode 1")
         #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(result.feedSummaries.first?.description == "A podcast about simple things.")
     }

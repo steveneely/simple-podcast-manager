@@ -23,6 +23,7 @@ public struct MainView: View {
     @State private var isDeleteDownloadedAfterSyncEnabled = false
     @State private var isShowingDeviceDetails = false
     @State private var expandedEpisodeFeedIDs: Set<UUID> = []
+    @State private var expandedEpisodeIDs: Set<String> = []
     @State private var expandedDescriptionFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
     @State private var hoveringEpisodeToggleFeedID: UUID?
@@ -676,68 +677,161 @@ public struct MainView: View {
 
     @ViewBuilder
     private func episodeRow(for episode: Episode) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(episode.title)
-                        .font(.body)
-                        .fontWeight(.medium)
+        let isExpanded = isEpisodeExpanded(episode)
 
-                    if let duration = episodeDurationLabel(for: episode) {
-                        Text(duration)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 12)
+                        .padding(.top, 4)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(episode.title)
+                                .font(.body)
+                                .fontWeight(.medium)
+
+                            if let duration = episodeDurationLabel(for: episode) {
+                                Text(duration)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize()
+                            }
+                        }
+
+                        if let publicationDate = episode.publicationDate {
+                            Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
+                            Text(downloadedEpisodeLabel(for: preparedEpisode))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
+                            Text(downloadedEpisodeLabel(for: downloadedRecord))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode) {
+                            Text(removedEpisodeLabel(for: removedRecord))
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
 
-                if let publicationDate = episode.publicationDate {
-                    Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleEpisodeDetails(for: episode)
                 }
 
-                if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
-                    Text(downloadedEpisodeLabel(for: preparedEpisode))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
-                    Text(downloadedEpisodeLabel(for: downloadedRecord))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Spacer()
 
-                if let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode) {
-                    Text(removedEpisodeLabel(for: removedRecord))
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                if preparationPreviewViewModel.preparedEpisode(for: episode) != nil {
+                    HoverIconButton(
+                        systemName: "trash",
+                        helpText: "Remove downloaded media",
+                        isDestructive: true
+                    ) {
+                        preparationPreviewViewModel.removePreparedEpisode(for: episode)
+                        rebuildSyncPlan()
+                    }
+                } else {
+                    HoverIconButton(
+                        systemName: "arrow.down.circle",
+                        helpText: "Download episode"
+                    ) {
+                        Task {
+                            await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
+                            rebuildSyncPlan()
+                        }
+                    }
                 }
             }
 
-            Spacer()
-
-            if preparationPreviewViewModel.preparedEpisode(for: episode) != nil {
-                HoverIconButton(
-                    systemName: "trash",
-                    helpText: "Remove downloaded media",
-                    isDestructive: true
-                ) {
-                    preparationPreviewViewModel.removePreparedEpisode(for: episode)
-                    rebuildSyncPlan()
-                }
-            } else {
-                HoverIconButton(
-                    systemName: "arrow.down.circle",
-                    helpText: "Download episode"
-                ) {
-                    Task {
-                        await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
-                        rebuildSyncPlan()
-                    }
-                }
+            if isExpanded {
+                episodeDetails(for: episode)
+                    .padding(.leading, 20)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func episodeDetails(for episode: Episode) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let description = episode.description?.trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                Text(description)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                episodeDetailRow(label: "Podcast", value: episode.podcastTitle)
+
+                if let publicationDate = episode.publicationDate {
+                    episodeDetailRow(
+                        label: "Published",
+                        value: publicationDate.formatted(date: .abbreviated, time: .shortened)
+                    )
+                }
+
+                if let duration = episodeDurationLabel(for: episode) {
+                    episodeDetailRow(label: "Length", value: duration)
+                }
+
+                if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
+                    episodeDetailRow(label: "Download", value: downloadedEpisodeLabel(for: preparedEpisode))
+                } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
+                    episodeDetailRow(label: "Download", value: downloadedEpisodeLabel(for: downloadedRecord))
+                }
+
+                if let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode) {
+                    episodeDetailRow(label: "Device", value: removedEpisodeLabel(for: removedRecord))
+                }
+
+                episodeDetailRow(label: "Media URL", value: episode.enclosureURL.absoluteString, isSelectable: true)
+                episodeDetailRow(label: "Feed URL", value: episode.sourceFeedURL.absoluteString, isSelectable: true)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func episodeDetailRow(label: String, value: String, isSelectable: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .frame(width: 72, alignment: .leading)
+
+            if isSelectable {
+                Text(value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            } else {
+                Text(value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var selectedSubscription: FeedSubscription? {
@@ -890,6 +984,7 @@ public struct MainView: View {
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
         expandedEpisodeFeedIDs = []
+        expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
         Task { await refreshFeedPreview() }
         refreshDeviceLibrary()
@@ -932,6 +1027,24 @@ public struct MainView: View {
         } else {
             expandedEpisodeFeedIDs.insert(subscription.id)
         }
+    }
+
+    private func isEpisodeExpanded(_ episode: Episode) -> Bool {
+        expandedEpisodeIDs.contains(episodeExpansionID(for: episode))
+    }
+
+    private func toggleEpisodeDetails(for episode: Episode) {
+        let expansionID = episodeExpansionID(for: episode)
+        if expandedEpisodeIDs.contains(expansionID) {
+            expandedEpisodeIDs.remove(expansionID)
+        } else {
+            expandedEpisodeIDs.insert(expansionID)
+        }
+    }
+
+    private func episodeExpansionID(for episode: Episode) -> String {
+        let subscriptionID = episode.subscriptionID?.uuidString ?? episode.sourceFeedURL.absoluteString
+        return "\(subscriptionID)::\(episode.id)"
     }
 
     @ViewBuilder

@@ -155,9 +155,16 @@ private extension RSSFeedParser {
             title: title,
             publicationDate: item.pubDate,
             duration: item.iTunes?.duration,
+            description: episodeDescription(from: item),
             enclosureURL: enclosureURL,
             sourceFeedURL: sourceFeedURL
         )
+    }
+
+    static func episodeDescription(from item: RSSFeedItem) -> String? {
+        [item.content?.encoded, item.iTunes?.summary, item.description]
+            .compactMap(Self.normalizedDescription(from:))
+            .first
     }
 
     static func normalizedEnclosureURL(from enclosureURL: String?) -> String? {

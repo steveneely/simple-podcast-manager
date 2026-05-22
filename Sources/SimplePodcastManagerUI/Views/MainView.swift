@@ -22,11 +22,10 @@ public struct MainView: View {
     @State private var isEjectAfterSyncEnabled = false
     @State private var isDeleteDownloadedAfterSyncEnabled = false
     @State private var isShowingDeviceDetails = false
-    @State private var expandedEpisodeFeedIDs: Set<UUID> = []
+    @State private var visibleEpisodeCountsByFeedID: [UUID: Int] = [:]
     @State private var expandedEpisodeIDs: Set<String> = []
     @State private var expandedDescriptionFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
-    @State private var hoveringEpisodeToggleFeedID: UUID?
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
     @State private var appDataMessage: String?
 
@@ -446,20 +445,13 @@ public struct MainView: View {
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    if shouldOfferEpisodeExpansion(for: selectedSubscription) {
-                        Button(isShowingAllEpisodes(for: selectedSubscription) ? "Show recent" : "Show all (\(allEpisodes(for: selectedSubscription).count))") {
-                            toggleEpisodeExpansion(for: selectedSubscription)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(hoveringEpisodeToggleFeedID == selectedSubscription.id ? Color.blue : Color.white)
-                        .onHover { isHovering in
-                            hoveringEpisodeToggleFeedID = isHovering ? selectedSubscription.id : nil
-                        }
-                    }
-
                     List {
                         ForEach(displayedEpisodes(for: selectedSubscription)) { episode in
                             episodeRow(for: episode)
+                        }
+
+                        if shouldOfferEpisodeFooter(for: selectedSubscription) {
+                            episodeListFooter(for: selectedSubscription)
                         }
                     }
                     .listStyle(.plain)
@@ -799,8 +791,8 @@ public struct MainView: View {
                     episodeDetailRow(label: "Device", value: removedEpisodeLabel(for: removedRecord))
                 }
 
-                episodeDetailRow(label: "Media URL", value: episode.enclosureURL.absoluteString, isSelectable: true)
-                episodeDetailRow(label: "Feed URL", value: episode.sourceFeedURL.absoluteString, isSelectable: true)
+                episodeURLDetailRow(label: "Media URL", url: episode.enclosureURL)
+                episodeURLDetailRow(label: "Feed URL", url: episode.sourceFeedURL)
             }
         }
         .padding(10)
@@ -832,6 +824,53 @@ public struct MainView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func episodeURLDetailRow(label: String, url: URL) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .frame(width: 72, alignment: .leading)
+
+            Link(url.absoluteString, destination: url)
+                .font(.caption)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func episodeListFooter(for subscription: FeedSubscription) -> some View {
+        let visibleCount = displayedEpisodes(for: subscription).count
+        let totalCount = allEpisodes(for: subscription).count
+        let isShowingAll = visibleCount >= totalCount
+
+        return Button {
+            if isShowingAll {
+                showRecentEpisodes(for: subscription)
+            } else {
+                showMoreEpisodes(for: subscription)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Spacer()
+
+                Image(systemName: isShowingAll ? "chevron.up.circle" : "chevron.down.circle")
+                    .font(.body)
+
+                Text(isShowingAll ? "Show recent only" : "\(visibleCount) of \(totalCount) episodes shown · Show more")
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                Spacer()
+            }
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowSeparator(.hidden)
     }
 
     private var selectedSubscription: FeedSubscription? {
@@ -983,7 +1022,7 @@ public struct MainView: View {
         removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
-        expandedEpisodeFeedIDs = []
+        visibleEpisodeCountsByFeedID = [:]
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
         Task { await refreshFeedPreview() }
@@ -1007,26 +1046,25 @@ public struct MainView: View {
 
     private func displayedEpisodes(for subscription: FeedSubscription) -> [Episode] {
         let episodes = allEpisodes(for: subscription)
-        if isShowingAllEpisodes(for: subscription) {
-            return episodes
-        }
-        return Array(episodes.prefix(8))
+        return Array(episodes.prefix(visibleEpisodeCount(for: subscription)))
     }
 
-    private func isShowingAllEpisodes(for subscription: FeedSubscription) -> Bool {
-        expandedEpisodeFeedIDs.contains(subscription.id)
+    private func visibleEpisodeCount(for subscription: FeedSubscription) -> Int {
+        min(visibleEpisodeCountsByFeedID[subscription.id] ?? 8, allEpisodes(for: subscription).count)
     }
 
-    private func shouldOfferEpisodeExpansion(for subscription: FeedSubscription) -> Bool {
+    private func shouldOfferEpisodeFooter(for subscription: FeedSubscription) -> Bool {
         allEpisodes(for: subscription).count > 8
     }
 
-    private func toggleEpisodeExpansion(for subscription: FeedSubscription) {
-        if expandedEpisodeFeedIDs.contains(subscription.id) {
-            expandedEpisodeFeedIDs.remove(subscription.id)
-        } else {
-            expandedEpisodeFeedIDs.insert(subscription.id)
-        }
+    private func showMoreEpisodes(for subscription: FeedSubscription) {
+        let totalCount = allEpisodes(for: subscription).count
+        let nextCount = min(visibleEpisodeCount(for: subscription) + 8, totalCount)
+        visibleEpisodeCountsByFeedID[subscription.id] = nextCount
+    }
+
+    private func showRecentEpisodes(for subscription: FeedSubscription) {
+        visibleEpisodeCountsByFeedID[subscription.id] = nil
     }
 
     private func isEpisodeExpanded(_ episode: Episode) -> Bool {

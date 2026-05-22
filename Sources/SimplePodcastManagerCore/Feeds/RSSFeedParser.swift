@@ -66,26 +66,73 @@ private extension RSSFeedParser {
 
     static func channelDescription(from channel: RSSFeedChannel?) -> String? {
         [channel?.iTunes?.summary, channel?.description]
-            .compactMap(Self.normalizedDescription(from:))
+            .compactMap { Self.normalizedDescription(from: $0) }
             .first
     }
 
-    static func normalizedDescription(from text: String?) -> String? {
+    static func normalizedDescription(from text: String?, preservingLineBreaks: Bool = false) -> String? {
         guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
             return nil
         }
 
-        let renderedText = textWithoutMarkup(from: text)
-        let collapsedText = renderedText
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let renderedText = textWithoutMarkup(from: text, preservingLineBreaks: preservingLineBreaks)
+        let collapsedText = preservingLineBreaks
+            ? readableEpisodeNotes(from: renderedText)
+            : renderedText
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return collapsedText.isEmpty ? nil : collapsedText
     }
 
-    static func textWithoutMarkup(from text: String) -> String {
-        let withoutTags = text.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
+    static func textWithoutMarkup(from text: String, preservingLineBreaks: Bool = false) -> String {
+        var preparedText = text
+        if preservingLineBreaks {
+            preparedText = replaceRegex(#"(?i)<br\s*/?>"#, in: preparedText, with: "\n")
+            preparedText = replaceRegex(#"(?i)</?(p|div|section|article|blockquote|h[1-6]|ul|ol)[^>]*>"#, in: preparedText, with: "\n\n")
+            preparedText = replaceRegex(#"(?i)<li[^>]*>"#, in: preparedText, with: "\n- ")
+            preparedText = replaceRegex(#"(?i)</li>"#, in: preparedText, with: "\n")
+        }
+
+        let withoutTags = preparedText.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
         return decodeHTMLEntities(in: withoutTags)
+    }
+
+    static func readableEpisodeNotes(from text: String) -> String {
+        var readable = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        readable = replaceRegex(#"[ \t\f\v]+"#, in: readable, with: " ")
+        readable = replaceRegex(#" *\n *"#, in: readable, with: "\n")
+        readable = stripMarkdownEmphasis(from: readable)
+        readable = replaceRegex(#"(^|[^\n])(SPONSORS?)"#, in: readable, with: "$1\n\n$2\n")
+        readable = replaceRegex(#"(^|[^\n])(---)"#, in: readable, with: "$1\n\n$2\n\n")
+        readable = replaceRegex(#"(?i)(^|[^\n])(TIMESTAMPS:)"#, in: readable, with: "$1\n\n$2\n")
+        readable = replaceRegex(#"([A-Za-z0-9\).])(https?://)"#, in: readable, with: "$1\n$2")
+        readable = replaceRegex(#"(^|[^\n])(\d{2}:\d{2}:\d{2})"#, in: readable, with: "$1\n$2")
+        readable = replaceRegex(#"\n{3,}"#, in: readable, with: "\n\n")
+
+        return readable.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func stripMarkdownEmphasis(from text: String) -> String {
+        var stripped = replaceRegex(#"\*\*([^*\n]+)\*\*"#, in: text, with: "$1")
+        stripped = replaceRegex(#"__([^_\n]+)__"#, in: stripped, with: "$1")
+        stripped = replaceRegex(#"(?<!\*)\*([^*\n]+)\*(?!\*)"#, in: stripped, with: "$1")
+        stripped = replaceRegex(#"(?<!_)_([^_\n]+)_(?!_)"#, in: stripped, with: "$1")
+        return stripped
+    }
+
+    static func replaceRegex(_ pattern: String, in text: String, with replacement: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return text
+        }
+
+        return regex.stringByReplacingMatches(
+            in: text,
+            range: NSRange(text.startIndex..., in: text),
+            withTemplate: replacement
+        )
     }
 
     static func decodeHTMLEntities(in text: String) -> String {
@@ -163,7 +210,7 @@ private extension RSSFeedParser {
 
     static func episodeDescription(from item: RSSFeedItem) -> String? {
         [item.content?.encoded, item.iTunes?.summary, item.description]
-            .compactMap(Self.normalizedDescription(from:))
+            .compactMap { Self.normalizedDescription(from: $0, preservingLineBreaks: true) }
             .first
     }
 

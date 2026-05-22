@@ -1,7 +1,7 @@
 import Foundation
 
 public struct CachedFeed: Codable, Equatable, Sendable {
-    public static let currentFormatVersion = 3
+    public static let currentFormatVersion = 4
 
     public var formatVersion: Int
     public var subscriptionID: UUID

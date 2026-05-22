@@ -46,15 +46,121 @@ struct RSSFeedServiceTests {
 
         #expect(result.failures.isEmpty)
         #expect(result.selectedEpisodes.count == 2)
-	        #expect(result.selectedEpisodes.first?.title == "Episode 2")
-	        #expect(result.selectedEpisodes.first?.duration == 3_723)
+        #expect(result.selectedEpisodes.first?.title == "Episode 2")
+        #expect(result.selectedEpisodes.first?.duration == 3_723)
         #expect(result.selectedEpisodes.first?.description?.contains("**SPONSOR**") == false)
         #expect(result.selectedEpisodes.first?.description?.contains("\n\nSPONSOR\nProlific") == true)
         #expect(result.selectedEpisodes.first?.description?.contains("\nhttps://example.com") == true)
         #expect(result.selectedEpisodes.first?.description?.contains("\nTIMESTAMPS:\n00:00:00 Intro\n00:02:06 Sponsor break") == true)
-	        #expect(result.selectedEpisodes.last?.title == "Episode 1")
+        #expect(result.selectedEpisodes.last?.title == "Episode 1")
         #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(result.feedSummaries.first?.description == "A podcast about simple things.")
+    }
+
+    @Test
+    func formatsInlineSponsorSectionsInEpisodeDescriptions() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+
+        let feedURL = URL(string: "https://example.com/cognitive.xml")!
+        FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: """
+        <rss version="2.0">
+          <channel>
+            <title>Cognitive Revolution</title>
+            <item>
+              <title>DeepMind at I/O</title>
+              <guid>ep-1</guid>
+              <pubDate>Tue, 22 Apr 2026 12:00:00 +0000</pubDate>
+              <description><![CDATA[Logan Kilpatrick and Tulsee Doshi join for an in-person episode. Sponsors: Brave Search API: Brave Search API gives AI agents a fast, independent search index. Get $5 in free credits at https://brave.com/search/api/?mtm_campaign=q2-26-cognitive-revolution Sequence: Sequence handles the full revenue workflow for complex pricing. Book a demo at https://sequencehq.com Roboflow: Roboflow is an end-to-end visual AI platform. Read more at https://roboflow.com Claude: Claude by Anthropic is an AI collaborator. Get started at https://claude.ai/tcr]]></description>
+              <enclosure url="https://cdn.example.com/ep1.mp3" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        """)
+
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
+
+        let result = try await service.fetchLatestEpisodes(for: [
+            FeedSubscription(
+                title: "Cognitive Revolution",
+                rssURL: feedURL,
+                isEnabled: true
+            )
+        ])
+
+        let description = try #require(result.selectedEpisodes.first?.description)
+        #expect(description.contains("\n\nSponsors:\nBrave Search API:") == true)
+        #expect(description.contains("\n\nSequence: Sequence handles") == true)
+        #expect(description.contains("\n\nRoboflow: Roboflow is") == true)
+        #expect(description.contains("\n\nClaude: Claude by Anthropic") == true)
+        #expect(description.contains("\nhttps://brave.com/search/api/") == true)
+        #expect(description.contains("\nhttps://sequencehq.com") == true)
+    }
+
+    @Test
+    func removesCommonReadabilityBoilerplateFromEpisodeDescriptions() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+
+        let feedURL = URL(string: "https://example.com/readable.xml")!
+        FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: """
+        <rss version="2.0">
+          <channel>
+            <title>Readable Podcast</title>
+            <item>
+              <title>Readable Episode</title>
+              <guid>ep-1</guid>
+              <pubDate>Tue, 22 Apr 2026 12:00:00 +0000</pubDate>
+              <description><![CDATA[Share this episode: https://example.com/share Sam&rsquo;s guest discusses &ldquo;The Hard Problem&rdquo; and what changed. Audio Transcript: Welcome to the transcript. This should not crowd the notes.]]></description>
+              <enclosure url="https://cdn.example.com/ep1.mp3" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        """)
+
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
+
+        let result = try await service.fetchLatestEpisodes(for: [
+            FeedSubscription(title: "Readable Podcast", rssURL: feedURL, isEnabled: true)
+        ])
+
+        let description = try #require(result.selectedEpisodes.first?.description)
+        #expect(description == "Sam's guest discusses \"The Hard Problem\" and what changed.")
+    }
+
+    @Test
+    func formatsEpisodeNoteSectionsAndRemovesPromotionalTails() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+
+        let feedURL = URL(string: "https://example.com/sections.xml")!
+        FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: """
+        <rss version="2.0">
+          <channel>
+            <title>Sectioned Podcast</title>
+            <item>
+              <title>Sectioned Episode</title>
+              <guid>ep-1</guid>
+              <pubDate>Tue, 22 Apr 2026 12:00:00 +0000</pubDate>
+              <description><![CDATA[The main conversation is about agent design. PSA for AI builders: Interested in alignment, governance, or AI safety? Learn more about the MATS Summer 2026 Fellowship and submit your name to be notified when applications open: https://matsprogram.org/s26-tcr. LINKS: Research paper: https://example.com/paper CHAPTERS: (00:00) Intro (09:25) Text-to-SQL PRODUCED BY: https://example.com/producer SOCIAL LINKS: https://example.com/social]]></description>
+              <enclosure url="https://cdn.example.com/ep1.mp3" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        """)
+
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
+
+        let result = try await service.fetchLatestEpisodes(for: [
+            FeedSubscription(title: "Sectioned Podcast", rssURL: feedURL, isEnabled: true)
+        ])
+
+        let description = try #require(result.selectedEpisodes.first?.description)
+        #expect(description.contains("PSA for AI builders") == false)
+        #expect(description.contains("PRODUCED BY") == false)
+        #expect(description.contains("\n\nLINKS:\nResearch paper:") == true)
+        #expect(description.contains("\n\nCHAPTERS:\n(00:00) Intro\n(09:25) Text-to-SQL") == true)
+        #expect(description.contains("\nhttps://example.com/paper") == true)
     }
 
     @Test

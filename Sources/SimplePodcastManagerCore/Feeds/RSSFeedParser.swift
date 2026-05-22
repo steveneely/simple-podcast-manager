@@ -105,14 +105,84 @@ private extension RSSFeedParser {
         readable = replaceRegex(#"[ \t\f\v]+"#, in: readable, with: " ")
         readable = replaceRegex(#" *\n *"#, in: readable, with: "\n")
         readable = stripMarkdownEmphasis(from: readable)
-        readable = replaceRegex(#"(^|[^\n])(SPONSORS?)"#, in: readable, with: "$1\n\n$2\n")
+        readable = stripReadabilityBoilerplate(from: readable)
+        readable = replaceRegex(#"(?i)(^|[^\n])(Sponsors:) *"#, in: readable, with: "$1\n\n$2\n")
+        readable = replaceRegex(#"(^|[^\n])(SPONSORS?) *"#, in: readable, with: "$1\n\n$2\n")
+        readable = splitSponsorLabels(in: readable)
         readable = replaceRegex(#"(^|[^\n])(---)"#, in: readable, with: "$1\n\n$2\n\n")
+        readable = replaceRegex(
+            #"(?i)(^|[^\n])((?:LINKS|EPISODE LINKS|PODCAST INFO|SUPPORT & CONNECT|OUTLINE|CHAPTERS|RECOMMENDED PODCAST):)"#,
+            in: readable,
+            with: "$1\n\n$2\n"
+        )
         readable = replaceRegex(#"(?i)(^|[^\n])(TIMESTAMPS:)"#, in: readable, with: "$1\n\n$2\n")
+        readable = replaceRegex(#"(?<!\n) +(https?://)"#, in: readable, with: "\n$1")
         readable = replaceRegex(#"([A-Za-z0-9\).])(https?://)"#, in: readable, with: "$1\n$2")
+        readable = replaceRegex(#"(^|[^\n])(\(\d{1,2}:\d{2}(?::\d{2})?\))"#, in: readable, with: "$1\n$2")
+        readable = replaceRegex(#"(^|[^\n])(\d{1,2}:\d{2}(?::\d{2})? ?[–-])"#, in: readable, with: "$1\n$2")
         readable = replaceRegex(#"(^|[^\n])(\d{2}:\d{2}:\d{2})"#, in: readable, with: "$1\n$2")
+        readable = replaceRegex(#" *\n *"#, in: readable, with: "\n")
         readable = replaceRegex(#"\n{3,}"#, in: readable, with: "\n\n")
+        readable = replaceRegex(#"(?i)((?:CHAPTERS|OUTLINE|TIMESTAMPS):)\n\n(\(?\d)"#, in: readable, with: "$1\n$2")
 
         return readable.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func stripReadabilityBoilerplate(from text: String) -> String {
+        var cleaned = trimTranscriptSections(in: text)
+        cleaned = replaceRegex(#"(?i)(^|\n)?Share this episode:\s*https?://\S+\s*"#, in: cleaned, with: "$1")
+        cleaned = replaceRegex(
+            #"(?i)\bPSA for AI builders:\s*Interested in alignment, governance, or AI safety\?\s*Learn more about the MATS [^.]+:\s*https?://\S+\.?\s*"#,
+            in: cleaned,
+            with: ""
+        )
+        cleaned = trimTrailingSections(in: cleaned, markers: ["PRODUCED BY:", "SOCIAL LINKS:"])
+        return cleaned
+    }
+
+    static func trimTranscriptSections(in text: String) -> String {
+        let markers = ["Audio Transcript:", "AUDIO TRANSCRIPT"]
+        guard let markerRange = markers
+            .compactMap({ text.range(of: $0, options: [.caseInsensitive]) })
+            .min(by: { $0.lowerBound < $1.lowerBound })
+        else {
+            return text
+        }
+
+        return String(text[..<markerRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func trimTrailingSections(in text: String, markers: [String]) -> String {
+        guard let markerRange = markers
+            .compactMap({ text.range(of: $0, options: [.caseInsensitive]) })
+            .min(by: { $0.lowerBound < $1.lowerBound })
+        else {
+            return text
+        }
+
+        return String(text[..<markerRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func splitSponsorLabels(in text: String) -> String {
+        let sponsorHeadings = ["Sponsors:\n", "SPONSOR\n", "SPONSORS\n"]
+        guard let headingRange = sponsorHeadings.compactMap({ text.range(of: $0) }).min(by: { $0.lowerBound < $1.lowerBound }) else {
+            return text
+        }
+
+        let prefix = text[..<headingRange.upperBound]
+        let sponsorText = text[headingRange.upperBound...]
+        var splitSponsorText = replaceRegex(
+            #"(https?://\S+)\s+([A-Z][A-Za-z0-9.-]*(?: [A-Z][A-Za-z0-9.-]*){0,3}:) (?=[A-Z])"#,
+            in: String(sponsorText),
+            with: "$1\n\n$2 "
+        )
+        splitSponsorText = replaceRegex(
+            #"([.!?])\s+([A-Z][A-Za-z0-9.-]*(?: [A-Z][A-Za-z0-9.-]*){0,3}:) (?=[A-Z])"#,
+            in: splitSponsorText,
+            with: "$1\n\n$2 "
+        )
+
+        return String(prefix) + splitSponsorText
     }
 
     static func stripMarkdownEmphasis(from text: String) -> String {
@@ -136,14 +206,30 @@ private extension RSSFeedParser {
     }
 
     static func decodeHTMLEntities(in text: String) -> String {
+        let namedEntities = [
+            "&nbsp;": " ",
+            "&amp;": "&",
+            "&quot;": "\"",
+            "&#39;": "'",
+            "&apos;": "'",
+            "&lt;": "<",
+            "&gt;": ">",
+            "&rsquo;": "'",
+            "&lsquo;": "'",
+            "&rdquo;": "\"",
+            "&ldquo;": "\"",
+            "&ndash;": "-",
+            "&mdash;": "-",
+            "&hellip;": "...",
+            "&eacute;": "e",
+            "&Eacute;": "E",
+            "&ouml;": "o",
+            "&Ouml;": "O",
+        ]
         var decoded = text
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&apos;", with: "'")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
+        for (entity, replacement) in namedEntities {
+            decoded = decoded.replacingOccurrences(of: entity, with: replacement)
+        }
 
         let pattern = #"&#(x[0-9A-Fa-f]+|[0-9]+);"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {

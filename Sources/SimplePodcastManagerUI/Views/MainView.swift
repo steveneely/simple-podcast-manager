@@ -483,7 +483,7 @@ public struct MainView: View {
 
                 Spacer()
 
-                Button("Preview Sync") {
+                Button("Sync") {
                     openSyncPreview()
                 }
                 .disabled(!canOpenSyncPreview)

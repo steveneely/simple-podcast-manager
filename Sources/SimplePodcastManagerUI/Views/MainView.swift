@@ -111,12 +111,6 @@ public struct MainView: View {
             if !viewModel.hasLoadedConfiguration {
                 viewModel.load()
             }
-            if !deviceViewModel.hasLoadedDevices {
-                deviceViewModel.refresh()
-            }
-            if viewModel.hasFeeds && !feedPreviewViewModel.hasPreviewData {
-                await refreshFeedPreview()
-            }
             if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
                 preparationPreviewViewModel.loadPersistedPreparedEpisodes()
             }
@@ -125,6 +119,12 @@ public struct MainView: View {
             }
             if selectedFeedID == nil {
                 selectedFeedID = viewModel.feedSubscriptions.first?.id
+            }
+            if !deviceViewModel.hasLoadedDevices {
+                deviceViewModel.refresh()
+            }
+            if viewModel.hasFeeds && !feedPreviewViewModel.hasPreviewData {
+                await refreshFeedPreview()
             }
             refreshDeviceLibrary()
             rebuildSyncPlan()

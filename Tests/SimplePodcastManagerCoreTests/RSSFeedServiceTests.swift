@@ -33,7 +33,7 @@ struct RSSFeedServiceTests {
         </rss>
         """)
 
-        let service = RSSFeedService(session: URLSession(configuration: configuration))
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
             FeedSubscription(
@@ -65,7 +65,7 @@ struct RSSFeedServiceTests {
         let feedURL = URL(string: "https://example.com/bad-feed.xml")!
         FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: "<rss><channel><title>Broken")
 
-        let service = RSSFeedService(session: URLSession(configuration: configuration))
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
             FeedSubscription(
@@ -86,7 +86,7 @@ struct RSSFeedServiceTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FeedURLProtocolStub.self]
 
-        let service = RSSFeedService(session: URLSession(configuration: configuration))
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
             FeedSubscription(
@@ -124,7 +124,7 @@ struct RSSFeedServiceTests {
         </rss>
         """)
 
-        let service = RSSFeedService(session: URLSession(configuration: configuration))
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
             FeedSubscription(

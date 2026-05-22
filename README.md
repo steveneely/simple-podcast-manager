@@ -4,58 +4,52 @@
   <img src="Packaging/AppIcon.png" alt="Simple Podcast Manager icon" width="128">
 </p>
 
-Simple Podcast Manager is a native macOS app for people who still want a plain RSS-to-MP3-player workflow.
-
-Paste RSS feeds, download episodes, sync them to a standalone MP3 player, and remove old episodes from the device when you are done with them.
-
-The goal is simple:
+Simple Podcast Manager is a native macOS app for a plain RSS-to-MP3-player workflow:
 
 plug in device -> click sync -> done
 
+It is built for people who want to own their podcast subscriptions, download normal audio files, and copy MP3s to a standalone player without a hosted account or platform lock-in.
+
 ## Install
 
-The easiest way to try the app is to download the DMG from the latest [GitHub Releases](https://github.com/steveneely/simple-podcast-manager/releases)
+Download the DMG from the latest [GitHub Release](https://github.com/steveneely/simple-podcast-manager/releases), open it, and drag `Simple Podcast Manager.app` to Applications.
 
-Open the DMG, drag `Simple Podcast Manager.app` to Applications, and launch it like a normal Mac app.
-
-Current prerelease builds are for testing. They are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
+Current prerelease builds are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
 
 ## What It Does
 
-- subscribe to podcasts by pasting RSS feed URLs
-- fetch feed metadata directly from RSS
-- cache feed previews locally so startup stays fast, then refresh feeds in the background
-- preview current episodes for each show
-- download episode audio locally
-- convert audio to MP3 with bundled `ffmpeg` in release builds, or a custom `ffmpeg` path in Settings
-- sync managed episodes to an MP3 player
-- show a sync preview before changing the device
-- let you choose on-device episodes to delete during sync
-- optionally delete locally downloaded episodes after a successful sync
-- directly delete only app-managed podcast files from the device
-- remember removed episodes locally
-- show when an episode was previously downloaded or removed
-- keep a preview-first sync flow so you can inspect changes before running them
-- back up and restore subscriptions, settings, and local history
-- check GitHub Releases for app updates
+- Subscribe to podcasts with RSS feed URLs.
+- Download episodes and convert non-MP3 audio with bundled `ffmpeg` in release builds.
+- Preview every sync before changing your MP3 player.
+- Copy managed episodes to the device and delete selected managed episodes from it.
+- Remember downloaded and removed episodes.
+- Cache feed previews locally for faster startup, then refresh feeds in the background.
+- Export and import subscriptions, settings, and local history.
+- Check GitHub Releases for updates.
 
-The app is local-first. There is no backend service, hosted account, Apple Podcasts library integration, or Spotify dependency.
+The app is local-first: no backend service, hosted account, Spotify dependency, or Apple Podcasts library integration.
+
+## Help
+
+New users should start with the [User Manual](docs/USER_MANUAL.md).
+
+For technical context, see [Architecture](ARCHITECTURE.md).
 
 ## Development
 
-Run the test suite:
+Run tests:
 
 ```bash
 ./scripts/swift-test.sh
 ```
 
-Run the app from source:
+Run from source:
 
 ```bash
 swift run "Simple Podcast Manager"
 ```
 
-Package a local release DMG:
+Build a local DMG:
 
 ```bash
 FFMPEG_PATH=/path/to/ffmpeg \
@@ -63,18 +57,7 @@ FFMPEG_SOURCE_URL=https://example.com/ffmpeg-source-or-build-recipe \
 ./scripts/build-release.sh
 ```
 
-For public releases, also set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` so the generated DMG is signed, notarized, and stapled.
-
-If SwiftPM gets confused after a local folder rename or stale build cache:
-
-```bash
-swift package clean
-```
-
-## Project Docs
-
-- [Architecture](ARCHITECTURE.md)
-- [User Manual](docs/USER_MANUAL.md)
+For public releases, set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` to sign, notarize, and staple the DMG.
 
 ## License
 

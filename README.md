@@ -20,7 +20,7 @@ Current prerelease builds are not Developer ID signed or notarized yet, so macOS
 
 - Subscribe to podcasts with RSS feed URLs.
 - Download episodes and convert non-MP3 audio with bundled `ffmpeg` in release builds.
-- Preview every sync before changing your MP3 player.
+- Review the full-device plan before changing your MP3 player.
 - Copy managed episodes to the device and delete selected managed episodes from it.
 - Remember downloaded and removed episodes.
 - Cache feed previews locally for faster startup, then refresh feeds in the background.

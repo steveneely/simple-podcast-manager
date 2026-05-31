@@ -13,7 +13,7 @@ public enum SyncAction: Equatable, Sendable {
         case .deleteFromDevice(let targetURL):
             return "Delete old episode: \(podcastLabel(for: targetURL)) / \(targetURL.lastPathComponent)"
         case .ejectDevice:
-            return "Eject device after sync"
+            return "Eject device when finished"
         case .skip(let reason):
             return "Skip: \(reason)"
         }

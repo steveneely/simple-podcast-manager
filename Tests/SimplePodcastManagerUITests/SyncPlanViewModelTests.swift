@@ -45,7 +45,7 @@ struct SyncPlanViewModelTests {
 
         #expect(viewModel.plan != nil)
         #expect(viewModel.actionDescriptions.contains(where: { $0.contains("Copy to device") }))
-        #expect(viewModel.actionDescriptions.contains("Eject device after sync"))
+        #expect(viewModel.actionDescriptions.contains("Eject device when finished"))
     }
 
     @Test

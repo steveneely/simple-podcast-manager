@@ -45,6 +45,11 @@ public enum EpisodeFileName {
         return stem
     }
 
+    public static func directoryName(for subscription: FeedSubscription) -> String {
+        let title = sanitizedComponent(subscription.title)
+        return title.isEmpty ? subscription.id.uuidString : title
+    }
+
     public static func publicationDate(from fileURL: URL) -> Date? {
         parsedMetadata(from: fileURL)?.publicationDate
     }
@@ -75,7 +80,7 @@ public enum EpisodeFileName {
         return titlesMatch(podcastTitle, subscription.title)
     }
 
-    private static func parsedMetadata(fromFileStem fileStem: String) -> ParsedFileMetadata {
+    public static func parsedMetadata(fromFileStem fileStem: String) -> ParsedFileMetadata {
         var remainingStem = fileStem
         var publicationDate: Date?
         var podcastTitle: String?
@@ -108,13 +113,30 @@ public enum EpisodeFileName {
     }
 
     private static func sanitizedComponent(_ value: String) -> String {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let disallowed = CharacterSet(charactersIn: "/:\\?%*\"<>")
-        let components = trimmed.components(separatedBy: disallowed)
-        let collapsed = components
+        let asciiFriendly = value
+            .replacingOccurrences(of: "\u{2018}", with: "'")
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+            .replacingOccurrences(of: "\u{201C}", with: "\"")
+            .replacingOccurrences(of: "\u{201D}", with: "\"")
+            .replacingOccurrences(of: "\u{2013}", with: "-")
+            .replacingOccurrences(of: "\u{2014}", with: "-")
+            .replacingOccurrences(of: "\u{2026}", with: "...")
+        let trimmed = asciiFriendly
+            .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let disallowed = CharacterSet(charactersIn: "/:\\?%*\"<>|")
+        let asciiOnly = String(trimmed.unicodeScalars.map { scalar -> Character in
+            (32...126).contains(scalar.value) ? Character(scalar) : "-"
+        })
+        let components = asciiOnly.components(separatedBy: disallowed)
+        var collapsed = components
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: "-")
+        while collapsed.contains("--") {
+            collapsed = collapsed.replacingOccurrences(of: "--", with: "-")
+        }
+        collapsed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-").union(.whitespacesAndNewlines))
         return collapsed.isEmpty ? "" : collapsed
     }
 

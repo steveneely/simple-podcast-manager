@@ -17,8 +17,7 @@ public struct MainView: View {
     @State private var feedEditorPresentationID = UUID()
     @State private var isShowingFeedEditor = false
     @State private var isShowingSettings = false
-    @State private var isShowingSyncPreview = false
-    @State private var isDryRunEnabled = true
+    @State private var isShowingSyncDialog = false
     @State private var isEjectAfterSyncEnabled = false
     @State private var isDeleteDownloadedAfterSyncEnabled = false
     @State private var isShowingDeviceDetails = false
@@ -143,8 +142,8 @@ public struct MainView: View {
                 viewModel.replaceSettings(updatedSettings)
             }
         }
-        .sheet(isPresented: $isShowingSyncPreview) {
-            syncPreviewSheet
+        .sheet(isPresented: $isShowingSyncDialog) {
+            syncDialog
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
             isShowingSettings = true
@@ -484,9 +483,9 @@ public struct MainView: View {
                 Spacer()
 
                 Button("Sync") {
-                    openSyncPreview()
+                    openSyncDialog()
                 }
-                .disabled(!canOpenSyncPreview)
+                .disabled(!canOpenSyncDialog)
             }
 
             if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
@@ -502,13 +501,10 @@ public struct MainView: View {
     }
 
     @ViewBuilder
-    private var syncPreviewSheet: some View {
+    private var syncDialog: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Sync Preview")
-                        .font(.title2)
-                        .fontWeight(.semibold)
                     Text(syncPlanSummaryText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -517,7 +513,7 @@ public struct MainView: View {
                 Spacer()
 
                 Button("Close") {
-                    isShowingSyncPreview = false
+                    isShowingSyncDialog = false
                 }
 
                 if !hasSuccessfulRealSyncResult {
@@ -534,21 +530,14 @@ public struct MainView: View {
             if hasSuccessfulRealSyncResult {
                 syncSuccessConfirmation
             } else {
-                Toggle("Preview only (dry run)", isOn: $isDryRunEnabled)
-                    .toggleStyle(.checkbox)
-                    .onChange(of: isDryRunEnabled) {
-                        rebuildSyncPlan()
-                    }
-
-                Toggle("Eject after sync", isOn: $isEjectAfterSyncEnabled)
+                Toggle("Eject when finished", isOn: $isEjectAfterSyncEnabled)
                     .toggleStyle(.checkbox)
                     .onChange(of: isEjectAfterSyncEnabled) {
                         rebuildSyncPlan()
                     }
 
-                Toggle("Delete downloaded episodes after sync", isOn: $isDeleteDownloadedAfterSyncEnabled)
+                Toggle("Delete downloaded episodes when finished", isOn: $isDeleteDownloadedAfterSyncEnabled)
                     .toggleStyle(.checkbox)
-                    .disabled(isDryRunEnabled)
 
                 if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
                     syncProgressSection(progress)
@@ -579,11 +568,6 @@ public struct MainView: View {
                 .font(.headline)
 
             if let plan {
-                if plan.isDryRun {
-                    Text("Preview only. No device files will be changed.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
                 let copyCount = plan.actions.filter {
                     if case .copyToDevice = $0 { return true }
                     return false
@@ -601,7 +585,7 @@ public struct MainView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Choose a compatible device to build the full sync plan.")
+                Text("Choose a compatible device to build the full plan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -611,10 +595,10 @@ public struct MainView: View {
     @ViewBuilder
     private var syncSuccessConfirmation: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sync Complete")
+            Text("Complete")
                 .font(.headline)
 
-            Text("Sync finished. You can close this window.")
+            Text("Finished. You can close this window.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -624,7 +608,7 @@ public struct MainView: View {
                     .foregroundStyle(.secondary)
 
                 if result.ejected {
-                    Text("The device was ejected after the sync finished.")
+                    Text("The device was ejected after the run finished.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -959,7 +943,7 @@ public struct MainView: View {
             subscriptions: viewModel.feedSubscriptions,
             manualDeleteTargets: manuallySelectedDeletionTargets,
             ejectAfterSync: isEjectAfterSyncEnabled,
-            isDryRun: isDryRunEnabled
+            isDryRun: false
         )
     }
 
@@ -1170,7 +1154,7 @@ public struct MainView: View {
         })
     }
 
-    private var canOpenSyncPreview: Bool {
+    private var canOpenSyncDialog: Bool {
         deviceViewModel.selectedDevice != nil && !viewModel.feedSubscriptions.isEmpty
     }
 
@@ -1191,18 +1175,18 @@ public struct MainView: View {
     private var syncPlanSummaryText: String {
         guard let plan = syncPlanViewModel.plan else {
             return deviceViewModel.selectedDevice == nil
-                ? "Pick a compatible device to preview the full sync."
-                : "The full sync plan will appear here once episodes are prepared."
+                ? "Pick a compatible device to build the plan."
+                : "The plan will appear here once episodes are prepared."
         }
 
         let actionCount = plan.actions.count
-        return "Review the full-device plan for all shows before \(plan.isDryRun ? "previewing" : "syncing"). \(actionCount) action\(actionCount == 1 ? "" : "s") currently planned."
+        return "Review the full-device plan for all shows. \(actionCount) action\(actionCount == 1 ? "" : "s") planned."
     }
 
     @ViewBuilder
     private func syncProgressSection(_ progress: SyncExecutionProgress) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(progress.currentActionDescription ?? "Finishing sync")
+            Text(progress.currentActionDescription ?? "Finishing")
                 .font(.subheadline)
                 .fontWeight(.medium)
             ProgressView(value: progress.fractionCompleted)
@@ -1216,7 +1200,7 @@ public struct MainView: View {
     @ViewBuilder
     private func syncResultCard(_ result: SyncResult) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(result.isDryRun ? "Last Preview" : "Last Sync")
+            Text("Last Run")
                 .font(.headline)
 
             Text(syncResultSummary(result))
@@ -1224,7 +1208,7 @@ public struct MainView: View {
                 .foregroundStyle(.secondary)
 
             if result.ejected {
-                Text("The device was ejected after the sync finished.")
+                Text("The device was ejected after the run finished.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1251,7 +1235,7 @@ public struct MainView: View {
         if description.hasPrefix("Skip") {
             return "arrow.right"
         }
-        if description == "Eject device after sync" {
+        if description == "Eject device when finished" {
             return "eject"
         }
         return "circle"
@@ -1264,7 +1248,7 @@ public struct MainView: View {
         if description.hasPrefix("Copy to device") {
             return .accentColor
         }
-        if description == "Eject device after sync" {
+        if description == "Eject device when finished" {
             return .secondary
         }
         return .secondary
@@ -1285,7 +1269,7 @@ public struct MainView: View {
             subscriptions: viewModel.feedSubscriptions,
             manualDeleteTargets: manuallySelectedDeletionTargets,
             ejectAfterSync: isEjectAfterSyncEnabled,
-            isDryRun: isDryRunEnabled
+            isDryRun: false
         )
 
         if
@@ -1325,10 +1309,10 @@ public struct MainView: View {
         }
     }
 
-    private func openSyncPreview() {
+    private func openSyncDialog() {
         syncExecutionViewModel.clearLastResult()
         rebuildSyncPlan()
-        isShowingSyncPreview = true
+        isShowingSyncDialog = true
     }
 
     private func removedEpisodeLabel(for record: RemovedEpisodeRecord) -> String {
@@ -1406,9 +1390,7 @@ public struct MainView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text(isDryRunEnabled
-                    ? "Checked files stay on the device. Uncheck a file to preview deleting it."
-                    : "Checked files stay on the device. Uncheck a file to delete it on the next sync.")
+                Text("Checked files stay on the device. Uncheck a file to delete it on the next run.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -1442,16 +1424,13 @@ public struct MainView: View {
 
     private func syncResultSummary(_ result: SyncResult) -> String {
         let finishedText = result.finishedAt?.formatted(date: .omitted, time: .shortened) ?? "now"
-        if result.isDryRun {
-            return "Last dry run at \(finishedText): \(result.copiedCount) would copy, \(result.deletedCount) would delete, \(result.skippedCount) would skip."
-        }
-        return "Last sync at \(finishedText): \(result.copiedCount) copied, \(result.deletedCount) deleted, \(result.skippedCount) skipped."
+        return "Last run at \(finishedText): \(result.copiedCount) copied, \(result.deletedCount) deleted, \(result.skippedCount) skipped."
     }
 
     private var sheetSyncButtonTitle: String {
         if syncExecutionViewModel.isSyncing {
-            return isDryRunEnabled ? "Previewing..." : "Syncing..."
+            return "Working..."
         }
-        return isDryRunEnabled ? "Run Preview" : "Start Sync"
+        return "Start"
     }
 }

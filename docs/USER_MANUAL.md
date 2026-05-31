@@ -7,8 +7,8 @@ The basic flow is:
 1. Add podcast RSS feeds.
 2. Download the episodes you want.
 3. Plug in an MP3 player with a `music` folder.
-4. Preview the sync.
-5. Run the sync.
+4. Review the plan.
+5. Start the run.
 
 ## Install The App
 
@@ -38,7 +38,7 @@ The app only writes podcast files inside that `music` folder. It will not write 
 1. Open Simple Podcast Manager.
 2. Click the plus button in the Shows list.
 3. Paste the podcast's RSS feed URL.
-4. Leave `Feed enabled` checked if you want the show included in sync planning.
+4. Leave `Feed enabled` checked if you want the show included in planning.
 5. Save the show.
 
 The app reads the podcast title and artwork from the RSS feed.
@@ -56,12 +56,10 @@ Release builds can include bundled `ffmpeg` for converting non-MP3 audio. If you
 
 1. Plug in your MP3 player.
 2. Wait for the Device section to show it as selected.
-3. Click `Preview Sync`.
+3. Click `Sync`.
 4. Review the planned copies, skips, deletions, and optional eject.
-5. Leave `Preview only (dry run)` checked to test without changing the device.
-6. Uncheck `Preview only (dry run)` when you are ready to sync for real.
-7. Optionally check `Delete downloaded episodes after sync` to remove local downloaded episode files after a successful real sync.
-8. Click `Start Sync`.
+5. Optionally check `Delete downloaded episodes when finished` to remove local downloaded episode files after a successful run.
+6. Click `Start`.
 
 The app keeps files organized by show:
 
@@ -77,7 +75,7 @@ Your Device/
 When a device is selected, each show can display its current on-device files.
 
 - Checked files stay on the device.
-- Unchecked files are planned for deletion during the next real sync.
+- Unchecked files are planned for deletion during the next run.
 
 Deleted files are removed directly from the device. The app only deletes app-managed podcast files inside the device's `music` folder.
 

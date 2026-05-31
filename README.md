@@ -23,7 +23,7 @@ Current prerelease builds are not Developer ID signed or notarized yet, so macOS
 - Review the full-device plan before changing your MP3 player.
 - Copy managed episodes to the device and delete selected managed episodes from it.
 - Remember downloaded and removed episodes.
-- Cache feed previews locally for faster startup, then refresh feeds in the background.
+- Cache parsed feed data locally for faster startup, then refresh feeds in the background.
 - Export and import subscriptions, settings, and local history.
 - Check GitHub Releases for updates.
 

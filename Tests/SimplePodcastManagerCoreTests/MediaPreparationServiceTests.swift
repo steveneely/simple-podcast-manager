@@ -22,7 +22,7 @@ struct MediaPreparationServiceTests {
 
         #expect(result.preparedEpisodes.count == 1)
         #expect(result.preparedEpisodes.first?.preparationAction == .passthroughMP3)
-        #expect(result.preparedEpisodes.first?.preparedAt != nil)
+        #expect(result.preparedEpisodes.first?.preparedAt.timeIntervalSince1970 ?? 0 > 0)
         #expect(result.failures.isEmpty)
     }
 

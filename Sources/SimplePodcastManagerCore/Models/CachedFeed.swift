@@ -1,9 +1,6 @@
 import Foundation
 
 public struct CachedFeed: Codable, Equatable, Sendable {
-    public static let currentFormatVersion = 6
-
-    public var formatVersion: Int
     public var subscriptionID: UUID
     public var rssURL: URL
     public var fetchedAt: Date
@@ -13,7 +10,6 @@ public struct CachedFeed: Codable, Equatable, Sendable {
     public var episodes: [Episode]
 
     public init(
-        formatVersion: Int = Self.currentFormatVersion,
         subscriptionID: UUID,
         rssURL: URL,
         fetchedAt: Date,
@@ -22,7 +18,6 @@ public struct CachedFeed: Codable, Equatable, Sendable {
         summary: FeedSummary,
         episodes: [Episode]
     ) {
-        self.formatVersion = formatVersion
         self.subscriptionID = subscriptionID
         self.rssURL = rssURL
         self.fetchedAt = fetchedAt

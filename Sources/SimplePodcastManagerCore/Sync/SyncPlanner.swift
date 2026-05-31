@@ -19,8 +19,7 @@ public struct SyncPlanner: Sendable {
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
         manualDeleteTargets: Set<URL> = [],
-        ejectAfterSync: Bool,
-        isDryRun: Bool
+        ejectAfterSync: Bool
     ) throws -> SyncPlan {
         try safetyValidator.validateDevice(device)
 
@@ -65,7 +64,7 @@ public struct SyncPlanner: Sendable {
             actions.append(.ejectDevice(deviceRootURL: device.rootURL))
         }
 
-        return SyncPlan(device: device, isDryRun: isDryRun, actions: actions)
+        return SyncPlan(device: device, actions: actions)
     }
 
     private func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) -> URL {

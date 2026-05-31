@@ -28,8 +28,7 @@ public final class SyncPlanViewModel {
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
         manualDeleteTargets: Set<URL> = [],
-        ejectAfterSync: Bool,
-        isDryRun: Bool
+        ejectAfterSync: Bool
     ) {
         guard let device else {
             plan = nil
@@ -46,8 +45,7 @@ public final class SyncPlanViewModel {
                 preparedEpisodes: preparedEpisodes,
                 subscriptions: subscriptions,
                 manualDeleteTargets: manualDeleteTargets,
-                ejectAfterSync: ejectAfterSync,
-                isDryRun: isDryRun
+                ejectAfterSync: ejectAfterSync
             )
             lastErrorMessage = nil
         } catch {

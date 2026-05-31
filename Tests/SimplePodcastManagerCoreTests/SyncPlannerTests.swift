@@ -17,8 +17,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(
@@ -54,8 +53,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(plan.actions.contains(.skip(reason: "Already on device: Episode 1")))
@@ -88,8 +86,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(plan.actions.contains(where: {
@@ -124,8 +121,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: preparedEpisodes,
             subscriptions: [subscription],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: olderEpisodeURL)))
@@ -153,8 +149,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
@@ -179,8 +174,7 @@ struct SyncPlannerTests {
             preparedEpisodes: [],
             subscriptions: [subscription],
             manualDeleteTargets: [existingFileURL],
-            ejectAfterSync: true,
-            isDryRun: true
+            ejectAfterSync: true
         )
 
         #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
@@ -210,8 +204,7 @@ struct SyncPlannerTests {
             preparedEpisodes: [],
             subscriptions: [subscription],
             manualDeleteTargets: [unmanagedFileURL, unrelatedAudioURL],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
@@ -232,8 +225,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(!plan.actions.contains(where: {
@@ -261,8 +253,7 @@ struct SyncPlannerTests {
             preparedEpisodes: [],
             subscriptions: [subscription],
             manualDeleteTargets: [existingFileURL],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
@@ -300,8 +291,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [subscription],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(plan.actions.contains(where: {

@@ -32,8 +32,7 @@ public final class SyncExecutionViewModel {
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
         manualDeleteTargets: Set<URL> = [],
-        ejectAfterSync: Bool,
-        isDryRun: Bool
+        ejectAfterSync: Bool
     ) async {
         guard let device else {
             lastErrorMessage = "Select a compatible device before syncing."
@@ -46,8 +45,7 @@ public final class SyncExecutionViewModel {
                 preparedEpisodes: preparedEpisodes,
                 subscriptions: subscriptions,
                 manualDeleteTargets: manualDeleteTargets,
-                ejectAfterSync: ejectAfterSync,
-                isDryRun: isDryRun
+                ejectAfterSync: ejectAfterSync
             )
             lastPlan = plan
             isSyncing = true
@@ -56,19 +54,14 @@ public final class SyncExecutionViewModel {
                 isSyncing = false
                 progress = nil
             }
-            let result: SyncResult
-            if isDryRun {
-                result = Self.previewResult(for: plan)
-            } else {
-                let executor = self.executor
-                result = try await Task.detached(priority: .userInitiated) { [weak self] in
-                    try executor.execute(plan: plan) { progress in
-                        Task { @MainActor in
-                            self?.progress = progress
-                        }
+            let executor = self.executor
+            let result = try await Task.detached(priority: .userInitiated) { [weak self] in
+                try executor.execute(plan: plan) { progress in
+                    Task { @MainActor in
+                        self?.progress = progress
                     }
-                }.value
-            }
+                }
+            }.value
             lastResult = result
             lastErrorMessage = nil
         } catch {
@@ -80,35 +73,5 @@ public final class SyncExecutionViewModel {
         lastResult = nil
         lastErrorMessage = nil
         lastPlan = nil
-    }
-
-    private static func previewResult(for plan: SyncPlan) -> SyncResult {
-        var copiedCount = 0
-        var deletedCount = 0
-        var skippedCount = 0
-
-        for action in plan.actions {
-            switch action {
-            case .copyToDevice:
-                copiedCount += 1
-            case .deleteFromDevice:
-                deletedCount += 1
-            case .skip:
-                skippedCount += 1
-            case .ejectDevice:
-                break
-            }
-        }
-
-        return SyncResult(
-            startedAt: Date(),
-            finishedAt: Date(),
-            isDryRun: true,
-            copiedCount: copiedCount,
-            deletedCount: deletedCount,
-            skippedCount: skippedCount,
-            ejected: false,
-            warnings: ["Dry run only. No device files were modified."]
-        )
     }
 }

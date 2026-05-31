@@ -163,7 +163,7 @@ public final class PreparationPreviewViewModel {
                 episodeID: preparedEpisode.episode.id,
                 episodeTitle: preparedEpisode.episode.title,
                 preparationAction: preparedEpisode.preparationAction,
-                downloadedAt: preparedEpisode.preparedAt ?? Date()
+                downloadedAt: preparedEpisode.preparedAt
             )
             recordsByID[record.id] = record
         }

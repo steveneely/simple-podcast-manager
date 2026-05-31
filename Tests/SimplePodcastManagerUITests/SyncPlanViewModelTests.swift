@@ -39,8 +39,7 @@ struct SyncPlanViewModelTests {
             preparedEpisodes: [preparedEpisode],
             subscriptions: [subscription],
             manualDeleteTargets: [],
-            ejectAfterSync: true,
-            isDryRun: true
+            ejectAfterSync: true
         )
 
         #expect(viewModel.plan != nil)
@@ -57,8 +56,7 @@ struct SyncPlanViewModelTests {
             preparedEpisodes: [],
             subscriptions: [],
             manualDeleteTargets: [],
-            ejectAfterSync: false,
-            isDryRun: true
+            ejectAfterSync: false
         )
 
         #expect(viewModel.plan == nil)

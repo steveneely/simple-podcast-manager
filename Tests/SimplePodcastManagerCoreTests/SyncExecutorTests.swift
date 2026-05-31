@@ -29,7 +29,6 @@ struct SyncExecutorTests {
         let result = try executor.execute(
             plan: SyncPlan(
                 device: device,
-                isDryRun: false,
                 actions: [
                     .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL),
                     .deleteFromDevice(targetURL: deleteTargetURL),
@@ -68,7 +67,6 @@ struct SyncExecutorTests {
         let result = try executor.execute(
             plan: SyncPlan(
                 device: device,
-                isDryRun: false,
                 actions: [
                     .deleteFromDevice(targetURL: deleteTargetURL),
                     .ejectDevice(deviceRootURL: device.rootURL),
@@ -103,7 +101,6 @@ struct SyncExecutorTests {
         _ = try executor.execute(
             plan: SyncPlan(
                 device: device,
-                isDryRun: false,
                 actions: [
                     .deleteFromDevice(targetURL: deleteTargetURL)
                 ]
@@ -135,7 +132,6 @@ struct SyncExecutorTests {
         _ = try executor.execute(
             plan: SyncPlan(
                 device: device,
-                isDryRun: false,
                 actions: [
                     .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL),
                     .deleteFromDevice(targetURL: deleteTargetURL),

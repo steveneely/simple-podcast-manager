@@ -19,7 +19,7 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         plan: SyncPlan,
         progress: (@Sendable (SyncExecutionProgress) -> Void)? = nil
     ) throws -> SyncResult {
-        var result = SyncResult(startedAt: Date(), isDryRun: false)
+        var result = SyncResult(startedAt: Date())
         let totalCount = plan.actions.count
 
         try safetyValidator.validateDevice(plan.device)

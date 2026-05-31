@@ -942,8 +942,7 @@ public struct MainView: View {
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
             subscriptions: viewModel.feedSubscriptions,
             manualDeleteTargets: manuallySelectedDeletionTargets,
-            ejectAfterSync: isEjectAfterSyncEnabled,
-            isDryRun: false
+            ejectAfterSync: isEjectAfterSyncEnabled
         )
     }
 
@@ -1162,10 +1161,7 @@ public struct MainView: View {
         guard !syncExecutionViewModel.isSyncing, syncExecutionViewModel.lastErrorMessage == nil else {
             return false
         }
-        guard let result = syncExecutionViewModel.lastResult else {
-            return false
-        }
-        return !result.isDryRun
+        return syncExecutionViewModel.lastResult != nil
     }
 
     private var enabledSubscriptionCount: Int {
@@ -1268,13 +1264,11 @@ public struct MainView: View {
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
             subscriptions: viewModel.feedSubscriptions,
             manualDeleteTargets: manuallySelectedDeletionTargets,
-            ejectAfterSync: isEjectAfterSyncEnabled,
-            isDryRun: false
+            ejectAfterSync: isEjectAfterSyncEnabled
         )
 
         if
             let result = syncExecutionViewModel.lastResult,
-            !result.isDryRun,
             let lastPlan = syncExecutionViewModel.lastPlan
         {
             let deletedTargetURLs = lastPlan.actions.compactMap { action -> URL? in
@@ -1293,8 +1287,7 @@ public struct MainView: View {
         if
             isDeleteDownloadedAfterSyncEnabled,
             syncExecutionViewModel.lastErrorMessage == nil,
-            let result = syncExecutionViewModel.lastResult,
-            !result.isDryRun
+            syncExecutionViewModel.lastResult != nil
         {
             preparationPreviewViewModel.removeAllPreparedEpisodes()
         }
@@ -1344,10 +1337,7 @@ public struct MainView: View {
 
     private func downloadedEpisodeLabel(for preparedEpisode: PreparedEpisode) -> String {
         let actionText = preparedEpisode.preparationAction == .passthroughMP3 ? "MP3" : "converted to MP3"
-        guard let preparedAt = preparedEpisode.preparedAt else {
-            return "Downloaded previously (\(actionText))"
-        }
-        let downloadedDate = preparedAt.formatted(date: .abbreviated, time: .omitted)
+        let downloadedDate = preparedEpisode.preparedAt.formatted(date: .abbreviated, time: .omitted)
         return "Downloaded \(downloadedDate) (\(actionText))"
     }
 

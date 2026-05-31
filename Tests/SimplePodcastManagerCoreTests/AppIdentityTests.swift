@@ -4,13 +4,6 @@ import Foundation
 
 struct AppIdentityTests {
     @Test
-    func legacySupportDirectoryNamesIncludePreviousAppNames() {
-        #expect(AppIdentity.legacySupportDirectoryNames.contains("SPodcastManager"))
-        #expect(AppIdentity.legacySupportDirectoryNames.contains("SpodcastManaager"))
-        #expect(AppIdentity.legacySupportDirectoryNames.contains("PodcastSwift"))
-    }
-
-    @Test
     func swiftRunUsesRepositoryLocalDevelopmentDataDirectory() {
         let supportURL = AppIdentity.applicationSupportDirectory(
             bundleURL: URL(fileURLWithPath: "/Users/sneely/code/simple-podcast-manager/.build/debug/Simple Podcast Manager")
@@ -22,8 +15,7 @@ struct AppIdentityTests {
     @Test
     func appBundleUsesUserApplicationSupportDirectory() {
         let supportURL = AppIdentity.applicationSupportDirectory(
-            bundleURL: URL(fileURLWithPath: "/Applications/Simple Podcast Manager.app", isDirectory: true),
-            migrateLegacyData: false
+            bundleURL: URL(fileURLWithPath: "/Applications/Simple Podcast Manager.app", isDirectory: true)
         )
 
         #expect(supportURL.lastPathComponent == AppIdentity.supportDirectoryName)

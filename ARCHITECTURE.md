@@ -18,7 +18,7 @@ The app has two layers:
 - `UI layer`: configuration, device state, sync controls, progress, results
 - `Core layer`: feed fetch, episode selection, conversion, sync planning, execution, direct device deletion, eject
 
-The UI should not contain sync logic. It should call a single coordinator in the core layer and render progress updates.
+The UI should not contain sync logic. It should call focused core services and render progress updates.
 
 ## Main Modules
 
@@ -28,21 +28,23 @@ The UI should not contain sync logic. It should call a single coordinator in the
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds
 - `SettingsView`: optional custom `ffmpeg` path
-- `SyncViewModel`: bind UI to sync engine and expose progress/state
+- `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
+- `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
+- `SyncPlanViewModel`: build the full-device plan shown before execution
+- `SyncExecutionViewModel`: execute the selected plan and expose progress/state
 - `DeviceViewModel`: monitor device availability and selected target
+- `DeviceLibraryViewModel`: inspect app-managed files already on the selected device
 
 ### Core Layer
 
-- `SyncCoordinator`: top-level orchestrator for a sync run
 - `FeedService`: fetch, cache, and parse RSS feeds
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
 - `DownloadService`: download episode media into a temporary workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
 - `SyncPlanner`: calculate copy, skip, delete, and eject actions
-- `DeviceFileService`: perform scoped copies and deletes on the device
+- `SyncExecutor`: perform scoped copies and deletes on the device
 - `SafetyValidator`: verify all device paths before any mutation
-- `SyncReporter`: publish structured progress and final result summaries
 
 ### Domain Models
 
@@ -65,21 +67,19 @@ Expected runtime flow:
 2. The user adds a podcast by entering an RSS feed URL.
 3. The app resolves feed metadata from RSS and creates a `FeedSubscription`.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
-5. The user clicks `Sync`.
-6. `SyncViewModel` calls `SyncCoordinator`.
-7. `SyncCoordinator` runs the pipeline:
+5. The user downloads the episodes they want to prepare locally.
+6. The user clicks `Sync`.
+7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
-   - fetch feeds
-   - select desired episodes
-   - download missing media
-   - convert to MP3 if required
    - build a `SyncPlan`
-   - if dry-run, stop after planning and report the plan
-   - if real run, execute copy/delete
+   - show planned copies, skips, deletions, and optional eject
+8. `SyncExecutionViewModel` executes the plan:
+   - copy prepared MP3 files
+   - delete selected app-managed device files
    - optionally eject after success
-8. `SyncReporter` emits progress and result events to the UI.
+9. Progress and result state are rendered in the UI.
 
-The planner and executor must share the same decision logic. Dry-run is not a separate implementation path.
+The plan shown to the user is the plan executed by the app.
 
 ## RSS Subscription
 
@@ -120,8 +120,6 @@ Refresh behavior:
 - if refresh fails and no cache exists, show the refresh failure with no feed preview data
 
 The feed cache is derived data. It should not be included in app data export/import, and deleting or retargeting a subscription should remove its stale cache file.
-
-Cache files include a format version. Bump the format version when adding parsed fields that should appear immediately from cached data, such as episode duration. Otherwise feeds that correctly return `304 Not Modified` can keep serving old cached episode records without the new fields.
 
 ## Device Detection
 
@@ -202,4 +200,3 @@ The app should be biased toward refusing unsafe work, even if that occasionally 
 - feed title and artwork resolved from RSS metadata
 - per-podcast subfolders under device `music`
 - bundled `ffmpeg` invoked with `Process`
-- dry-run uses the exact same planner as real sync

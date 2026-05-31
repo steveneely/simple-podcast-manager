@@ -35,7 +35,7 @@ If a proposed implementation weakens those guarantees, do not take it.
 - Prefer Foundation and direct platform APIs before adding packages
 - Avoid unnecessary frameworks, services, or abstraction layers
 - Keep modules small and explicit
-- Keep dry-run and real sync behavior aligned through a shared planner
+- Keep the user-visible plan and executed device actions aligned through the shared planner
 
 Do not introduce:
 
@@ -65,8 +65,6 @@ Prefer a plan-first sync flow:
 - show/report the plan
 - execute only validated actions
 
-Dry-run must use the same plan as real sync and must not mutate the device.
-
 ## Repo Conventions
 
 Once code exists, use this structure:
@@ -94,7 +92,7 @@ Add tests around behavior with the highest risk first:
 
 - valid device detection
 - invalid or ambiguous device detection
-- dry-run parity with real sync planning
+- user-visible sync plan parity with executed device actions
 - deletion touching only app-managed files under device `music`
 - eject only after successful sync
 

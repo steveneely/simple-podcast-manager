@@ -41,7 +41,13 @@ private extension RSSFeedParser {
         let artworkURL = channelArtworkURL(from: feed.channel)
         let description = channelDescription(from: feed.channel)
         let episodes = (feed.channel?.items ?? []).compactMap {
-            makeEpisode(from: $0, feedTitle: feedTitle, sourceFeedURL: sourceFeedURL, subscriptionID: subscriptionID)
+            makeEpisode(
+                from: $0,
+                feedTitle: feedTitle,
+                feedArtworkURL: artworkURL,
+                sourceFeedURL: sourceFeedURL,
+                subscriptionID: subscriptionID
+            )
         }
 
         return ParsedRSSFeed(
@@ -264,6 +270,7 @@ private extension RSSFeedParser {
     static func makeEpisode(
         from item: RSSFeedItem,
         feedTitle: String,
+        feedArtworkURL: URL?,
         sourceFeedURL: URL,
         subscriptionID: UUID?
     ) -> Episode? {
@@ -289,9 +296,18 @@ private extension RSSFeedParser {
             publicationDate: item.pubDate,
             duration: item.iTunes?.duration,
             description: episodeDescription(from: item),
+            artworkURL: episodeArtworkURL(from: item) ?? feedArtworkURL,
             enclosureURL: enclosureURL,
             sourceFeedURL: sourceFeedURL
         )
+    }
+
+    static func episodeArtworkURL(from item: RSSFeedItem) -> URL? {
+        guard let href = item.iTunes?.image?.attributes?.href else {
+            return nil
+        }
+
+        return URL(string: href)
     }
 
     static func episodeDescription(from item: RSSFeedItem) -> String? {

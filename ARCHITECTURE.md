@@ -167,9 +167,10 @@ All synced output on the device should be MP3.
 
 - if a downloaded enclosure is already acceptable MP3 output, keep it
 - otherwise convert it through `ffmpeg`
+- when RSS artwork is available, prepare a resized JPEG and ask `ffmpeg` to embed it as ID3v2.3 cover art
 - conversion happens in a temporary workspace on the Mac before copy-to-device
 
-Release builds should bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI.
+Release builds should bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching, image conversion, or MP3 tagging fails.
 
 ## Safety Model
 

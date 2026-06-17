@@ -20,6 +20,7 @@ struct RSSFeedServiceTests {
               <guid>ep-2</guid>
               <pubDate>Tue, 22 Apr 2026 12:00:00 +0000</pubDate>
               <itunes:duration>1:02:03</itunes:duration>
+              <itunes:image href="https://example.com/episode-artwork.jpg" />
               <description><![CDATA[Beth and David on model evaluations.**SPONSOR**Prolific - Quality data.https://example.com---TIMESTAMPS:00:00:00 Intro00:02:06 Sponsor break]]></description>
               <enclosure url="https://cdn.example.com/ep2.mp3" type="audio/mpeg"/>
             </item>
@@ -52,7 +53,9 @@ struct RSSFeedServiceTests {
         #expect(result.selectedEpisodes.first?.description?.contains("\n\nSPONSOR\nProlific") == true)
         #expect(result.selectedEpisodes.first?.description?.contains("\nhttps://example.com") == true)
         #expect(result.selectedEpisodes.first?.description?.contains("\nTIMESTAMPS:\n00:00:00 Intro\n00:02:06 Sponsor break") == true)
+        #expect(result.selectedEpisodes.first?.artworkURL == URL(string: "https://example.com/episode-artwork.jpg"))
         #expect(result.selectedEpisodes.last?.title == "Episode 1")
+        #expect(result.selectedEpisodes.last?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(result.feedSummaries.first?.description == "A podcast about simple things.")
     }

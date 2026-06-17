@@ -102,6 +102,122 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
+    func embedsArtworkInMp3WithoutReencodingAudio() async throws {
+        let artworkURL = URL(string: "https://cdn.example.com/artwork.png")!
+        let episode = Episode(
+            id: "ep-mp3-art",
+            podcastTitle: "Example Podcast",
+            title: "Episode MP3 With Art",
+            artworkURL: artworkURL,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        let artworkFileURL = workspaceURL.appending(path: "cover.jpg")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        try Data("artwork".utf8).write(to: artworkFileURL)
+        let bundledURL = URL(fileURLWithPath: "/Applications/Simple Podcast Manager.app/Contents/Resources/ffmpeg")
+        let commandRunner = CapturingCommandRunner(
+            result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
+        )
+        let service = FFmpegAudioConversionService(
+            commandRunner: commandRunner,
+            artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
+            bundledExecutableURL: bundledURL
+        )
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings()
+        )
+
+        #expect(preparedEpisode.preparationAction == .passthroughMP3)
+        #expect(preparedEpisode.preparedFileURL.deletingLastPathComponent().lastPathComponent == "prepared")
+        #expect(preparedEpisode.preparedFileURL.lastPathComponent == EpisodeFileName.fileName(for: episode, fileExtension: "mp3"))
+        #expect(commandRunner.executableURLs == [bundledURL])
+        #expect(commandRunner.arguments.first?.contains("-c:a") == true)
+        #expect(commandRunner.arguments.first?.contains("copy") == true)
+        #expect(commandRunner.arguments.first?.contains("-id3v2_version") == true)
+        #expect(commandRunner.arguments.first?.contains("3") == true)
+        #expect(commandRunner.arguments.first?.contains(artworkFileURL.path) == true)
+    }
+
+    @Test
+    func returnsOriginalMp3WhenArtworkCannotBePrepared() async throws {
+        let episode = Episode(
+            id: "ep-mp3-art-fallback",
+            podcastTitle: "Example Podcast",
+            title: "Episode MP3 With Missing Art",
+            artworkURL: URL(string: "https://cdn.example.com/missing.png")!,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        let commandRunner = CapturingCommandRunner(
+            result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
+        )
+        let service = FFmpegAudioConversionService(
+            commandRunner: commandRunner,
+            artworkPreparationService: FailingArtworkPreparationService(),
+            bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
+        )
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings()
+        )
+
+        #expect(preparedEpisode.preparedFileURL == sourceFileURL)
+        #expect(commandRunner.arguments.isEmpty)
+    }
+
+    @Test
+    func embedsArtworkWhenConvertingNonMp3() async throws {
+        let artworkURL = URL(string: "https://cdn.example.com/artwork.png")!
+        let episode = Episode(
+            id: "ep-aac-art",
+            podcastTitle: "Example Podcast",
+            title: "Episode AAC With Art",
+            artworkURL: artworkURL,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.aac")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.aac")
+        let artworkFileURL = workspaceURL.appending(path: "cover.jpg")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        try Data("artwork".utf8).write(to: artworkFileURL)
+        let commandRunner = CapturingCommandRunner(
+            result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
+        )
+        let service = FFmpegAudioConversionService(
+            commandRunner: commandRunner,
+            artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
+            bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
+        )
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings()
+        )
+
+        #expect(preparedEpisode.preparationAction == .convertedToMP3)
+        #expect(commandRunner.arguments.first?.contains("-map") == true)
+        #expect(commandRunner.arguments.first?.contains("0:a") == true)
+        #expect(commandRunner.arguments.first?.contains("1:v") == true)
+        #expect(commandRunner.arguments.first?.contains(artworkFileURL.path) == true)
+    }
+
+    @Test
     func reportsPreparationProgressAcrossEpisodes() async throws {
         let firstEpisode = Episode(
             id: "ep-1",
@@ -179,6 +295,7 @@ private struct StubCommandRunner: CommandRunning {
 private final class CapturingCommandRunner: CommandRunning, @unchecked Sendable {
     private let result: CommandRunResult
     private var capturedExecutableURLs: [URL] = []
+    private var capturedArguments: [[String]] = []
 
     init(result: CommandRunResult) {
         self.result = result
@@ -186,11 +303,30 @@ private final class CapturingCommandRunner: CommandRunning, @unchecked Sendable 
 
     func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
         capturedExecutableURLs.append(executableURL)
+        capturedArguments.append(arguments)
         return result
     }
 
     var executableURLs: [URL] {
         capturedExecutableURLs
+    }
+
+    var arguments: [[String]] {
+        capturedArguments
+    }
+}
+
+private struct StubArtworkPreparationService: ArtworkPreparationService {
+    let artworkFileURL: URL
+
+    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL) async throws -> URL {
+        artworkFileURL
+    }
+}
+
+private struct FailingArtworkPreparationService: ArtworkPreparationService {
+    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL) async throws -> URL {
+        throw ArtworkPreparationError.invalidImage
     }
 }
 

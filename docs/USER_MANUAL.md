@@ -52,6 +52,8 @@ Select a show to see its current feed episodes.
 
 Release builds can include bundled `ffmpeg` for converting non-MP3 audio. If your build does not include bundled `ffmpeg`, set an `ffmpeg` path in Settings before downloading non-MP3 episodes.
 
+When the RSS feed provides artwork, newly downloaded episodes include that image as MP3 cover art when possible.
+
 ## Sync To A Device
 
 1. Plug in your MP3 player.

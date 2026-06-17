@@ -8,6 +8,7 @@ public struct Episode: Codable, Equatable, Sendable, Identifiable {
     public var publicationDate: Date?
     public var duration: TimeInterval?
     public var description: String?
+    public var artworkURL: URL?
     public var enclosureURL: URL
     public var sourceFeedURL: URL
 
@@ -19,6 +20,7 @@ public struct Episode: Codable, Equatable, Sendable, Identifiable {
         publicationDate: Date? = nil,
         duration: TimeInterval? = nil,
         description: String? = nil,
+        artworkURL: URL? = nil,
         enclosureURL: URL,
         sourceFeedURL: URL
     ) {
@@ -29,6 +31,7 @@ public struct Episode: Codable, Equatable, Sendable, Identifiable {
         self.publicationDate = publicationDate
         self.duration = duration
         self.description = description
+        self.artworkURL = artworkURL
         self.enclosureURL = enclosureURL
         self.sourceFeedURL = sourceFeedURL
     }

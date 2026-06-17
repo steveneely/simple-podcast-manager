@@ -16,15 +16,26 @@ public struct FFmpegAudioConversionService: AudioConversionService {
     }
 
     public func prepareAudio(for episode: Episode, sourceFileURL: URL, in workspaceURL: URL, settings: AppSettings) async throws -> PreparedEpisode {
-        let artworkFileURL = await preparedArtworkFileURL(for: episode, in: workspaceURL)
+        let artworkPreparation = await preparedArtwork(for: episode, in: workspaceURL)
 
         if sourceFileURL.pathExtension.lowercased() == "mp3" {
-            guard let artworkFileURL, let executableURL = ffmpegExecutableURL(from: settings) else {
+            guard case .prepared(let artworkFileURL) = artworkPreparation else {
                 return PreparedEpisode(
                     episode: episode,
                     sourceFileURL: sourceFileURL,
                     preparedFileURL: sourceFileURL,
-                    preparationAction: .passthroughMP3
+                    preparationAction: .passthroughMP3,
+                    preparationWarnings: artworkPreparation.warningMessage.map { [$0] }
+                )
+            }
+
+            guard let executableURL = ffmpegExecutableURL(from: settings) else {
+                return PreparedEpisode(
+                    episode: episode,
+                    sourceFileURL: sourceFileURL,
+                    preparedFileURL: sourceFileURL,
+                    preparationAction: .passthroughMP3,
+                    preparationWarnings: [Self.missingFFmpegArtworkWarning]
                 )
             }
 
@@ -37,7 +48,8 @@ public struct FFmpegAudioConversionService: AudioConversionService {
                     episode: episode,
                     sourceFileURL: sourceFileURL,
                     preparedFileURL: sourceFileURL,
-                    preparationAction: .passthroughMP3
+                    preparationAction: .passthroughMP3,
+                    preparationWarnings: [Self.failedArtworkEmbeddingWarning]
                 )
             }
 
@@ -54,10 +66,10 @@ public struct FFmpegAudioConversionService: AudioConversionService {
         }
 
         let destinationURL = workspaceURL.appending(path: convertedFileName(for: episode), directoryHint: .notDirectory)
-        try await convertToMP3(
+        let conversionWarnings = try await convertToMP3(
             executableURL: executableURL,
             sourceFileURL: sourceFileURL,
-            artworkFileURL: artworkFileURL,
+            artworkPreparation: artworkPreparation,
             destinationURL: destinationURL
         )
 
@@ -65,7 +77,8 @@ public struct FFmpegAudioConversionService: AudioConversionService {
             episode: episode,
             sourceFileURL: sourceFileURL,
             preparedFileURL: destinationURL,
-            preparationAction: .convertedToMP3
+            preparationAction: .convertedToMP3,
+            preparationWarnings: conversionWarnings.isEmpty ? nil : conversionWarnings
         )
     }
 
@@ -78,10 +91,14 @@ public struct FFmpegAudioConversionService: AudioConversionService {
         return bundledExecutableURL
     }
 
-    private func preparedArtworkFileURL(for episode: Episode, in workspaceURL: URL) async -> URL? {
-        guard let artworkURL = episode.artworkURL else { return nil }
+    private func preparedArtwork(for episode: Episode, in workspaceURL: URL) async -> ArtworkPreparationOutcome {
+        guard let artworkURL = episode.artworkURL else { return .notAvailable }
 
-        return try? await artworkPreparationService.prepareArtwork(from: artworkURL, in: workspaceURL)
+        do {
+            return .prepared(try await artworkPreparationService.prepareArtwork(from: artworkURL, in: workspaceURL))
+        } catch {
+            return .failed(Self.failedArtworkPreparationWarning)
+        }
     }
 
     private func taggedMP3DestinationURL(for episode: Episode, in workspaceURL: URL) throws -> URL {
@@ -93,24 +110,45 @@ public struct FFmpegAudioConversionService: AudioConversionService {
     private func convertToMP3(
         executableURL: URL,
         sourceFileURL: URL,
-        artworkFileURL: URL?,
+        artworkPreparation: ArtworkPreparationOutcome,
         destinationURL: URL
-    ) async throws {
-        let arguments: [String]
-        if let artworkFileURL {
-            arguments = conversionWithArtworkArguments(
-                sourceFileURL: sourceFileURL,
-                artworkFileURL: artworkFileURL,
-                destinationURL: destinationURL
+    ) async throws -> [String] {
+        switch artworkPreparation {
+        case .notAvailable:
+            try await runRequiredFFmpeg(
+                executableURL: executableURL,
+                arguments: conversionArguments(sourceFileURL: sourceFileURL, destinationURL: destinationURL)
             )
-        } else {
-            arguments = [
-                "-y",
-                "-i", sourceFileURL.path,
-                destinationURL.path,
-            ]
-        }
+            return []
+        case .failed(let warning):
+            try await runRequiredFFmpeg(
+                executableURL: executableURL,
+                arguments: conversionArguments(sourceFileURL: sourceFileURL, destinationURL: destinationURL)
+            )
+            return [warning]
+        case .prepared(let artworkFileURL):
+            let succeededWithArtwork = try await runFFmpeg(
+                executableURL: executableURL,
+                arguments: conversionWithArtworkArguments(
+                    sourceFileURL: sourceFileURL,
+                    artworkFileURL: artworkFileURL,
+                    destinationURL: destinationURL
+                )
+            )
 
+            if succeededWithArtwork {
+                return []
+            }
+
+            try await runRequiredFFmpeg(
+                executableURL: executableURL,
+                arguments: conversionArguments(sourceFileURL: sourceFileURL, destinationURL: destinationURL)
+            )
+            return [Self.failedArtworkEmbeddingWarning]
+        }
+    }
+
+    private func runRequiredFFmpeg(executableURL: URL, arguments: [String]) async throws {
         let result = try await commandRunner.run(executableURL: executableURL, arguments: arguments)
 
         guard result.terminationStatus == 0 else {
@@ -119,6 +157,14 @@ public struct FFmpegAudioConversionService: AudioConversionService {
                 output: result.standardError.isEmpty ? result.standardOutput : result.standardError
             )
         }
+    }
+
+    private func conversionArguments(sourceFileURL: URL, destinationURL: URL) -> [String] {
+        [
+            "-y",
+            "-i", sourceFileURL.path,
+            destinationURL.path,
+        ]
     }
 
     private func runFFmpeg(executableURL: URL, arguments: [String]) async throws -> Bool {
@@ -159,5 +205,24 @@ public struct FFmpegAudioConversionService: AudioConversionService {
 
     private func convertedFileName(for episode: Episode) -> String {
         EpisodeFileName.fileName(for: episode, fileExtension: "mp3")
+    }
+
+    private static let missingFFmpegArtworkWarning = "Cover art was not added because ffmpeg is not available."
+    private static let failedArtworkPreparationWarning = "Cover art was not added because the artwork could not be downloaded or read."
+    private static let failedArtworkEmbeddingWarning = "Cover art was not added because ffmpeg could not embed it."
+}
+
+private enum ArtworkPreparationOutcome: Equatable {
+    case notAvailable
+    case prepared(URL)
+    case failed(String)
+
+    var warningMessage: String? {
+        switch self {
+        case .notAvailable, .prepared:
+            return nil
+        case .failed(let message):
+            return message
+        }
     }
 }

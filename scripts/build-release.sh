@@ -19,6 +19,8 @@ mount_dir="${build_dir}/dmg-mount"
 background_dir="${dmg_root}/.background"
 background_path="${background_dir}/installer-background.png"
 background_generator="${build_dir}/generate-dmg-background.swift"
+packaged_ffmpeg_path="${repo_root}/Packaging/ffmpeg/ffmpeg"
+require_bundled_ffmpeg="${REQUIRE_BUNDLED_FFMPEG:-1}"
 
 rm -rf "$build_dir" "$dmg_path"
 mkdir -p "$macos_dir" "$resources_dir" "$dmg_root" "$dist_dir" "$background_dir"
@@ -33,6 +35,18 @@ chmod 755 "${macos_dir}/${app_name}"
 
 if [[ -f "${repo_root}/Packaging/AppIcon.icns" ]]; then
   cp "${repo_root}/Packaging/AppIcon.icns" "${resources_dir}/AppIcon.icns"
+fi
+
+if [[ -z "${FFMPEG_PATH:-}" && -x "$packaged_ffmpeg_path" ]]; then
+  FFMPEG_PATH="$packaged_ffmpeg_path"
+  FFMPEG_SOURCE_URL="${FFMPEG_SOURCE_URL:-https://evermeet.cx/ffmpeg/}"
+fi
+
+if [[ -z "${FFMPEG_PATH:-}" && "$require_bundled_ffmpeg" == "1" ]]; then
+  echo "Release builds must include ffmpeg." >&2
+  echo "Set FFMPEG_PATH and FFMPEG_SOURCE_URL, or put an executable at Packaging/ffmpeg/ffmpeg." >&2
+  echo "Use REQUIRE_BUNDLED_FFMPEG=0 only for local packaging tests." >&2
+  exit 1
 fi
 
 if [[ -n "${FFMPEG_PATH:-}" ]]; then
@@ -153,10 +167,24 @@ tell application "Finder"
   set position of item "$app_name.app" of dmgFolder to {170, 185}
   set position of item "Applications" of dmgFolder to {450, 185}
   update dmgFolder without registering applications
-  delay 1
+  delay 2
+  update dmgFolder without registering applications
   close container window of dmgFolder
+  delay 1
 end tell
 APPLESCRIPT
+
+for _ in {1..20}; do
+  if [[ -f "$mount_dir/.DS_Store" ]]; then
+    break
+  fi
+  sleep 0.25
+done
+
+if [[ ! -f "$mount_dir/.DS_Store" ]]; then
+  echo "Finder did not save DMG layout metadata (.DS_Store); refusing to build a plain installer window." >&2
+  exit 1
+fi
 
 sync
 hdiutil detach "$mount_dir" -quiet

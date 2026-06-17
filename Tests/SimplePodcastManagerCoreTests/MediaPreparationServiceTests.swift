@@ -135,6 +135,7 @@ struct MediaPreparationServiceTests {
         )
 
         #expect(preparedEpisode.preparationAction == .passthroughMP3)
+        #expect(preparedEpisode.preparationWarnings == nil)
         #expect(preparedEpisode.preparedFileURL.deletingLastPathComponent().lastPathComponent == "prepared")
         #expect(preparedEpisode.preparedFileURL.lastPathComponent == EpisodeFileName.fileName(for: episode, fileExtension: "mp3"))
         #expect(commandRunner.executableURLs == [bundledURL])
@@ -143,6 +144,42 @@ struct MediaPreparationServiceTests {
         #expect(commandRunner.arguments.first?.contains("-id3v2_version") == true)
         #expect(commandRunner.arguments.first?.contains("3") == true)
         #expect(commandRunner.arguments.first?.contains(artworkFileURL.path) == true)
+    }
+
+    @Test
+    func warnsWhenMp3ArtworkNeedsFfmpegButFfmpegIsMissing() async throws {
+        let episode = Episode(
+            id: "ep-mp3-art-no-ffmpeg",
+            podcastTitle: "Example Podcast",
+            title: "Episode MP3 With Art",
+            artworkURL: URL(string: "https://cdn.example.com/artwork.png")!,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        let artworkFileURL = workspaceURL.appending(path: "cover.jpg")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        try Data("artwork".utf8).write(to: artworkFileURL)
+        let commandRunner = CapturingCommandRunner(
+            result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
+        )
+        let service = FFmpegAudioConversionService(
+            commandRunner: commandRunner,
+            artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
+            bundledExecutableURL: nil
+        )
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings()
+        )
+
+        #expect(preparedEpisode.preparedFileURL == sourceFileURL)
+        #expect(preparedEpisode.preparationWarnings == ["Cover art was not added because ffmpeg is not available."])
+        #expect(commandRunner.arguments.isEmpty)
     }
 
     @Test
@@ -175,6 +212,7 @@ struct MediaPreparationServiceTests {
         )
 
         #expect(preparedEpisode.preparedFileURL == sourceFileURL)
+        #expect(preparedEpisode.preparationWarnings == ["Cover art was not added because the artwork could not be downloaded or read."])
         #expect(commandRunner.arguments.isEmpty)
     }
 
@@ -211,10 +249,50 @@ struct MediaPreparationServiceTests {
         )
 
         #expect(preparedEpisode.preparationAction == .convertedToMP3)
+        #expect(preparedEpisode.preparationWarnings == nil)
         #expect(commandRunner.arguments.first?.contains("-map") == true)
         #expect(commandRunner.arguments.first?.contains("0:a") == true)
         #expect(commandRunner.arguments.first?.contains("1:v") == true)
         #expect(commandRunner.arguments.first?.contains(artworkFileURL.path) == true)
+    }
+
+    @Test
+    func retriesNonMp3ConversionWithoutArtworkWhenEmbeddingFails() async throws {
+        let episode = Episode(
+            id: "ep-aac-art-retry",
+            podcastTitle: "Example Podcast",
+            title: "Episode AAC With Art",
+            artworkURL: URL(string: "https://cdn.example.com/artwork.png")!,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.aac")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.aac")
+        let artworkFileURL = workspaceURL.appending(path: "cover.jpg")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        try Data("artwork".utf8).write(to: artworkFileURL)
+        let commandRunner = SequencedCommandRunner(results: [
+            CommandRunResult(terminationStatus: 1, standardOutput: "", standardError: "art failed"),
+            CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: ""),
+        ])
+        let service = FFmpegAudioConversionService(
+            commandRunner: commandRunner,
+            artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
+            bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
+        )
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings()
+        )
+
+        #expect(preparedEpisode.preparationAction == .convertedToMP3)
+        #expect(preparedEpisode.preparationWarnings == ["Cover art was not added because ffmpeg could not embed it."])
+        #expect(commandRunner.arguments.count == 2)
+        #expect(commandRunner.arguments[0].contains(artworkFileURL.path))
+        #expect(!commandRunner.arguments[1].contains(artworkFileURL.path))
     }
 
     @Test
@@ -313,6 +391,22 @@ private final class CapturingCommandRunner: CommandRunning, @unchecked Sendable 
 
     var arguments: [[String]] {
         capturedArguments
+    }
+}
+
+private final class SequencedCommandRunner: CommandRunning, @unchecked Sendable {
+    private var results: [CommandRunResult]
+    private(set) var arguments: [[String]] = []
+
+    init(results: [CommandRunResult]) {
+        self.results = results
+    }
+
+    func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
+        self.arguments.append(arguments)
+        return results.isEmpty
+            ? CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
+            : results.removeFirst()
     }
 }
 

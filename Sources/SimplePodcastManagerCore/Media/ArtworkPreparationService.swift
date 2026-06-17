@@ -7,6 +7,9 @@ public protocol ArtworkPreparationService: Sendable {
 }
 
 public struct PodcastArtworkPreparationService: ArtworkPreparationService {
+    private static let maxCoverArtPixelSize = 400
+    private static let coverArtCompressionQuality = 0.72
+
     private let session: URLSession
 
     public init(session: URLSession = .shared) {
@@ -32,7 +35,7 @@ public struct PodcastArtworkPreparationService: ArtworkPreparationService {
                 [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
                     kCGImageSourceCreateThumbnailWithTransform: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 1024,
+                    kCGImageSourceThumbnailMaxPixelSize: Self.maxCoverArtPixelSize,
                 ] as CFDictionary
             ),
             let imageDestination = CGImageDestinationCreateWithURL(destinationURL as CFURL, UTType.jpeg.identifier as CFString, 1, nil)
@@ -44,7 +47,7 @@ public struct PodcastArtworkPreparationService: ArtworkPreparationService {
             imageDestination,
             image,
             [
-                kCGImageDestinationLossyCompressionQuality: 0.9,
+                kCGImageDestinationLossyCompressionQuality: Self.coverArtCompressionQuality,
             ] as CFDictionary
         )
 

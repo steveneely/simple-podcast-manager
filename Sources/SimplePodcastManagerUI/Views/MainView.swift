@@ -688,6 +688,11 @@ public struct MainView: View {
                             Text(downloadedEpisodeLabel(for: preparedEpisode))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            ForEach(preparedEpisode.preparationWarnings ?? [], id: \.self) { warning in
+                                Text(warning)
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
                         } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
                             Text(downloadedEpisodeLabel(for: downloadedRecord))
                                 .font(.caption)
@@ -767,6 +772,9 @@ public struct MainView: View {
 
                 if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
                     episodeDetailRow(label: "Download", value: downloadedEpisodeLabel(for: preparedEpisode))
+                    ForEach(preparedEpisode.preparationWarnings ?? [], id: \.self) { warning in
+                        episodeDetailRow(label: "Warning", value: warning)
+                    }
                 } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
                     episodeDetailRow(label: "Download", value: downloadedEpisodeLabel(for: downloadedRecord))
                 }

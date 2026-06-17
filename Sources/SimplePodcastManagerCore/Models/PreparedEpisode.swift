@@ -7,19 +7,22 @@ public struct PreparedEpisode: Codable, Equatable, Sendable, Identifiable {
     public var preparedFileURL: URL
     public var preparationAction: PreparationAction
     public var preparedAt: Date
+    public var preparationWarnings: [String]?
 
     public init(
         episode: Episode,
         sourceFileURL: URL,
         preparedFileURL: URL,
         preparationAction: PreparationAction,
-        preparedAt: Date = Date()
+        preparedAt: Date = Date(),
+        preparationWarnings: [String]? = nil
     ) {
         self.episode = episode
         self.sourceFileURL = sourceFileURL
         self.preparedFileURL = preparedFileURL
         self.preparationAction = preparationAction
         self.preparedAt = preparedAt
+        self.preparationWarnings = preparationWarnings
     }
 }
 

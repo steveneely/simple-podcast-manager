@@ -153,10 +153,15 @@ tell application "Finder"
   set dmgFolder to POSIX file "$mount_dir" as alias
   set backgroundImage to POSIX file "$mount_dir/.background/installer-background.png" as alias
   open dmgFolder
-  set dmgWindow to window 1
+  delay 1
+  set dmgWindow to container window of dmgFolder
   set current view of dmgWindow to icon view
-  set toolbar visible of dmgWindow to false
-  set statusbar visible of dmgWindow to false
+  try
+    set toolbar visible of dmgWindow to false
+  end try
+  try
+    set statusbar visible of dmgWindow to false
+  end try
   set the bounds of dmgWindow to {120, 120, 740, 480}
   set viewOptions to the icon view options of dmgWindow
   set arrangement of viewOptions to not arranged
@@ -165,10 +170,10 @@ tell application "Finder"
   set position of item "$app_name.app" of dmgFolder to {170, 185}
   set position of item "Applications" of dmgFolder to {450, 185}
   update dmgFolder without registering applications
-  delay 2
+  delay 5
   update dmgFolder without registering applications
   close dmgWindow
-  delay 1
+  delay 2
 end tell
 APPLESCRIPT
 

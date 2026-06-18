@@ -15,7 +15,7 @@ resources_dir="${contents_dir}/Resources"
 dmg_root="${build_dir}/dmg-root"
 dmg_path="${dist_dir}/SimplePodcastManager.dmg"
 rw_dmg_path="${build_dir}/SimplePodcastManager-rw.dmg"
-mount_dir="${build_dir}/dmg-mount"
+mount_dir="/Volumes/${app_name}"
 background_dir="${dmg_root}/.background"
 background_path="${background_dir}/installer-background.png"
 background_generator="${build_dir}/generate-dmg-background.swift"
@@ -134,8 +134,12 @@ SWIFT
 swift "$background_generator" "$background_path"
 
 hdiutil create -volname "$app_name" -srcfolder "$dmg_root" -ov -format UDRW "$rw_dmg_path"
-mkdir -p "$mount_dir"
-hdiutil attach "$rw_dmg_path" -mountpoint "$mount_dir" -nobrowse -quiet
+if [[ -e "$mount_dir" ]]; then
+  echo "A volume is already mounted at $mount_dir; eject it before building the DMG." >&2
+  exit 1
+fi
+
+hdiutil attach "$rw_dmg_path" -quiet
 
 cleanup_mount() {
   if [[ -d "$mount_dir" ]]; then
@@ -149,11 +153,12 @@ tell application "Finder"
   set dmgFolder to POSIX file "$mount_dir" as alias
   set backgroundImage to POSIX file "$mount_dir/.background/installer-background.png" as alias
   open dmgFolder
-  set current view of container window of dmgFolder to icon view
-  set toolbar visible of container window of dmgFolder to false
-  set statusbar visible of container window of dmgFolder to false
-  set the bounds of container window of dmgFolder to {120, 120, 740, 480}
-  set viewOptions to the icon view options of container window of dmgFolder
+  set dmgWindow to window 1
+  set current view of dmgWindow to icon view
+  set toolbar visible of dmgWindow to false
+  set statusbar visible of dmgWindow to false
+  set the bounds of dmgWindow to {120, 120, 740, 480}
+  set viewOptions to the icon view options of dmgWindow
   set arrangement of viewOptions to not arranged
   set icon size of viewOptions to 96
   set background picture of viewOptions to backgroundImage
@@ -162,7 +167,7 @@ tell application "Finder"
   update dmgFolder without registering applications
   delay 2
   update dmgFolder without registering applications
-  close container window of dmgFolder
+  close dmgWindow
   delay 1
 end tell
 APPLESCRIPT

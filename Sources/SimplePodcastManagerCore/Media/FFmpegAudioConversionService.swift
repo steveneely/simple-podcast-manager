@@ -3,15 +3,18 @@ import Foundation
 public struct FFmpegAudioConversionService: AudioConversionService {
     private let commandRunner: any CommandRunning
     private let artworkPreparationService: any ArtworkPreparationService
+    private let mp3ArtworkTaggingService: any MP3ArtworkTaggingService
     private let bundledExecutableURL: URL?
 
     public init(
         commandRunner: any CommandRunning = ProcessCommandRunner(),
         artworkPreparationService: any ArtworkPreparationService = PodcastArtworkPreparationService(),
+        mp3ArtworkTaggingService: any MP3ArtworkTaggingService = ID3MP3ArtworkTaggingService(),
         bundledExecutableURL: URL? = Bundle.main.url(forResource: "ffmpeg", withExtension: nil)
     ) {
         self.commandRunner = commandRunner
         self.artworkPreparationService = artworkPreparationService
+        self.mp3ArtworkTaggingService = mp3ArtworkTaggingService
         self.bundledExecutableURL = bundledExecutableURL
     }
 
@@ -29,36 +32,29 @@ public struct FFmpegAudioConversionService: AudioConversionService {
                 )
             }
 
-            guard let executableURL = ffmpegExecutableURL(from: settings) else {
+            do {
+                let destinationURL = try taggedMP3DestinationURL(for: episode, in: workspaceURL)
+                try mp3ArtworkTaggingService.writeArtwork(
+                    sourceFileURL: sourceFileURL,
+                    artworkFileURL: artworkFileURL,
+                    destinationFileURL: destinationURL
+                )
+                return PreparedEpisode(
+                    episode: episode,
+                    sourceFileURL: sourceFileURL,
+                    preparedFileURL: destinationURL,
+                    preparationAction: .passthroughMP3
+                )
+            } catch {
                 return PreparedEpisode(
                     episode: episode,
                     sourceFileURL: sourceFileURL,
                     preparedFileURL: sourceFileURL,
                     preparationAction: .passthroughMP3,
-                    preparationWarnings: [Self.missingFFmpegArtworkWarning]
+                    preparationWarnings: [Self.failedMP3ArtworkTaggingWarning]
                 )
             }
 
-            let destinationURL = try taggedMP3DestinationURL(for: episode, in: workspaceURL)
-            guard try await runFFmpeg(
-                executableURL: executableURL,
-                arguments: mp3ArtworkArguments(sourceFileURL: sourceFileURL, artworkFileURL: artworkFileURL, destinationURL: destinationURL)
-            ) else {
-                return PreparedEpisode(
-                    episode: episode,
-                    sourceFileURL: sourceFileURL,
-                    preparedFileURL: sourceFileURL,
-                    preparationAction: .passthroughMP3,
-                    preparationWarnings: [Self.failedArtworkEmbeddingWarning]
-                )
-            }
-
-            return PreparedEpisode(
-                episode: episode,
-                sourceFileURL: sourceFileURL,
-                preparedFileURL: destinationURL,
-                preparationAction: .passthroughMP3
-            )
         }
 
         guard let executableURL = ffmpegExecutableURL(from: settings) else {
@@ -144,7 +140,7 @@ public struct FFmpegAudioConversionService: AudioConversionService {
                 executableURL: executableURL,
                 arguments: conversionArguments(sourceFileURL: sourceFileURL, destinationURL: destinationURL)
             )
-            return [Self.failedArtworkEmbeddingWarning]
+            return [Self.failedFFmpegArtworkEmbeddingWarning]
         }
     }
 
@@ -172,22 +168,6 @@ public struct FFmpegAudioConversionService: AudioConversionService {
         return result.terminationStatus == 0
     }
 
-    private func mp3ArtworkArguments(sourceFileURL: URL, artworkFileURL: URL, destinationURL: URL) -> [String] {
-        [
-            "-y",
-            "-i", sourceFileURL.path,
-            "-i", artworkFileURL.path,
-            "-map", "0:a",
-            "-map", "1:v",
-            "-c:a", "copy",
-            "-c:v", "mjpeg",
-            "-id3v2_version", "3",
-            "-metadata:s:v", "title=Album cover",
-            "-metadata:s:v", "comment=Cover (front)",
-            destinationURL.path,
-        ]
-    }
-
     private func conversionWithArtworkArguments(sourceFileURL: URL, artworkFileURL: URL, destinationURL: URL) -> [String] {
         [
             "-y",
@@ -207,9 +187,9 @@ public struct FFmpegAudioConversionService: AudioConversionService {
         EpisodeFileName.fileName(for: episode, fileExtension: "mp3")
     }
 
-    private static let missingFFmpegArtworkWarning = "Cover art was not added because ffmpeg is not available."
     private static let failedArtworkPreparationWarning = "Cover art was not added because the artwork could not be downloaded or read."
-    private static let failedArtworkEmbeddingWarning = "Cover art was not added because ffmpeg could not embed it."
+    private static let failedMP3ArtworkTaggingWarning = "Cover art was not added because the MP3 could not be tagged."
+    private static let failedFFmpegArtworkEmbeddingWarning = "Cover art was not added because ffmpeg could not embed it."
 }
 
 private enum ArtworkPreparationOutcome: Equatable {

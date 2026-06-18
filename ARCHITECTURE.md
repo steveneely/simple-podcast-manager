@@ -2,7 +2,7 @@
 
 ## Summary
 
-Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, safe deletion, and optional eject behavior. `ffmpeg` is provided as a bundled external executable in release builds, with an optional custom path override for development and advanced users.
+Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, safe deletion, and optional eject behavior. `ffmpeg` can be provided as an external executable for non-MP3 conversion, with an optional custom path override for development and advanced users.
 
 The architecture should stay simple:
 
@@ -167,10 +167,11 @@ All synced output on the device should be MP3.
 
 - if a downloaded enclosure is already acceptable MP3 output, keep it
 - otherwise convert it through `ffmpeg`
-- when RSS artwork is available, prepare a small JPEG and ask `ffmpeg` to embed it as ID3v2.3 cover art
+- when RSS artwork is available for an MP3 file, prepare a small JPEG and write it as an ID3v2.3 APIC cover-art frame in Swift
+- when RSS artwork is available during non-MP3 conversion, ask `ffmpeg` to embed it in the converted output
 - conversion happens in a temporary workspace on the Mac before copy-to-device
 
-Release builds should bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`; the release script fails by default if `ffmpeg` is missing. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching, image conversion, or MP3 tagging fails.
+Release builds may bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI for non-MP3 files. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching, image conversion, or MP3 tagging fails.
 
 ## Safety Model
 
@@ -200,4 +201,4 @@ The app should be biased toward refusing unsafe work, even if that occasionally 
 - direct RSS entry as the subscription path
 - feed title and artwork resolved from RSS metadata
 - per-podcast subfolders under device `music`
-- bundled `ffmpeg` invoked with `Process`
+- optional `ffmpeg` invoked with `Process`

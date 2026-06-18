@@ -50,7 +50,7 @@ Select a show to see its current feed episodes.
 - Click the download button next to one episode to prepare that episode.
 - Click `Download All` to prepare every episode loaded from that show's feed. Some feeds include a lot of episodes, so this can download a lot of files.
 
-Release builds include bundled `ffmpeg` for converting non-MP3 audio and embedding podcast artwork. If your build does not include bundled `ffmpeg`, set an `ffmpeg` path in Settings before downloading non-MP3 episodes.
+The app can prepare normal MP3 podcast episodes without `ffmpeg`. If your build does not include bundled `ffmpeg`, set an `ffmpeg` path in Settings before downloading non-MP3 episodes.
 
 When the RSS feed provides artwork, newly downloaded episodes include a small copy of that image as MP3 cover art when possible.
 

@@ -19,7 +19,7 @@ Current prerelease builds are not Developer ID signed or notarized yet, so macOS
 ## What It Does
 
 - Subscribe to podcasts with RSS feed URLs.
-- Download episodes, convert non-MP3 audio, and embed podcast artwork with bundled `ffmpeg` in release builds.
+- Download episodes, embed podcast artwork, and optionally convert non-MP3 audio with `ffmpeg`.
 - Review the full-device plan before changing your MP3 player.
 - Copy managed episodes to the device and delete selected managed episodes from it.
 - Remember downloaded and removed episodes.
@@ -52,12 +52,10 @@ swift run "Simple Podcast Manager"
 Build a local DMG:
 
 ```bash
-FFMPEG_PATH=/path/to/ffmpeg \
-FFMPEG_SOURCE_URL=https://example.com/ffmpeg-source-or-build-recipe \
 ./scripts/build-release.sh
 ```
 
-Release builds require bundled `ffmpeg` by default. Use `REQUIRE_BUNDLED_FFMPEG=0` only for local packaging tests that should intentionally skip conversion/artwork support.
+To bundle `ffmpeg` for non-MP3 conversion, set `FFMPEG_PATH` and `FFMPEG_SOURCE_URL` before running the release script. MP3 cover art is written natively and does not require `ffmpeg`.
 
 For public releases, set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` to sign, notarize, and staple the DMG.
 

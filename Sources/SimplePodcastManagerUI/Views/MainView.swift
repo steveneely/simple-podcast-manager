@@ -397,13 +397,13 @@ public struct MainView: View {
                     Spacer()
 
                     HStack(spacing: 10) {
-                        Button(preparationPreviewViewModel.isPreparing ? "Downloading..." : "Download All") {
+                        Button("Download All") {
                             Task {
-                                await preparationPreviewViewModel.prepare(syncSelectedEpisodes(for: selectedSubscription), settings: viewModel.settings)
+                                await preparationPreviewViewModel.prepare(downloadableEpisodes(for: selectedSubscription), settings: viewModel.settings)
                                 rebuildSyncPlan()
                             }
                         }
-                        .disabled(preparationPreviewViewModel.isPreparing || syncSelectedEpisodes(for: selectedSubscription).isEmpty)
+                        .disabled(downloadableEpisodes(for: selectedSubscription).isEmpty)
                     }
                 }
 
@@ -411,17 +411,8 @@ public struct MainView: View {
                     deviceFilesSection(for: selectedSubscription)
                 }
 
-                if let progress = preparationPreviewViewModel.progress {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(progress.currentEpisodeTitle.map { "Downloading \($0)" } ?? "Finishing downloads")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        ProgressView(value: progress.fractionCompleted)
-                            .progressViewStyle(.linear)
-                        Text("\(progress.completedCount) of \(progress.totalCount) complete")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                if preparationPreviewViewModel.isPreparing {
+                    downloadsSection
                 }
 
                 if !feedIssues(for: selectedSubscription).isEmpty {
@@ -723,6 +714,10 @@ public struct MainView: View {
                         preparationPreviewViewModel.removePreparedEpisode(for: episode)
                         rebuildSyncPlan()
                     }
+                } else if preparationPreviewViewModel.isPreparing(episode) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .help("Downloading episode")
                 } else {
                     HoverIconButton(
                         systemName: "arrow.down.circle",
@@ -870,6 +865,70 @@ public struct MainView: View {
             return viewModel.feedSubscriptions.first(where: { $0.id == selectedFeedID })
         }
         return viewModel.feedSubscriptions.first
+    }
+
+    @ViewBuilder
+    private var downloadsSection: some View {
+        let downloads = preparationPreviewViewModel.activeDownloads
+        let downloadingCount = downloads.filter { $0.state == .downloading }.count
+        let queuedCount = downloads.filter { $0.state == .queued }.count
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("Downloads")
+                    .font(.headline)
+
+                Text(downloadSummary(downloadingCount: downloadingCount, queuedCount: queuedCount))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+            }
+
+            if let progress = preparationPreviewViewModel.progress, progress.totalCount > 1 {
+                ProgressView(value: progress.fractionCompleted)
+                    .progressViewStyle(.linear)
+                Text("\(progress.completedCount) of \(progress.totalCount) complete in current batch")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(downloads.prefix(5)) { download in
+                    HStack(spacing: 8) {
+                        if download.state == .downloading {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "clock")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 16)
+                        }
+
+                        Text(download.episodeTitle)
+                            .font(.caption)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        Text(download.state == .downloading ? "Downloading" : "Queued")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if downloads.count > 5 {
+                    Text("\(downloads.count - 5) more waiting")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private var deviceSelectionBinding: Binding<String> {
@@ -1137,6 +1196,24 @@ public struct MainView: View {
         feedPreviewViewModel.selectedEpisodes
             .filter { $0.subscriptionID == subscription.id }
             .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+    }
+
+    private func downloadableEpisodes(for subscription: FeedSubscription) -> [Episode] {
+        syncSelectedEpisodes(for: subscription).filter {
+            preparationPreviewViewModel.preparedEpisode(for: $0) == nil &&
+            !preparationPreviewViewModel.isPreparing($0)
+        }
+    }
+
+    private func downloadSummary(downloadingCount: Int, queuedCount: Int) -> String {
+        var parts: [String] = []
+        if downloadingCount > 0 {
+            parts.append("\(downloadingCount) active")
+        }
+        if queuedCount > 0 {
+            parts.append("\(queuedCount) queued")
+        }
+        return parts.isEmpty ? "Finishing" : parts.joined(separator: ", ")
     }
 
     private func feedIssues(for subscription: FeedSubscription) -> [FeedFetchFailure] {

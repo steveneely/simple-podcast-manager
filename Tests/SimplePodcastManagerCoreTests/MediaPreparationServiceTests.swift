@@ -330,10 +330,48 @@ struct MediaPreparationServiceTests {
         )
         let progressUpdates = collector.values
 
-        #expect(progressUpdates.count == 3)
-        #expect(progressUpdates[0] == PreparationProgress(totalCount: 2, completedCount: 0, currentEpisodeID: "ep-1", currentEpisodeTitle: "Episode 1"))
-        #expect(progressUpdates[1] == PreparationProgress(totalCount: 2, completedCount: 1, currentEpisodeID: "ep-2", currentEpisodeTitle: "Episode 2"))
-        #expect(progressUpdates[2] == PreparationProgress(totalCount: 2, completedCount: 2))
+        #expect(progressUpdates.contains(PreparationProgress(
+            totalCount: 2,
+            completedCount: 0,
+            currentEpisodeID: "ep-1",
+            currentEpisodeTitle: "Episode 1",
+            activeEpisodeIDs: ["ep-1"],
+            activeEpisodeTitles: ["Episode 1"]
+        )))
+        #expect(progressUpdates.contains(PreparationProgress(
+            totalCount: 2,
+            completedCount: 0,
+            currentEpisodeID: "ep-1",
+            currentEpisodeTitle: "Episode 1",
+            activeEpisodeIDs: ["ep-1", "ep-2"],
+            activeEpisodeTitles: ["Episode 1", "Episode 2"]
+        )))
+        #expect(progressUpdates.last == PreparationProgress(totalCount: 2, completedCount: 2))
+    }
+
+    @Test
+    func preparesEpisodesWithBoundedParallelism() async throws {
+        let episodes = (1...4).map { index in
+            Episode(
+                id: "ep-\(index)",
+                podcastTitle: "Example Podcast",
+                title: "Episode \(index)",
+                enclosureURL: URL(string: "https://cdn.example.com/episode\(index).mp3")!,
+                sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+            )
+        }
+        let tracker = DownloadConcurrencyTracker()
+        let service = MediaPreparationService(
+            downloadService: DelayedDownloadService(fileExtension: "mp3", tracker: tracker),
+            audioConversionService: StubAudioConversionService(),
+            workspaceProvider: StubWorkspaceProvider(),
+            maximumConcurrentPreparations: 2
+        )
+
+        let result = try await service.prepareEpisodes(episodes, settings: AppSettings())
+
+        #expect(result.preparedEpisodes.count == 4)
+        #expect(await tracker.maximumActiveCount == 2)
     }
 }
 
@@ -345,6 +383,40 @@ private struct StubDownloadService: DownloadService {
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         try Data("audio".utf8).write(to: fileURL)
         return fileURL
+    }
+}
+
+private struct DelayedDownloadService: DownloadService {
+    let fileExtension: String
+    let tracker: DownloadConcurrencyTracker
+
+    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+        await tracker.start()
+        try await Task.sleep(nanoseconds: 10_000_000)
+        await tracker.finish()
+
+        let fileURL = workspaceURL.appendingPathComponent("\(episode.id).\(fileExtension)")
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        try Data("audio".utf8).write(to: fileURL)
+        return fileURL
+    }
+}
+
+private actor DownloadConcurrencyTracker {
+    private var activeCount = 0
+    private var maxActiveCount = 0
+
+    func start() {
+        activeCount += 1
+        maxActiveCount = max(maxActiveCount, activeCount)
+    }
+
+    func finish() {
+        activeCount -= 1
+    }
+
+    var maximumActiveCount: Int {
+        maxActiveCount
     }
 }
 

@@ -10,13 +10,15 @@ public final class PreparationPreviewViewModel {
     public private(set) var failures: [PreparationFailure]
     public private(set) var workspaceURL: URL?
     public private(set) var progress: PreparationProgress?
-    public private(set) var isPreparing: Bool
+    public private(set) var activeDownloads: [PreparationDownloadStatus]
     public private(set) var lastErrorMessage: String?
     public private(set) var hasLoadedPreparedEpisodes: Bool
 
     private let service: MediaPreparationService
     private let store: any PreparedEpisodeStore
     private let downloadedEpisodeStore: any DownloadedEpisodeStore
+    private var preparingEpisodesByID: [String: Episode]
+    private var runningDownloadIDsByBatchID: [UUID: Set<String>]
 
     public init(
         service: MediaPreparationService = MediaPreparationService(),
@@ -31,24 +33,40 @@ public final class PreparationPreviewViewModel {
         self.failures = []
         self.workspaceURL = nil
         self.progress = nil
-        self.isPreparing = false
+        self.activeDownloads = []
         self.lastErrorMessage = nil
         self.hasLoadedPreparedEpisodes = false
+        self.preparingEpisodesByID = [:]
+        self.runningDownloadIDsByBatchID = [:]
     }
 
     public var hasResults: Bool {
         !preparedEpisodes.isEmpty || !failures.isEmpty
     }
 
+    public var isPreparing: Bool {
+        !activeDownloads.isEmpty
+    }
+
     public func prepare(_ episodes: [Episode], settings: AppSettings) async {
-        let episodesToPrepare = episodes.filter { preparedEpisode(for: $0) == nil }
+        let episodesToPrepare = episodes.filter {
+            preparedEpisode(for: $0) == nil && preparingEpisodesByID[$0.id] == nil
+        }
         guard !episodesToPrepare.isEmpty else { return }
 
-        isPreparing = true
-        progress = PreparationProgress(totalCount: episodesToPrepare.count, completedCount: 0)
+        let batchID = UUID()
+        beginPreparing(episodesToPrepare, batchID: batchID)
+        progress = PreparationProgress(
+            totalCount: episodesToPrepare.count,
+            completedCount: 0,
+            activeEpisodeIDs: episodesToPrepare.map(\.id),
+            activeEpisodeTitles: episodesToPrepare.map(\.title)
+        )
         defer {
-            isPreparing = false
-            progress = nil
+            finishPreparing(episodesToPrepare, batchID: batchID)
+            if !isPreparing {
+                progress = nil
+            }
         }
 
         do {
@@ -57,6 +75,8 @@ public final class PreparationPreviewViewModel {
                 settings: settings,
                 progress: { [weak self] progress in
                     Task { @MainActor in
+                        self?.runningDownloadIDsByBatchID[batchID] = Set(progress.activeEpisodeIDs)
+                        self?.refreshActiveDownloads()
                         self?.progress = progress
                     }
                 }
@@ -69,6 +89,10 @@ public final class PreparationPreviewViewModel {
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    public func isPreparing(_ episode: Episode) -> Bool {
+        preparingEpisodesByID[episode.id] != nil
     }
 
     public func loadPersistedPreparedEpisodes() {
@@ -190,4 +214,53 @@ public final class PreparationPreviewViewModel {
             try? FileManager.default.removeItem(at: preparedEpisode.sourceFileURL)
         }
     }
+
+    private func beginPreparing(_ episodes: [Episode], batchID: UUID) {
+        for episode in episodes {
+            preparingEpisodesByID[episode.id] = episode
+        }
+        runningDownloadIDsByBatchID[batchID] = []
+        refreshActiveDownloads()
+    }
+
+    private func finishPreparing(_ episodes: [Episode], batchID: UUID) {
+        for episode in episodes {
+            preparingEpisodesByID.removeValue(forKey: episode.id)
+        }
+        runningDownloadIDsByBatchID.removeValue(forKey: batchID)
+        refreshActiveDownloads()
+    }
+
+    private func refreshActiveDownloads() {
+        let runningIDs = Set(runningDownloadIDsByBatchID.values.flatMap { $0 })
+        activeDownloads = preparingEpisodesByID.values
+            .map { episode in
+                PreparationDownloadStatus(
+                    episodeID: episode.id,
+                    episodeTitle: episode.title,
+                    state: runningIDs.contains(episode.id) ? .downloading : .queued
+                )
+            }
+            .sorted {
+                if $0.state != $1.state {
+                    return $0.state == .downloading
+                }
+                return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
+            }
+    }
+}
+
+public struct PreparationDownloadStatus: Identifiable, Equatable, Sendable {
+    public var episodeID: String
+    public var episodeTitle: String
+    public var state: PreparationDownloadState
+
+    public var id: String {
+        episodeID
+    }
+}
+
+public enum PreparationDownloadState: String, Equatable, Sendable {
+    case queued
+    case downloading
 }

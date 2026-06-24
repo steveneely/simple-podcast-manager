@@ -18,8 +18,8 @@ public struct MainView: View {
     @State private var isShowingFeedEditor = false
     @State private var isShowingSettings = false
     @State private var isShowingSyncDialog = false
-    @State private var isEjectAfterSyncEnabled = false
-    @State private var isDeleteDownloadedAfterSyncEnabled = false
+    @State private var isEjectAfterSyncEnabled = true
+    @State private var isDeleteDownloadedAfterSyncEnabled = true
     @State private var isShowingDeviceDetails = false
     @State private var visibleEpisodeCountsByFeedID: [UUID: Int] = [:]
     @State private var expandedEpisodeIDs: Set<String> = []
@@ -1389,6 +1389,8 @@ public struct MainView: View {
 
     private func openSyncDialog() {
         syncExecutionViewModel.clearLastResult()
+        isEjectAfterSyncEnabled = true
+        isDeleteDownloadedAfterSyncEnabled = true
         rebuildSyncPlan()
         isShowingSyncDialog = true
     }

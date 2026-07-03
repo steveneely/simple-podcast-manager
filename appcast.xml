@@ -1,0 +1,22 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Simple Podcast Manager</title>
+        <item>
+            <title>0.1.0</title>
+            <pubDate>Fri, 03 Jul 2026 09:21:43 -0600</pubDate>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v0.1.0-beta.27
+
+Build 27.
+]]></description>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.27/SimplePodcastManager-v0.1.0-beta.27.dmg" length="4912056" type="application/octet-stream" sparkle:edSignature="q2DIPIYfO+5/+srpVwMmTMlzXp/ghR04iDCf/IQwLhwK4Cw5K2/7uNu/vWCS1ccJ0UDyXRixPcQTlBknUW2aAQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.27/Simple%20Podcast%20Manager27-26.delta" sparkle:deltaFrom="26" length="1750" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977616" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="t1Y90L32laBXbVjqDTeQVNXoMkw1yc9lhGbrPHAnpNB+mw9YURgsj6Zna6477iP7nt/nwHD44r5UZEs7cL6sAA=="/>
+            </sparkle:deltas>
+        </item>
+    </channel>
+</rss>

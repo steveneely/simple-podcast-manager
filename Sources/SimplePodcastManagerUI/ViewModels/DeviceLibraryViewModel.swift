@@ -6,21 +6,32 @@ import SimplePodcastManagerCore
 @Observable
 public final class DeviceLibraryViewModel {
     public private(set) var filesBySubscriptionID: [UUID: [URL]]
+    public private(set) var otherAudioFiles: [URL]
     public private(set) var lastErrorMessage: String?
 
     private let deviceLibrary: any DeviceLibraryInspecting
     private let managedDirectoryResolver: ManagedDirectoryResolver
+    private let fileSystem: any FileSystemOperating
+    private let safetyValidator: SafetyValidator
 
-    public init(deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary()) {
+    public init(
+        deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
+        fileSystem: any FileSystemOperating = LocalFileSystem(),
+        safetyValidator: SafetyValidator = SafetyValidator()
+    ) {
         self.deviceLibrary = deviceLibrary
         self.managedDirectoryResolver = ManagedDirectoryResolver(deviceLibrary: deviceLibrary)
+        self.fileSystem = fileSystem
+        self.safetyValidator = safetyValidator
         self.filesBySubscriptionID = [:]
+        self.otherAudioFiles = []
         self.lastErrorMessage = nil
     }
 
     public func refresh(device: DeviceInfo?, subscriptions: [FeedSubscription]) {
         guard let device else {
             filesBySubscriptionID = [:]
+            otherAudioFiles = []
             lastErrorMessage = nil
             return
         }
@@ -34,15 +45,42 @@ public final class DeviceLibraryViewModel {
                 updatedFiles[subscription.id] = sortFiles(files)
             }
             filesBySubscriptionID = updatedFiles
+            otherAudioFiles = try otherAudioFiles(on: device, subscriptions: subscriptions)
             lastErrorMessage = nil
         } catch {
             filesBySubscriptionID = [:]
+            otherAudioFiles = []
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
     public func files(for subscription: FeedSubscription) -> [URL] {
         filesBySubscriptionID[subscription.id] ?? []
+    }
+
+    public func deleteOtherAudioFiles(_ fileURLs: Set<URL>, on device: DeviceInfo?) {
+        guard let device else { return }
+
+        do {
+            let knownOtherAudioFiles = Set(otherAudioFiles.map(\.standardizedFileURL))
+            var deletedURLs: Set<URL> = []
+
+            for standardizedURL in fileURLs.map(\.standardizedFileURL) {
+                guard knownOtherAudioFiles.contains(standardizedURL) else {
+                    continue
+                }
+
+                try safetyValidator.validateDeleteTarget(standardizedURL, on: device)
+                try fileSystem.removeItem(at: standardizedURL)
+                try removeAppleDoubleSidecarIfPresent(for: standardizedURL, on: device)
+                deletedURLs.insert(standardizedURL)
+            }
+
+            otherAudioFiles.removeAll { deletedURLs.contains($0.standardizedFileURL) }
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     private func sortFiles(_ files: [URL]) -> [URL] {
@@ -62,5 +100,37 @@ public final class DeviceLibraryViewModel {
 
             return lhs.lastPathComponent.localizedCaseInsensitiveCompare(rhs.lastPathComponent) == .orderedAscending
         }
+    }
+
+    private func otherAudioFiles(on device: DeviceInfo, subscriptions: [FeedSubscription]) throws -> [URL] {
+        try safetyValidator.validateDevice(device)
+
+        return try deviceLibrary.recursiveFiles(in: device.musicURL)
+            .filter { isAudioFile($0) }
+            .filter { !isAppleDoubleSidecar($0) }
+            .filter { fileURL in
+                !subscriptions.contains(where: { EpisodeFileName.isManagedEpisodeFile(fileURL, for: $0) })
+            }
+            .sorted {
+                $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
+            }
+    }
+
+    private func isAudioFile(_ fileURL: URL) -> Bool {
+        let audioExtensions = Set(["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma"])
+        return audioExtensions.contains(fileURL.pathExtension.lowercased())
+    }
+
+    private func isAppleDoubleSidecar(_ fileURL: URL) -> Bool {
+        fileURL.lastPathComponent.hasPrefix("._")
+    }
+
+    private func removeAppleDoubleSidecarIfPresent(for fileURL: URL, on device: DeviceInfo) throws {
+        let sidecarURL = fileURL.deletingLastPathComponent()
+            .appendingPathComponent("._" + fileURL.lastPathComponent, isDirectory: false)
+        guard fileSystem.fileExists(at: sidecarURL) else { return }
+
+        try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
+        try fileSystem.removeItem(at: sidecarURL)
     }
 }

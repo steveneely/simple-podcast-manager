@@ -191,6 +191,44 @@ struct RSSFeedServiceTests {
     }
 
     @Test
+    func reportsFeedWithPostsButNoAudioEpisodes() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+
+        let feedURL = URL(string: "https://futureoflife.org/podcast/feed/")!
+        FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: """
+        <rss version="2.0">
+          <channel>
+            <title>Podcasts Archive - Future of Life Institute</title>
+            <description>Preserving the long-term future of life.</description>
+            <item>
+              <title>How AI Is Replacing Children's Ability to Think</title>
+              <guid>https://futureoflife.org/podcast/how-ai-is-replacing-childrens-ability-to-think/</guid>
+              <pubDate>Tue, 30 Jun 2026 15:46:46 +0000</pubDate>
+              <link>https://futureoflife.org/podcast/how-ai-is-replacing-childrens-ability-to-think/</link>
+              <description><![CDATA[]]></description>
+            </item>
+          </channel>
+        </rss>
+        """)
+
+        let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
+
+        let result = try await service.fetchLatestEpisodes(for: [
+            FeedSubscription(
+                title: "Future of Life",
+                rssURL: feedURL,
+                isEnabled: true
+            )
+        ])
+
+        #expect(result.selectedEpisodes.isEmpty)
+        #expect(result.failures.count == 1)
+        #expect(result.failures.first?.message == "This RSS feed has posts, but no downloadable audio episodes. Use the podcast RSS feed URL instead.")
+        #expect(result.feedSummaries.first?.title == "Podcasts Archive - Future of Life Institute")
+    }
+
+    @Test
     func ignoresDisabledFeeds() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FeedURLProtocolStub.self]

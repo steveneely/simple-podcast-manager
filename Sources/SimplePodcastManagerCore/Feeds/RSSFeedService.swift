@@ -59,6 +59,15 @@ public struct RSSFeedService: FeedService {
                     description: parsedFeed.description
                 )
                 feedSummaries.append(summary)
+                if parsedFeed.itemCount > 0, parsedFeed.episodes.isEmpty {
+                    failures.append(
+                        FeedFetchFailure(
+                            subscriptionID: subscription.id,
+                            subscriptionTitle: subscription.title,
+                            message: "This RSS feed has posts, but no downloadable audio episodes. Use the podcast RSS feed URL instead."
+                        )
+                    )
+                }
                 try? cacheStore.saveCachedFeed(
                     CachedFeed(
                         subscriptionID: subscription.id,

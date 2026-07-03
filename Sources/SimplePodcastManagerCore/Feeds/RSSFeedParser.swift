@@ -25,12 +25,14 @@ public struct ParsedRSSFeed: Equatable, Sendable {
     public var title: String
     public var artworkURL: URL?
     public var description: String?
+    public var itemCount: Int
     public var episodes: [Episode]
 
-    public init(title: String, artworkURL: URL? = nil, description: String? = nil, episodes: [Episode]) {
+    public init(title: String, artworkURL: URL? = nil, description: String? = nil, itemCount: Int = 0, episodes: [Episode]) {
         self.title = title
         self.artworkURL = artworkURL
         self.description = description
+        self.itemCount = itemCount
         self.episodes = episodes
     }
 }
@@ -40,7 +42,8 @@ private extension RSSFeedParser {
         let feedTitle = feed.channel?.title ?? sourceFeedURL.absoluteString
         let artworkURL = channelArtworkURL(from: feed.channel)
         let description = channelDescription(from: feed.channel)
-        let episodes = (feed.channel?.items ?? []).compactMap {
+        let items = feed.channel?.items ?? []
+        let episodes = items.compactMap {
             makeEpisode(
                 from: $0,
                 feedTitle: feedTitle,
@@ -54,6 +57,7 @@ private extension RSSFeedParser {
             title: feedTitle,
             artworkURL: artworkURL,
             description: description,
+            itemCount: items.count,
             episodes: episodes
         )
     }

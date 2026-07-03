@@ -164,6 +164,83 @@ struct DeviceLibraryViewModelTests {
 
         #expect(viewModel.files(for: subscription) == [episodeFile])
     }
+
+    @Test
+    func refreshShowsOtherAudioFilesNotAssociatedWithSubscriptions() throws {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let otherPodcastFile = device.musicURL.appendingPathComponent("Old Podcast/random.mp3")
+        let musicFile = device.musicURL.appendingPathComponent("Album/song.m4a")
+        let sidecarFile = device.musicURL.appendingPathComponent("Album/._song.m4a")
+        let noteFile = device.musicURL.appendingPathComponent("Album/notes.txt")
+        let atpDirectory = device.musicURL.appendingPathComponent("ATP", isDirectory: true)
+        let oldPodcastDirectory = device.musicURL.appendingPathComponent("Old Podcast", isDirectory: true)
+        let albumDirectory = device.musicURL.appendingPathComponent("Album", isDirectory: true)
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    atpDirectory: [managedFile],
+                    oldPodcastDirectory: [otherPodcastFile],
+                    albumDirectory: [musicFile, sidecarFile, noteFile],
+                ],
+                directoriesByDirectory: [
+                    device.musicURL: [atpDirectory, oldPodcastDirectory, albumDirectory]
+                ]
+            )
+        )
+
+        viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(viewModel.files(for: subscription) == [managedFile])
+        #expect(viewModel.otherAudioFiles == [musicFile, otherPodcastFile])
+    }
+
+    @Test
+    func deleteOtherAudioFilesOnlyDeletesExplicitKnownOtherAudioUnderDeviceMusic() throws {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let otherFile = device.musicURL.appendingPathComponent("Old Podcast/random.mp3")
+        let otherSidecar = device.musicURL.appendingPathComponent("Old Podcast/._random.mp3")
+        let unknownFile = device.musicURL.appendingPathComponent("Unknown/other.mp3")
+        let atpDirectory = device.musicURL.appendingPathComponent("ATP", isDirectory: true)
+        let oldPodcastDirectory = device.musicURL.appendingPathComponent("Old Podcast", isDirectory: true)
+        let fileSystem = CapturingFileSystem(existingFiles: [otherSidecar])
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    atpDirectory: [managedFile],
+                    oldPodcastDirectory: [otherFile],
+                ],
+                directoriesByDirectory: [
+                    device.musicURL: [atpDirectory, oldPodcastDirectory]
+                ]
+            ),
+            fileSystem: fileSystem
+        )
+        viewModel.refresh(device: device, subscriptions: [subscription])
+
+        viewModel.deleteOtherAudioFiles([otherFile.standardizedFileURL, unknownFile.standardizedFileURL], on: device)
+
+        #expect(fileSystem.removedItems == [otherFile.standardizedFileURL, otherSidecar.standardizedFileURL])
+        #expect(viewModel.otherAudioFiles.isEmpty)
+        #expect(viewModel.lastErrorMessage == nil)
+    }
 }
 
 private struct StubDeviceLibrary: DeviceLibraryInspecting {
@@ -181,5 +258,32 @@ private struct StubDeviceLibrary: DeviceLibraryInspecting {
 
     func directories(in directoryURL: URL) throws -> [URL] {
         directoriesByDirectory[directoryURL] ?? []
+    }
+}
+
+private final class CapturingFileSystem: FileSystemOperating, @unchecked Sendable {
+    private let existingFiles: Set<URL>
+    private(set) var removedItems: [URL] = []
+
+    init(existingFiles: Set<URL> = []) {
+        self.existingFiles = Set(existingFiles.map(\.standardizedFileURL))
+    }
+
+    func fileExists(at url: URL) -> Bool {
+        existingFiles.contains(url.standardizedFileURL)
+    }
+
+    func createDirectory(at url: URL) throws {}
+
+    func copyItem(at sourceURL: URL, to destinationURL: URL) throws {}
+
+    func moveItem(at sourceURL: URL, to destinationURL: URL) throws {}
+
+    func removeItem(at url: URL) throws {
+        removedItems.append(url.standardizedFileURL)
+    }
+
+    func contentsOfDirectory(at url: URL) throws -> [URL] {
+        []
     }
 }

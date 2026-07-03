@@ -26,6 +26,8 @@ public struct MainView: View {
     @State private var expandedDescriptionFeedIDs: Set<UUID> = []
     @State private var isHoveringDeviceStatus = false
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
+    @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
+    @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var appDataMessage: String?
 
     public init(viewModel: MainViewModel) {
@@ -179,6 +181,14 @@ public struct MainView: View {
         } message: {
             Text(updateAlertMessage)
         }
+        .alert("Delete Selected Other Audio?", isPresented: $isShowingOtherAudioDeletionConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete Files", role: .destructive) {
+                deleteSelectedOtherAudio()
+            }
+        } message: {
+            Text(otherAudioDeletionConfirmationMessage)
+        }
     }
 
     private var header: some View {
@@ -263,6 +273,8 @@ public struct MainView: View {
             if viewModel.hasFeeds {
                 syncControlsRow
             }
+
+            otherAudioSection
 
             if let deviceErrorMessage = deviceViewModel.lastErrorMessage {
                 Text(deviceErrorMessage)
@@ -488,6 +500,61 @@ public struct MainView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var otherAudioSection: some View {
+        if deviceViewModel.selectedDevice != nil, !deviceLibraryViewModel.otherAudioFiles.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Other Audio on Device")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Text("\(deviceLibraryViewModel.otherAudioFiles.count) file\(deviceLibraryViewModel.otherAudioFiles.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button("Delete Selected") {
+                        isShowingOtherAudioDeletionConfirmation = true
+                    }
+                    .disabled(selectedOtherAudioDeletionTargets.isEmpty)
+                }
+
+                Text("These files are under the device music folder but are not associated with a podcast subscription. They are never deleted by Sync.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(deviceLibraryViewModel.otherAudioFiles, id: \.path) { fileURL in
+                            Button {
+                                toggleOtherAudioDeletionSelection(for: fileURL)
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: selectedOtherAudioDeletionTargets.contains(fileURL.standardizedFileURL) ? "checkmark.square.fill" : "square")
+                                        .foregroundStyle(selectedOtherAudioDeletionTargets.contains(fileURL.standardizedFileURL) ? Color.red : Color.secondary)
+                                    Text(relativeDeviceMusicPath(for: fileURL))
+                                        .font(.caption)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(maxHeight: 120)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(NSColor.windowBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 
@@ -1019,6 +1086,7 @@ public struct MainView: View {
             subscriptions: viewModel.feedSubscriptions
         )
         pruneManualDeletionTargets()
+        pruneOtherAudioDeletionTargets()
     }
 
     private func handleDeviceTopologyChange() {
@@ -1072,6 +1140,7 @@ public struct MainView: View {
         removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
+        selectedOtherAudioDeletionTargets = []
         visibleEpisodeCountsByFeedID = [:]
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
@@ -1444,6 +1513,24 @@ public struct MainView: View {
         rebuildSyncPlan()
     }
 
+    private func toggleOtherAudioDeletionSelection(for fileURL: URL) {
+        let fileURL = fileURL.standardizedFileURL
+        if selectedOtherAudioDeletionTargets.contains(fileURL) {
+            selectedOtherAudioDeletionTargets.remove(fileURL)
+        } else {
+            selectedOtherAudioDeletionTargets.insert(fileURL)
+        }
+    }
+
+    private func deleteSelectedOtherAudio() {
+        deviceLibraryViewModel.deleteOtherAudioFiles(
+            selectedOtherAudioDeletionTargets,
+            on: deviceViewModel.selectedDevice
+        )
+        selectedOtherAudioDeletionTargets = []
+        refreshDeviceLibrary()
+    }
+
     private func pruneManualDeletionTargets() {
         let allKnownFiles = Set(
             viewModel.feedSubscriptions
@@ -1451,6 +1538,11 @@ public struct MainView: View {
                 .map(\.standardizedFileURL)
         )
         manuallySelectedDeletionTargets = manuallySelectedDeletionTargets.intersection(allKnownFiles)
+    }
+
+    private func pruneOtherAudioDeletionTargets() {
+        let allOtherAudioFiles = Set(deviceLibraryViewModel.otherAudioFiles.map(\.standardizedFileURL))
+        selectedOtherAudioDeletionTargets = selectedOtherAudioDeletionTargets.intersection(allOtherAudioFiles)
     }
 
     @ViewBuilder
@@ -1497,6 +1589,26 @@ public struct MainView: View {
     private func selectedDeletionTargets(for subscription: FeedSubscription) -> Set<URL> {
         let deviceFiles = Set(deviceLibraryViewModel.files(for: subscription).map(\.standardizedFileURL))
         return manuallySelectedDeletionTargets.intersection(deviceFiles)
+    }
+
+    private var otherAudioDeletionConfirmationMessage: String {
+        let count = selectedOtherAudioDeletionTargets.count
+        let deviceName = deviceViewModel.selectedDevice?.name ?? "the device"
+        return "Delete \(count) selected file\(count == 1 ? "" : "s") from \(deviceName)? These files are not associated with a podcast subscription in Simple Podcast Manager. They will be deleted directly from the device. This cannot be undone."
+    }
+
+    private func relativeDeviceMusicPath(for fileURL: URL) -> String {
+        guard let musicURL = deviceViewModel.selectedDevice?.musicURL.standardizedFileURL else {
+            return fileURL.lastPathComponent
+        }
+
+        let filePath = fileURL.standardizedFileURL.path
+        let musicPath = musicURL.path
+        guard filePath.hasPrefix(musicPath) else {
+            return fileURL.lastPathComponent
+        }
+
+        return String(filePath.dropFirst(musicPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
     private func syncResultSummary(_ result: SyncResult) -> String {

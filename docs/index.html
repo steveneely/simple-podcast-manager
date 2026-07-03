@@ -606,7 +606,7 @@
             <li><span><strong>Install the app.</strong> Download the DMG from GitHub Releases, open it, and drag the app to Applications.</span></li>
             <li><span><strong>Add podcast feeds.</strong> Paste RSS feed URLs for the shows you want to keep on your player.</span></li>
             <li><span><strong>Download episodes.</strong> Choose individual episodes or prepare all loaded episodes for a show.</span></li>
-            <li><span><strong>Plug in your MP3 player.</strong> The device needs to mount in Finder and have a top-level folder named <code>music</code>.</span></li>
+            <li><span><strong>Plug in your MP3 player.</strong> The device needs to mount in Finder. Podcasts can go in a target folder such as <code>music</code> or <code>podcasts</code>.</span></li>
             <li><span><strong>Review and start.</strong> Check the sync plan, then let the app copy managed podcast files to the device.</span></li>
           </ol>
         </div>
@@ -664,8 +664,10 @@
           <p>Simple Podcast Manager is intentionally cautious. It plans first, shows you the intended changes, validates paths, and only performs device actions that fit those rules.</p>
         </div>
         <ul>
-          <li>Only writes under the device's <code>music</code> folder.</li>
-          <li>Only deletes app-managed podcast files.</li>
+          <li>Writes <code>.spmconfig</code> at the device root to remember device settings.</li>
+          <li>Writes podcast files only inside the configured target folder.</li>
+          <li>Only deletes app-managed podcast files from that folder.</li>
+          <li>Does not touch other folders on the device.</li>
           <li>Aborts destructive work when validation is uncertain.</li>
         </ul>
       </div>
@@ -684,7 +686,7 @@
           </li>
           <li>
             <h3>What devices work?</h3>
-            <p>The device should mount in Finder as an external volume and have a top-level <code>music</code> folder. That can include many Sony Walkman players, SanDisk Clip players, AGPTEK players, and other simple USB MP3 players.</p>
+            <p>The device should mount in Finder as an external volume. Podcasts can sync to a configured target folder, such as <code>music</code> or <code>podcasts</code>. That can include many Sony Walkman players, SanDisk Clip players, AGPTEK players, and other simple USB MP3 players.</p>
           </li>
           <li>
             <h3>Do I need an account?</h3>
@@ -704,7 +706,7 @@
           </li>
           <li>
             <h3>Where should I start?</h3>
-            <p>Download the latest release, add one RSS feed, prepare one episode, and try a sync with a device that has a <code>music</code> folder.</p>
+            <p>Download the latest release, add one RSS feed, prepare one episode, and try a sync with a device that mounts in Finder.</p>
           </li>
           <li>
             <h3>How can I ask for a new feature or submit a bug?</h3>

@@ -196,6 +196,32 @@
       overflow: hidden;
     }
 
+    .image-button {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: zoom-in;
+      font: inherit;
+      text-align: left;
+    }
+
+    .image-button:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    .image-button img {
+      transition: transform 180ms ease;
+    }
+
+    .image-button:hover img {
+      transform: scale(1.01);
+    }
+
     .hero-shot img {
       width: 100%;
       height: auto;
@@ -391,6 +417,64 @@
       gap: 16px;
     }
 
+    .image-lightbox {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 24px 32px;
+      background: rgba(13, 18, 16, 0.84);
+      z-index: 100;
+    }
+
+    .image-lightbox.is-open {
+      display: flex;
+    }
+
+    .image-lightbox img {
+      width: auto;
+      max-width: min(100%, 1500px);
+      max-height: calc(100vh - 136px);
+      border-radius: 8px;
+      background: var(--surface-strong);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+      cursor: pointer;
+      font: inherit;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .lightbox-close:hover,
+    .lightbox-close:focus-visible {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .lightbox-caption {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 18px;
+      margin: 0 auto;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 15px;
+      text-align: center;
+    }
+
     @media (max-width: 900px) {
       .hero-grid,
       .steps,
@@ -443,6 +527,14 @@
       .promise {
         padding: 24px;
       }
+
+      .image-lightbox {
+        padding: 72px 14px 54px;
+      }
+
+      .image-lightbox img {
+        max-height: calc(100vh - 146px);
+      }
     }
   </style>
 </head>
@@ -476,7 +568,9 @@
           </div>
         </div>
         <div class="hero-shot">
-          <img src="assets/screenshots/main-window.png" alt="Simple Podcast Manager main window showing podcast subscriptions and episodes.">
+          <button class="image-button" type="button" data-lightbox-src="assets/screenshots/main-window.png" data-lightbox-alt="Simple Podcast Manager main window showing podcast subscriptions and episodes." data-lightbox-caption="Main window with shows, episodes, and device state.">
+            <img src="assets/screenshots/main-window.png" alt="Simple Podcast Manager main window showing podcast subscriptions and episodes.">
+          </button>
         </div>
       </div>
     </section>
@@ -519,11 +613,15 @@
         </div>
         <div class="screen-pair">
           <figure class="screen">
-            <img src="assets/screenshots/add-feed.png" alt="The add feed screen with an RSS feed URL field.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/add-feed.png" data-lightbox-alt="The add feed screen with an RSS feed URL field." data-lightbox-caption="Add shows using normal podcast RSS feed URLs.">
+              <img src="assets/screenshots/add-feed.png" alt="The add feed screen with an RSS feed URL field.">
+            </button>
             <figcaption class="screen-caption">Add shows using normal podcast RSS feed URLs.</figcaption>
           </figure>
           <figure class="screen">
-            <img src="assets/screenshots/episode-list.png" alt="Episode list with podcast episodes and download controls.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/episode-list.png" data-lightbox-alt="Episode list with podcast episodes and download controls." data-lightbox-caption="Download the episodes you want before syncing.">
+              <img src="assets/screenshots/episode-list.png" alt="Episode list with podcast episodes and download controls.">
+            </button>
             <figcaption class="screen-caption">Download the episodes you want before syncing.</figcaption>
           </figure>
         </div>
@@ -538,15 +636,21 @@
         </div>
         <div class="gallery">
           <figure class="screen">
-            <img src="assets/screenshots/sync-plan.png" alt="Sync plan view showing device actions before sync starts.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/sync-plan.png" data-lightbox-alt="Sync plan view showing device actions before sync starts." data-lightbox-caption="Review the planned device actions before running sync.">
+              <img src="assets/screenshots/sync-plan.png" alt="Sync plan view showing device actions before sync starts.">
+            </button>
             <figcaption class="screen-caption">Review the planned device actions before running sync.</figcaption>
           </figure>
           <figure class="screen">
-            <img src="assets/screenshots/settings.png" alt="Settings window showing an ffmpeg path field.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/settings.png" data-lightbox-alt="Settings window showing an ffmpeg path field." data-lightbox-caption="Point the app at ffmpeg when a podcast publishes non-MP3 audio that needs conversion.">
+              <img src="assets/screenshots/settings.png" alt="Settings window showing an ffmpeg path field.">
+            </button>
             <figcaption class="screen-caption">Point the app at ffmpeg when a podcast publishes non-MP3 audio that needs conversion.</figcaption>
           </figure>
           <figure class="screen">
-            <img src="assets/screenshots/main-window.png" alt="Main app window showing shows, episodes, and device state.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/main-window.png" data-lightbox-alt="Main app window showing shows, episodes, and device state." data-lightbox-caption="The main window keeps show, episode, and device state in one place.">
+              <img src="assets/screenshots/main-window.png" alt="Main app window showing shows, episodes, and device state.">
+            </button>
             <figcaption class="screen-caption">The main window keeps show, episode, and device state in one place.</figcaption>
           </figure>
         </div>
@@ -615,5 +719,56 @@
       </div>
     </div>
   </footer>
+
+  <div class="image-lightbox" id="image-lightbox" role="dialog" aria-modal="true" aria-label="Screenshot preview" aria-hidden="true">
+    <button class="lightbox-close" type="button" aria-label="Close screenshot preview">&times;</button>
+    <img alt="">
+    <p class="lightbox-caption"></p>
+  </div>
+
+  <script>
+    const lightbox = document.getElementById("image-lightbox");
+    const lightboxImage = lightbox.querySelector("img");
+    const lightboxCaption = lightbox.querySelector(".lightbox-caption");
+    const closeButton = lightbox.querySelector(".lightbox-close");
+    let previouslyFocusedElement = null;
+
+    function closeLightbox() {
+      lightbox.classList.remove("is-open");
+      lightbox.setAttribute("aria-hidden", "true");
+      lightboxImage.removeAttribute("src");
+      document.body.style.overflow = "";
+      if (previouslyFocusedElement) {
+        previouslyFocusedElement.focus();
+      }
+    }
+
+    document.querySelectorAll(".image-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        previouslyFocusedElement = document.activeElement;
+        lightboxImage.src = button.dataset.lightboxSrc;
+        lightboxImage.alt = button.dataset.lightboxAlt;
+        lightboxCaption.textContent = button.dataset.lightboxCaption;
+        lightbox.classList.add("is-open");
+        lightbox.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+        closeButton.focus();
+      });
+    });
+
+    closeButton.addEventListener("click", closeLightbox);
+
+    lightbox.addEventListener("click", (event) => {
+      if (event.target === lightbox) {
+        closeLightbox();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
+        closeLightbox();
+      }
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simple Podcast Manager</title>
+  <meta name="description" content="A simple macOS app for syncing RSS podcast episodes to a standalone MP3 player.">
+  <meta property="og:title" content="Simple Podcast Manager">
+  <meta property="og:description" content="RSS podcasts for your MP3 player. Plug in, sync, done.">
+  <meta property="og:image" content="assets/screenshots/main-window.png">
+  <meta name="theme-color" content="#f5f7f4">
+  <link rel="icon" href="assets/icons/app-icon.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7f4;
+      --surface: #ffffff;
+      --surface-strong: #ffffff;
+      --ink: #202423;
+      --muted: #5f6864;
+      --line: #d8dfda;
+      --accent: #426b5b;
+      --accent-strong: #2f5547;
+      --accent-soft: #dce8df;
+      --gold: #9a6424;
+      --shadow: 0 20px 60px rgba(28, 44, 38, 0.16);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    a {
+      color: var(--accent-strong);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .site-header {
+      padding: 18px 0;
+      border-bottom: 1px solid rgba(58, 78, 69, 0.15);
+      background: rgba(245, 247, 244, 0.88);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(18px);
+      z-index: 10;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--ink);
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 15px;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent-strong);
+    }
+
+    .hero {
+      padding: 76px 0 40px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.25fr);
+      gap: 44px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      max-width: 9.5em;
+      font-size: clamp(44px, 7vw, 78px);
+    }
+
+    h2 {
+      font-size: clamp(32px, 4.4vw, 52px);
+    }
+
+    h3 {
+      font-size: 23px;
+    }
+
+    .lede {
+      max-width: 660px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 22px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-strong);
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 750;
+      text-decoration: none;
+      box-shadow: 0 2px 0 rgba(28, 44, 38, 0.08);
+    }
+
+    .button.primary {
+      border-color: var(--accent-strong);
+      background: var(--accent);
+      color: white;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .hero-shot {
+      border: 1px solid rgba(58, 78, 69, 0.22);
+      border-radius: 8px;
+      background: var(--surface-strong);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .hero-shot img {
+      width: 100%;
+      height: auto;
+    }
+
+    .section {
+      padding: 76px 0;
+    }
+
+    .section.alt {
+      background: #eef4f1;
+      border-block: 1px solid rgba(58, 78, 69, 0.14);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(280px, 0.5fr);
+      gap: 32px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 19px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feature {
+      min-height: 180px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .feature p {
+      margin: 14px 0 0;
+      color: var(--muted);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(420px, 1fr);
+      gap: 38px;
+      align-items: center;
+    }
+
+    .step-list {
+      display: grid;
+      gap: 16px;
+      margin: 28px 0 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: steps;
+    }
+
+    .step-list li {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 14px;
+      align-items: start;
+      counter-increment: steps;
+      color: var(--muted);
+    }
+
+    .step-list li::before {
+      content: counter(steps);
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .step-list strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--ink);
+    }
+
+    .screen-pair {
+      display: grid;
+      gap: 18px;
+    }
+
+    .screen {
+      overflow: hidden;
+      border: 1px solid rgba(58, 78, 69, 0.22);
+      border-radius: 8px;
+      background: var(--surface-strong);
+      box-shadow: 0 16px 42px rgba(28, 44, 38, 0.12);
+    }
+
+    .screen-caption {
+      padding: 13px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .gallery .screen:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .promise {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(320px, 0.62fr);
+      gap: 34px;
+      align-items: center;
+      padding: 34px;
+      border: 1px solid #bacfc2;
+      border-radius: 8px;
+      background: #edf5ef;
+    }
+
+    .promise p {
+      margin: 18px 0 0;
+      color: #4f655b;
+      font-size: 19px;
+    }
+
+    .promise ul,
+    .faq {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .promise li {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(47, 85, 71, 0.16);
+      color: #334f44;
+      font-weight: 700;
+    }
+
+    .promise li:last-child {
+      border-bottom: 0;
+    }
+
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .faq li {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .faq p {
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .footer {
+      padding: 34px 0 44px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .footer .wrap {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 18px;
+      border-top: 1px solid var(--line);
+      padding-top: 24px;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid,
+      .steps,
+      .promise,
+      .section-head {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding-top: 52px;
+      }
+
+      .feature-grid,
+      .gallery,
+      .faq-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        font-size: 16px;
+      }
+
+      .wrap {
+        width: min(100% - 28px, 1120px);
+      }
+
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .nav-links {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        white-space: nowrap;
+      }
+
+      .lede {
+        font-size: 19px;
+      }
+
+      .section {
+        padding: 54px 0;
+      }
+
+      .promise {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="#">
+        <img src="assets/icons/app-icon.png" alt="" width="36" height="36">
+        <span>Simple Podcast Manager</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#setup">Setup</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#safety">Safety</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow">A local-first macOS app</p>
+          <h1>Simple Podcast Manager</h1>
+          <p class="lede">RSS podcasts for your MP3 player. Add feeds, download episodes, plug in your device, review the plan, and sync.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/steveneely/simple-podcast-manager/releases">Download for macOS</a>
+            <a class="button" href="https://github.com/steveneely/simple-podcast-manager/blob/main/docs/USER_MANUAL.md">Read the manual</a>
+            <a class="button" href="https://github.com/steveneely/simple-podcast-manager">View source</a>
+          </div>
+        </div>
+        <div class="hero-shot">
+          <img src="assets/screenshots/main-window.png" alt="Simple Podcast Manager main window showing podcast subscriptions and episodes.">
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Built for the plain old MP3-player workflow.</h2>
+          <p>No hosted account. No podcast-platform lock-in. No library import assumptions. Just RSS feeds, local files, and a device you control.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature">
+            <h3>Add RSS feeds</h3>
+            <p>Paste a podcast feed URL and the app reads the show title, artwork, and available episodes.</p>
+          </article>
+          <article class="feature">
+            <h3>Prepare episodes</h3>
+            <p>Download episodes locally, embed artwork when available, and convert non-MP3 audio with ffmpeg when needed.</p>
+          </article>
+          <article class="feature">
+            <h3>Review before sync</h3>
+            <p>See copies, skips, removals, and eject behavior before anything changes on your device.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="setup" class="section">
+      <div class="wrap steps">
+        <div>
+          <p class="eyebrow">Setup</p>
+          <h2>Five steps from fresh install to synced podcasts.</h2>
+          <ol class="step-list">
+            <li><span><strong>Install the app.</strong> Download the DMG from GitHub Releases, open it, and drag the app to Applications.</span></li>
+            <li><span><strong>Add podcast feeds.</strong> Paste RSS feed URLs for the shows you want to keep on your player.</span></li>
+            <li><span><strong>Download episodes.</strong> Choose individual episodes or prepare all loaded episodes for a show.</span></li>
+            <li><span><strong>Plug in your MP3 player.</strong> The device needs to mount in Finder and have a top-level folder named <code>music</code>.</span></li>
+            <li><span><strong>Review and start.</strong> Check the sync plan, then let the app copy managed podcast files to the device.</span></li>
+          </ol>
+        </div>
+        <div class="screen-pair">
+          <figure class="screen">
+            <img src="assets/screenshots/add-feed.png" alt="The add feed screen with an RSS feed URL field.">
+            <figcaption class="screen-caption">Add shows using normal podcast RSS feed URLs.</figcaption>
+          </figure>
+          <figure class="screen">
+            <img src="assets/screenshots/episode-list.png" alt="Episode list with podcast episodes and download controls.">
+            <figcaption class="screen-caption">Download the episodes you want before syncing.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenshots" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>A quiet app for a repeated chore.</h2>
+          <p>The interface keeps the important state visible: subscribed shows, prepared episodes, detected device, and the exact work that will happen during sync.</p>
+        </div>
+        <div class="gallery">
+          <figure class="screen">
+            <img src="assets/screenshots/sync-plan.png" alt="Sync plan view showing device actions before sync starts.">
+            <figcaption class="screen-caption">Review the planned device actions before running sync.</figcaption>
+          </figure>
+          <figure class="screen">
+            <img src="assets/screenshots/settings.png" alt="Settings window with application preferences.">
+            <figcaption class="screen-caption">Settings stay focused on practical sync and preparation behavior.</figcaption>
+          </figure>
+          <figure class="screen">
+            <img src="assets/screenshots/main-window.png" alt="Main app window showing shows, episodes, and device state.">
+            <figcaption class="screen-caption">The main window keeps show, episode, and device state in one place.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="safety" class="section">
+      <div class="wrap promise">
+        <div>
+          <p class="eyebrow">Device Safety</p>
+          <h2>The sync plan is the contract.</h2>
+          <p>Simple Podcast Manager is intentionally cautious. It plans first, shows you the intended changes, validates paths, and only performs device actions that fit those rules.</p>
+        </div>
+        <ul>
+          <li>Only writes under the device's <code>music</code> folder.</li>
+          <li>Only deletes app-managed podcast files.</li>
+          <li>Never uses the Mac's local Trash.</li>
+          <li>Aborts destructive work when validation is uncertain.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="faq" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Common Questions</h2>
+          <p>Short answers for people deciding whether this fits their player and podcast habits.</p>
+        </div>
+        <ul class="faq faq-grid">
+          <li>
+            <h3>Does it require Spotify or Apple Podcasts?</h3>
+            <p>No. Simple Podcast Manager works from podcast RSS feed URLs and keeps downloaded audio local.</p>
+          </li>
+          <li>
+            <h3>What devices work?</h3>
+            <p>The device should mount in Finder as an external volume and have a top-level <code>music</code> folder.</p>
+          </li>
+          <li>
+            <h3>Do I need an account?</h3>
+            <p>No. There is no hosted service, login, sync account, or backend database.</p>
+          </li>
+          <li>
+            <h3>What is ffmpeg for?</h3>
+            <p>MP3 episodes can be prepared directly. Non-MP3 episodes need ffmpeg so the app can convert them for MP3-player compatibility.</p>
+          </li>
+          <li>
+            <h3>Is it signed and notarized?</h3>
+            <p>Current prerelease builds may require manual approval in macOS Privacy &amp; Security. Release signing and notarization are planned.</p>
+          </li>
+          <li>
+            <h3>Where should I start?</h3>
+            <p>Download the latest release, add one RSS feed, prepare one episode, and try a sync with a device that has a <code>music</code> folder.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Simple Podcast Manager is available under the MIT License.</span>
+      <div class="footer-links">
+        <a href="https://github.com/steveneely/simple-podcast-manager/releases">Releases</a>
+        <a href="https://github.com/steveneely/simple-podcast-manager/blob/main/docs/USER_MANUAL.md">User Manual</a>
+        <a href="https://github.com/steveneely/simple-podcast-manager">GitHub</a>
+        <a href="https://github.com/steveneely/simple-podcast-manager/blob/main/LICENSE">License</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

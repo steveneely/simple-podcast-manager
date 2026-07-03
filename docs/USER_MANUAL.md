@@ -74,7 +74,7 @@ Select a show to see its current feed episodes.
 - Click the download button next to one episode to prepare that episode.
 - Click `Download All` to prepare every episode loaded from that show's feed. Some feeds include a lot of episodes, so this can download a lot of files.
 
-The app can prepare normal MP3 podcast episodes without `ffmpeg`. If your build does not include bundled `ffmpeg`, choose an `ffmpeg` executable in Settings before downloading non-MP3 episodes.
+The app can prepare normal MP3 podcast episodes without `ffmpeg`. Choose an `ffmpeg` executable in Settings before downloading non-MP3 episodes.
 
 When the RSS feed provides artwork, newly downloaded episodes include a small copy of that image as MP3 cover art when possible.
 
@@ -154,7 +154,7 @@ Click the refresh button in the Device section after making changes.
 
 The app needs `ffmpeg` to convert non-MP3 audio.
 
-Use a release build with bundled `ffmpeg`, or open Settings and choose an installed `ffmpeg` executable.
+Open Settings and choose an installed `ffmpeg` executable.
 
 ### I want to move data from a test build to an installed build
 

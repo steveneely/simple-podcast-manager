@@ -46,12 +46,12 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 LabeledField(
                     title: "ffmpeg Path",
-                    detail: "Optional. The bundled ffmpeg is used when this is blank."
+                    detail: "Optional. Needed only to convert non-MP3 podcast audio."
                 ) {
                     chooserRow(
-                        value: ffmpegExecutablePath.isEmpty ? "Bundled ffmpeg" : ffmpegExecutablePath,
+                        value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
                         buttonTitle: "Choose…",
-                        clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Use Bundled"
+                        clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
                     ) {
                         chooseFFmpegExecutable()
                     } onClear: {

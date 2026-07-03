@@ -238,10 +238,13 @@ if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
     } > "$update_notes_path"
   fi
 
+  rm -f "${updates_dir}/appcast.xml"
+
   "$sparkle_generate_appcast" \
     --download-url-prefix "$download_url_prefix" \
     --embed-release-notes \
     --maximum-versions 1 \
+    --maximum-deltas 0 \
     -o "${updates_dir}/appcast.xml" \
     "$updates_dir"
 fi

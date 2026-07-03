@@ -13,10 +13,7 @@
 
 Build 27.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.27/SimplePodcastManager-v0.1.0-beta.27.dmg" length="4912056" type="application/octet-stream" sparkle:edSignature="q2DIPIYfO+5/+srpVwMmTMlzXp/ghR04iDCf/IQwLhwK4Cw5K2/7uNu/vWCS1ccJ0UDyXRixPcQTlBknUW2aAQ=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.27/Simple%20Podcast%20Manager27-26.delta" sparkle:deltaFrom="26" length="1750" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977616" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="t1Y90L32laBXbVjqDTeQVNXoMkw1yc9lhGbrPHAnpNB+mw9YURgsj6Zna6477iP7nt/nwHD44r5UZEs7cL6sAA=="/>
-            </sparkle:deltas>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.27/SimplePodcastManager-v0.1.0-beta.27.dmg" length="4907444" type="application/octet-stream" sparkle:edSignature="lxxoj3/ZjAuH2HlKCT3MHo8lIAeJnbOdPIZYcwGCE5Md5VUmKSDbvuPvZRMahWZk3ZGUsJ0Fcik+XB0alOCyCw=="/>
         </item>
     </channel>
 </rss>

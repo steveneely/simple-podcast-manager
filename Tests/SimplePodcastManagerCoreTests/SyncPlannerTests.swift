@@ -23,7 +23,7 @@ struct SyncPlannerTests {
         #expect(
             plan.actions.contains(.copyToDevice(
                 sourceURL: preparedEpisode.preparedFileURL,
-                destinationURL: device.musicURL
+                destinationURL: device.podcastDirectoryURL
                     .appendingPathComponent("Example Podcast", isDirectory: true)
                     .appendingPathComponent("Episode_1.mp3", isDirectory: false)
             ))
@@ -38,13 +38,13 @@ struct SyncPlannerTests {
             title: "Episode 1",
             preparedFileName: "2026.04.21-Episode 1-(Example Podcast).mp3"
         )
-        let destinationURL = device.musicURL
+        let destinationURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [destinationURL]
+                    device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [destinationURL]
                 ]
             )
         )
@@ -71,13 +71,13 @@ struct SyncPlannerTests {
             title: "Episode 1",
             preparedFileName: "2026.04.21-Episode 1-(Example Podcast).mp3"
         )
-        let sidecarURL = device.musicURL
+        let sidecarURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("._2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [sidecarURL]
+                    device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [sidecarURL]
                 ]
             )
         )
@@ -103,7 +103,7 @@ struct SyncPlannerTests {
             makePreparedEpisode(id: "ep-3", title: "Episode 3", preparedFileName: "Episode_3.mp3"),
             makePreparedEpisode(id: "ep-2", title: "Episode 2", preparedFileName: "Episode_2.mp3"),
         ]
-        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let olderEpisodeURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
         let currentEpisodeURL = managedDirectory.appendingPathComponent("Episode_2.mp3", isDirectory: false)
         let planner = SyncPlanner(
@@ -136,11 +136,11 @@ struct SyncPlannerTests {
             title: "Episode 1",
             preparedFileName: "Episode_1.mp3"
         )
-        let unmanagedFileURL = device.musicURL.appendingPathComponent("random_track.mp3", isDirectory: false)
+        let unmanagedFileURL = device.podcastDirectoryURL.appendingPathComponent("random_track.mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.standardizedFileURL.path: [unmanagedFileURL]
+                    device.podcastDirectoryURL.standardizedFileURL.path: [unmanagedFileURL]
                 ]
             )
         )
@@ -159,7 +159,7 @@ struct SyncPlannerTests {
     func plansDirectDeleteAndOptionalEject() throws {
         let device = makeDevice()
         let subscription = makeSubscription()
-        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let existingFileURL = managedDirectory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
@@ -185,7 +185,7 @@ struct SyncPlannerTests {
     func ignoresManuallySelectedFilesThatAreNotManagedEpisodes() throws {
         let device = makeDevice()
         let subscription = makeSubscription()
-        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let unmanagedFileURL = managedDirectory.appendingPathComponent("notes.txt", isDirectory: false)
         let unrelatedAudioURL = managedDirectory.appendingPathComponent("Favorite Song.mp3", isDirectory: false)
         let planner = SyncPlanner(
@@ -238,7 +238,7 @@ struct SyncPlannerTests {
     func includesManuallySelectedDeviceFilesInDeletionPlan() throws {
         let device = makeDevice()
         let subscription = makeSubscription()
-        let managedDirectory = device.musicURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let existingFileURL = managedDirectory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
         let planner = SyncPlanner(
             deviceLibrary: StubDeviceLibrary(
@@ -272,7 +272,7 @@ struct SyncPlannerTests {
             title: "Episode 1",
             preparedFileName: "2026.04.21-Episode 1-(Sean Carroll).mp3"
         )
-        let actualDirectory = device.musicURL.appendingPathComponent(
+        let actualDirectory = device.podcastDirectoryURL.appendingPathComponent(
             "Sean Carroll's Mindscape, Science, Society, Philosophy, Culture, Arts, and Ideas",
             isDirectory: true
         )
@@ -282,7 +282,7 @@ struct SyncPlannerTests {
                     actualDirectory.standardizedFileURL.path: []
                 ],
                 directoriesByDirectory: [
-                    device.musicURL.standardizedFileURL.path: [actualDirectory]
+                    device.podcastDirectoryURL.standardizedFileURL.path: [actualDirectory]
                 ]
             )
         )
@@ -304,7 +304,7 @@ struct SyncPlannerTests {
         DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
     }
 

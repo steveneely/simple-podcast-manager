@@ -4,7 +4,7 @@ import Testing
 
 struct MountedVolumeDeviceServiceTests {
     @Test
-    func detectsRemovableVolumeWithMusicDirectory() throws {
+    func detectsRemovableVolumeWithPodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
                 URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
@@ -31,11 +31,11 @@ struct MountedVolumeDeviceServiceTests {
 
         #expect(devices.count == 1)
         #expect(devices.first?.name == "WALKMAN")
-        #expect(devices.first?.musicURL == URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true))
+        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true))
     }
 
     @Test
-    func detectsRemovableVolumeWithUppercaseMusicDirectory() throws {
+    func detectsRemovableVolumeWithUppercasePodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
                 URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
@@ -61,11 +61,48 @@ struct MountedVolumeDeviceServiceTests {
         let devices = try service.discoverDevices()
 
         #expect(devices.count == 1)
-        #expect(devices.first?.musicURL == URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true))
+        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true))
     }
 
     @Test
-    func ignoresVolumesWithoutMusicDirectory() throws {
+    func detectsConfiguredPodcastDirectoryFromDotfile() throws {
+        let service = MountedVolumeDeviceService(
+            mountedVolumeProvider: StubMountedVolumeProvider(urls: [
+                URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            ]),
+            metadataProvider: StubVolumeMetadataProvider(
+                resourceValues: [
+                    "/Volumes/WALKMAN": MountedVolumeResourceValues(
+                        volumeName: "WALKMAN",
+                        isDirectory: true,
+                        isRemovable: true,
+                        isEjectable: true
+                    ),
+                ],
+                childDirectories: [
+                    "/Volumes/WALKMAN": [
+                        URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true)
+                    ]
+                ],
+                fileContents: [
+                    "/Volumes/WALKMAN/.spmconfig": """
+                    [simple-podcast-manager]
+                    podcast-dir: Podcasts
+
+                    """
+                ]
+            ),
+            safetyValidator: SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+        )
+
+        let devices = try service.discoverDevices()
+
+        #expect(devices.count == 1)
+        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true))
+    }
+
+    @Test
+    func ignoresVolumesWithoutPodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
                 URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
@@ -130,6 +167,7 @@ private struct StubMountedVolumeProvider: MountedVolumeProviding {
 private struct StubVolumeMetadataProvider: VolumeMetadataProviding {
     let resourceValues: [String: MountedVolumeResourceValues]
     let childDirectories: [String: [URL]]
+    var fileContents: [String: String] = [:]
 
     func resourceValues(for url: URL) throws -> MountedVolumeResourceValues {
         resourceValues[url.standardizedFileURL.path] ?? MountedVolumeResourceValues(
@@ -147,5 +185,13 @@ private struct StubVolumeMetadataProvider: VolumeMetadataProviding {
 
     func childDirectories(in url: URL) throws -> [URL] {
         childDirectories[url.standardizedFileURL.path] ?? []
+    }
+
+    func fileExists(at url: URL) -> Bool {
+        fileContents[url.standardizedFileURL.path] != nil
+    }
+
+    func stringContents(of url: URL) throws -> String {
+        fileContents[url.standardizedFileURL.path] ?? ""
     }
 }

@@ -24,6 +24,8 @@ After the first install, use `Simple Podcast Manager > Check for Updates…` to 
 - Download episodes, embed podcast artwork, and optionally convert non-MP3 audio with `ffmpeg`.
 - Review the full-device plan before changing your MP3 player.
 - Copy managed episodes to the device and delete selected managed episodes from it.
+- Store device settings in `[device root]/.spmconfig`, including the podcast target folder.
+- Write podcast files only into that configured folder, defaulting to `[device root]/music`.
 - Remember downloaded and removed episodes.
 - Cache parsed feed data locally for faster startup, then refresh feeds in the background.
 - Export and import subscriptions, settings, and local history.

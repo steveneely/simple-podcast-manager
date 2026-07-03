@@ -81,7 +81,7 @@ public struct SyncExecutor: Sendable, SyncExecuting {
 
     private func removeEmptyManagedDirectoryIfNeeded(containing targetURL: URL, on device: DeviceInfo) throws {
         let managedDirectoryURL = targetURL.deletingLastPathComponent().standardizedFileURL
-        guard managedDirectoryURL.deletingLastPathComponent().standardizedFileURL == device.musicURL.standardizedFileURL else {
+        guard managedDirectoryURL.deletingLastPathComponent().standardizedFileURL == device.podcastDirectoryURL.standardizedFileURL else {
             return
         }
         guard fileSystem.fileExists(at: managedDirectoryURL) else {

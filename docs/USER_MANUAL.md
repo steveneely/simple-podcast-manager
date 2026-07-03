@@ -6,7 +6,7 @@ The basic flow is:
 
 1. Add podcast RSS feeds.
 2. Download the episodes you want.
-3. Plug in an MP3 player with a `music` folder.
+3. Plug in an MP3 player.
 4. Review the plan.
 5. Start the run.
 
@@ -26,14 +26,36 @@ After the app is installed, use `Simple Podcast Manager > Check for Updates…` 
 
 Simple Podcast Manager looks for removable or external volumes under `/Volumes`.
 
-Your device needs a folder named `music` at the top level:
+By default, your device needs a folder named `music` at the top level:
 
 ```text
 Your Device/
   music/
 ```
 
-The app only writes podcast files inside that `music` folder. It will not write elsewhere on the device.
+You can change the podcast folder for a selected device in Settings. The app stores that device-specific choice in a small `.spmconfig` file at the device root:
+
+```text
+Your Device/
+  .spmconfig
+  podcasts/
+```
+
+For example, `.spmconfig` can tell the app to use a `podcasts` folder instead of `music`:
+
+```ini
+[simple-podcast-manager]
+podcast-dir: podcasts
+```
+
+The app writes only two places on the device:
+
+- `[device root]/.spmconfig`
+- the configured podcast folder, such as `[device root]/music` or `[device root]/podcasts`
+
+It will not modify other device-root files or other folders on the device.
+
+If you choose a podcast folder that does not exist yet, the app asks before creating it. Canceling that prompt does not create the folder and does not write `.spmconfig`.
 
 ## Add A Podcast
 
@@ -52,7 +74,7 @@ Select a show to see its current feed episodes.
 - Click the download button next to one episode to prepare that episode.
 - Click `Download All` to prepare every episode loaded from that show's feed. Some feeds include a lot of episodes, so this can download a lot of files.
 
-The app can prepare normal MP3 podcast episodes without `ffmpeg`. If your build does not include bundled `ffmpeg`, set an `ffmpeg` path in Settings before downloading non-MP3 episodes.
+The app can prepare normal MP3 podcast episodes without `ffmpeg`. If your build does not include bundled `ffmpeg`, choose an `ffmpeg` executable in Settings before downloading non-MP3 episodes.
 
 When the RSS feed provides artwork, newly downloaded episodes include a small copy of that image as MP3 cover art when possible.
 
@@ -74,6 +96,8 @@ Your Device/
       2026-04-24 Episode Title.mp3
 ```
 
+If you choose a different device podcast folder in Settings, the same per-show folders are created there instead.
+
 ## Delete Episodes From The Device
 
 When a device is selected, each show can display its current on-device files.
@@ -81,7 +105,7 @@ When a device is selected, each show can display its current on-device files.
 - Checked files stay on the device.
 - Unchecked files are planned for deletion during the next run.
 
-Deleted files are removed directly from the device. The app only deletes app-managed podcast files inside the device's `music` folder.
+Deleted files are removed directly from the device. The app only deletes app-managed podcast files inside the configured podcast folder. It does not delete from other folders on the device.
 
 ## Local Download History
 
@@ -121,7 +145,7 @@ If an update is available, the app will download it and offer to relaunch into t
 Check that:
 
 - the device is mounted in Finder
-- the device has a top-level `music` folder
+- the device has a top-level `music` folder, or a `.spmconfig` file that points to an existing podcast folder
 - the device is removable or external
 
 Click the refresh button in the Device section after making changes.
@@ -130,7 +154,7 @@ Click the refresh button in the Device section after making changes.
 
 The app needs `ffmpeg` to convert non-MP3 audio.
 
-Use a release build with bundled `ffmpeg`, or open Settings and set the full path to an installed `ffmpeg` executable.
+Use a release build with bundled `ffmpeg`, or open Settings and choose an installed `ffmpeg` executable.
 
 ### I want to move data from a test build to an installed build
 

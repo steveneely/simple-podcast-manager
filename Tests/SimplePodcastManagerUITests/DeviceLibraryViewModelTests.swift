@@ -14,15 +14,15 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let oldFile = device.musicURL.appendingPathComponent("Connected/2026.04.20-Old Episode-(Connected).mp3")
-        let newFile = device.musicURL.appendingPathComponent("Connected/2026.04.21-New Episode-(Connected).mp3")
-        let unmatchedFile = device.musicURL.appendingPathComponent("Connected/Bonus Clip.mp3")
+        let oldFile = device.podcastDirectoryURL.appendingPathComponent("Connected/2026.04.20-Old Episode-(Connected).mp3")
+        let newFile = device.podcastDirectoryURL.appendingPathComponent("Connected/2026.04.21-New Episode-(Connected).mp3")
+        let unmatchedFile = device.podcastDirectoryURL.appendingPathComponent("Connected/Bonus Clip.mp3")
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.appendingPathComponent("Connected", isDirectory: true): [
+                    device.podcastDirectoryURL.appendingPathComponent("Connected", isDirectory: true): [
                         unmatchedFile,
                         oldFile,
                         newFile,
@@ -45,16 +45,16 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let alphaFile = device.musicURL.appendingPathComponent("ATP/Alpha.mp3")
-        let zuluFile = device.musicURL.appendingPathComponent("ATP/Zulu.mp3")
-        let alphaManagedFile = device.musicURL.appendingPathComponent("ATP/Alpha-(ATP).mp3")
-        let zuluManagedFile = device.musicURL.appendingPathComponent("ATP/Zulu-(ATP).mp3")
+        let alphaFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Alpha.mp3")
+        let zuluFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Zulu.mp3")
+        let alphaManagedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Alpha-(ATP).mp3")
+        let zuluManagedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Zulu-(ATP).mp3")
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.appendingPathComponent("ATP", isDirectory: true): [
+                    device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true): [
                         zuluManagedFile,
                         zuluFile,
                         alphaManagedFile,
@@ -78,14 +78,14 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let realFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
-        let sidecarFile = device.musicURL.appendingPathComponent("ATP/._2026.04.21-Episode-(ATP).mp3")
+        let realFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let sidecarFile = device.podcastDirectoryURL.appendingPathComponent("ATP/._2026.04.21-Episode-(ATP).mp3")
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.appendingPathComponent("ATP", isDirectory: true): [
+                    device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true): [
                         sidecarFile,
                         realFile,
                     ]
@@ -107,16 +107,16 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
-        let unrelatedAudioFile = device.musicURL.appendingPathComponent("ATP/Favorite Song.mp3")
-        let noteFile = device.musicURL.appendingPathComponent("ATP/notes.txt")
-        let otherPodcastFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(Other Podcast).mp3")
+        let managedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let unrelatedAudioFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Favorite Song.mp3")
+        let noteFile = device.podcastDirectoryURL.appendingPathComponent("ATP/notes.txt")
+        let otherPodcastFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(Other Podcast).mp3")
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
-                    device.musicURL.appendingPathComponent("ATP", isDirectory: true): [
+                    device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true): [
                         managedFile,
                         unrelatedAudioFile,
                         noteFile,
@@ -140,9 +140,9 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let actualDirectory = device.musicURL.appendingPathComponent(
+        let actualDirectory = device.podcastDirectoryURL.appendingPathComponent(
             "Sean Carroll's Mindscape, Science, Society, Philosophy, Culture, Arts, and Ideas",
             isDirectory: true
         )
@@ -155,7 +155,7 @@ struct DeviceLibraryViewModelTests {
                     actualDirectory: [episodeFile]
                 ],
                 directoriesByDirectory: [
-                    device.musicURL: [actualDirectory]
+                    device.podcastDirectoryURL: [actualDirectory]
                 ]
             )
         )
@@ -174,16 +174,16 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
-        let otherPodcastFile = device.musicURL.appendingPathComponent("Old Podcast/random.mp3")
-        let musicFile = device.musicURL.appendingPathComponent("Album/song.m4a")
-        let sidecarFile = device.musicURL.appendingPathComponent("Album/._song.m4a")
-        let noteFile = device.musicURL.appendingPathComponent("Album/notes.txt")
-        let atpDirectory = device.musicURL.appendingPathComponent("ATP", isDirectory: true)
-        let oldPodcastDirectory = device.musicURL.appendingPathComponent("Old Podcast", isDirectory: true)
-        let albumDirectory = device.musicURL.appendingPathComponent("Album", isDirectory: true)
+        let managedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let otherPodcastFile = device.podcastDirectoryURL.appendingPathComponent("Old Podcast/random.mp3")
+        let musicFile = device.podcastDirectoryURL.appendingPathComponent("Album/song.m4a")
+        let sidecarFile = device.podcastDirectoryURL.appendingPathComponent("Album/._song.m4a")
+        let noteFile = device.podcastDirectoryURL.appendingPathComponent("Album/notes.txt")
+        let atpDirectory = device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true)
+        let oldPodcastDirectory = device.podcastDirectoryURL.appendingPathComponent("Old Podcast", isDirectory: true)
+        let albumDirectory = device.podcastDirectoryURL.appendingPathComponent("Album", isDirectory: true)
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
@@ -192,7 +192,7 @@ struct DeviceLibraryViewModelTests {
                     albumDirectory: [musicFile, sidecarFile, noteFile],
                 ],
                 directoriesByDirectory: [
-                    device.musicURL: [atpDirectory, oldPodcastDirectory, albumDirectory]
+                    device.podcastDirectoryURL: [atpDirectory, oldPodcastDirectory, albumDirectory]
                 ]
             )
         )
@@ -204,7 +204,7 @@ struct DeviceLibraryViewModelTests {
     }
 
     @Test
-    func deleteOtherAudioFilesOnlyDeletesExplicitKnownOtherAudioUnderDeviceMusic() throws {
+    func deleteOtherAudioFilesOnlyDeletesExplicitKnownOtherAudioUnderDevicePodcastDirectory() throws {
         let subscription = FeedSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -212,14 +212,14 @@ struct DeviceLibraryViewModelTests {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
-        let managedFile = device.musicURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
-        let otherFile = device.musicURL.appendingPathComponent("Old Podcast/random.mp3")
-        let otherSidecar = device.musicURL.appendingPathComponent("Old Podcast/._random.mp3")
-        let unknownFile = device.musicURL.appendingPathComponent("Unknown/other.mp3")
-        let atpDirectory = device.musicURL.appendingPathComponent("ATP", isDirectory: true)
-        let oldPodcastDirectory = device.musicURL.appendingPathComponent("Old Podcast", isDirectory: true)
+        let managedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
+        let otherFile = device.podcastDirectoryURL.appendingPathComponent("Old Podcast/random.mp3")
+        let otherSidecar = device.podcastDirectoryURL.appendingPathComponent("Old Podcast/._random.mp3")
+        let unknownFile = device.podcastDirectoryURL.appendingPathComponent("Unknown/other.mp3")
+        let atpDirectory = device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true)
+        let oldPodcastDirectory = device.podcastDirectoryURL.appendingPathComponent("Old Podcast", isDirectory: true)
         let fileSystem = CapturingFileSystem(existingFiles: [otherSidecar])
         let viewModel = DeviceLibraryViewModel(
             deviceLibrary: StubDeviceLibrary(
@@ -228,7 +228,7 @@ struct DeviceLibraryViewModelTests {
                     oldPodcastDirectory: [otherFile],
                 ],
                 directoriesByDirectory: [
-                    device.musicURL: [atpDirectory, oldPodcastDirectory]
+                    device.podcastDirectoryURL: [atpDirectory, oldPodcastDirectory]
                 ]
             ),
             fileSystem: fileSystem

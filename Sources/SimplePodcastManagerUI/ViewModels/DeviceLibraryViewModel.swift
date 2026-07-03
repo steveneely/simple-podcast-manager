@@ -105,7 +105,7 @@ public final class DeviceLibraryViewModel {
     private func otherAudioFiles(on device: DeviceInfo, subscriptions: [FeedSubscription]) throws -> [URL] {
         try safetyValidator.validateDevice(device)
 
-        return try deviceLibrary.recursiveFiles(in: device.musicURL)
+        return try deviceLibrary.recursiveFiles(in: device.podcastDirectoryURL)
             .filter { isAudioFile($0) }
             .filter { !isAppleDoubleSidecar($0) }
             .filter { fileURL in

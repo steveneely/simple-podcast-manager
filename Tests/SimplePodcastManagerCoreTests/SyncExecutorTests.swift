@@ -6,9 +6,9 @@ struct SyncExecutorTests {
     @Test
     func executeCopiesDeletesDirectlyAndCountsSkippedActions() throws {
         let device = makeDevice()
-        let managedDirectory = device.musicURL
+        let managedDirectory = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
-        let destinationURL = device.musicURL
+        let destinationURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("Episode_2.mp3", isDirectory: false)
         let deleteTargetURL = managedDirectory
@@ -51,7 +51,7 @@ struct SyncExecutorTests {
     @Test
     func executeDeletesDirectlyBeforeEject() throws {
         let device = makeDevice()
-        let managedDirectory = device.musicURL
+        let managedDirectory = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
         let deleteTargetURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
 
@@ -85,7 +85,7 @@ struct SyncExecutorTests {
     @Test
     func executeKeepsPodcastFolderWhenOtherEpisodesRemain() throws {
         let device = makeDevice()
-        let managedDirectory = device.musicURL
+        let managedDirectory = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
         let deleteTargetURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
         let remainingEpisodeURL = managedDirectory.appendingPathComponent("Episode_2.mp3", isDirectory: false)
@@ -113,12 +113,12 @@ struct SyncExecutorTests {
     @Test
     func executeReportsProgressAcrossPlannedActions() throws {
         let device = makeDevice()
-        let destinationURL = device.musicURL
+        let destinationURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("Episode_2.mp3", isDirectory: false)
         let sourceURL = URL(fileURLWithPath: "/tmp/Episode_2.mp3")
 
-        let deleteTargetURL = device.musicURL
+        let deleteTargetURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("Episode_1.mp3", isDirectory: false)
 
@@ -153,7 +153,7 @@ struct SyncExecutorTests {
         DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
     }
 }

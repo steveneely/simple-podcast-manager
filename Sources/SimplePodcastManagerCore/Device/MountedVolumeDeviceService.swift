@@ -48,25 +48,43 @@ public struct MountedVolumeDeviceService: DeviceService {
         }
 
         let rootURL = volumeURL.resolvingSymlinksInPath().standardizedFileURL
-        guard let musicURL = resolvedMusicDirectoryURL(in: rootURL) else {
+        guard let podcastDirectoryURL = resolvedPodcastDirectoryURL(in: rootURL) else {
             return nil
         }
 
         return DeviceInfo(
             name: resourceValues.volumeName ?? rootURL.lastPathComponent,
             rootURL: rootURL,
-            musicURL: musicURL
+            podcastDirectoryURL: podcastDirectoryURL
         )
     }
 
-    private func resolvedMusicDirectoryURL(in rootURL: URL) -> URL? {
-        if let childDirectory = try? metadataProvider.childDirectories(in: rootURL).first(where: {
-            $0.lastPathComponent.caseInsensitiveCompare("music") == .orderedSame
-        }) {
+    private func resolvedPodcastDirectoryURL(in rootURL: URL) -> URL? {
+        let configuredPath = configuredPodcastDirectoryPath(in: rootURL)
+            ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath
+        let configuredURL = rootURL.appending(path: configuredPath, directoryHint: .isDirectory)
+        if metadataProvider.directoryExists(at: configuredURL) {
+            return configuredURL.standardizedFileURL
+        }
+
+        if configuredPath.caseInsensitiveCompare(DevicePodcastConfiguration.defaultPodcastDirectoryPath) == .orderedSame,
+           let childDirectory = try? metadataProvider.childDirectories(in: rootURL).first(where: {
+               $0.lastPathComponent.caseInsensitiveCompare(DevicePodcastConfiguration.defaultPodcastDirectoryPath) == .orderedSame
+           }) {
             return childDirectory.standardizedFileURL
         }
 
-        let fallbackURL = rootURL.appending(path: "music", directoryHint: .isDirectory)
-        return metadataProvider.directoryExists(at: fallbackURL) ? fallbackURL : nil
+        return nil
+    }
+
+    private func configuredPodcastDirectoryPath(in rootURL: URL) -> String? {
+        let configURL = rootURL.appending(path: DevicePodcastConfiguration.fileName, directoryHint: .notDirectory)
+        guard metadataProvider.fileExists(at: configURL),
+              let contents = try? metadataProvider.stringContents(of: configURL),
+              let configuration = try? DevicePodcastConfiguration(contents: contents) else {
+            return nil
+        }
+
+        return configuration.podcastDirectoryPath
     }
 }

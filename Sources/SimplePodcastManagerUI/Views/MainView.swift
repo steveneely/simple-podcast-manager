@@ -11,6 +11,7 @@ public struct MainView: View {
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
+    private let devicePodcastConfigurationService = DevicePodcastConfigurationService()
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var feedEditorPresentationID = UUID()
@@ -133,9 +134,18 @@ public struct MainView: View {
             .id(feedEditorPresentationID)
         }
         .sheet(isPresented: $isShowingSettings) {
-            SettingsView(settings: viewModel.settings) { updatedSettings in
-                viewModel.replaceSettings(updatedSettings)
-            }
+            SettingsView(
+                settings: viewModel.settings,
+                selectedDeviceName: deviceViewModel.selectedDevice?.name,
+                selectedDeviceRootURL: deviceViewModel.selectedDevice?.rootURL,
+                podcastDirectoryPath: selectedDevicePodcastDirectoryPath,
+                shouldConfirmPodcastDirectoryCreation: { updatedPodcastDirectoryPath in
+                    try shouldConfirmPodcastDirectoryCreation(updatedPodcastDirectoryPath)
+                },
+                onSave: { updatedSettings, updatedPodcastDirectoryPath in
+                    try saveSettings(updatedSettings, podcastDirectoryPath: updatedPodcastDirectoryPath)
+                }
+            )
         }
         .sheet(isPresented: $isShowingSyncDialog) {
             syncDialog
@@ -198,7 +208,7 @@ public struct MainView: View {
                                 Text("Mounted at: \(selectedDevice.rootURL.path)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                Text("Music folder: \(selectedDevice.musicURL.path)")
+                                Text("Podcast folder: \(selectedDevice.podcastDirectoryURL.path)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -501,7 +511,7 @@ public struct MainView: View {
                     .disabled(selectedOtherAudioDeletionTargets.isEmpty)
                 }
 
-                Text("These files are under the device music folder but are not associated with a podcast subscription. They are never deleted by Sync.")
+                Text("These files are under the device podcast folder but are not associated with a podcast subscription. They are never deleted by Sync.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -514,7 +524,7 @@ public struct MainView: View {
                                 HStack(spacing: 10) {
                                     Image(systemName: selectedOtherAudioDeletionTargets.contains(fileURL.standardizedFileURL) ? "checkmark.square.fill" : "square")
                                         .foregroundStyle(selectedOtherAudioDeletionTargets.contains(fileURL.standardizedFileURL) ? Color.red : Color.secondary)
-                                    Text(relativeDeviceMusicPath(for: fileURL))
+                                    Text(relativeDevicePodcastPath(for: fileURL))
                                         .font(.caption)
                                         .foregroundStyle(.primary)
                                         .lineLimit(1)
@@ -1535,18 +1545,47 @@ public struct MainView: View {
         return "Delete \(count) selected file\(count == 1 ? "" : "s") from \(deviceName)? These files are not associated with a podcast subscription in Simple Podcast Manager. They will be deleted directly from the device. This cannot be undone."
     }
 
-    private func relativeDeviceMusicPath(for fileURL: URL) -> String {
-        guard let musicURL = deviceViewModel.selectedDevice?.musicURL.standardizedFileURL else {
+    private var selectedDevicePodcastDirectoryPath: String? {
+        guard let selectedDevice = deviceViewModel.selectedDevice else { return nil }
+        return devicePodcastConfigurationService.relativePodcastDirectoryPath(on: selectedDevice)
+    }
+
+    private func saveSettings(_ updatedSettings: AppSettings, podcastDirectoryPath: String?) throws {
+        if let podcastDirectoryPath,
+           let selectedDevice = deviceViewModel.selectedDevice {
+            _ = try devicePodcastConfigurationService.savePodcastDirectoryPath(podcastDirectoryPath, on: selectedDevice)
+        }
+
+        viewModel.replaceSettings(updatedSettings)
+
+        if podcastDirectoryPath != nil {
+            deviceViewModel.refresh()
+            refreshDeviceLibrary()
+            rebuildSyncPlan()
+        }
+    }
+
+    private func shouldConfirmPodcastDirectoryCreation(_ podcastDirectoryPath: String?) throws -> Bool {
+        guard let podcastDirectoryPath,
+              let selectedDevice = deviceViewModel.selectedDevice else {
+            return false
+        }
+
+        return try !devicePodcastConfigurationService.podcastDirectoryExists(podcastDirectoryPath, on: selectedDevice)
+    }
+
+    private func relativeDevicePodcastPath(for fileURL: URL) -> String {
+        guard let podcastDirectoryURL = deviceViewModel.selectedDevice?.podcastDirectoryURL.standardizedFileURL else {
             return fileURL.lastPathComponent
         }
 
         let filePath = fileURL.standardizedFileURL.path
-        let musicPath = musicURL.path
-        guard filePath.hasPrefix(musicPath) else {
+        let podcastDirectoryPath = podcastDirectoryURL.path
+        guard filePath.hasPrefix(podcastDirectoryPath) else {
             return fileURL.lastPathComponent
         }
 
-        return String(filePath.dropFirst(musicPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return String(filePath.dropFirst(podcastDirectoryPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
     private func syncResultSummary(_ result: SyncResult) -> String {

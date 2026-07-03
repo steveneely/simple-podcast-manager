@@ -8,8 +8,8 @@ public struct ManagedDirectoryResolver: Sendable {
     }
 
     public func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) throws -> URL {
-        let exactURL = device.musicURL.appendingPathComponent(EpisodeFileName.directoryName(for: subscription), isDirectory: true)
-        let candidateDirectories = try deviceLibrary.directories(in: device.musicURL)
+        let exactURL = device.podcastDirectoryURL.appendingPathComponent(EpisodeFileName.directoryName(for: subscription), isDirectory: true)
+        let candidateDirectories = try deviceLibrary.directories(in: device.podcastDirectoryURL)
         if candidateDirectories.contains(where: { $0.standardizedFileURL == exactURL.standardizedFileURL }) {
             return exactURL
         }

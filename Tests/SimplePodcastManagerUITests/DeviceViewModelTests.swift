@@ -13,7 +13,7 @@ struct DeviceViewModelTests {
                     DeviceInfo(
                         name: "WALKMAN",
                         rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-                        musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+                        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
                     )
                 ]
             )
@@ -33,12 +33,12 @@ struct DeviceViewModelTests {
                     DeviceInfo(
                         name: "Device A",
                         rootURL: URL(fileURLWithPath: "/Volumes/A", isDirectory: true),
-                        musicURL: URL(fileURLWithPath: "/Volumes/A/music", isDirectory: true)
+                        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/A/music", isDirectory: true)
                     ),
                     DeviceInfo(
                         name: "Device B",
                         rootURL: URL(fileURLWithPath: "/Volumes/B", isDirectory: true),
-                        musicURL: URL(fileURLWithPath: "/Volumes/B/music", isDirectory: true)
+                        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/B/music", isDirectory: true)
                     ),
                 ]
             )
@@ -69,7 +69,7 @@ struct DeviceViewModelTests {
         let initialDevice = DeviceInfo(
             name: "WALKMAN",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let service = RefreshingMockDeviceService(deviceLists: [[initialDevice], []])
         let ejector = RecordingDeviceEjector()
@@ -88,7 +88,7 @@ struct DeviceViewModelTests {
         let initialDevice = DeviceInfo(
             name: "WALKMAN",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let viewModel = DeviceViewModel(
             service: MockDeviceService(devices: [initialDevice]),
@@ -107,12 +107,12 @@ struct DeviceViewModelTests {
         let deviceA = DeviceInfo(
             name: "Device A",
             rootURL: URL(fileURLWithPath: "/Volumes/A", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/A/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/A/music", isDirectory: true)
         )
         let deviceB = DeviceInfo(
             name: "Device B",
             rootURL: URL(fileURLWithPath: "/Volumes/B", isDirectory: true),
-            musicURL: URL(fileURLWithPath: "/Volumes/B/music", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/B/music", isDirectory: true)
         )
         let service = RefreshingMockDeviceService(deviceLists: [[deviceA, deviceB], [deviceA]])
         let viewModel = DeviceViewModel(service: service)

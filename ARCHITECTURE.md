@@ -130,8 +130,10 @@ Detection rules:
 
 - inspect mounted volumes under `/Volumes`
 - consider only removable or external volumes
-- require a `music` directory at the volume root
-- treat `[device root]/music` as the only writable sync target
+- read optional `[device root]/.spmconfig` for Simple Podcast Manager device settings
+- use the configured `podcast-dir` as the podcast sync target, such as `music` or `podcasts`
+- default to `[device root]/music` when `.spmconfig` is absent or does not specify `podcast-dir`
+- require the resolved podcast sync target to exist before selecting the device
 
 Selection behavior:
 
@@ -142,7 +144,10 @@ Selection behavior:
 Validation gates before mutation:
 
 - the device root must still be mounted
-- the target sync directory must resolve to exactly `[device root]/music`
+- `.spmconfig` writes must resolve to exactly `[device root]/.spmconfig`
+- podcast media writes and deletes must resolve inside the configured podcast sync target
+- configured podcast paths must be relative paths inside the mounted device
+- no other device-root files or sibling folders may be written or deleted
 - any uncertain or malformed path must abort the destructive portion of the run
 
 V1 does not require Sony-specific identification beyond these rules.
@@ -151,13 +156,13 @@ V1 does not require Sony-specific identification beyond these rules.
 
 Managed files should live under per-podcast folders:
 
-- `[device root]/music/<podcast-name>/`
+- `[configured podcast directory]/<podcast-name>/`
 
 This is the default layout for v1 because it makes ownership safer than a flat directory.
 
 Delete behavior:
 
-- only delete files in managed podcast folders under `[device root]/music`
+- only delete files in managed podcast folders under the configured podcast directory
 - only delete files the app can confidently associate with a configured feed
 - never bulk-delete by loose pattern matching
 - prefer exact planned file URLs over directory-wide operations
@@ -202,9 +207,11 @@ Do not keep a parallel GitHub-release update checker in the app UI. Sparkle owns
 These rules are non-negotiable:
 
 - only modify files on the external device
-- only write inside `[device root]/music`
-- only delete app-managed podcast files inside `[device root]/music`
+- only write `.spmconfig` at `[device root]/.spmconfig` for app-managed device configuration, including the podcast target folder
+- only write podcast media inside the configured podcast directory, defaulting to `[device root]/music`
+- only delete app-managed podcast files inside the configured podcast directory
 - never touch the Mac's local Trash
+- never modify other device-root files or other folders on the device
 - never delete outside app-managed podcast folders
 - refuse mutation if the device path cannot be proven safe
 
@@ -224,5 +231,5 @@ The app should be biased toward refusing unsafe work, even if that occasionally 
 - JSON or plist-backed local config storage
 - direct RSS entry as the subscription path
 - feed title and artwork resolved from RSS metadata
-- per-podcast subfolders under device `music`
+- per-podcast subfolders under the configured device podcast directory
 - optional `ffmpeg` invoked with `Process`

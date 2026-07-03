@@ -9,14 +9,15 @@ public struct SafetyValidator: Sendable {
 
     public func validateDevice(_ device: DeviceInfo) throws {
         let rootURL = canonicalDirectoryURL(device.rootURL)
-        let actualMusicURL = canonicalDirectoryURL(device.musicURL)
+        let podcastDirectoryURL = canonicalDirectoryURL(device.podcastDirectoryURL)
 
         guard rootURL.path.hasPrefix("/Volumes/") else {
             throw SafetyValidationError.invalidDeviceRoot(device.rootURL)
         }
 
-        guard isValidMusicDirectory(actualMusicURL, for: rootURL) else {
-            throw SafetyValidationError.invalidMusicDirectory(expected: rootURL.appending(path: "music", directoryHint: .isDirectory), actual: actualMusicURL)
+        guard isContained(podcastDirectoryURL, within: rootURL),
+              podcastDirectoryURL != rootURL else {
+            throw SafetyValidationError.invalidPodcastDirectory(podcastDirectoryURL)
         }
     }
 
@@ -24,12 +25,12 @@ public struct SafetyValidator: Sendable {
         try validateDevice(device)
 
         let canonicalTargetURL = canonicalFileURL(targetURL)
-        let canonicalMusicURL = canonicalDirectoryURL(device.musicURL)
+        let canonicalPodcastDirectoryURL = canonicalDirectoryURL(device.podcastDirectoryURL)
 
         try validateNotMacTrash(canonicalTargetURL)
 
-        guard isContained(canonicalTargetURL, within: canonicalMusicURL) else {
-            throw SafetyValidationError.pathOutsideDeviceMusic(canonicalTargetURL)
+        guard isContained(canonicalTargetURL, within: canonicalPodcastDirectoryURL) else {
+            throw SafetyValidationError.pathOutsideDevicePodcastDirectory(canonicalTargetURL)
         }
     }
 
@@ -75,12 +76,4 @@ public struct SafetyValidator: Sendable {
         return candidatePath.hasPrefix(directoryPath)
     }
 
-    private func isValidMusicDirectory(_ actualMusicURL: URL, for rootURL: URL) -> Bool {
-        let canonicalRootURL = canonicalDirectoryURL(rootURL)
-        let canonicalMusicURL = canonicalDirectoryURL(actualMusicURL)
-        guard canonicalMusicURL.deletingLastPathComponent().standardizedFileURL == canonicalRootURL.standardizedFileURL else {
-            return false
-        }
-        return canonicalMusicURL.lastPathComponent.caseInsensitiveCompare("music") == .orderedSame
-    }
 }

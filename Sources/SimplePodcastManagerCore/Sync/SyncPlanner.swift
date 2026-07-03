@@ -69,6 +69,6 @@ public struct SyncPlanner: Sendable {
 
     private func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) -> URL {
         (try? managedDirectoryResolver.managedDirectoryURL(for: subscription, on: device))
-            ?? device.musicURL.appendingPathComponent(subscription.title, isDirectory: true)
+            ?? device.podcastDirectoryURL.appendingPathComponent(subscription.title, isDirectory: true)
     }
 }

@@ -18,14 +18,6 @@ struct SimplePodcastManagerDesktopApp: App {
         .defaultSize(width: 900, height: 720)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("Check for Updates…") {
-                    appUpdater.checkForUpdates()
-                }
-                .disabled(!appUpdater.canCheckForUpdates)
-                .help(appUpdater.checkForUpdatesHelpText)
-
-                Divider()
-
                 Button("Export App Data…") {
                     NotificationCenter.default.post(name: .simplePodcastManagerExportAppData, object: nil)
                 }
@@ -44,6 +36,12 @@ struct SimplePodcastManagerDesktopApp: App {
                         options: aboutPanelOptions()
                     )
                 }
+
+                Button("Check for Updates…") {
+                    appUpdater.checkForUpdates()
+                }
+                .disabled(!appUpdater.canCheckForUpdates)
+                .help(appUpdater.checkForUpdatesHelpText)
             }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {

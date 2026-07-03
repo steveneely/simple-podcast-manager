@@ -4,16 +4,16 @@
         <title>Simple Podcast Manager</title>
         <item>
             <title>0.1.0</title>
-            <pubDate>Fri, 03 Jul 2026 09:21:43 -0600</pubDate>
-            <sparkle:version>27</sparkle:version>
+            <pubDate>Fri, 03 Jul 2026 09:44:58 -0600</pubDate>
+            <sparkle:version>28</sparkle:version>
             <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v0.1.0-beta.27
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v0.1.0-beta.28
 
-Build 27.
+Build 28.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.27/SimplePodcastManager-v0.1.0-beta.27.dmg" length="4907444" type="application/octet-stream" sparkle:edSignature="lxxoj3/ZjAuH2HlKCT3MHo8lIAeJnbOdPIZYcwGCE5Md5VUmKSDbvuPvZRMahWZk3ZGUsJ0Fcik+XB0alOCyCw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.28/SimplePodcastManager-v0.1.0-beta.28.dmg" length="4905932" type="application/octet-stream" sparkle:edSignature="ZILbefCVnYJDst29aeRw47mW32cDRg70iVNCyDVsEfe4pbtcfPtAY7ymX+3m615fpkeygj7kSfwgsIYAiTEfDw=="/>
         </item>
     </channel>
 </rss>

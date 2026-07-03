@@ -36,6 +36,10 @@ cp "${repo_root}/Packaging/Info.plist" "${contents_dir}/Info.plist"
 cp "${repo_root}/THIRD_PARTY_NOTICES.md" "${resources_dir}/THIRD_PARTY_NOTICES.md"
 chmod 755 "${macos_dir}/${app_name}"
 
+if ! otool -l "${macos_dir}/${app_name}" | grep -q "@executable_path/../Frameworks"; then
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "${macos_dir}/${app_name}"
+fi
+
 if [[ ! -d "$sparkle_framework" ]]; then
   echo "Sparkle.framework was not found. Run 'swift package resolve' and build again." >&2
   exit 1

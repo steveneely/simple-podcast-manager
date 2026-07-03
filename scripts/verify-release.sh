@@ -58,6 +58,11 @@ if [[ ! -d "${app_path}/Contents/Frameworks/Sparkle.framework" ]]; then
   exit 1
 fi
 
+if ! otool -l "${app_path}/Contents/MacOS/${app_name}" | grep -q "@executable_path/../Frameworks"; then
+  echo "App executable is missing @executable_path/../Frameworks rpath for bundled frameworks." >&2
+  exit 1
+fi
+
 if ! grep -q "<sparkle:version>${bundle_version}</sparkle:version>" "$appcast_path"; then
   echo "Appcast does not contain bundle version $bundle_version." >&2
   exit 1

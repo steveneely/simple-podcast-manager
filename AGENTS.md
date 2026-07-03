@@ -33,6 +33,7 @@ If a proposed implementation weakens those guarantees, do not take it.
 - Treat feed metadata refresh as a separate service from media preparation and sync execution
 - Use `ffmpeg` as an external process for conversion
 - Prefer Foundation and direct platform APIs before adding packages
+- Use Sparkle only for installed-app updates; local `swift run` builds must not check for or install production updates
 - Avoid unnecessary frameworks, services, or abstraction layers
 - Keep modules small and explicit
 - Keep the user-visible plan and executed device actions aligned through the shared planner
@@ -73,6 +74,17 @@ Once code exists, use this structure:
 - `Sources/SimplePodcastManagerUI/`: SwiftUI screens and view models
 - `Tests/SimplePodcastManagerCoreTests/`: core behavior tests
 - `Tests/SimplePodcastManagerUITests/`: UI-facing state tests
+
+Release/update conventions:
+
+- installed app updates are handled by Sparkle 2
+- first install still uses a DMG
+- `CFBundleVersion` must be an incrementing integer
+- `SPMReleaseTag` must match the GitHub release tag
+- `SUPublicEDKey` is public and may be committed
+- Sparkle private keys, Developer ID credentials, notarization profiles, and appcast signing secrets must never be committed
+- run `./scripts/swift-test.sh` and `./scripts/verify-release.sh` before publishing a release
+- do not reintroduce a parallel GitHub-release update checker in the app UI
 
 Recommended service boundaries:
 

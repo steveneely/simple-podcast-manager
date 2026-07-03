@@ -17,6 +17,10 @@ public struct AppReleaseIdentity: Equatable, Sendable {
         return Self.displayName(forReleaseTag: currentReleaseTag)
     }
 
+    public var isDevelopmentBuild: Bool {
+        currentReleaseTag == nil
+    }
+
     public static func current(bundle: Bundle = .main) -> AppReleaseIdentity {
         let releaseTag = bundle.object(forInfoDictionaryKey: "SPMReleaseTag") as? String
         let shortVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -39,5 +43,10 @@ public struct AppReleaseIdentity: Equatable, Sendable {
         releaseTag
             .trimmingPrefix("v")
             .replacingOccurrences(of: "-", with: " ")
+    }
+
+    public static func isValidBundleVersion(_ bundleVersion: String) -> Bool {
+        guard !bundleVersion.isEmpty else { return false }
+        return bundleVersion.allSatisfy(\.isNumber)
     }
 }

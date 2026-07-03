@@ -22,6 +22,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/nmdias/FeedKit", from: "10.4.0"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
     ],
     targets: [
         .target(
@@ -38,7 +39,11 @@ let package = Package(
         ),
         .executableTarget(
             name: "SimplePodcastManagerApp",
-            dependencies: ["SimplePodcastManagerCore", "SimplePodcastManagerUI"],
+            dependencies: [
+                "SimplePodcastManagerCore",
+                "SimplePodcastManagerUI",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources/SimplePodcastManagerApp"
         ),
         .testTarget(

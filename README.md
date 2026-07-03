@@ -16,6 +16,8 @@ Download the DMG from the latest [GitHub Release](https://github.com/steveneely/
 
 Current prerelease builds are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
 
+After the first install, use `Simple Podcast Manager > Check for Updates…` to update in place. Local development builds run with app updates disabled.
+
 ## What It Does
 
 - Subscribe to podcasts with RSS feed URLs.
@@ -25,7 +27,7 @@ Current prerelease builds are not Developer ID signed or notarized yet, so macOS
 - Remember downloaded and removed episodes.
 - Cache parsed feed data locally for faster startup, then refresh feeds in the background.
 - Export and import subscriptions, settings, and local history.
-- Check GitHub Releases for updates.
+- Check for app updates in place with Sparkle.
 
 The app is local-first: no backend service, hosted account, Spotify dependency, or Apple Podcasts library integration.
 
@@ -55,9 +57,17 @@ Build a local DMG:
 ./scripts/build-release.sh
 ```
 
+Verify the release bundle, DMG, and Sparkle appcast:
+
+```bash
+./scripts/verify-release.sh
+```
+
 To bundle `ffmpeg` for non-MP3 conversion, set `FFMPEG_PATH` and `FFMPEG_SOURCE_URL` before running the release script. MP3 cover art is written natively and does not require `ffmpeg`.
 
 For public releases, set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` to sign, notarize, and staple the DMG.
+
+Release builds use Sparkle for in-app updates. Keep `CFBundleVersion` as an incrementing integer, keep `SPMReleaseTag` aligned with the GitHub release tag, never commit Sparkle private keys, and publish the generated `dist/updates/appcast.xml` alongside the release assets.
 
 ## License
 

@@ -6,6 +6,7 @@ import SimplePodcastManagerUI
 @main
 struct SimplePodcastManagerDesktopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var appUpdater = AppUpdater()
     @State private var viewModel = MainViewModel(
         store: JSONConfigurationStore(fileURL: JSONConfigurationStore.defaultFileURL())
     )
@@ -18,8 +19,10 @@ struct SimplePodcastManagerDesktopApp: App {
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Check for Updates…") {
-                    NotificationCenter.default.post(name: .simplePodcastManagerCheckForUpdates, object: nil)
+                    appUpdater.checkForUpdates()
                 }
+                .disabled(!appUpdater.canCheckForUpdates)
+                .help(appUpdater.checkForUpdatesHelpText)
 
                 Divider()
 

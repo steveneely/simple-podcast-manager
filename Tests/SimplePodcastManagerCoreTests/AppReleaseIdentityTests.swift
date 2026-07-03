@@ -11,6 +11,7 @@ struct AppReleaseIdentityTests {
         )
 
         #expect(identity.displayRelease == "0.1.0 beta.6")
+        #expect(identity.isDevelopmentBuild == false)
     }
 
     @Test
@@ -21,5 +22,15 @@ struct AppReleaseIdentityTests {
         )
 
         #expect(identity.displayRelease == "local build 0.1.0 (1)")
+        #expect(identity.isDevelopmentBuild == true)
+    }
+
+    @Test
+    func validatesNumericBundleVersionsForSparkle() {
+        #expect(AppReleaseIdentity.isValidBundleVersion("26"))
+        #expect(AppReleaseIdentity.isValidBundleVersion("1024"))
+        #expect(!AppReleaseIdentity.isValidBundleVersion(""))
+        #expect(!AppReleaseIdentity.isValidBundleVersion("0.1.0-beta.26"))
+        #expect(!AppReleaseIdentity.isValidBundleVersion("build-26"))
     }
 }

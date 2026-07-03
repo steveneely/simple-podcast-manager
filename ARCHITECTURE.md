@@ -34,6 +34,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `SyncExecutionViewModel`: execute the selected plan and expose progress/state
 - `DeviceViewModel`: monitor device availability and selected target
 - `DeviceLibraryViewModel`: inspect app-managed files already on the selected device
+- `AppUpdater`: app-target wrapper around Sparkle for installed-app updates; disabled for local `swift run` builds
 
 ### Core Layer
 
@@ -172,6 +173,29 @@ All synced output on the device should be MP3.
 - conversion happens in a temporary workspace on the Mac before copy-to-device
 
 Release builds may bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI for non-MP3 files. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching, image conversion, or MP3 tagging fails.
+
+## Update System
+
+Installed app builds use Sparkle 2 for in-app updates.
+
+Update design:
+
+- the DMG remains the first-install path
+- installed `.app` bundles expose `Simple Podcast Manager > Check for Updates…`
+- local development builds launched with `swift run "Simple Podcast Manager"` disable update checks
+- Sparkle reads an HTTPS appcast from `SUFeedURL`
+- Sparkle verifies update archives with the public EdDSA key in `SUPublicEDKey`
+- the Sparkle private key must stay outside git, preferably in the developer's login Keychain
+- release builds must use a monotonically increasing numeric `CFBundleVersion`
+- `SPMReleaseTag` should match the GitHub release tag shown to users
+
+Release packaging responsibilities:
+
+- `scripts/build-release.sh` assembles the app bundle, embeds `Sparkle.framework`, builds the DMG, and generates `dist/updates/appcast.xml`
+- `scripts/verify-release.sh` validates the bundle metadata, Sparkle framework embedding, appcast XML, appcast signature fields, DMG existence, and code signature
+- a release should not be published until `./scripts/swift-test.sh` and `./scripts/verify-release.sh` both pass
+
+Do not keep a parallel GitHub-release update checker in the app UI. Sparkle owns installed-app update behavior.
 
 ## Safety Model
 

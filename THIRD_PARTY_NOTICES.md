@@ -10,6 +10,14 @@ FeedKit is used for RSS feed parsing.
 - License: MIT
 - Copyright: Copyright (c) 2016 - 2025 Nuno Dias
 
+## Sparkle
+
+Sparkle is used for in-app updates in installed macOS builds.
+
+- Project: https://sparkle-project.org/
+- Source: https://github.com/sparkle-project/Sparkle
+- License: MIT
+
 ## FFmpeg
 
 Release builds may include an `ffmpeg` executable for audio conversion.

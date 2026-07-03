@@ -20,6 +20,8 @@ Open the DMG and drag `Simple Podcast Manager.app` to Applications.
 
 Current prerelease builds are not Developer ID signed or notarized yet. If macOS blocks the app the first time you open it, use System Settings > Privacy & Security to approve it.
 
+After the app is installed, use `Simple Podcast Manager > Check for Updates…` for future updates. Local development builds do not check for app updates.
+
 ## Prepare Your MP3 Player
 
 Simple Podcast Manager looks for removable or external volumes under `/Volumes`.
@@ -105,6 +107,12 @@ Backups are saved as `.spmbackup` folders and include:
 Backups do not include downloaded audio files.
 
 When importing, the app validates the backup before writing anything and saves a copy of your current app data first.
+
+## Update The App
+
+Choose `Simple Podcast Manager > Check for Updates…`.
+
+If an update is available, the app will download it and offer to relaunch into the new version. The DMG install flow is only needed for first install or manual reinstall.
 
 ## Troubleshooting
 

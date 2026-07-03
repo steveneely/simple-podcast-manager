@@ -12,6 +12,7 @@ app_path="${build_dir}/${app_name}.app"
 contents_dir="${app_path}/Contents"
 macos_dir="${contents_dir}/MacOS"
 resources_dir="${contents_dir}/Resources"
+frameworks_dir="${contents_dir}/Frameworks"
 dmg_root="${build_dir}/dmg-root"
 dmg_path="${dist_dir}/SimplePodcastManager.dmg"
 rw_dmg_path="${build_dir}/SimplePodcastManager-rw.dmg"
@@ -19,10 +20,13 @@ mount_dir="/Volumes/${app_name}"
 background_dir="${dmg_root}/.background"
 background_path="${background_dir}/installer-background.png"
 background_generator="${build_dir}/generate-dmg-background.swift"
+sparkle_framework="${repo_root}/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+sparkle_generate_appcast="${repo_root}/.build/artifacts/sparkle/Sparkle/bin/generate_appcast"
+updates_dir="${dist_dir}/updates"
 require_bundled_ffmpeg="${REQUIRE_BUNDLED_FFMPEG:-0}"
 
 rm -rf "$build_dir" "$dmg_path"
-mkdir -p "$macos_dir" "$resources_dir" "$dmg_root" "$dist_dir" "$background_dir"
+mkdir -p "$macos_dir" "$resources_dir" "$frameworks_dir" "$dmg_root" "$dist_dir" "$background_dir" "$updates_dir"
 
 cd "$repo_root"
 swift build -c release --product "$app_name"
@@ -31,6 +35,13 @@ cp "${repo_root}/.build/release/${app_name}" "${macos_dir}/${app_name}"
 cp "${repo_root}/Packaging/Info.plist" "${contents_dir}/Info.plist"
 cp "${repo_root}/THIRD_PARTY_NOTICES.md" "${resources_dir}/THIRD_PARTY_NOTICES.md"
 chmod 755 "${macos_dir}/${app_name}"
+
+if [[ ! -d "$sparkle_framework" ]]; then
+  echo "Sparkle.framework was not found. Run 'swift package resolve' and build again." >&2
+  exit 1
+fi
+
+/usr/bin/ditto "$sparkle_framework" "${frameworks_dir}/Sparkle.framework"
 
 if [[ -f "${repo_root}/Packaging/AppIcon.icns" ]]; then
   cp "${repo_root}/Packaging/AppIcon.icns" "${resources_dir}/AppIcon.icns"
@@ -65,8 +76,10 @@ if [[ -n "${FFMPEG_PATH:-}" ]]; then
 fi
 
 if [[ -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then
+  codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID_APPLICATION" "${frameworks_dir}/Sparkle.framework"
   codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID_APPLICATION" "$app_path"
 else
+  codesign --force --sign - "${frameworks_dir}/Sparkle.framework"
   codesign --force --sign - "$app_path"
 fi
 
@@ -201,6 +214,36 @@ fi
 if [[ -n "${NOTARY_PROFILE:-}" ]]; then
   xcrun notarytool submit "$dmg_path" --keychain-profile "$NOTARY_PROFILE" --wait
   xcrun stapler staple "$dmg_path"
+fi
+
+if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
+  if [[ ! -x "$sparkle_generate_appcast" ]]; then
+    echo "Sparkle generate_appcast tool was not found. Run 'swift package resolve' and build again." >&2
+    exit 1
+  fi
+
+  release_tag=$(/usr/libexec/PlistBuddy -c "Print :SPMReleaseTag" "${contents_dir}/Info.plist")
+  bundle_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "${contents_dir}/Info.plist")
+  update_dmg_name="SimplePodcastManager-${release_tag}.dmg"
+  update_dmg_path="${updates_dir}/${update_dmg_name}"
+  update_notes_path="${updates_dir}/SimplePodcastManager-${release_tag}.md"
+  download_url_prefix="${SPARKLE_DOWNLOAD_URL_PREFIX:-https://github.com/steveneely/simple-podcast-manager/releases/download/${release_tag}/}"
+
+  cp "$dmg_path" "$update_dmg_path"
+  if [[ ! -f "$update_notes_path" ]]; then
+    {
+      echo "# Simple Podcast Manager ${release_tag}"
+      echo
+      echo "Build ${bundle_version}."
+    } > "$update_notes_path"
+  fi
+
+  "$sparkle_generate_appcast" \
+    --download-url-prefix "$download_url_prefix" \
+    --embed-release-notes \
+    --maximum-versions 1 \
+    -o "${updates_dir}/appcast.xml" \
+    "$updates_dir"
 fi
 
 echo "$dmg_path"

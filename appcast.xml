@@ -3,6 +3,24 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
+            <title>0.1.1</title>
+            <pubDate>Fri, 03 Jul 2026 20:05:47 -0600</pubDate>
+            <sparkle:version>34</sparkle:version>
+            <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v0.1.1
+
+- Removes `Download All` from podcast detail views to avoid accidental large downloads.
+- Adds a refresh button for the selected podcast so one feed can be checked without refreshing every show.
+- Shortens show toolbar hover labels to `Edit` and `Remove`.
+- Shows a real user-visible version bump in Sparkle update prompts instead of another hidden beta number.
+- Keeps multiple recent Sparkle release-note entries so users updating across skipped versions can review what changed.
+- No action is required after updating.
+]]></description>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.1/SimplePodcastManager-v0.1.1.dmg" length="4928362" type="application/octet-stream" sparkle:edSignature="pWF66pjU0fbZzxbxBbflJpgUw8CHMtdIqdor7MW15i2Yl6gLMYwgksRCtrttpY+j+4YPYvRc6r+F3cnLLxbeAg=="/>
+        </item>
+        <item>
             <title>0.1.0</title>
             <pubDate>Fri, 03 Jul 2026 19:58:50 -0600</pubDate>
             <sparkle:version>33</sparkle:version>

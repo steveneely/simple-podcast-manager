@@ -192,11 +192,14 @@ Update design:
 - the Sparkle private key must stay outside git, preferably in the developer's login Keychain
 - release builds must use a monotonically increasing numeric `CFBundleVersion`
 - `SPMReleaseTag` should match the GitHub release tag shown to users
+- every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`
+- Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
 
 Release packaging responsibilities:
 
 - `scripts/build-release.sh` assembles the app bundle, embeds `Sparkle.framework`, builds the DMG, and generates `dist/updates/appcast.xml`
-- `scripts/verify-release.sh` validates the bundle metadata, Sparkle framework embedding, appcast XML, appcast signature fields, DMG existence, and code signature
+- `scripts/build-release.sh` requires `RELEASE_NOTES.md` and copies it into the generated Sparkle update notes
+- `scripts/verify-release.sh` validates the bundle metadata, Sparkle framework embedding, appcast XML, appcast signature fields, non-generic release notes, DMG existence, and code signature
 - a release should not be published until `./scripts/swift-test.sh` and `./scripts/verify-release.sh` both pass
 
 Do not keep a parallel GitHub-release update checker in the app UI. Sparkle owns installed-app update behavior.

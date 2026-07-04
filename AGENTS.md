@@ -87,6 +87,8 @@ Release/update conventions:
 - Sparkle private keys, Developer ID credentials, notarization profiles, and appcast signing secrets must never be committed
 - run `./scripts/swift-test.sh` and `./scripts/verify-release.sh` before publishing a release
 - do not reintroduce a parallel GitHub-release update checker in the app UI
+- every release must include clear user-facing notes in `RELEASE_NOTES.md` before building; these notes are embedded in the Sparkle appcast and shown in `Check for Updates…`
+- release notes must mention the exact `SPMReleaseTag` and describe user-visible changes; never ship generic notes like only `Build 32.`
 
 GitHub Pages conventions:
 

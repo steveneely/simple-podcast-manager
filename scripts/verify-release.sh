@@ -78,6 +78,16 @@ if ! grep -q 'sparkle:edSignature=' "$appcast_path"; then
   exit 1
 fi
 
+if grep -q "Build ${bundle_version}\\." "$appcast_path"; then
+  echo "Appcast release notes are too generic. Describe the user-visible update details for Sparkle." >&2
+  exit 1
+fi
+
+if ! grep -q "$release_tag" "$appcast_path"; then
+  echo "Appcast release notes should mention ${release_tag}." >&2
+  exit 1
+fi
+
 codesign --verify --deep --strict "$app_path"
 
 echo "Release verification passed for ${release_tag} build ${bundle_version}."

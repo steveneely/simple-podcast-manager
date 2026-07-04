@@ -88,6 +88,13 @@ Release/update conventions:
 - run `./scripts/swift-test.sh` and `./scripts/verify-release.sh` before publishing a release
 - do not reintroduce a parallel GitHub-release update checker in the app UI
 
+GitHub Pages conventions:
+
+- GitHub Pages serves from the `gh-pages` branch at repository root
+- keep the canonical website source in `main` at `docs/index.html`
+- when changing the website, copy `docs/index.html` to `gh-pages:index.html` and preserve existing `gh-pages` files such as `appcast.xml` and `.nojekyll`
+- Sparkle update publishing also updates `gh-pages:appcast.xml`
+
 Recommended service boundaries:
 
 - feed metadata should be resolved from RSS and applied to saved subscriptions

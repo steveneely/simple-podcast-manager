@@ -82,7 +82,12 @@ Release/update conventions:
 - installed app updates are handled by Sparkle 2
 - first install still uses a DMG
 - `CFBundleVersion` must be an incrementing integer
-- `SPMReleaseTag` must match the GitHub release tag
+- `CFBundleShortVersionString` is the user-visible update version shown by Sparkle; do not leave it unchanged when publishing a user-facing update
+- `SPMReleaseTag` must match the GitHub release tag and start with `v<CFBundleShortVersionString>`
+- before any release/version bump, ask Steve which user-visible semver bump to use unless he has already specified it in the current request
+- use patch bumps, such as `0.1.1`, for small fixes, cleanup, copy changes, and narrow UX improvements
+- use minor bumps, such as `0.2.0`, for new workflows, meaningful user-facing capabilities, compatibility changes, or larger sync/download/device behavior changes while pre-1.0
+- reserve major bumps for 1.0 stability or, after 1.0, breaking changes to data compatibility, device behavior, or user workflows
 - `SUPublicEDKey` is public and may be committed
 - Sparkle private keys, Developer ID credentials, notarization profiles, and appcast signing secrets must never be committed
 - run `./scripts/swift-test.sh` and `./scripts/verify-release.sh` before publishing a release

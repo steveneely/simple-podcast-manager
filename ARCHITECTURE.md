@@ -191,7 +191,12 @@ Update design:
 - Sparkle verifies update archives with the public EdDSA key in `SUPublicEDKey`
 - the Sparkle private key must stay outside git, preferably in the developer's login Keychain
 - release builds must use a monotonically increasing numeric `CFBundleVersion`
-- `SPMReleaseTag` should match the GitHub release tag shown to users
+- `CFBundleShortVersionString` is the version Sparkle shows users in update UI
+- `SPMReleaseTag` should match the GitHub release tag and start with `v<CFBundleShortVersionString>`
+- release work should ask Steve which user-visible semver bump to use unless the bump is already specified
+- patch bumps (`0.1.1`) are for small fixes, cleanup, copy changes, and narrow UX improvements
+- minor bumps (`0.2.0`) are for new workflows, meaningful capabilities, compatibility changes, or larger sync/download/device behavior changes while pre-1.0
+- major bumps are for 1.0 stability or, after 1.0, breaking changes to data compatibility, device behavior, or user workflows
 - every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`; this is a developer/agent process requirement, not user-facing documentation
 - Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
 - keep multiple recent appcast entries so users upgrading across more than one release can see the notes they need for skipped versions

@@ -98,7 +98,7 @@ struct SyncPlannerTests {
     @Test
     func doesNotAutoDeleteManagedEpisodesWithoutManualSelection() throws {
         let device = makeDevice()
-        let subscription = makeSubscription(retentionLimit: 2)
+        let subscription = makeSubscription()
         let preparedEpisodes = [
             makePreparedEpisode(id: "ep-3", title: "Episode 3", preparedFileName: "Episode_3.mp3"),
             makePreparedEpisode(id: "ep-2", title: "Episode 2", preparedFileName: "Episode_2.mp3"),
@@ -308,12 +308,11 @@ struct SyncPlannerTests {
         )
     }
 
-    private func makeSubscription(retentionLimit: Int = 3) -> FeedSubscription {
+    private func makeSubscription() -> FeedSubscription {
         FeedSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Example Podcast",
-            rssURL: URL(string: "https://example.com/feed.xml")!,
-            retentionPolicy: .keepLatestEpisodes(retentionLimit)
+            rssURL: URL(string: "https://example.com/feed.xml")!
         )
     }
 

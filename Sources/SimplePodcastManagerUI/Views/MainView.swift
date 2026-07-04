@@ -561,7 +561,7 @@ public struct MainView: View {
                     isShowingSyncDialog = false
                 }
 
-                if !hasSuccessfulRealSyncResult {
+                if !hasSuccessfulSyncResult {
                     Button(sheetSyncButtonTitle) {
                         Task {
                             await runSync()
@@ -572,7 +572,7 @@ public struct MainView: View {
                 }
             }
 
-            if hasSuccessfulRealSyncResult {
+            if hasSuccessfulSyncResult {
                 syncSuccessConfirmation
             } else {
                 Toggle("Eject when finished", isOn: $isEjectAfterSyncEnabled)
@@ -1259,7 +1259,7 @@ public struct MainView: View {
         deviceViewModel.selectedDevice != nil && !viewModel.feedSubscriptions.isEmpty
     }
 
-    private var hasSuccessfulRealSyncResult: Bool {
+    private var hasSuccessfulSyncResult: Bool {
         guard !syncExecutionViewModel.isSyncing, syncExecutionViewModel.lastErrorMessage == nil else {
             return false
         }

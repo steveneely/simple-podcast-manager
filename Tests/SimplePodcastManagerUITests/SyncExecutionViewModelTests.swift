@@ -28,8 +28,7 @@ struct SyncExecutionViewModelTests {
         let subscription = FeedSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Example Podcast",
-            rssURL: URL(string: "https://example.com/feed.xml")!,
-            retentionPolicy: .keepLatestEpisodes(3)
+            rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let executor = RecordingSyncExecutor(result: SyncResult(copiedCount: 1))
         let viewModel = SyncExecutionViewModel(
@@ -85,8 +84,7 @@ struct SyncExecutionViewModelTests {
                 FeedSubscription(
                     id: subscriptionID,
                     title: "Example Podcast",
-                    rssURL: URL(string: "https://example.com/feed.xml")!,
-                    retentionPolicy: .keepLatestEpisodes(3)
+                    rssURL: URL(string: "https://example.com/feed.xml")!
                 )
             ],
             ejectAfterSync: false

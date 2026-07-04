@@ -65,7 +65,6 @@ struct MainViewModelTests {
 
         #expect(viewModel.feedSubscriptions.first?.title == "Connected")
         #expect(viewModel.feedSubscriptions.first?.description == "A show about connected things.")
-        #expect(viewModel.feedSubscriptions.first?.retentionPolicy.episodeLimit == .max)
         #expect(viewModel.feedSubscriptions.first?.isEnabled == false)
 
         viewModel.removeFeeds(at: IndexSet(integer: 0))

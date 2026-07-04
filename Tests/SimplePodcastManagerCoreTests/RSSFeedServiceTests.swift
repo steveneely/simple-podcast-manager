@@ -40,7 +40,6 @@ struct RSSFeedServiceTests {
             FeedSubscription(
                 title: "Example Podcast",
                 rssURL: feedURL,
-                retentionPolicy: .keepLatestEpisodes(1),
                 isEnabled: true
             )
         ])
@@ -180,7 +179,6 @@ struct RSSFeedServiceTests {
             FeedSubscription(
                 title: "Broken Feed",
                 rssURL: feedURL,
-                retentionPolicy: .keepLatestEpisodes(3),
                 isEnabled: true
             )
         ])
@@ -239,7 +237,6 @@ struct RSSFeedServiceTests {
             FeedSubscription(
                 title: "Disabled Feed",
                 rssURL: URL(string: "https://example.com/disabled.xml")!,
-                retentionPolicy: .keepLatestEpisodes(3),
                 isEnabled: false
             )
         ])
@@ -277,7 +274,6 @@ struct RSSFeedServiceTests {
             FeedSubscription(
                 title: "Example Podcast",
                 rssURL: feedURL,
-                retentionPolicy: .keepLatestEpisodes(3),
                 isEnabled: true
             )
         ])

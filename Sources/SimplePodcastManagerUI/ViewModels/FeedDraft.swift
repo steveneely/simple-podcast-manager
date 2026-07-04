@@ -60,7 +60,6 @@ public struct FeedDraft: Equatable, Sendable {
             rssURL: try resolvedRSSURL(),
             artworkURL: artworkURL,
             description: description,
-            retentionPolicy: .keepLatestEpisodes(.max),
             isEnabled: isEnabled
         )
     }

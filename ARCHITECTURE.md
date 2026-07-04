@@ -54,7 +54,6 @@ At minimum, v1 should define:
 - `FeedSubscription`
 - `Episode`
 - `DeviceInfo`
-- `RetentionPolicy`
 - `SyncAction`
 - `SyncPlan`
 - `AppSettings`

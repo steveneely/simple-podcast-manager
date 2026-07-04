@@ -105,8 +105,7 @@ struct AppDataBackupServiceTests {
                     FeedSubscription(
                         id: subscriptionID,
                         title: "Example Podcast",
-                        rssURL: URL(string: "https://example.com/feed.xml")!,
-                        retentionPolicy: .keepLatestEpisodes(3)
+                        rssURL: URL(string: "https://example.com/feed.xml")!
                     )
                 ]
             )
@@ -147,8 +146,7 @@ struct AppDataBackupServiceTests {
                 feedSubscriptions: [
                     FeedSubscription(
                         title: "Other Podcast",
-                        rssURL: URL(string: "https://example.com/other.xml")!,
-                        retentionPolicy: .keepLatestEpisodes(1)
+                        rssURL: URL(string: "https://example.com/other.xml")!
                     )
                 ]
             )

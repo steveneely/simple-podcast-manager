@@ -28,8 +28,7 @@ struct SyncPlanViewModelTests {
         let subscription = FeedSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Example Podcast",
-            rssURL: URL(string: "https://example.com/feed.xml")!,
-            retentionPolicy: .keepLatestEpisodes(3)
+            rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let planner = SyncPlanner(deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [:]))
         let viewModel = SyncPlanViewModel(planner: planner)

@@ -6,7 +6,6 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
     public var rssURL: URL
     public var artworkURL: URL?
     public var description: String?
-    public var retentionPolicy: RetentionPolicy
     public var isEnabled: Bool
 
     public init(
@@ -15,7 +14,6 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
         rssURL: URL,
         artworkURL: URL? = nil,
         description: String? = nil,
-        retentionPolicy: RetentionPolicy = .keepLatestEpisodes(.max),
         isEnabled: Bool = true
     ) {
         self.id = id
@@ -23,7 +21,6 @@ public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
         self.rssURL = rssURL
         self.artworkURL = artworkURL
         self.description = description
-        self.retentionPolicy = retentionPolicy
         self.isEnabled = isEnabled
     }
 }

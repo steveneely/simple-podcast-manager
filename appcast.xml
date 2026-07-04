@@ -11,9 +11,12 @@
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v0.1.0-beta.32
 
-Build 32.
+- Removes stale subscription retention internals that were no longer used by the app.
+- Keeps older app data compatible: subscriptions saved with the old retention field still load normally.
+- Cleans up old compatibility names around device podcast folders and sync success state.
+- No action is required after updating.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.32/SimplePodcastManager-v0.1.0-beta.32.dmg" length="4924390" type="application/octet-stream" sparkle:edSignature="X+jJmZIp5HGX44qoRbLTh7+Wm0uOapUsBbRAzLjKlVaD/4ybxcEpEbNlsNmigcNsUEUbgCSaFn4SSLDk9h4pDA=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v0.1.0-beta.32/SimplePodcastManager-v0.1.0-beta.32.dmg" length="4920951" type="application/octet-stream" sparkle:edSignature="IUyTKXJ+K/M1nrY3MlVL9Y/x1zOQnaBW3ixuUBubJ/x9IQ2qIrimysRAoH28Jl/Dd5fdjQFgDqHqwvh9O8CNDQ=="/>
         </item>
     </channel>
 </rss>

@@ -1,8 +1,5 @@
-# Simple Podcast Manager v0.1.1
+# Simple Podcast Manager v1.1.2
 
-- Removes `Download All` from podcast detail views to avoid accidental large downloads.
-- Adds a refresh button for the selected podcast so one feed can be checked without refreshing every show.
-- Shortens show toolbar hover labels to `Edit` and `Remove`.
-- Shows a real user-visible version bump in Sparkle update prompts instead of another hidden beta number.
-- Keeps multiple recent Sparkle release-note entries so users updating across skipped versions can review what changed.
+- Publishes a visible version bump so the updater can confirm the SemVer display path is working.
+- No app workflow changes are included in this verification release.
 - No action is required after updating.

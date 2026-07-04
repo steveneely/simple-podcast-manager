@@ -343,7 +343,7 @@ public struct MainView: View {
                             HStack(spacing: 8) {
                                 HoverIconButton(
                                     systemName: "pencil",
-                                    helpText: "Edit show"
+                                    helpText: "Edit"
                                 ) {
                                     editorDraft = FeedDraft(subscription: subscription)
                                     feedEditorPresentationID = UUID()
@@ -352,7 +352,7 @@ public struct MainView: View {
 
                                 HoverIconButton(
                                     systemName: "trash",
-                                    helpText: "Remove show",
+                                    helpText: "Remove",
                                     isDestructive: true
                                 ) {
                                     guard let selectedIndex = viewModel.feedSubscriptions.firstIndex(where: { $0.id == subscription.id }) else { return }
@@ -395,14 +395,12 @@ public struct MainView: View {
 
                     Spacer()
 
-                    HStack(spacing: 10) {
-                        Button("Download All") {
-                            Task {
-                                await preparationPreviewViewModel.prepare(downloadableEpisodes(for: selectedSubscription), settings: viewModel.settings)
-                                rebuildSyncPlan()
-                            }
-                        }
-                        .disabled(downloadableEpisodes(for: selectedSubscription).isEmpty)
+                    HoverIconButton(
+                        systemName: "arrow.clockwise",
+                        helpText: feedPreviewViewModel.isLoading ? "Refreshing" : "Refresh",
+                        isDisabled: feedPreviewViewModel.isLoading
+                    ) {
+                        Task { await refreshFeedPreview(for: selectedSubscription) }
                     }
                 }
 
@@ -1018,6 +1016,13 @@ public struct MainView: View {
         rebuildSyncPlan()
     }
 
+    private func refreshFeedPreview(for subscription: FeedSubscription) async {
+        await feedPreviewViewModel.refreshPreview(for: subscription)
+        viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        refreshDeviceLibrary()
+        rebuildSyncPlan()
+    }
+
     private func rebuildSyncPlan() {
         syncPlanViewModel.buildPlan(
             device: deviceViewModel.selectedDevice,
@@ -1206,19 +1211,6 @@ public struct MainView: View {
             expandedDescriptionFeedIDs.remove(subscription.id)
         } else {
             expandedDescriptionFeedIDs.insert(subscription.id)
-        }
-    }
-
-    private func syncSelectedEpisodes(for subscription: FeedSubscription) -> [Episode] {
-        feedPreviewViewModel.selectedEpisodes
-            .filter { $0.subscriptionID == subscription.id }
-            .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
-    }
-
-    private func downloadableEpisodes(for subscription: FeedSubscription) -> [Episode] {
-        syncSelectedEpisodes(for: subscription).filter {
-            preparationPreviewViewModel.preparedEpisode(for: $0) == nil &&
-            !preparationPreviewViewModel.isPreparing($0)
         }
     }
 

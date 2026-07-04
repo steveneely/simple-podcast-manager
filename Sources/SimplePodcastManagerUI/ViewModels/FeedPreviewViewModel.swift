@@ -78,11 +78,41 @@ public final class FeedPreviewViewModel {
         }
     }
 
+    public func refreshPreview(for subscription: FeedSubscription) async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let result = try await service.fetchLatestEpisodes(for: [subscription])
+            replacePreviewData(for: subscription.id, with: result)
+            self.lastErrorMessage = nil
+        } catch {
+            self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
     public func artworkURL(for subscriptionID: UUID) -> URL? {
         feedSummaries[subscriptionID]?.artworkURL
     }
 
     public func description(for subscriptionID: UUID) -> String? {
         feedSummaries[subscriptionID]?.description
+    }
+
+    private func replacePreviewData(for subscriptionID: UUID, with result: FeedFetchResult) {
+        allEpisodes.removeAll { $0.subscriptionID == subscriptionID }
+        allEpisodes.append(contentsOf: result.allEpisodes)
+        allEpisodes.sort(by: EpisodeSelector.isHigherPriority(_:than:))
+
+        selectedEpisodes.removeAll { $0.subscriptionID == subscriptionID }
+        selectedEpisodes.append(contentsOf: result.selectedEpisodes)
+        selectedEpisodes.sort(by: EpisodeSelector.isHigherPriority(_:than:))
+
+        failures.removeAll { $0.subscriptionID == subscriptionID }
+        failures.append(contentsOf: result.failures)
+
+        for summary in result.feedSummaries {
+            feedSummaries[summary.subscriptionID] = summary
+        }
     }
 }

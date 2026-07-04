@@ -233,6 +233,7 @@ if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
   update_notes_path="${updates_dir}/SimplePodcastManager-${release_tag}.md"
   release_notes_source="${RELEASE_NOTES_PATH:-${repo_root}/RELEASE_NOTES.md}"
   download_url_prefix="${SPARKLE_DOWNLOAD_URL_PREFIX:-https://github.com/steveneely/simple-podcast-manager/releases/download/${release_tag}/}"
+  maximum_versions="${SPARKLE_MAXIMUM_VERSIONS:-10}"
 
   if [[ ! -s "$release_notes_source" ]]; then
     echo "Release notes are required for Sparkle updates: $release_notes_source" >&2
@@ -257,10 +258,12 @@ if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
   "$sparkle_generate_appcast" \
     --download-url-prefix "$download_url_prefix" \
     --embed-release-notes \
-    --maximum-versions 1 \
+    --maximum-versions "$maximum_versions" \
     --maximum-deltas 0 \
     -o "${updates_dir}/appcast.xml" \
     "$updates_dir"
+
+  /usr/bin/perl -0pi -e 's{/releases/download/[^/]+/(SimplePodcastManager-(v[^/]+)\.dmg)}{/releases/download/$2/$1}g' "${updates_dir}/appcast.xml"
 fi
 
 echo "$dmg_path"

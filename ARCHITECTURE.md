@@ -192,8 +192,10 @@ Update design:
 - the Sparkle private key must stay outside git, preferably in the developer's login Keychain
 - release builds must use a monotonically increasing numeric `CFBundleVersion`
 - `SPMReleaseTag` should match the GitHub release tag shown to users
-- every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`
+- every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`; this is a developer/agent process requirement, not user-facing documentation
 - Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
+- keep multiple recent appcast entries so users upgrading across more than one release can see the notes they need for skipped versions
+- a version bump is incomplete until the matching DMG is built, verified, uploaded to the GitHub release, published in `gh-pages:appcast.xml`, and confirmed in the live appcast
 
 Release packaging responsibilities:
 

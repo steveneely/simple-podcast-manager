@@ -65,13 +65,11 @@ Verify the release bundle, DMG, and Sparkle appcast:
 ./scripts/verify-release.sh
 ```
 
-Before building a release, update `RELEASE_NOTES.md` with clear user-facing changes for the exact `SPMReleaseTag`. Those notes are embedded in the Sparkle appcast and appear when users choose `Check for Updates…`.
-
 To bundle `ffmpeg` for non-MP3 conversion, set `FFMPEG_PATH` and `FFMPEG_SOURCE_URL` before running the release script. MP3 cover art is written natively and does not require `ffmpeg`.
 
 For public releases, set `DEVELOPER_ID_APPLICATION` and `NOTARY_PROFILE` to sign, notarize, and staple the DMG.
 
-Release builds use Sparkle for in-app updates. Keep `CFBundleVersion` as an incrementing integer, keep `SPMReleaseTag` aligned with the GitHub release tag, keep `RELEASE_NOTES.md` specific to that tag, never commit Sparkle private keys, and publish the generated `dist/updates/appcast.xml` alongside the release assets.
+Release builds use Sparkle for in-app updates. Keep `CFBundleVersion` as an incrementing integer, keep `SPMReleaseTag` aligned with the GitHub release tag, never commit Sparkle private keys, and publish the generated `dist/updates/appcast.xml` alongside the release assets.
 
 ## License
 

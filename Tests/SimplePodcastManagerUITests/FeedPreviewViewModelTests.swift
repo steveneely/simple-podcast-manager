@@ -100,6 +100,72 @@ struct FeedPreviewViewModelTests {
         #expect(viewModel.artworkURL(for: subscriptionID) == URL(string: "https://cdn.example.com/artwork.jpg"))
         #expect(viewModel.description(for: subscriptionID) == "Cached description.")
     }
+
+    @Test
+    func refreshSingleSubscriptionReplacesOnlyThatSubscription() async throws {
+        let firstSubscription = FeedSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "First",
+            rssURL: URL(string: "https://example.com/first.xml")!
+        )
+        let secondSubscription = FeedSubscription(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            title: "Second",
+            rssURL: URL(string: "https://example.com/second.xml")!
+        )
+        let service = SequencedFeedService(results: [
+            FeedFetchResult(
+                allEpisodes: [
+                    makeEpisode(id: "first-old", subscription: firstSubscription, title: "First Old"),
+                    makeEpisode(id: "second-old", subscription: secondSubscription, title: "Second Old"),
+                ],
+                selectedEpisodes: [
+                    makeEpisode(id: "first-old", subscription: firstSubscription, title: "First Old"),
+                    makeEpisode(id: "second-old", subscription: secondSubscription, title: "Second Old"),
+                ],
+                feedSummaries: [
+                    FeedSummary(subscriptionID: firstSubscription.id, title: "First Old"),
+                    FeedSummary(subscriptionID: secondSubscription.id, title: "Second Old"),
+                ]
+            ),
+            FeedFetchResult(
+                allEpisodes: [
+                    makeEpisode(id: "first-new", subscription: firstSubscription, title: "First New"),
+                ],
+                selectedEpisodes: [
+                    makeEpisode(id: "first-new", subscription: firstSubscription, title: "First New"),
+                ],
+                feedSummaries: [
+                    FeedSummary(subscriptionID: firstSubscription.id, title: "First New"),
+                ]
+            ),
+        ])
+        let viewModel = FeedPreviewViewModel(service: service)
+
+        await viewModel.refreshPreview(for: [firstSubscription, secondSubscription])
+        await viewModel.refreshPreview(for: firstSubscription)
+
+        #expect(service.requestedSubscriptionIDs == [
+            [firstSubscription.id, secondSubscription.id],
+            [firstSubscription.id],
+        ])
+        #expect(viewModel.allEpisodes.map(\.title) == ["First New", "Second Old"])
+        #expect(viewModel.selectedEpisodes.map(\.title) == ["First New", "Second Old"])
+        #expect(viewModel.feedSummaries[firstSubscription.id]?.title == "First New")
+        #expect(viewModel.feedSummaries[secondSubscription.id]?.title == "Second Old")
+    }
+
+    private func makeEpisode(id: String, subscription: FeedSubscription, title: String) -> Episode {
+        Episode(
+            id: id,
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: title,
+            publicationDate: Date(timeIntervalSince1970: id.contains("old") ? 1 : 2),
+            enclosureURL: URL(string: "https://cdn.example.com/\(id).mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+    }
 }
 
 private struct MockFeedService: FeedService {
@@ -107,6 +173,20 @@ private struct MockFeedService: FeedService {
 
     func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
         result
+    }
+}
+
+private final class SequencedFeedService: FeedService, @unchecked Sendable {
+    private var results: [FeedFetchResult]
+    private(set) var requestedSubscriptionIDs: [[UUID]] = []
+
+    init(results: [FeedFetchResult]) {
+        self.results = results
+    }
+
+    func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
+        requestedSubscriptionIDs.append(subscriptions.map(\.id))
+        return results.removeFirst()
     }
 }
 

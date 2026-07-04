@@ -647,10 +647,10 @@
             <figcaption class="screen-caption">Download the episodes you want before syncing. The main window keeps show, episode, and device state in one place.</figcaption>
           </figure>
           <figure class="screen">
-            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/settings.png" data-lightbox-alt="Settings window showing an ffmpeg path field." data-lightbox-caption="Point the app at ffmpeg when a podcast publishes non-MP3 audio that needs conversion.">
-              <img src="assets/screenshots/settings.png" alt="Settings window showing an ffmpeg path field.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/settings.png" data-lightbox-alt="Settings window showing optional ffmpeg and device podcast folder paths." data-lightbox-caption="Settings keeps both paths optional: set ffmpeg for non-MP3 conversion, and choose a device podcast folder when your player uses something other than music.">
+              <img src="assets/screenshots/settings.png" alt="Settings window showing optional ffmpeg and device podcast folder paths.">
             </button>
-            <figcaption class="screen-caption">Point the app at ffmpeg when a podcast publishes non-MP3 audio that needs conversion.</figcaption>
+            <figcaption class="screen-caption">Settings keeps both paths optional: set ffmpeg for non-MP3 conversion, and choose a device podcast folder when your player uses something other than music.</figcaption>
           </figure>
         </div>
       </div>
@@ -664,8 +664,8 @@
           <p>Simple Podcast Manager is intentionally cautious. It plans first, shows you the intended changes, validates paths, and only performs device actions that fit those rules.</p>
         </div>
         <ul>
-          <li>Writes <code>.spmconfig</code> at the device root to remember device settings.</li>
-          <li>Writes podcast files only inside the configured target folder.</li>
+          <li>Writes <code>.spmconfig</code> only at the device root to remember device settings.</li>
+          <li>Writes podcast files only inside the configured target folder, such as <code>music</code> or <code>podcasts</code>.</li>
           <li>Only deletes app-managed podcast files from that folder.</li>
           <li>Does not touch other folders on the device.</li>
           <li>Aborts destructive work when validation is uncertain.</li>

@@ -12,7 +12,7 @@ It is built for people who want to own their podcast subscriptions, download nor
 
 ## Install
 
-Download the DMG from the latest [GitHub Release](https://github.com/steveneely/simple-podcast-manager/releases), open it, and drag `Simple Podcast Manager.app` to Applications.
+Download the DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag `Simple Podcast Manager.app` to Applications.
 
 Current prerelease builds are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
 

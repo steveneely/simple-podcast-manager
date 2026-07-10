@@ -3,6 +3,21 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
+            <title>1.1.3</title>
+            <pubDate>Fri, 10 Jul 2026 13:01:15 -0600</pubDate>
+            <sparkle:version>36</sparkle:version>
+            <sparkle:shortVersionString>1.1.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.1.3
+
+- Improves MP3 cover-art compatibility for Sony Walkman players by placing podcast artwork first in the prepared MP3 metadata.
+- Removes bulky podcast chapter metadata from the device-ready MP3 copy so players can find artwork more reliably.
+- Keeps original downloaded audio files unchanged; the cleanup only applies to newly prepared files copied to the device.
+]]></description>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.1.3/SimplePodcastManager-v1.1.3.dmg" length="4928300" type="application/octet-stream" sparkle:edSignature="j2BqhfM7KC2so+maTF5/dxNPCzv8KMb/Wb1jK7NRKK5K6I84ZwpF5FZ0iaSmCObQnY1Udncb4xuwxlALOLe1Bw=="/>
+        </item>
+        <item>
             <title>1.1.2</title>
             <pubDate>Fri, 03 Jul 2026 20:12:07 -0600</pubDate>
             <sparkle:version>35</sparkle:version>

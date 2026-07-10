@@ -31,8 +31,8 @@ public struct ID3MP3ArtworkTaggingService: MP3ArtworkTaggingService {
 
     private static func makeID3v23Tag(preservedFrames: Data, artworkData: Data) -> Data {
         let frame = makeAPICFrame(artworkData: artworkData)
-        var frames = preservedFrames
-        frames.append(frame)
+        var frames = frame
+        frames.append(preservedFrames)
 
         var tag = Data()
         tag.append(contentsOf: [0x49, 0x44, 0x33]) // ID3
@@ -117,7 +117,7 @@ private extension Data {
                 return nil
             }
 
-            if frameID != "APIC" {
+            if Self.shouldPreserveFrame(withID: frameID) {
                 preservedFrames.append(tagBody[offset..<frameEnd])
             }
             offset = frameEnd
@@ -127,6 +127,10 @@ private extension Data {
             frames: preservedFrames,
             audioData: self[totalTagSize...]
         )
+    }
+
+    static func shouldPreserveFrame(withID frameID: String) -> Bool {
+        !["APIC", "CHAP", "CTOC"].contains(frameID)
     }
 
     func strippingLeadingID3v2Tag() -> Data {

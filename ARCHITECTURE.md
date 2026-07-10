@@ -201,6 +201,8 @@ Update design:
 - Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
 - keep multiple recent appcast entries so users upgrading across more than one release can see the notes they need for skipped versions
 - a version bump is incomplete until the matching DMG is built, verified, uploaded to the GitHub release, published in `gh-pages:appcast.xml`, and confirmed in the live appcast
+- the GitHub release must include the exact versioned DMG file referenced by the Sparkle appcast enclosure, such as `dist/updates/SimplePodcastManager-v1.1.3.dmg`; uploading only the generic `dist/SimplePodcastManager.dmg` will break in-app downloads
+- release verification should include checking that the live appcast enclosure URL resolves successfully after the release asset is uploaded
 
 Release packaging responsibilities:
 

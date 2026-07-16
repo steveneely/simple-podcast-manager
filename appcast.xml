@@ -3,6 +3,23 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
+            <title>1.1.4</title>
+            <pubDate>Thu, 16 Jul 2026 17:58:26 -0600</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>1.1.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.1.4
+
+- Checks multiple podcast feeds at the same time, making startup and full-library refreshes faster while retaining feed-cache and not-modified optimizations.
+- Inventories a connected player once per refresh or plan instead of repeatedly scanning it for every podcast.
+- Keeps the interface responsive while inspecting slower external players and building the Sync plan.
+- Avoids unnecessary feed and device refresh work after a successful Sync.
+- Includes internal interface cleanup that preserves the existing workflow while making future changes easier to maintain.
+]]></description>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.1.4/SimplePodcastManager-v1.1.4.dmg" length="4928224" type="application/octet-stream" sparkle:edSignature="e3zg9Fn7yJ3VYHxyoKz4HelGxhMeTJsr0nmBBgg/nX7MyRwhPprX9sfddj9exi4EaltdQe9xZ4MXyot4SviUDw=="/>
+        </item>
+        <item>
             <title>1.1.3</title>
             <pubDate>Fri, 10 Jul 2026 13:01:15 -0600</pubDate>
             <sparkle:version>36</sparkle:version>

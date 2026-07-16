@@ -13,6 +13,7 @@ public final class DeviceLibraryViewModel {
     private let managedDirectoryResolver: ManagedDirectoryResolver
     private let fileSystem: any FileSystemOperating
     private let safetyValidator: SafetyValidator
+    private var latestRefreshID: UUID?
 
     public init(
         deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
@@ -28,7 +29,10 @@ public final class DeviceLibraryViewModel {
         self.lastErrorMessage = nil
     }
 
-    public func refresh(device: DeviceInfo?, subscriptions: [FeedSubscription]) {
+    public func refresh(device: DeviceInfo?, subscriptions: [FeedSubscription]) async {
+        let refreshID = UUID()
+        latestRefreshID = refreshID
+
         guard let device else {
             filesBySubscriptionID = [:]
             otherAudioFiles = []
@@ -38,25 +42,23 @@ public final class DeviceLibraryViewModel {
 
         do {
             try safetyValidator.validateDevice(device)
-            let deviceSnapshot = try DeviceLibrarySnapshot(
-                deviceLibrary: deviceLibrary,
-                directoryURL: device.podcastDirectoryURL
-            )
-            var updatedFiles: [UUID: [URL]] = [:]
-            for subscription in subscriptions {
-                let managedDirectoryURL = managedDirectoryResolver.managedDirectoryURL(
-                    for: subscription,
-                    on: device,
-                    candidateDirectories: deviceSnapshot.directories
+            let deviceLibrary = deviceLibrary
+            let managedDirectoryResolver = managedDirectoryResolver
+            let inventory = try await Task.detached(priority: .userInitiated) {
+                try Self.makeInventory(
+                    deviceLibrary: deviceLibrary,
+                    managedDirectoryResolver: managedDirectoryResolver,
+                    device: device,
+                    subscriptions: subscriptions
                 )
-                let files = deviceSnapshot.directFiles(in: managedDirectoryURL)
-                    .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
-                updatedFiles[subscription.id] = sortFiles(files)
-            }
-            filesBySubscriptionID = updatedFiles
-            otherAudioFiles = otherAudioFiles(in: deviceSnapshot.files, subscriptions: subscriptions)
+            }.value
+            guard latestRefreshID == refreshID else { return }
+
+            filesBySubscriptionID = inventory.filesBySubscriptionID
+            otherAudioFiles = inventory.otherAudioFiles
             lastErrorMessage = nil
         } catch {
+            guard latestRefreshID == refreshID else { return }
             filesBySubscriptionID = [:]
             otherAudioFiles = []
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -92,7 +94,35 @@ public final class DeviceLibraryViewModel {
         }
     }
 
-    private func sortFiles(_ files: [URL]) -> [URL] {
+    nonisolated private static func makeInventory(
+        deviceLibrary: any DeviceLibraryInspecting,
+        managedDirectoryResolver: ManagedDirectoryResolver,
+        device: DeviceInfo,
+        subscriptions: [FeedSubscription]
+    ) throws -> DeviceLibraryInventory {
+        let deviceSnapshot = try DeviceLibrarySnapshot(
+            deviceLibrary: deviceLibrary,
+            directoryURL: device.podcastDirectoryURL
+        )
+        var filesBySubscriptionID: [UUID: [URL]] = [:]
+        for subscription in subscriptions {
+            let managedDirectoryURL = managedDirectoryResolver.managedDirectoryURL(
+                for: subscription,
+                on: device,
+                candidateDirectories: deviceSnapshot.directories
+            )
+            let files = deviceSnapshot.directFiles(in: managedDirectoryURL)
+                .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
+            filesBySubscriptionID[subscription.id] = sortFiles(files)
+        }
+
+        return DeviceLibraryInventory(
+            filesBySubscriptionID: filesBySubscriptionID,
+            otherAudioFiles: otherAudioFiles(in: deviceSnapshot.files, subscriptions: subscriptions)
+        )
+    }
+
+    nonisolated private static func sortFiles(_ files: [URL]) -> [URL] {
         files.sorted { lhs, rhs in
             switch (EpisodeFileName.publicationDate(from: lhs), EpisodeFileName.publicationDate(from: rhs)) {
             case let (lhsDate?, rhsDate?):
@@ -111,7 +141,10 @@ public final class DeviceLibraryViewModel {
         }
     }
 
-    private func otherAudioFiles(in deviceFiles: [URL], subscriptions: [FeedSubscription]) -> [URL] {
+    nonisolated private static func otherAudioFiles(
+        in deviceFiles: [URL],
+        subscriptions: [FeedSubscription]
+    ) -> [URL] {
         deviceFiles
             .filter { isAudioFile($0) }
             .filter { !isAppleDoubleSidecar($0) }
@@ -123,12 +156,12 @@ public final class DeviceLibraryViewModel {
             }
     }
 
-    private func isAudioFile(_ fileURL: URL) -> Bool {
+    nonisolated private static func isAudioFile(_ fileURL: URL) -> Bool {
         let audioExtensions = Set(["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma"])
         return audioExtensions.contains(fileURL.pathExtension.lowercased())
     }
 
-    private func isAppleDoubleSidecar(_ fileURL: URL) -> Bool {
+    nonisolated private static func isAppleDoubleSidecar(_ fileURL: URL) -> Bool {
         fileURL.lastPathComponent.hasPrefix("._")
     }
 
@@ -140,4 +173,9 @@ public final class DeviceLibraryViewModel {
         try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
         try fileSystem.removeItem(at: sidecarURL)
     }
+}
+
+private struct DeviceLibraryInventory: Sendable {
+    let filesBySubscriptionID: [UUID: [URL]]
+    let otherAudioFiles: [URL]
 }

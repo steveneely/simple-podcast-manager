@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct DeviceLibraryViewModelTests {
     @Test
-    func refreshOrdersDeviceFilesNewestToOldestWhenEpisodesMatch() throws {
+    func refreshOrdersDeviceFilesNewestToOldestWhenEpisodesMatch() async throws {
         let subscription = FeedSubscription(
             title: "Connected",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -31,13 +31,13 @@ struct DeviceLibraryViewModelTests {
             )
         )
 
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [newFile, oldFile])
     }
 
     @Test
-    func refreshFallsBackToFileNameOrderingWhenEpisodesDoNotMatch() throws {
+    func refreshFallsBackToFileNameOrderingWhenEpisodesDoNotMatch() async throws {
         let subscription = FeedSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -64,13 +64,13 @@ struct DeviceLibraryViewModelTests {
             )
         )
 
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [alphaManagedFile, zuluManagedFile])
     }
 
     @Test
-    func refreshIgnoresAppleDoubleMetadataSidecars() throws {
+    func refreshIgnoresAppleDoubleMetadataSidecars() async throws {
         let subscription = FeedSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -93,13 +93,13 @@ struct DeviceLibraryViewModelTests {
             )
         )
 
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [realFile])
     }
 
     @Test
-    func refreshIgnoresFilesThatDoNotLookAppManaged() throws {
+    func refreshIgnoresFilesThatDoNotLookAppManaged() async throws {
         let subscription = FeedSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -126,13 +126,13 @@ struct DeviceLibraryViewModelTests {
             )
         )
 
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [managedFile])
     }
 
     @Test
-    func refreshUsesExistingManagedFolderWhenSubscriptionTitlePunctuationChanges() throws {
+    func refreshUsesExistingManagedFolderWhenSubscriptionTitlePunctuationChanges() async throws {
         let subscription = FeedSubscription(
             title: "Sean Carroll's Mindscape: Science, Society, Philosophy, Culture, Arts, and Ideas",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -160,13 +160,13 @@ struct DeviceLibraryViewModelTests {
             )
         )
 
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [episodeFile])
     }
 
     @Test
-    func refreshShowsOtherAudioFilesNotAssociatedWithSubscriptions() throws {
+    func refreshShowsOtherAudioFilesNotAssociatedWithSubscriptions() async throws {
         let subscription = FeedSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -197,14 +197,14 @@ struct DeviceLibraryViewModelTests {
             )
         )
 
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [managedFile])
         #expect(viewModel.otherAudioFiles == [musicFile, otherPodcastFile])
     }
 
     @Test
-    func deleteOtherAudioFilesOnlyDeletesExplicitKnownOtherAudioUnderDevicePodcastDirectory() throws {
+    func deleteOtherAudioFilesOnlyDeletesExplicitKnownOtherAudioUnderDevicePodcastDirectory() async throws {
         let subscription = FeedSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -233,7 +233,7 @@ struct DeviceLibraryViewModelTests {
             ),
             fileSystem: fileSystem
         )
-        viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.refresh(device: device, subscriptions: [subscription])
 
         viewModel.deleteOtherAudioFiles([otherFile.standardizedFileURL, unknownFile.standardizedFileURL], on: device)
 
@@ -243,7 +243,7 @@ struct DeviceLibraryViewModelTests {
     }
 
     @Test
-    func refreshInventoriesDeviceFilesOnceForMultipleSubscriptions() throws {
+    func refreshInventoriesDeviceFilesOnceForMultipleSubscriptions() async throws {
         let device = DeviceInfo(
             name: "Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
@@ -262,13 +262,28 @@ struct DeviceLibraryViewModelTests {
         let deviceLibrary = CountingDeviceLibrary(directories: directories, recursiveFiles: files)
         let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
 
-        viewModel.refresh(device: device, subscriptions: subscriptions)
+        await viewModel.refresh(device: device, subscriptions: subscriptions)
 
         #expect(deviceLibrary.directoryRequestCount == 1)
         #expect(deviceLibrary.recursiveFileRequestCount == 1)
         #expect(deviceLibrary.directFileRequestCount == 0)
         #expect(viewModel.files(for: subscriptions[0]) == [files[0]])
         #expect(viewModel.files(for: subscriptions[1]) == [files[1]])
+    }
+
+    @Test
+    func refreshInventoriesDeviceOutsideMainThread() async {
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let deviceLibrary = ThreadCapturingDeviceLibrary()
+        let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
+
+        await viewModel.refresh(device: device, subscriptions: [])
+
+        #expect(deviceLibrary.allRequestsWereOffMainThread)
     }
 }
 
@@ -320,6 +335,38 @@ private final class CountingDeviceLibrary: DeviceLibraryInspecting, @unchecked S
     func recursiveFiles(in directoryURL: URL) throws -> [URL] {
         recursiveFileRequestCount += 1
         return recursiveFileURLs
+    }
+}
+
+private final class ThreadCapturingDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var requestMainThreadValues: [Bool] = []
+
+    var allRequestsWereOffMainThread: Bool {
+        lock.withLock {
+            !requestMainThreadValues.isEmpty && requestMainThreadValues.allSatisfy { !$0 }
+        }
+    }
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    private func recordRequest() {
+        lock.withLock {
+            requestMainThreadValues.append(Thread.isMainThread)
+        }
     }
 }
 

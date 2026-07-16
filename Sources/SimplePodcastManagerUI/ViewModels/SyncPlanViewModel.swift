@@ -10,6 +10,7 @@ public final class SyncPlanViewModel {
     public private(set) var lastErrorMessage: String?
 
     private let planner: SyncPlanner
+    private var latestPlanningID: UUID?
 
     public init(planner: SyncPlanner = SyncPlanner()) {
         self.planner = planner
@@ -29,33 +30,48 @@ public final class SyncPlanViewModel {
         subscriptions: [FeedSubscription],
         manualDeleteTargets: Set<URL> = [],
         ejectAfterSync: Bool
-    ) {
+    ) async {
+        let planningID = UUID()
+        latestPlanningID = planningID
+
         guard let device else {
             plan = nil
+            isPlanning = false
             lastErrorMessage = "Select a compatible device before building a sync plan."
             return
         }
 
         isPlanning = true
-        defer { isPlanning = false }
 
         do {
-            plan = try planner.makePlan(
-                device: device,
-                preparedEpisodes: preparedEpisodes,
-                subscriptions: subscriptions,
-                manualDeleteTargets: manualDeleteTargets,
-                ejectAfterSync: ejectAfterSync
-            )
+            let planner = planner
+            let updatedPlan = try await Task.detached(priority: .userInitiated) {
+                try planner.makePlan(
+                    device: device,
+                    preparedEpisodes: preparedEpisodes,
+                    subscriptions: subscriptions,
+                    manualDeleteTargets: manualDeleteTargets,
+                    ejectAfterSync: ejectAfterSync
+                )
+            }.value
+            guard latestPlanningID == planningID else { return }
+
+            plan = updatedPlan
             lastErrorMessage = nil
         } catch {
+            guard latestPlanningID == planningID else { return }
             plan = nil
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+        if latestPlanningID == planningID {
+            isPlanning = false
         }
     }
 
     public func clearPlan() {
+        latestPlanningID = nil
         plan = nil
+        isPlanning = false
         lastErrorMessage = nil
     }
 }

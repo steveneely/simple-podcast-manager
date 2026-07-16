@@ -103,7 +103,7 @@ When a device is selected, each show can display its current on-device files.
 - Checked files stay on the device.
 - Unchecked files are planned for deletion during the next run.
 
-Deleted files are removed directly from the device. The app only deletes app-managed podcast files inside the configured podcast folder. It does not delete from other folders on the device.
+Deleted files are removed directly from the device. Sync only deletes app-managed podcast files inside the configured podcast folder. Other audio in that folder is never deleted by Sync and can only be removed after you select and confirm the exact files. The app does not delete from other folders on the device.
 
 ## Local Download History
 

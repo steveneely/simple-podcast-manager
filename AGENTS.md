@@ -19,11 +19,12 @@ These rules override convenience or speed:
 
 - Only write `.spmconfig` at `[device root]/.spmconfig` for app-managed device configuration such as the podcast target folder
 - Only write podcast media under the configured device podcast directory, defaulting to `[device root]/music` when no target is configured
-- Only delete app-managed podcast files under the configured device podcast directory
+- Only delete app-managed podcast files automatically under the configured device podcast directory
+- The app may delete other audio under the configured device podcast directory only when the user explicitly selects and confirms those exact files
 - Never touch the Mac's local Trash
 - Never modify files outside the mounted external device
 - Never modify other device-root files or other folders on the device
-- Never delete files the app does not clearly own
+- Never delete files the app does not clearly own without explicit, per-file user selection and confirmation
 - Abort destructive work if path validation is uncertain
 
 If a proposed implementation weakens those guarantees, do not take it.
@@ -126,7 +127,8 @@ Add tests around behavior with the highest risk first:
 - invalid or ambiguous device detection
 - user-visible sync plan parity with executed device actions
 - config writes touching only `[device root]/.spmconfig`
-- copy/delete touching only app-managed files under the configured device podcast directory
+- automatic copy/delete touching only app-managed files under the configured device podcast directory
+- explicit other-audio deletion requiring per-file selection and confirmation inside the configured device podcast directory
 - eject only after successful sync
 
 Prefer small focused tests around planner and safety logic before broader integration coverage.

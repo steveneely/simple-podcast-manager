@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct SyncPlanViewModelTests {
     @Test
-    func buildPlanProducesActionDescriptions() {
+    func buildPlanProducesActionDescriptions() async {
         let device = DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
@@ -33,7 +33,7 @@ struct SyncPlanViewModelTests {
         let planner = SyncPlanner(deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [:]))
         let viewModel = SyncPlanViewModel(planner: planner)
 
-        viewModel.buildPlan(
+        await viewModel.buildPlan(
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [subscription],
@@ -47,10 +47,10 @@ struct SyncPlanViewModelTests {
     }
 
     @Test
-    func buildPlanWithoutDeviceSurfacesError() {
+    func buildPlanWithoutDeviceSurfacesError() async {
         let viewModel = SyncPlanViewModel()
 
-        viewModel.buildPlan(
+        await viewModel.buildPlan(
             device: nil,
             preparedEpisodes: [],
             subscriptions: [],
@@ -59,7 +59,28 @@ struct SyncPlanViewModelTests {
         )
 
         #expect(viewModel.plan == nil)
+        #expect(!viewModel.isPlanning)
         #expect(viewModel.lastErrorMessage == "Select a compatible device before building a sync plan.")
+    }
+
+    @Test
+    func buildPlanInspectsDeviceOutsideMainThread() async {
+        let device = DeviceInfo(
+            name: "SPM Test Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+        )
+        let deviceLibrary = ThreadCapturingPlanDeviceLibrary()
+        let viewModel = SyncPlanViewModel(planner: SyncPlanner(deviceLibrary: deviceLibrary))
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [],
+            ejectAfterSync: false
+        )
+
+        #expect(deviceLibrary.allRequestsWereOffMainThread)
     }
 }
 
@@ -68,5 +89,37 @@ private struct StubPlanDeviceLibrary: DeviceLibraryInspecting {
 
     func files(in directoryURL: URL) throws -> [URL] {
         filesByDirectory[directoryURL.standardizedFileURL.path] ?? []
+    }
+}
+
+private final class ThreadCapturingPlanDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var requestMainThreadValues: [Bool] = []
+
+    var allRequestsWereOffMainThread: Bool {
+        lock.withLock {
+            !requestMainThreadValues.isEmpty && requestMainThreadValues.allSatisfy { !$0 }
+        }
+    }
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    private func recordRequest() {
+        lock.withLock {
+            requestMainThreadValues.append(Thread.isMainThread)
+        }
     }
 }

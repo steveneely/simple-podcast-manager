@@ -153,7 +153,7 @@ Validation gates before mutation:
 
 V1 does not require Sony-specific identification beyond these rules.
 
-Device library refresh should inventory the configured podcast directory once and derive per-subscription and other-audio views from that snapshot. External players can have slow storage, so avoid repeatedly walking the same directory for every subscription.
+Device library refresh should inventory the configured podcast directory once and derive per-subscription and other-audio views from that snapshot. External players can have slow storage, so avoid repeatedly walking the same directory for every subscription. Device inventory and sync planning perform filesystem reads outside the main actor so a slow device does not freeze the UI.
 
 ## Sync Layout And Deletion
 
@@ -165,8 +165,8 @@ This is the default layout for v1 because it makes ownership safer than a flat d
 
 Delete behavior:
 
-- only delete files in managed podcast folders under the configured podcast directory
-- only delete files the app can confidently associate with a configured feed
+- only delete files automatically when the app can confidently associate them with a configured feed
+- only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation
 - never bulk-delete by loose pattern matching
 - prefer exact planned file URLs over directory-wide operations
 
@@ -224,10 +224,11 @@ These rules are non-negotiable:
 - only modify files on the external device
 - only write `.spmconfig` at `[device root]/.spmconfig` for app-managed device configuration, including the podcast target folder
 - only write podcast media inside the configured podcast directory, defaulting to `[device root]/music`
-- only delete app-managed podcast files inside the configured podcast directory
+- only delete app-managed podcast files automatically inside the configured podcast directory
+- only delete other audio inside that directory after explicit per-file user selection and confirmation
 - never touch the Mac's local Trash
 - never modify other device-root files or other folders on the device
-- never delete outside app-managed podcast folders
+- never delete outside the configured podcast directory
 - refuse mutation if the device path cannot be proven safe
 
 Implementation priority should follow this order:

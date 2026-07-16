@@ -121,8 +121,7 @@ public struct MainView: View {
             if viewModel.hasFeeds && !feedPreviewViewModel.hasPreviewData {
                 await refreshFeedPreview()
             }
-            refreshDeviceLibrary()
-            rebuildSyncPlan()
+            await refreshDeviceLibrary()
         }
         .sheet(isPresented: $isShowingFeedEditor) {
             FeedEditorView(
@@ -189,89 +188,28 @@ public struct MainView: View {
     }
 
     private var deviceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Device")
-                        .font(.headline)
-                    if let selectedDevice = deviceViewModel.selectedDevice {
-                        Button(deviceViewModel.statusMessage) {
-                            isShowingDeviceDetails.toggle()
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(isHoveringDeviceStatus ? Color.blue : Color.white)
-                        .onHover { isHoveringDeviceStatus = $0 }
-                        .popover(isPresented: $isShowingDeviceDetails, arrowEdge: .bottom) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(selectedDevice.name)
-                                    .font(.headline)
-                                Text("Mounted at: \(selectedDevice.rootURL.path)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("Podcast folder: \(selectedDevice.podcastDirectoryURL.path)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(12)
-                            .frame(minWidth: 320, alignment: .leading)
-                        }
-                    } else {
-                        Text(deviceViewModel.statusMessage)
-                            .foregroundStyle(.secondary)
+        DeviceSectionView(
+            viewModel: deviceViewModel,
+            isShowingDetails: $isShowingDeviceDetails,
+            isHoveringStatus: $isHoveringDeviceStatus,
+            deviceSelection: deviceSelectionBinding,
+            onDisconnect: {
+                deviceViewModel.disconnectSelectedDevice()
+                Task { await refreshDeviceLibrary() }
+            },
+            onRefresh: {
+                deviceViewModel.refresh()
+                Task { await refreshDeviceLibrary() }
+            },
+            syncControls: {
+                Group {
+                    if viewModel.hasFeeds {
+                        syncControlsRow
                     }
                 }
-
-                Spacer()
-
-                if deviceViewModel.selectedDevice != nil {
-                    HoverIconButton(
-                        systemName: "eject",
-                        helpText: deviceViewModel.isDisconnecting ? "Disconnecting device" : "Disconnect device",
-                        isDisabled: deviceViewModel.isDisconnecting
-                    ) {
-                        deviceViewModel.disconnectSelectedDevice()
-                        refreshDeviceLibrary()
-                        rebuildSyncPlan()
-                    }
-                }
-
-                HoverIconButton(
-                    systemName: "arrow.clockwise",
-                    helpText: "Refresh devices"
-                ) {
-                    deviceViewModel.refresh()
-                    refreshDeviceLibrary()
-                    rebuildSyncPlan()
-                }
-            }
-
-            if deviceViewModel.hasMultipleDevices {
-                Picker("Target device", selection: deviceSelectionBinding) {
-                    Text("Choose a device")
-                        .tag("")
-                    ForEach(deviceViewModel.devices) { device in
-                        Text(device.name)
-                            .tag(device.id)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            if viewModel.hasFeeds {
-                syncControlsRow
-            }
-
-            otherAudioSection
-
-            if let deviceErrorMessage = deviceViewModel.lastErrorMessage {
-                Text(deviceErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-        }
-        .padding(14)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+            },
+            otherAudio: { otherAudioSection }
+        )
     }
 
     private var librarySection: some View {
@@ -287,87 +225,31 @@ public struct MainView: View {
     }
 
     private var feedSidebar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Shows")
-                    .font(.headline)
-                Spacer()
-
-                HoverIconButton(
-                    systemName: "plus",
-                    helpText: "Add show"
-                ) {
-                    editorDraft = FeedDraft()
-                    feedEditorPresentationID = UUID()
-                    isShowingFeedEditor = true
+        FeedSidebarView(
+            subscriptions: viewModel.feedSubscriptions,
+            selectedFeedID: $selectedFeedID,
+            isRefreshing: feedPreviewViewModel.isLoading,
+            episodeCount: { allEpisodes(for: $0).count },
+            artworkURL: { artworkURL(for: $0) },
+            onAdd: {
+                editorDraft = FeedDraft()
+                feedEditorPresentationID = UUID()
+                isShowingFeedEditor = true
+            },
+            onRefresh: { Task { await refreshFeedPreview() } },
+            onEdit: { subscription in
+                editorDraft = FeedDraft(subscription: subscription)
+                feedEditorPresentationID = UUID()
+                isShowingFeedEditor = true
+            },
+            onDelete: { subscription in
+                guard let index = viewModel.feedSubscriptions.firstIndex(where: { $0.id == subscription.id }) else {
+                    return
                 }
-                .keyboardShortcut("n")
-
-                HoverIconButton(
-                    systemName: "arrow.clockwise",
-                    helpText: feedPreviewViewModel.isLoading ? "Refreshing shows" : "Refresh shows",
-                    isDisabled: feedPreviewViewModel.isLoading
-                ) {
-                    Task { await refreshFeedPreview() }
-                }
-            }
-
-            List(selection: $selectedFeedID) {
-                ForEach(viewModel.feedSubscriptions) { subscription in
-                    HStack(alignment: .top, spacing: 10) {
-                        PodcastArtworkView(
-                            artworkURL: artworkURL(for: subscription),
-                            size: 42,
-                            cornerRadius: 9
-                        )
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(subscription.title)
-                                    .font(.headline)
-                                if !subscription.isEnabled {
-                                    Text("Disabled")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-
-                            Text("\(allEpisodes(for: subscription).count) episode\(allEpisodes(for: subscription).count == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer(minLength: 8)
-
-                        if selectedFeedID == subscription.id {
-                            HStack(spacing: 8) {
-                                HoverIconButton(
-                                    systemName: "pencil",
-                                    helpText: "Edit"
-                                ) {
-                                    editorDraft = FeedDraft(subscription: subscription)
-                                    feedEditorPresentationID = UUID()
-                                    isShowingFeedEditor = true
-                                }
-
-                                HoverIconButton(
-                                    systemName: "trash",
-                                    helpText: "Remove",
-                                    isDestructive: true
-                                ) {
-                                    guard let selectedIndex = viewModel.feedSubscriptions.firstIndex(where: { $0.id == subscription.id }) else { return }
-                                    deleteFeeds(at: IndexSet(integer: selectedIndex))
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .tag(subscription.id)
-                }
-                .onDelete(perform: deleteFeeds)
-            }
-        }
-        .padding(14)
+                deleteFeeds(at: IndexSet(integer: index))
+            },
+            onDeleteOffsets: deleteFeeds
+        )
     }
 
     private var episodeDetailSection: some View {
@@ -477,11 +359,11 @@ public struct MainView: View {
             }
 
             if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
-                syncProgressSection(progress)
+                SyncProgressView(progress: progress)
             }
 
             if let lastResult = syncExecutionViewModel.lastResult {
-                Text(syncResultSummary(lastResult))
+                Text(SyncPresentation.resultSummary(lastResult))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -491,393 +373,83 @@ public struct MainView: View {
     @ViewBuilder
     private var otherAudioSection: some View {
         if deviceViewModel.selectedDevice != nil, !deviceLibraryViewModel.otherAudioFiles.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Other Audio on Device")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-
-                    Text("\(deviceLibraryViewModel.otherAudioFiles.count) file\(deviceLibraryViewModel.otherAudioFiles.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button("Delete Selected") {
-                        isShowingOtherAudioDeletionConfirmation = true
-                    }
-                    .disabled(selectedOtherAudioDeletionTargets.isEmpty)
-                }
-
-                Text("These files are under the device podcast folder but are not associated with a podcast subscription. They are never deleted by Sync.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(deviceLibraryViewModel.otherAudioFiles, id: \.path) { fileURL in
-                            Button {
-                                toggleOtherAudioDeletionSelection(for: fileURL)
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Image(systemName: selectedOtherAudioDeletionTargets.contains(fileURL.standardizedFileURL) ? "checkmark.square.fill" : "square")
-                                        .foregroundStyle(selectedOtherAudioDeletionTargets.contains(fileURL.standardizedFileURL) ? Color.red : Color.secondary)
-                                    Text(relativeDevicePodcastPath(for: fileURL))
-                                        .font(.caption)
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
-                                    Spacer()
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .frame(maxHeight: 120)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(NSColor.windowBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            OtherAudioSectionView(
+                files: deviceLibraryViewModel.otherAudioFiles,
+                selectedFiles: selectedOtherAudioDeletionTargets,
+                relativePath: relativeDevicePodcastPath,
+                onToggleSelection: toggleOtherAudioDeletionSelection,
+                onDeleteSelected: { isShowingOtherAudioDeletionConfirmation = true }
+            )
         }
     }
 
     @ViewBuilder
     private var syncDialog: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(syncPlanSummaryText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button("Close") {
-                    isShowingSyncDialog = false
-                }
-
-                if !hasSuccessfulSyncResult {
-                    Button(sheetSyncButtonTitle) {
-                        Task {
-                            await runSync()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSync)
-                }
-            }
-
-            if hasSuccessfulSyncResult {
-                syncSuccessConfirmation
-            } else {
-                Toggle("Eject when finished", isOn: $isEjectAfterSyncEnabled)
-                    .toggleStyle(.checkbox)
-                    .onChange(of: isEjectAfterSyncEnabled) {
-                        rebuildSyncPlan()
-                    }
-
-                Toggle("Delete downloaded episodes when finished", isOn: $isDeleteDownloadedAfterSyncEnabled)
-                    .toggleStyle(.checkbox)
-
-                if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
-                    syncProgressSection(progress)
-                }
-
-                if let lastResult = syncExecutionViewModel.lastResult {
-                    syncResultCard(lastResult)
-                }
-
-                syncSummaryCard
-
-                if !syncPlanViewModel.actionDescriptions.isEmpty {
-                    plannedActionsSection
-                }
-            }
-        }
-        .padding(20)
-        .frame(minWidth: 560, minHeight: 420, alignment: .topLeading)
-    }
-
-    @ViewBuilder
-    private var syncSummaryCard: some View {
-        let plan = syncPlanViewModel.plan
-        let preparedCount = preparationPreviewViewModel.preparedEpisodes.count
-
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Plan Summary")
-                .font(.headline)
-
-            if let plan {
-                let copyCount = plan.actions.filter {
-                    if case .copyToDevice = $0 { return true }
-                    return false
-                }.count
-                let deleteCount = plan.actions.filter {
-                    if case .deleteFromDevice = $0 { return true }
-                    return false
-                }.count
-                let skipCount = plan.actions.filter {
-                    if case .skip = $0 { return true }
-                    return false
-                }.count
-
-                Text("\(preparedCount) episode\(preparedCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) show\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Choose a compatible device to build the full plan.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var syncSuccessConfirmation: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Complete")
-                .font(.headline)
-
-            Text("Finished. You can close this window.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let result = syncExecutionViewModel.lastResult {
-                Text(syncResultSummary(result))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if result.ejected {
-                    Text("The device was ejected after the run finished.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                ForEach(result.warnings, id: \.self) { warning in
-                    Text(warning)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    @ViewBuilder
-    private var plannedActionsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Planned Actions")
-                .font(.headline)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(syncPlanViewModel.actionDescriptions.enumerated()), id: \.offset) { _, description in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: iconName(for: description))
-                                .foregroundStyle(iconColor(for: description))
-                                .frame(width: 14)
-                            Text(description)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-            }
-            .frame(minHeight: 100, maxHeight: 180)
-        }
+        SyncDialogView(
+            plan: syncPlanViewModel.plan,
+            actionDescriptions: syncPlanViewModel.actionDescriptions,
+            progress: syncExecutionViewModel.progress,
+            isSyncing: syncExecutionViewModel.isSyncing,
+            isPlanning: syncPlanViewModel.isPlanning,
+            lastResult: syncExecutionViewModel.lastResult,
+            lastErrorMessage: syncExecutionViewModel.lastErrorMessage,
+            preparedEpisodeCount: preparationPreviewViewModel.preparedEpisodes.count,
+            enabledSubscriptionCount: enabledSubscriptionCount,
+            summaryText: syncPlanSummaryText,
+            isPresented: $isShowingSyncDialog,
+            ejectAfterSync: $isEjectAfterSyncEnabled,
+            deleteDownloadsAfterSync: $isDeleteDownloadedAfterSyncEnabled,
+            onEjectAfterSyncChange: rebuildSyncPlan,
+            onSync: { Task { await runSync() } }
+        )
     }
 
     @ViewBuilder
     private func episodeRow(for episode: Episode) -> some View {
-        let isExpanded = isEpisodeExpanded(episode)
+        let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode)
+        let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode)
+        let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode)
 
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 12)
-                        .padding(.top, 4)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(episode.title)
-                                .font(.body)
-                                .fontWeight(.medium)
-
-                            if let duration = episodeDurationLabel(for: episode) {
-                                Text(duration)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize()
-                            }
-                        }
-
-                        if let publicationDate = episode.publicationDate {
-                            Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
-                            Text(downloadedEpisodeLabel(for: preparedEpisode))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            ForEach(preparedEpisode.preparationWarnings ?? [], id: \.self) { warning in
-                                Text(warning)
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            }
-                        } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
-                            Text(downloadedEpisodeLabel(for: downloadedRecord))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode) {
-                            Text(removedEpisodeLabel(for: removedRecord))
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
-                    }
+        EpisodeRowView(
+            episode: episode,
+            isExpanded: isEpisodeExpanded(episode),
+            durationLabel: episodeDurationLabel(for: episode),
+            downloadLabel: preparedEpisode.map(downloadedEpisodeLabel(for:))
+                ?? downloadedRecord.map(downloadedEpisodeLabel(for:)),
+            downloadWarnings: preparedEpisode?.preparationWarnings ?? [],
+            removedLabel: removedRecord.map(removedEpisodeLabel(for:)),
+            isPrepared: preparedEpisode != nil,
+            isPreparing: preparationPreviewViewModel.isPreparing(episode),
+            onToggleDetails: { toggleEpisodeDetails(for: episode) },
+            onRemoveDownload: {
+                preparationPreviewViewModel.removePreparedEpisode(for: episode)
+                rebuildSyncPlan()
+            },
+            onDownload: {
+                Task {
+                    await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
+                    rebuildSyncPlan()
                 }
-
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    toggleEpisodeDetails(for: episode)
-                }
-
-                Spacer()
-
-                if preparationPreviewViewModel.preparedEpisode(for: episode) != nil {
-                    HoverIconButton(
-                        systemName: "trash",
-                        helpText: "Remove downloaded media",
-                        isDestructive: true
-                    ) {
-                        preparationPreviewViewModel.removePreparedEpisode(for: episode)
-                        rebuildSyncPlan()
-                    }
-                } else if preparationPreviewViewModel.isPreparing(episode) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .help("Downloading episode")
-                } else {
-                    HoverIconButton(
-                        systemName: "arrow.down.circle",
-                        helpText: "Download episode"
-                    ) {
-                        Task {
-                            await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
-                            rebuildSyncPlan()
-                        }
-                    }
-                }
-            }
-
-            if isExpanded {
-                episodeDetails(for: episode)
-                    .padding(.leading, 20)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .padding(.vertical, 4)
+            },
+            details: { episodeDetails(for: episode) }
+        )
     }
 
     @ViewBuilder
     private func episodeDetails(for episode: Episode) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let description = episode.description?.trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
-                Text(description)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-            }
+        let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode)
+        let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode)
+        let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode)
+        let downloadLabel = preparedEpisode.map(downloadedEpisodeLabel(for:))
+            ?? downloadedRecord.map(downloadedEpisodeLabel(for:))
 
-            VStack(alignment: .leading, spacing: 5) {
-                episodeDetailRow(label: "Podcast", value: episode.podcastTitle)
-
-                if let publicationDate = episode.publicationDate {
-                    episodeDetailRow(
-                        label: "Published",
-                        value: publicationDate.formatted(date: .abbreviated, time: .shortened)
-                    )
-                }
-
-                if let duration = episodeDurationLabel(for: episode) {
-                    episodeDetailRow(label: "Length", value: duration)
-                }
-
-                if let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode) {
-                    episodeDetailRow(label: "Download", value: downloadedEpisodeLabel(for: preparedEpisode))
-                    ForEach(preparedEpisode.preparationWarnings ?? [], id: \.self) { warning in
-                        episodeDetailRow(label: "Warning", value: warning)
-                    }
-                } else if let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode) {
-                    episodeDetailRow(label: "Download", value: downloadedEpisodeLabel(for: downloadedRecord))
-                }
-
-                if let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode) {
-                    episodeDetailRow(label: "Device", value: removedEpisodeLabel(for: removedRecord))
-                }
-
-                episodeURLDetailRow(label: "Media URL", url: episode.enclosureURL)
-                episodeURLDetailRow(label: "Feed URL", url: episode.sourceFeedURL)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func episodeDetailRow(label: String, value: String, isSelectable: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .frame(width: 72, alignment: .leading)
-
-            if isSelectable {
-                Text(value)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-            } else {
-                Text(value)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func episodeURLDetailRow(label: String, url: URL) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .frame(width: 72, alignment: .leading)
-
-            Link(url.absoluteString, destination: url)
-                .font(.caption)
-                .lineLimit(nil)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        EpisodeDetailsView(
+            episode: episode,
+            durationLabel: episodeDurationLabel(for: episode),
+            downloadLabel: downloadLabel,
+            downloadWarnings: preparedEpisode?.preparationWarnings ?? [],
+            removedLabel: removedRecord.map(removedEpisodeLabel(for:))
+        )
     }
 
     private func episodeListFooter(for subscription: FeedSubscription) -> some View {
@@ -921,66 +493,10 @@ public struct MainView: View {
 
     @ViewBuilder
     private var downloadsSection: some View {
-        let downloads = preparationPreviewViewModel.activeDownloads
-        let downloadingCount = downloads.filter { $0.state == .downloading }.count
-        let queuedCount = downloads.filter { $0.state == .queued }.count
-
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("Downloads")
-                    .font(.headline)
-
-                Text(downloadSummary(downloadingCount: downloadingCount, queuedCount: queuedCount))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-            }
-
-            if let progress = preparationPreviewViewModel.progress, progress.totalCount > 1 {
-                ProgressView(value: progress.fractionCompleted)
-                    .progressViewStyle(.linear)
-                Text("\(progress.completedCount) of \(progress.totalCount) complete in current batch")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(downloads.prefix(5)) { download in
-                    HStack(spacing: 8) {
-                        if download.state == .downloading {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "clock")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 16)
-                        }
-
-                        Text(download.episodeTitle)
-                            .font(.caption)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                        Text(download.state == .downloading ? "Downloading" : "Queued")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if downloads.count > 5 {
-                    Text("\(downloads.count - 5) more waiting")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        DownloadsSectionView(
+            downloads: preparationPreviewViewModel.activeDownloads,
+            progress: preparationPreviewViewModel.progress
+        )
     }
 
     private var deviceSelectionBinding: Binding<String> {
@@ -989,8 +505,7 @@ public struct MainView: View {
             set: { newValue in
                 guard !newValue.isEmpty else { return }
                 deviceViewModel.selectDevice(id: newValue)
-                refreshDeviceLibrary()
-                rebuildSyncPlan()
+                Task { await refreshDeviceLibrary() }
             }
         )
     }
@@ -1006,46 +521,45 @@ public struct MainView: View {
         if selectedFeedID == nil {
             selectedFeedID = viewModel.feedSubscriptions.first?.id
         }
-        rebuildSyncPlan()
     }
 
     private func refreshFeedPreview() async {
         await feedPreviewViewModel.refreshPreview(for: viewModel.feedSubscriptions)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
-        refreshDeviceLibrary()
-        rebuildSyncPlan()
+        await refreshDeviceLibrary()
     }
 
     private func refreshFeedPreview(for subscription: FeedSubscription) async {
         await feedPreviewViewModel.refreshPreview(for: subscription)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
-        refreshDeviceLibrary()
-        rebuildSyncPlan()
+        await refreshDeviceLibrary()
     }
 
     private func rebuildSyncPlan() {
-        syncPlanViewModel.buildPlan(
-            device: deviceViewModel.selectedDevice,
-            preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
-            subscriptions: viewModel.feedSubscriptions,
-            manualDeleteTargets: manuallySelectedDeletionTargets,
-            ejectAfterSync: isEjectAfterSyncEnabled
-        )
+        Task {
+            await syncPlanViewModel.buildPlan(
+                device: deviceViewModel.selectedDevice,
+                preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
+                subscriptions: viewModel.feedSubscriptions,
+                manualDeleteTargets: manuallySelectedDeletionTargets,
+                ejectAfterSync: isEjectAfterSyncEnabled
+            )
+        }
     }
 
-    private func refreshDeviceLibrary() {
-        deviceLibraryViewModel.refresh(
+    private func refreshDeviceLibrary() async {
+        await deviceLibraryViewModel.refresh(
             device: deviceViewModel.selectedDevice,
             subscriptions: viewModel.feedSubscriptions
         )
         pruneManualDeletionTargets()
         pruneOtherAudioDeletionTargets()
+        rebuildSyncPlan()
     }
 
     private func handleDeviceTopologyChange() {
         deviceViewModel.refresh()
-        refreshDeviceLibrary()
-        rebuildSyncPlan()
+        Task { await refreshDeviceLibrary() }
     }
 
     private func exportAppData() {
@@ -1098,8 +612,7 @@ public struct MainView: View {
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
         Task { await refreshFeedPreview() }
-        refreshDeviceLibrary()
-        rebuildSyncPlan()
+        Task { await refreshDeviceLibrary() }
     }
 
     private func deleteFeeds(at offsets: IndexSet) {
@@ -1214,17 +727,6 @@ public struct MainView: View {
         }
     }
 
-    private func downloadSummary(downloadingCount: Int, queuedCount: Int) -> String {
-        var parts: [String] = []
-        if downloadingCount > 0 {
-            parts.append("\(downloadingCount) active")
-        }
-        if queuedCount > 0 {
-            parts.append("\(queuedCount) queued")
-        }
-        return parts.isEmpty ? "Finishing" : parts.joined(separator: ", ")
-    }
-
     private func feedIssues(for subscription: FeedSubscription) -> [FeedFetchFailure] {
         feedPreviewViewModel.failures.filter { $0.subscriptionID == subscription.id }
     }
@@ -1233,29 +735,8 @@ public struct MainView: View {
         subscription.artworkURL ?? feedPreviewViewModel.artworkURL(for: subscription.id)
     }
 
-    private var canSync: Bool {
-        guard !syncExecutionViewModel.isSyncing else { return false }
-        guard deviceViewModel.selectedDevice != nil else { return false }
-        guard let plan = syncPlanViewModel.plan else { return false }
-        return plan.actions.contains(where: {
-            switch $0 {
-            case .copyToDevice, .deleteFromDevice, .ejectDevice:
-                return true
-            case .skip:
-                return false
-            }
-        })
-    }
-
     private var canOpenSyncDialog: Bool {
         deviceViewModel.selectedDevice != nil && !viewModel.feedSubscriptions.isEmpty
-    }
-
-    private var hasSuccessfulSyncResult: Bool {
-        guard !syncExecutionViewModel.isSyncing, syncExecutionViewModel.lastErrorMessage == nil else {
-            return false
-        }
-        return syncExecutionViewModel.lastResult != nil
     }
 
     private var enabledSubscriptionCount: Int {
@@ -1271,77 +752,6 @@ public struct MainView: View {
 
         let actionCount = plan.actions.count
         return "Review the full-device plan for all shows. \(actionCount) action\(actionCount == 1 ? "" : "s") planned."
-    }
-
-    @ViewBuilder
-    private func syncProgressSection(_ progress: SyncExecutionProgress) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(progress.currentActionDescription ?? "Finishing")
-                .font(.subheadline)
-                .fontWeight(.medium)
-            ProgressView(value: progress.fractionCompleted)
-                .progressViewStyle(.linear)
-            Text("\(progress.completedCount) of \(progress.totalCount) actions complete")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    @ViewBuilder
-    private func syncResultCard(_ result: SyncResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Last Run")
-                .font(.headline)
-
-            Text(syncResultSummary(result))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if result.ejected {
-                Text("The device was ejected after the run finished.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            ForEach(result.warnings, id: \.self) { warning in
-                Text(warning)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    private func iconName(for description: String) -> String {
-        if description.hasPrefix("Copy to device") {
-            return "arrow.down.circle"
-        }
-        if description.hasPrefix("Delete old episode") {
-            return "trash"
-        }
-        if description.hasPrefix("Skip") {
-            return "arrow.right"
-        }
-        if description == "Eject device when finished" {
-            return "eject"
-        }
-        return "circle"
-    }
-
-    private func iconColor(for description: String) -> Color {
-        if description.hasPrefix("Delete old episode") {
-            return .red
-        }
-        if description.hasPrefix("Copy to device") {
-            return .accentColor
-        }
-        if description == "Eject device when finished" {
-            return .secondary
-        }
-        return .secondary
     }
 
     private func runSync() async {
@@ -1389,8 +799,7 @@ public struct MainView: View {
         if isEjectAfterSyncEnabled {
             deviceViewModel.refresh()
         }
-        refreshDeviceLibrary()
-        rebuildSyncPlan()
+        await refreshDeviceLibrary()
     }
 
     private func openSyncDialog() {
@@ -1465,7 +874,7 @@ public struct MainView: View {
             on: deviceViewModel.selectedDevice
         )
         selectedOtherAudioDeletionTargets = []
-        refreshDeviceLibrary()
+        Task { await refreshDeviceLibrary() }
     }
 
     private func pruneManualDeletionTargets() {
@@ -1549,8 +958,7 @@ public struct MainView: View {
 
         if podcastDirectoryPath != nil {
             deviceViewModel.refresh()
-            refreshDeviceLibrary()
-            rebuildSyncPlan()
+            Task { await refreshDeviceLibrary() }
         }
     }
 
@@ -1577,15 +985,4 @@ public struct MainView: View {
         return String(filePath.dropFirst(podcastDirectoryPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
-    private func syncResultSummary(_ result: SyncResult) -> String {
-        let finishedText = result.finishedAt?.formatted(date: .omitted, time: .shortened) ?? "now"
-        return "Last run at \(finishedText): \(result.copiedCount) copied, \(result.deletedCount) deleted, \(result.skippedCount) skipped."
-    }
-
-    private var sheetSyncButtonTitle: String {
-        if syncExecutionViewModel.isSyncing {
-            return "Working..."
-        }
-        return "Start"
-    }
 }

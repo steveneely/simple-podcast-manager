@@ -22,17 +22,6 @@ struct FeedPreviewViewModelTests {
                             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
                         )
                     ],
-                    selectedEpisodes: [
-                        Episode(
-                            id: "ep-1",
-                            subscriptionID: subscriptionID,
-                            podcastTitle: "Example Podcast",
-                            title: "Episode 1",
-                            publicationDate: Date(timeIntervalSince1970: 1_713_713_388),
-                            enclosureURL: URL(string: "https://cdn.example.com/ep1.mp3")!,
-                            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-                        )
-                    ],
                     failures: [
                         FeedFetchFailure(
                             subscriptionID: UUID(),
@@ -54,7 +43,6 @@ struct FeedPreviewViewModelTests {
         await viewModel.refreshPreview(for: [])
 
         #expect(viewModel.allEpisodes.count == 1)
-        #expect(viewModel.selectedEpisodes.count == 1)
         #expect(viewModel.failures.count == 1)
         #expect(viewModel.artworkURL(for: subscriptionID) == URL(string: "https://cdn.example.com/artwork.jpg"))
         #expect(viewModel.lastErrorMessage == nil)
@@ -91,12 +79,11 @@ struct FeedPreviewViewModelTests {
                 )
             ]
         )
-        let viewModel = FeedPreviewViewModel(service: MockFeedService(result: FeedFetchResult(selectedEpisodes: [])), cacheStore: store)
+        let viewModel = FeedPreviewViewModel(service: MockFeedService(result: FeedFetchResult()), cacheStore: store)
 
         viewModel.loadCachedPreview(for: [subscription])
 
         #expect(viewModel.allEpisodes.map(\.title) == ["Cached Episode"])
-        #expect(viewModel.selectedEpisodes.map(\.title) == ["Cached Episode"])
         #expect(viewModel.artworkURL(for: subscriptionID) == URL(string: "https://cdn.example.com/artwork.jpg"))
         #expect(viewModel.description(for: subscriptionID) == "Cached description.")
     }
@@ -119,10 +106,6 @@ struct FeedPreviewViewModelTests {
                     makeEpisode(id: "first-old", subscription: firstSubscription, title: "First Old"),
                     makeEpisode(id: "second-old", subscription: secondSubscription, title: "Second Old"),
                 ],
-                selectedEpisodes: [
-                    makeEpisode(id: "first-old", subscription: firstSubscription, title: "First Old"),
-                    makeEpisode(id: "second-old", subscription: secondSubscription, title: "Second Old"),
-                ],
                 feedSummaries: [
                     FeedSummary(subscriptionID: firstSubscription.id, title: "First Old"),
                     FeedSummary(subscriptionID: secondSubscription.id, title: "Second Old"),
@@ -130,9 +113,6 @@ struct FeedPreviewViewModelTests {
             ),
             FeedFetchResult(
                 allEpisodes: [
-                    makeEpisode(id: "first-new", subscription: firstSubscription, title: "First New"),
-                ],
-                selectedEpisodes: [
                     makeEpisode(id: "first-new", subscription: firstSubscription, title: "First New"),
                 ],
                 feedSummaries: [
@@ -150,7 +130,6 @@ struct FeedPreviewViewModelTests {
             [firstSubscription.id],
         ])
         #expect(viewModel.allEpisodes.map(\.title) == ["First New", "Second Old"])
-        #expect(viewModel.selectedEpisodes.map(\.title) == ["First New", "Second Old"])
         #expect(viewModel.feedSummaries[firstSubscription.id]?.title == "First New")
         #expect(viewModel.feedSummaries[secondSubscription.id]?.title == "Second Old")
     }

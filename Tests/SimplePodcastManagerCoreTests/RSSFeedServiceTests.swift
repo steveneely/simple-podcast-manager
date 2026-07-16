@@ -45,16 +45,16 @@ struct RSSFeedServiceTests {
         ])
 
         #expect(result.failures.isEmpty)
-        #expect(result.selectedEpisodes.count == 2)
-        #expect(result.selectedEpisodes.first?.title == "Episode 2")
-        #expect(result.selectedEpisodes.first?.duration == 3_723)
-        #expect(result.selectedEpisodes.first?.description?.contains("**SPONSOR**") == false)
-        #expect(result.selectedEpisodes.first?.description?.contains("\n\nSPONSOR\nProlific") == true)
-        #expect(result.selectedEpisodes.first?.description?.contains("\nhttps://example.com") == true)
-        #expect(result.selectedEpisodes.first?.description?.contains("\nTIMESTAMPS:\n00:00:00 Intro\n00:02:06 Sponsor break") == true)
-        #expect(result.selectedEpisodes.first?.artworkURL == URL(string: "https://example.com/episode-artwork.jpg"))
-        #expect(result.selectedEpisodes.last?.title == "Episode 1")
-        #expect(result.selectedEpisodes.last?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
+        #expect(result.allEpisodes.count == 2)
+        #expect(result.allEpisodes.first?.title == "Episode 2")
+        #expect(result.allEpisodes.first?.duration == 3_723)
+        #expect(result.allEpisodes.first?.description?.contains("**SPONSOR**") == false)
+        #expect(result.allEpisodes.first?.description?.contains("\n\nSPONSOR\nProlific") == true)
+        #expect(result.allEpisodes.first?.description?.contains("\nhttps://example.com") == true)
+        #expect(result.allEpisodes.first?.description?.contains("\nTIMESTAMPS:\n00:00:00 Intro\n00:02:06 Sponsor break") == true)
+        #expect(result.allEpisodes.first?.artworkURL == URL(string: "https://example.com/episode-artwork.jpg"))
+        #expect(result.allEpisodes.last?.title == "Episode 1")
+        #expect(result.allEpisodes.last?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(result.feedSummaries.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(result.feedSummaries.first?.description == "A podcast about simple things.")
     }
@@ -90,7 +90,7 @@ struct RSSFeedServiceTests {
             )
         ])
 
-        let description = try #require(result.selectedEpisodes.first?.description)
+        let description = try #require(result.allEpisodes.first?.description)
         #expect(description.contains("\n\nSponsors:\nBrave Search API:") == true)
         #expect(description.contains("\n\nSequence: Sequence handles") == true)
         #expect(description.contains("\n\nRoboflow: Roboflow is") == true)
@@ -126,7 +126,7 @@ struct RSSFeedServiceTests {
             FeedSubscription(title: "Readable Podcast", rssURL: feedURL, isEnabled: true)
         ])
 
-        let description = try #require(result.selectedEpisodes.first?.description)
+        let description = try #require(result.allEpisodes.first?.description)
         #expect(description == "Sam's guest discusses \"The Hard Problem\" and what changed.")
     }
 
@@ -157,7 +157,7 @@ struct RSSFeedServiceTests {
             FeedSubscription(title: "Sectioned Podcast", rssURL: feedURL, isEnabled: true)
         ])
 
-        let description = try #require(result.selectedEpisodes.first?.description)
+        let description = try #require(result.allEpisodes.first?.description)
         #expect(description.contains("PSA for AI builders") == false)
         #expect(description.contains("PRODUCED BY") == false)
         #expect(description.contains("\n\nLINKS:\nResearch paper:") == true)
@@ -183,7 +183,7 @@ struct RSSFeedServiceTests {
             )
         ])
 
-        #expect(result.selectedEpisodes.isEmpty)
+        #expect(result.allEpisodes.isEmpty)
         #expect(result.failures.count == 1)
         #expect(result.failures.first?.subscriptionTitle == "Broken Feed")
     }
@@ -220,7 +220,7 @@ struct RSSFeedServiceTests {
             )
         ])
 
-        #expect(result.selectedEpisodes.isEmpty)
+        #expect(result.allEpisodes.isEmpty)
         #expect(result.failures.count == 1)
         #expect(result.failures.first?.message == "This RSS feed has posts, but no downloadable audio episodes. Use the podcast RSS feed URL instead.")
         #expect(result.feedSummaries.first?.title == "Podcasts Archive - Future of Life Institute")
@@ -241,7 +241,7 @@ struct RSSFeedServiceTests {
             )
         ])
 
-        #expect(result.selectedEpisodes.isEmpty)
+        #expect(result.allEpisodes.isEmpty)
         #expect(result.failures.isEmpty)
     }
 
@@ -279,9 +279,9 @@ struct RSSFeedServiceTests {
         ])
 
         #expect(result.failures.isEmpty)
-        #expect(result.selectedEpisodes.count == 1)
-        #expect(result.selectedEpisodes.first?.title == "Episode 1")
-        #expect(result.selectedEpisodes.first?.enclosureURL == URL(string: "https://share.transistor.fm/e/14615be3/?color=444444&background=ffffff"))
+        #expect(result.allEpisodes.count == 1)
+        #expect(result.allEpisodes.first?.title == "Episode 1")
+        #expect(result.allEpisodes.first?.enclosureURL == URL(string: "https://share.transistor.fm/e/14615be3/?color=444444&background=ffffff"))
     }
 
     @Test
@@ -319,7 +319,7 @@ struct RSSFeedServiceTests {
         ])
 
         #expect(result.failures.isEmpty)
-        #expect(result.selectedEpisodes.map(\.title) == ["Cached Episode"])
+        #expect(result.allEpisodes.map(\.title) == ["Cached Episode"])
         #expect(FeedURLProtocolStub.lastHeader("If-None-Match", for: feedURL) == "\"abc123\"")
         #expect(FeedURLProtocolStub.lastHeader("If-Modified-Since", for: feedURL) == "Wed, 24 Apr 2026 12:00:00 GMT")
     }
@@ -364,7 +364,7 @@ struct RSSFeedServiceTests {
         ])
 
         #expect(result.failures.isEmpty)
-        #expect(result.selectedEpisodes.map(\.title) == ["Updated Episode"])
+        #expect(result.allEpisodes.map(\.title) == ["Updated Episode"])
         #expect(cacheStore.cachedFeeds[subscriptionID]?.etag == "\"new-etag\"")
         #expect(cacheStore.cachedFeeds[subscriptionID]?.lastModified == "Fri, 24 Apr 2026 12:00:00 GMT")
         #expect(cacheStore.cachedFeeds[subscriptionID]?.episodes.map(\.title) == ["Updated Episode"])
@@ -402,10 +402,29 @@ struct RSSFeedServiceTests {
             FeedSubscription(id: subscriptionID, title: "Cached Podcast", rssURL: feedURL)
         ])
 
-        #expect(result.selectedEpisodes.map(\.title) == ["Cached Episode"])
+        #expect(result.allEpisodes.map(\.title) == ["Cached Episode"])
         #expect(result.failures.count == 1)
         #expect(result.failures.first?.message.contains("Could not refresh this feed. Showing saved episodes from") == true)
         #expect(result.failures.first?.message.contains("410") == true)
+    }
+
+    @Test
+    func refreshesFeedsWithBoundedParallelism() async throws {
+        let subscriptions = (0..<5).map { index in
+            let feedURL = URL(string: "https://example.com/parallel-\(index).xml")!
+            return FeedSubscription(title: "Podcast \(index)", rssURL: feedURL)
+        }
+        let session = DelayedFeedSession()
+
+        let service = RSSFeedService(
+            session: session,
+            cacheStore: InMemoryFeedCacheStore(),
+            maximumConcurrentRefreshes: 2
+        )
+        let result = try await service.fetchLatestEpisodes(for: subscriptions)
+
+        #expect(result.allEpisodes.count == subscriptions.count)
+        #expect(await session.maximumActiveRequestCount == 2)
     }
 }
 
@@ -451,7 +470,6 @@ private final class FeedURLProtocolStub: URLProtocol, @unchecked Sendable {
             ],
             for: url.absoluteString
         )
-
         let response = HTTPURLResponse(
             url: url,
             statusCode: stub.statusCode,
@@ -502,27 +520,74 @@ private final class FeedURLStubStore: @unchecked Sendable {
         defer { lock.unlock() }
         return headersByURLString[urlString]
     }
+
+}
+
+private actor DelayedFeedSession: HTTPDataLoading {
+    private var activeRequestCount = 0
+    private(set) var maximumActiveRequestCount = 0
+
+    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        activeRequestCount += 1
+        maximumActiveRequestCount = max(maximumActiveRequestCount, activeRequestCount)
+        defer { activeRequestCount -= 1 }
+
+        try await Task.sleep(for: .milliseconds(50))
+        let feedURL = try #require(request.url)
+        let index = feedURL.deletingPathExtension().lastPathComponent.split(separator: "-").last ?? "0"
+        let data = Data(
+            """
+            <rss version="2.0">
+              <channel>
+                <title>Podcast \(index)</title>
+                <item>
+                  <title>Episode \(index)</title>
+                  <guid>episode-\(index)</guid>
+                  <enclosure url="https://cdn.example.com/episode-\(index).mp3" type="audio/mpeg"/>
+                </item>
+              </channel>
+            </rss>
+            """.utf8
+        )
+        let response = try #require(
+            HTTPURLResponse(url: feedURL, statusCode: 200, httpVersion: nil, headerFields: nil)
+        )
+        return (data, response)
+    }
 }
 
 private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable {
-    var cachedFeeds: [UUID: CachedFeed]
+    private let lock = NSLock()
+    private var storage: [UUID: CachedFeed]
+
+    var cachedFeeds: [UUID: CachedFeed] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
 
     init(cachedFeeds: [UUID: CachedFeed] = [:]) {
-        self.cachedFeeds = cachedFeeds
+        self.storage = cachedFeeds
     }
 
     func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
-        guard let cachedFeed = cachedFeeds[subscription.id], cachedFeed.rssURL == subscription.rssURL else {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let cachedFeed = storage[subscription.id], cachedFeed.rssURL == subscription.rssURL else {
             return nil
         }
         return cachedFeed
     }
 
     func saveCachedFeed(_ cachedFeed: CachedFeed) throws {
-        cachedFeeds[cachedFeed.subscriptionID] = cachedFeed
+        lock.lock()
+        defer { lock.unlock() }
+        storage[cachedFeed.subscriptionID] = cachedFeed
     }
 
     func deleteCachedFeed(for subscriptionID: UUID) throws {
-        cachedFeeds[subscriptionID] = nil
+        lock.lock()
+        defer { lock.unlock() }
+        storage[subscriptionID] = nil
     }
 }

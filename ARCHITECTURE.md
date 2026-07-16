@@ -110,6 +110,8 @@ Each cache file stores:
 
 Startup loads cached parsed feeds immediately so the episode list can appear before network refresh finishes. A background refresh still runs after startup.
 
+Enabled feeds refresh with a small concurrency limit. This avoids serial network waits when several subscriptions are configured without opening an unbounded number of connections.
+
 Refresh behavior:
 
 - send `If-None-Match` when a cached `ETag` exists
@@ -150,6 +152,8 @@ Validation gates before mutation:
 - any uncertain or malformed path must abort the destructive portion of the run
 
 V1 does not require Sony-specific identification beyond these rules.
+
+Device library refresh should inventory the configured podcast directory once and derive per-subscription and other-audio views from that snapshot. External players can have slow storage, so avoid repeatedly walking the same directory for every subscription.
 
 ## Sync Layout And Deletion
 

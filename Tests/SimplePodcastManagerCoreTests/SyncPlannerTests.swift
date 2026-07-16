@@ -300,6 +300,28 @@ struct SyncPlannerTests {
         }))
     }
 
+    @Test
+    func enumeratesDeviceDirectoriesOnceWhenPlanningMultipleSubscriptions() throws {
+        let device = makeDevice()
+        let subscriptions = [
+            FeedSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
+            FeedSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
+        ]
+        let deviceLibrary = CountingPlannerDeviceLibrary()
+        let planner = SyncPlanner(deviceLibrary: deviceLibrary)
+
+        _ = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: subscriptions,
+            ejectAfterSync: false
+        )
+
+        #expect(deviceLibrary.directoryRequestCount == 1)
+        #expect(deviceLibrary.recursiveFileRequestCount == 1)
+        #expect(deviceLibrary.directFileRequestCount == 0)
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "SPM Test Walkman",
@@ -350,6 +372,36 @@ private struct StubDeviceLibrary: DeviceLibraryInspecting {
     }
 
     func directories(in directoryURL: URL) throws -> [URL] {
-        directoriesByDirectory[directoryURL.standardizedFileURL.path] ?? []
+        let directoryPath = directoryURL.standardizedFileURL.path
+        if let directories = directoriesByDirectory[directoryPath] {
+            return directories
+        }
+        return filesByDirectory.keys.compactMap { path in
+            let childURL = URL(fileURLWithPath: path, isDirectory: true)
+            return childURL.deletingLastPathComponent().standardizedFileURL == directoryURL.standardizedFileURL
+                ? childURL
+                : nil
+        }
+    }
+}
+
+private final class CountingPlannerDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    private(set) var directoryRequestCount = 0
+    private(set) var recursiveFileRequestCount = 0
+    private(set) var directFileRequestCount = 0
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        directFileRequestCount += 1
+        return []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        directoryRequestCount += 1
+        return []
+    }
+
+    func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        recursiveFileRequestCount += 1
+        return []
     }
 }

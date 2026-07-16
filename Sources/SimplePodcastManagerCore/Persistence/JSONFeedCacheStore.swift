@@ -13,7 +13,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
             return nil
         }
 
-        guard let cachedFeed = try? Self.makeDecoder().decode(CachedFeed.self, from: Data(contentsOf: fileURL)) else {
+        guard let cachedFeed = try? AppJSONCoding.makeDecoder().decode(CachedFeed.self, from: Data(contentsOf: fileURL)) else {
             return nil
         }
 
@@ -30,7 +30,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
     public func saveCachedFeed(_ cachedFeed: CachedFeed) throws {
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
-        let data = try Self.makeEncoder().encode(cachedFeed)
+        let data = try AppJSONCoding.makeEncoder().encode(cachedFeed)
         try data.write(to: fileURL(for: cachedFeed.subscriptionID), options: .atomic)
     }
 
@@ -50,18 +50,5 @@ public struct JSONFeedCacheStore: FeedCacheStore {
 
     private func fileURL(for subscriptionID: UUID) -> URL {
         directoryURL.appending(path: "\(subscriptionID.uuidString).json", directoryHint: .notDirectory)
-    }
-
-    private static func makeEncoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }
-
-    private static func makeDecoder() -> JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
     }
 }

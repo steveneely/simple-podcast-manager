@@ -1,10 +1,6 @@
 import Foundation
 
 public enum EpisodeSelector {
-    public static func selectEpisodes(from episodes: [Episode], for subscription: FeedSubscription) -> [Episode] {
-        episodes.sorted(by: isHigherPriority(_:than:))
-    }
-
     public static func isHigherPriority(_ lhs: Episode, than rhs: Episode) -> Bool {
         switch (lhs.publicationDate, rhs.publicationDate) {
         case let (lhsDate?, rhsDate?):

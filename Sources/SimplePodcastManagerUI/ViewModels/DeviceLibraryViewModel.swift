@@ -37,15 +37,24 @@ public final class DeviceLibraryViewModel {
         }
 
         do {
+            try safetyValidator.validateDevice(device)
+            let deviceSnapshot = try DeviceLibrarySnapshot(
+                deviceLibrary: deviceLibrary,
+                directoryURL: device.podcastDirectoryURL
+            )
             var updatedFiles: [UUID: [URL]] = [:]
             for subscription in subscriptions {
-                let managedDirectoryURL = try managedDirectoryResolver.managedDirectoryURL(for: subscription, on: device)
-                let files = try deviceLibrary.files(in: managedDirectoryURL)
+                let managedDirectoryURL = managedDirectoryResolver.managedDirectoryURL(
+                    for: subscription,
+                    on: device,
+                    candidateDirectories: deviceSnapshot.directories
+                )
+                let files = deviceSnapshot.directFiles(in: managedDirectoryURL)
                     .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
                 updatedFiles[subscription.id] = sortFiles(files)
             }
             filesBySubscriptionID = updatedFiles
-            otherAudioFiles = try otherAudioFiles(on: device, subscriptions: subscriptions)
+            otherAudioFiles = otherAudioFiles(in: deviceSnapshot.files, subscriptions: subscriptions)
             lastErrorMessage = nil
         } catch {
             filesBySubscriptionID = [:]
@@ -102,10 +111,8 @@ public final class DeviceLibraryViewModel {
         }
     }
 
-    private func otherAudioFiles(on device: DeviceInfo, subscriptions: [FeedSubscription]) throws -> [URL] {
-        try safetyValidator.validateDevice(device)
-
-        return try deviceLibrary.recursiveFiles(in: device.podcastDirectoryURL)
+    private func otherAudioFiles(in deviceFiles: [URL], subscriptions: [FeedSubscription]) -> [URL] {
+        deviceFiles
             .filter { isAudioFile($0) }
             .filter { !isAppleDoubleSidecar($0) }
             .filter { fileURL in

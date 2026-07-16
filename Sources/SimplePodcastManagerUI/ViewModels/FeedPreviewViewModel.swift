@@ -6,7 +6,6 @@ import SimplePodcastManagerCore
 @Observable
 public final class FeedPreviewViewModel {
     public private(set) var allEpisodes: [Episode]
-    public private(set) var selectedEpisodes: [Episode]
     public private(set) var failures: [FeedFetchFailure]
     public private(set) var feedSummaries: [UUID: FeedSummary]
     public private(set) var isLoading: Bool
@@ -22,7 +21,6 @@ public final class FeedPreviewViewModel {
         self.service = service
         self.cacheStore = cacheStore
         self.allEpisodes = []
-        self.selectedEpisodes = []
         self.failures = []
         self.feedSummaries = [:]
         self.isLoading = false
@@ -30,12 +28,11 @@ public final class FeedPreviewViewModel {
     }
 
     public var hasPreviewData: Bool {
-        !allEpisodes.isEmpty || !selectedEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
+        !allEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
     }
 
     public func loadCachedPreview(for subscriptions: [FeedSubscription]) {
         var cachedEpisodes: [Episode] = []
-        var cachedSelectedEpisodes: [Episode] = []
         var cachedSummaries: [FeedSummary] = []
 
         for subscription in subscriptions where subscription.isEnabled {
@@ -44,16 +41,14 @@ public final class FeedPreviewViewModel {
             }
 
             cachedEpisodes.append(contentsOf: cachedFeed.episodes)
-            cachedSelectedEpisodes.append(contentsOf: EpisodeSelector.selectEpisodes(from: cachedFeed.episodes, for: subscription))
             cachedSummaries.append(cachedFeed.summary)
         }
 
-        guard !cachedEpisodes.isEmpty || !cachedSelectedEpisodes.isEmpty || !cachedSummaries.isEmpty else {
+        guard !cachedEpisodes.isEmpty || !cachedSummaries.isEmpty else {
             return
         }
 
         self.allEpisodes = cachedEpisodes.sorted(by: EpisodeSelector.isHigherPriority(_:than:))
-        self.selectedEpisodes = cachedSelectedEpisodes.sorted(by: EpisodeSelector.isHigherPriority(_:than:))
         self.feedSummaries = Dictionary(uniqueKeysWithValues: cachedSummaries.map { ($0.subscriptionID, $0) })
     }
 
@@ -65,13 +60,11 @@ public final class FeedPreviewViewModel {
         do {
             let result = try await service.fetchLatestEpisodes(for: subscriptions)
             self.allEpisodes = result.allEpisodes
-            self.selectedEpisodes = result.selectedEpisodes
             self.failures = result.failures
             self.feedSummaries = Dictionary(uniqueKeysWithValues: result.feedSummaries.map { ($0.subscriptionID, $0) })
             self.lastErrorMessage = nil
         } catch {
             self.allEpisodes = []
-            self.selectedEpisodes = []
             self.failures = []
             self.feedSummaries = [:]
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -103,10 +96,6 @@ public final class FeedPreviewViewModel {
         allEpisodes.removeAll { $0.subscriptionID == subscriptionID }
         allEpisodes.append(contentsOf: result.allEpisodes)
         allEpisodes.sort(by: EpisodeSelector.isHigherPriority(_:than:))
-
-        selectedEpisodes.removeAll { $0.subscriptionID == subscriptionID }
-        selectedEpisodes.append(contentsOf: result.selectedEpisodes)
-        selectedEpisodes.sort(by: EpisodeSelector.isHigherPriority(_:than:))
 
         failures.removeAll { $0.subscriptionID == subscriptionID }
         failures.append(contentsOf: result.failures)

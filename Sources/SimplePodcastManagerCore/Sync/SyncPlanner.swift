@@ -31,11 +31,19 @@ public struct SyncPlanner: Sendable {
             return (subscriptionID, preparedEpisode)
         }, by: { $0.0 })
         let manualDeleteTargets = Set(manualDeleteTargets.map(\.standardizedFileURL))
+        let deviceSnapshot = try DeviceLibrarySnapshot(
+            deviceLibrary: deviceLibrary,
+            directoryURL: device.podcastDirectoryURL
+        )
 
         for subscription in subscriptions {
             let preparedEpisodes = preparedBySubscription[subscription.id]?.map(\.1) ?? []
-            let managedDirectory = managedDirectoryURL(for: subscription, on: device)
-            let existingFiles = try deviceLibrary.files(in: managedDirectory)
+            let managedDirectory = managedDirectoryResolver.managedDirectoryURL(
+                for: subscription,
+                on: device,
+                candidateDirectories: deviceSnapshot.directories
+            )
+            let existingFiles = deviceSnapshot.directFiles(in: managedDirectory)
                 .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
             let existingFileNames = Set(existingFiles.map(\.lastPathComponent))
 
@@ -65,10 +73,5 @@ public struct SyncPlanner: Sendable {
         }
 
         return SyncPlan(device: device, actions: actions)
-    }
-
-    private func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) -> URL {
-        (try? managedDirectoryResolver.managedDirectoryURL(for: subscription, on: device))
-            ?? device.podcastDirectoryURL.appendingPathComponent(subscription.title, isDirectory: true)
     }
 }

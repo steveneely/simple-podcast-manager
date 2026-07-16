@@ -12,9 +12,7 @@ The basic flow is:
 
 ## Install The App
 
-Download the latest DMG from GitHub Releases:
-
-https://github.com/steveneely/simple-podcast-manager/releases
+Download the latest DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/).
 
 Open the DMG and drag `Simple Podcast Manager.app` to Applications.
 
@@ -72,7 +70,7 @@ The app reads the podcast title and artwork from the RSS feed.
 Select a show to see its current feed episodes.
 
 - Click the download button next to one episode to prepare that episode.
-- Click `Download All` to prepare every episode loaded from that show's feed. Some feeds include a lot of episodes, so this can download a lot of files.
+- Use the control at the bottom of the episode list to load eight more episodes at a time.
 
 The app can prepare normal MP3 podcast episodes without `ffmpeg`. Choose an `ffmpeg` executable in Settings before downloading non-MP3 episodes.
 

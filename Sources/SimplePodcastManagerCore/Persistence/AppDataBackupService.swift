@@ -39,7 +39,7 @@ public struct AppDataBackupService {
             exportedAt: exportedAt,
             files: includedFiles.sorted()
         )
-        let manifestData = try Self.makeEncoder().encode(manifest)
+        let manifestData = try AppJSONCoding.makeEncoder().encode(manifest)
         try manifestData.write(
             to: backupURL.appending(path: Self.manifestFileName, directoryHint: .notDirectory),
             options: .atomic
@@ -96,7 +96,7 @@ public struct AppDataBackupService {
             throw AppDataBackupError.missingManifest
         }
 
-        let manifest = try Self.makeDecoder().decode(AppDataBackupManifest.self, from: Data(contentsOf: manifestURL))
+        let manifest = try AppJSONCoding.makeDecoder().decode(AppDataBackupManifest.self, from: Data(contentsOf: manifestURL))
         guard manifest.appName == AppIdentity.displayName else {
             throw AppDataBackupError.invalidManifest
         }
@@ -120,13 +120,13 @@ public struct AppDataBackupService {
         let data = try Data(contentsOf: fileURL)
         switch fileName {
         case "config.json":
-            _ = try Self.makeDecoder().decode(AppConfiguration.self, from: data)
+            _ = try AppJSONCoding.makeDecoder().decode(AppConfiguration.self, from: data)
         case "prepared-episodes.json":
-            _ = try Self.makeDecoder().decode([PreparedEpisode].self, from: data)
+            _ = try AppJSONCoding.makeDecoder().decode([PreparedEpisode].self, from: data)
         case "downloaded-episodes.json":
-            _ = try Self.makeDecoder().decode([DownloadedEpisodeRecord].self, from: data)
+            _ = try AppJSONCoding.makeDecoder().decode([DownloadedEpisodeRecord].self, from: data)
         case "removed-episodes.json":
-            _ = try Self.makeDecoder().decode([RemovedEpisodeRecord].self, from: data)
+            _ = try AppJSONCoding.makeDecoder().decode([RemovedEpisodeRecord].self, from: data)
         default:
             throw AppDataBackupError.unknownFiles([fileName])
         }
@@ -170,19 +170,6 @@ public struct AppDataBackupService {
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         return formatter
     }()
-
-    private static func makeEncoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }
-
-    private static func makeDecoder() -> JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
-    }
 }
 
 public struct AppDataBackupManifest: Codable, Equatable, Sendable {

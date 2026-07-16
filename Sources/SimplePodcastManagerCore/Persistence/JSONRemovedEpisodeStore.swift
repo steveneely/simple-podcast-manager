@@ -13,32 +13,19 @@ public struct JSONRemovedEpisodeStore: RemovedEpisodeStore {
         }
 
         let data = try Data(contentsOf: fileURL)
-        return try Self.makeDecoder().decode([RemovedEpisodeRecord].self, from: data)
+        return try AppJSONCoding.makeDecoder().decode([RemovedEpisodeRecord].self, from: data)
     }
 
     public func saveRemovedEpisodes(_ removedEpisodes: [RemovedEpisodeRecord]) throws {
         let parentDirectoryURL = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parentDirectoryURL, withIntermediateDirectories: true)
 
-        let data = try Self.makeEncoder().encode(removedEpisodes)
+        let data = try AppJSONCoding.makeEncoder().encode(removedEpisodes)
         try data.write(to: fileURL, options: .atomic)
     }
 
     public static func defaultFileURL(fileManager: FileManager = .default) -> URL {
         AppIdentity.applicationSupportDirectory(fileManager: fileManager)
             .appending(path: "removed-episodes.json", directoryHint: .notDirectory)
-    }
-
-    private static func makeEncoder() -> JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }
-
-    private static func makeDecoder() -> JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
     }
 }

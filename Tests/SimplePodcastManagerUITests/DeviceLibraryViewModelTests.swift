@@ -241,6 +241,35 @@ struct DeviceLibraryViewModelTests {
         #expect(viewModel.otherAudioFiles.isEmpty)
         #expect(viewModel.lastErrorMessage == nil)
     }
+
+    @Test
+    func refreshInventoriesDeviceFilesOnceForMultipleSubscriptions() throws {
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let subscriptions = [
+            FeedSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
+            FeedSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
+        ]
+        let directories = subscriptions.map {
+            device.podcastDirectoryURL.appendingPathComponent($0.title, isDirectory: true)
+        }
+        let files = zip(subscriptions, directories).map { subscription, directory in
+            directory.appendingPathComponent("2026.04.21-Episode-(\(subscription.title)).mp3")
+        }
+        let deviceLibrary = CountingDeviceLibrary(directories: directories, recursiveFiles: files)
+        let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
+
+        viewModel.refresh(device: device, subscriptions: subscriptions)
+
+        #expect(deviceLibrary.directoryRequestCount == 1)
+        #expect(deviceLibrary.recursiveFileRequestCount == 1)
+        #expect(deviceLibrary.directFileRequestCount == 0)
+        #expect(viewModel.files(for: subscriptions[0]) == [files[0]])
+        #expect(viewModel.files(for: subscriptions[1]) == [files[1]])
+    }
 }
 
 private struct StubDeviceLibrary: DeviceLibraryInspecting {
@@ -257,7 +286,40 @@ private struct StubDeviceLibrary: DeviceLibraryInspecting {
     }
 
     func directories(in directoryURL: URL) throws -> [URL] {
-        directoriesByDirectory[directoryURL] ?? []
+        if let directories = directoriesByDirectory[directoryURL] {
+            return directories
+        }
+        return filesByDirectory.keys.filter {
+            $0.deletingLastPathComponent().standardizedFileURL == directoryURL.standardizedFileURL
+        }
+    }
+}
+
+private final class CountingDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    let directoryURLs: [URL]
+    let recursiveFileURLs: [URL]
+    private(set) var directoryRequestCount = 0
+    private(set) var recursiveFileRequestCount = 0
+    private(set) var directFileRequestCount = 0
+
+    init(directories: [URL], recursiveFiles: [URL]) {
+        self.directoryURLs = directories
+        self.recursiveFileURLs = recursiveFiles
+    }
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        directFileRequestCount += 1
+        return []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        directoryRequestCount += 1
+        return directoryURLs
+    }
+
+    func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        recursiveFileRequestCount += 1
+        return recursiveFileURLs
     }
 }
 

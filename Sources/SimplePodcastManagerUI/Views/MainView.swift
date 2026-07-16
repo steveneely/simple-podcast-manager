@@ -1386,14 +1386,11 @@ public struct MainView: View {
             preparationPreviewViewModel.removeAllPreparedEpisodes()
         }
 
-        refreshDeviceLibrary()
-        rebuildSyncPlan()
-        if viewModel.hasFeeds {
-            await refreshFeedPreview()
-        }
         if isEjectAfterSyncEnabled {
             deviceViewModel.refresh()
         }
+        refreshDeviceLibrary()
+        rebuildSyncPlan()
     }
 
     private func openSyncDialog() {

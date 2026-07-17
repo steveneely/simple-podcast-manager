@@ -5,7 +5,7 @@ import Sparkle
 
 @MainActor
 final class AppUpdater: NSObject, ObservableObject {
-    private let updaterController: SPUStandardUpdaterController?
+    private var updaterController: SPUStandardUpdaterController?
     private let isInstalledApp: Bool
     private var canCheckForUpdatesObservation: NSKeyValueObservation?
     private var automaticallyChecksForUpdatesObservation: NSKeyValueObservation?
@@ -16,23 +16,22 @@ final class AppUpdater: NSObject, ObservableObject {
 
     init(bundle: Bundle = .main) {
         self.isInstalledApp = bundle.bundleURL.pathExtension == "app"
+        self.updaterController = nil
+        self.canCheckForUpdates = false
+        self.automaticallyChecksForUpdates = false
+
+        super.init()
 
         if isInstalledApp {
             let controller = SPUStandardUpdaterController(
                 startingUpdater: true,
                 updaterDelegate: nil,
-                userDriverDelegate: nil
+                userDriverDelegate: self
             )
-            self.updaterController = controller
-            self.canCheckForUpdates = controller.updater.canCheckForUpdates
-            self.automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
-        } else {
-            self.updaterController = nil
-            self.canCheckForUpdates = false
-            self.automaticallyChecksForUpdates = false
+            updaterController = controller
+            canCheckForUpdates = controller.updater.canCheckForUpdates
+            automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
         }
-
-        super.init()
 
         canCheckForUpdatesObservation = updaterController?.updater.observe(
             \.canCheckForUpdates,
@@ -87,5 +86,30 @@ final class AppUpdater: NSObject, ObservableObject {
 
         hasCheckedForUpdatesThisLaunch = true
         updater.checkForUpdatesInBackground()
+    }
+}
+
+extension AppUpdater: @MainActor SPUStandardUserDriverDelegate {
+    var supportsGentleScheduledUpdateReminders: Bool {
+        true
+    }
+
+    func standardUserDriverShouldHandleShowingScheduledUpdate(
+        _ update: SUAppcastItem,
+        andInImmediateFocus immediateFocus: Bool
+    ) -> Bool {
+        false
+    }
+
+    func standardUserDriverWillHandleShowingUpdate(
+        _ handleShowingUpdate: Bool,
+        forUpdate update: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        guard !handleShowingUpdate else { return }
+
+        // Sparkle defers scheduled alerts for regular apps until their next activation.
+        // A launch check should instead present an available update in this launch.
+        updaterController?.checkForUpdates(nil)
     }
 }

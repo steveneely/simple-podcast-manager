@@ -16,7 +16,7 @@ Download the DMG from the [Simple Podcast Manager website](https://steveneely.gi
 
 Current prerelease builds are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
 
-After the first install, enable automatic checks in Settings or use `Simple Podcast Manager > Check for Updates…` for an immediate check. Local development builds run with app updates disabled.
+After the first install, enable automatic checks in Settings to check whenever the app opens, or use `Simple Podcast Manager > Check for Updates…` for an immediate check. When an update is available, the app shows its release notes and install option. Local development builds run with app updates disabled.
 
 ## What It Does
 

@@ -191,6 +191,7 @@ Update design:
 - the DMG remains the first-install path
 - installed `.app` bundles expose `Simple Podcast Manager > Check for Updates…`
 - Settings reads and writes Sparkle's own automatic-check preference rather than maintaining a parallel app setting
+- automatic launch checks present Sparkle's update window during that launch when a newer version is available; current versions remain quiet
 - when automatic checks are enabled, the installed app performs one quiet background check each time it launches
 - `SUAllowsAutomaticUpdates` is false so a background check can notify the user but cannot silently download, install, or relaunch the app
 - local development builds launched with `swift run "Simple Podcast Manager"` disable update checks

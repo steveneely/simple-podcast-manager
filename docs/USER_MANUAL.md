@@ -58,7 +58,7 @@ If you choose a podcast folder that does not exist yet, the app asks before crea
 ## Add A Podcast
 
 1. Open Simple Podcast Manager.
-2. Click the plus button in the Shows list.
+2. Click `Add Podcast` when the library is empty. After you add your first show, use the plus button in the Shows list to add more.
 3. Paste the podcast's RSS feed URL.
 4. Leave `Feed enabled` checked if you want the show included in planning.
 5. Save the show.

@@ -54,11 +54,19 @@ public struct MainView: View {
             if viewModel.hasFeeds {
                 librarySection
             } else {
-                ContentUnavailableView(
-                    "No Podcasts Yet",
-                    systemImage: "dot.radiowaves.left.and.right",
-                    description: Text("Add an RSS feed to start building your sync list.")
-                )
+                VStack(spacing: 16) {
+                    ContentUnavailableView(
+                        "No Podcasts Yet",
+                        systemImage: "dot.radiowaves.left.and.right",
+                        description: Text("Add an RSS feed to start building your sync list.")
+                    )
+
+                    Button("Add Podcast", systemImage: "plus") {
+                        editorDraft = FeedDraft()
+                        feedEditorPresentationID = UUID()
+                        isShowingFeedEditor = true
+                    }
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 

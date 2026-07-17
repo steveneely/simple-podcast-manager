@@ -27,7 +27,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds
-- `SettingsView`: optional custom `ffmpeg` path
+- `SettingsView`: optional custom `ffmpeg` path, device podcast folder, and automatic update preference
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `SyncPlanViewModel`: build the full-device plan shown before execution
@@ -190,6 +190,8 @@ Update design:
 
 - the DMG remains the first-install path
 - installed `.app` bundles expose `Simple Podcast Manager > Check for Updates…`
+- Settings reads and writes Sparkle's own automatic-check preference rather than maintaining a parallel app setting
+- when automatic checks are enabled, the installed app performs one quiet background check each time it launches
 - local development builds launched with `swift run "Simple Podcast Manager"` disable update checks
 - Sparkle reads an HTTPS appcast from `SUFeedURL`
 - Sparkle verifies update archives with the public EdDSA key in `SUPublicEDKey`

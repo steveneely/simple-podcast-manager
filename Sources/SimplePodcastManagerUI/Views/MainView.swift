@@ -12,6 +12,7 @@ public struct MainView: View {
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     private let devicePodcastConfigurationService = DevicePodcastConfigurationService()
+    private let automaticallyChecksForUpdates: Binding<Bool>?
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var feedEditorPresentationID = UUID()
@@ -30,7 +31,10 @@ public struct MainView: View {
     @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var appDataMessage: String?
 
-    public init(viewModel: MainViewModel) {
+    public init(
+        viewModel: MainViewModel,
+        automaticallyChecksForUpdates: Binding<Bool>? = nil
+    ) {
         self._viewModel = State(initialValue: viewModel)
         self._deviceViewModel = State(initialValue: DeviceViewModel())
         self._deviceLibraryViewModel = State(initialValue: DeviceLibraryViewModel())
@@ -39,6 +43,7 @@ public struct MainView: View {
         self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
+        self.automaticallyChecksForUpdates = automaticallyChecksForUpdates
     }
 
     public var body: some View {
@@ -138,11 +143,15 @@ public struct MainView: View {
                 selectedDeviceName: deviceViewModel.selectedDevice?.name,
                 selectedDeviceRootURL: deviceViewModel.selectedDevice?.rootURL,
                 podcastDirectoryPath: selectedDevicePodcastDirectoryPath,
+                automaticallyChecksForUpdates: automaticallyChecksForUpdates?.wrappedValue,
                 shouldConfirmPodcastDirectoryCreation: { updatedPodcastDirectoryPath in
                     try shouldConfirmPodcastDirectoryCreation(updatedPodcastDirectoryPath)
                 },
                 onSave: { updatedSettings, updatedPodcastDirectoryPath in
                     try saveSettings(updatedSettings, podcastDirectoryPath: updatedPodcastDirectoryPath)
+                },
+                onAutomaticallyChecksForUpdatesChange: { isEnabled in
+                    automaticallyChecksForUpdates?.wrappedValue = isEnabled
                 }
             )
         }

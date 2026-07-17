@@ -7,6 +7,7 @@ public struct SettingsView: View {
 
     @State private var ffmpegExecutablePath: String
     @State private var podcastDirectoryPath: String
+    @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
     @State private var isShowingCreateFolderConfirmation = false
     @State private var pendingSave: PendingSave?
@@ -14,10 +15,13 @@ public struct SettingsView: View {
     private let selectedDeviceRootURL: URL?
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let onSave: (AppSettings, String?) throws -> Void
+    private let onAutomaticallyChecksForUpdatesChange: (Bool) -> Void
+    private let showsUpdateSettings: Bool
 
     private struct PendingSave {
         var settings: AppSettings
         var podcastDirectoryPath: String?
+        var automaticallyChecksForUpdates: Bool
     }
 
     public init(
@@ -25,16 +29,21 @@ public struct SettingsView: View {
         selectedDeviceName: String? = nil,
         selectedDeviceRootURL: URL? = nil,
         podcastDirectoryPath: String? = nil,
+        automaticallyChecksForUpdates: Bool? = nil,
         shouldConfirmPodcastDirectoryCreation: @escaping (String?) throws -> Bool = { _ in false },
-        onSave: @escaping (AppSettings, String?) throws -> Void
+        onSave: @escaping (AppSettings, String?) throws -> Void,
+        onAutomaticallyChecksForUpdatesChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
+        self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
         self.selectedDeviceName = selectedDeviceName
         self.selectedDeviceRootURL = selectedDeviceRootURL
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
         self.onSave = onSave
+        self.onAutomaticallyChecksForUpdatesChange = onAutomaticallyChecksForUpdatesChange
+        self.showsUpdateSettings = automaticallyChecksForUpdates != nil
     }
 
     public var body: some View {
@@ -72,6 +81,19 @@ public struct SettingsView: View {
                         choosePodcastDirectory()
                     } onClear: {}
                     .disabled(selectedDeviceName == nil)
+                }
+
+                if showsUpdateSettings {
+                    LabeledField(
+                        title: "Updates",
+                        detail: "Checks quietly whenever the installed app opens."
+                    ) {
+                        Toggle(
+                            "Automatically check for updates",
+                            isOn: $automaticallyChecksForUpdates
+                        )
+                        .toggleStyle(.checkbox)
+                    }
                 }
 
                 if let errorMessage {
@@ -151,7 +173,8 @@ public struct SettingsView: View {
             settings: AppSettings(
                 ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines)
             ),
-            podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath
+            podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
+            automaticallyChecksForUpdates: automaticallyChecksForUpdates
         )
 
         do {
@@ -170,6 +193,9 @@ public struct SettingsView: View {
     private func performSave(_ pendingSave: PendingSave) {
         do {
             try onSave(pendingSave.settings, pendingSave.podcastDirectoryPath)
+            if showsUpdateSettings {
+                onAutomaticallyChecksForUpdatesChange(pendingSave.automaticallyChecksForUpdates)
+            }
             self.pendingSave = nil
             dismiss()
         } catch {

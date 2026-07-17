@@ -81,6 +81,8 @@ Once code exists, use this structure:
 Release/update conventions:
 
 - installed app updates are handled by Sparkle 2
+- when the user enables automatic checks, the installed app checks quietly once per app launch; Settings must edit Sparkle's own preference
+- local `swift run` builds must not check for production updates or show the automatic-update setting
 - first install still uses a DMG
 - `CFBundleVersion` must be an incrementing integer
 - `CFBundleShortVersionString` is the user-visible update version shown by Sparkle; do not leave it unchanged when publishing a user-facing update

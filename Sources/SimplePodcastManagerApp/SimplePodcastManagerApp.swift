@@ -13,7 +13,13 @@ struct SimplePodcastManagerDesktopApp: App {
 
     var body: some Scene {
         WindowGroup("Simple Podcast Manager") {
-            MainView(viewModel: viewModel)
+            MainView(
+                viewModel: viewModel,
+                automaticallyChecksForUpdates: Binding(
+                    get: { appUpdater.automaticallyChecksForUpdates },
+                    set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
+                )
+            )
         }
         .defaultSize(width: 900, height: 720)
         .commands {

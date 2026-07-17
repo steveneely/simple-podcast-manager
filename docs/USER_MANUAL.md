@@ -18,7 +18,7 @@ Open the DMG and drag `Simple Podcast Manager.app` to Applications.
 
 Current prerelease builds are not Developer ID signed or notarized yet. If macOS blocks the app the first time you open it, use System Settings > Privacy & Security to approve it.
 
-After the app is installed, use `Simple Podcast Manager > Check for Updates…` for future updates. Local development builds do not check for app updates.
+After the app is installed, use `Simple Podcast Manager > Check for Updates…` for an immediate check. You can also enable automatic checks in Settings; when enabled, the app checks quietly each time it opens. Local development builds do not check for app updates.
 
 ## Prepare Your MP3 Player
 
@@ -133,6 +133,8 @@ When importing, the app validates the backup before writing anything and saves a
 ## Update The App
 
 Choose `Simple Podcast Manager > Check for Updates…`.
+
+To check automatically whenever the installed app opens, enable `Automatically check for updates` in Settings. You can change this choice at any time.
 
 If an update is available, the app will download it and offer to relaunch into the new version. The DMG install flow is only needed for first install or manual reinstall.
 

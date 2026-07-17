@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SimplePodcastManagerCore
 import Sparkle
 
 @MainActor
@@ -7,8 +8,11 @@ final class AppUpdater: NSObject, ObservableObject {
     private let updaterController: SPUStandardUpdaterController?
     private let isInstalledApp: Bool
     private var canCheckForUpdatesObservation: NSKeyValueObservation?
+    private var automaticallyChecksForUpdatesObservation: NSKeyValueObservation?
+    private var hasCheckedForUpdatesThisLaunch = false
 
     @Published private(set) var canCheckForUpdates: Bool
+    @Published private(set) var automaticallyChecksForUpdates: Bool
 
     init(bundle: Bundle = .main) {
         self.isInstalledApp = bundle.bundleURL.pathExtension == "app"
@@ -21,9 +25,11 @@ final class AppUpdater: NSObject, ObservableObject {
             )
             self.updaterController = controller
             self.canCheckForUpdates = controller.updater.canCheckForUpdates
+            self.automaticallyChecksForUpdates = controller.updater.automaticallyChecksForUpdates
         } else {
             self.updaterController = nil
             self.canCheckForUpdates = false
+            self.automaticallyChecksForUpdates = false
         }
 
         super.init()
@@ -34,6 +40,17 @@ final class AppUpdater: NSObject, ObservableObject {
         ) { [weak self] updater, _ in
             Task { @MainActor in
                 self?.canCheckForUpdates = updater.canCheckForUpdates
+                self?.checkForUpdatesAtStartupIfNeeded()
+            }
+        }
+
+        automaticallyChecksForUpdatesObservation = updaterController?.updater.observe(
+            \.automaticallyChecksForUpdates,
+            options: [.initial, .new]
+        ) { [weak self] updater, _ in
+            Task { @MainActor in
+                self?.automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+                self?.checkForUpdatesAtStartupIfNeeded()
             }
         }
     }
@@ -50,5 +67,25 @@ final class AppUpdater: NSObject, ObservableObject {
         }
 
         updaterController.checkForUpdates(nil)
+    }
+
+    func setAutomaticallyChecksForUpdates(_ isEnabled: Bool) {
+        guard let updater = updaterController?.updater else { return }
+
+        updater.automaticallyChecksForUpdates = isEnabled
+        automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+        checkForUpdatesAtStartupIfNeeded()
+    }
+
+    private func checkForUpdatesAtStartupIfNeeded() {
+        guard let updater = updaterController?.updater else { return }
+        guard StartupUpdateCheckPolicy.shouldCheck(
+            automaticallyChecksForUpdates: updater.automaticallyChecksForUpdates,
+            canCheckForUpdates: updater.canCheckForUpdates,
+            hasCheckedThisLaunch: hasCheckedForUpdatesThisLaunch
+        ) else { return }
+
+        hasCheckedForUpdatesThisLaunch = true
+        updater.checkForUpdatesInBackground()
     }
 }

@@ -1,5 +1,5 @@
-# Simple Podcast Manager v1.1.5
+# Simple Podcast Manager v1.1.6
 
-- Adds an `Automatically check for updates` option to Settings so the preference can be changed at any time.
-- Checks quietly for updates each time the installed app opens when automatic checks are enabled, fitting the app's open-sync-close workflow.
-- Keeps `Simple Podcast Manager > Check for Updates…` available for an immediate manual check.
+- Publishes a new version so launch-time automatic update checks can be verified from v1.1.5.
+- Contains no podcast, download, Sync, or device workflow changes.
+- No action is required after updating.

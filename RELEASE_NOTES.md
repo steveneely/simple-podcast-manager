@@ -1,7 +1,5 @@
-# Simple Podcast Manager v1.1.4
+# Simple Podcast Manager v1.1.5
 
-- Checks multiple podcast feeds at the same time, making startup and full-library refreshes faster while retaining feed-cache and not-modified optimizations.
-- Inventories a connected player once per refresh or plan instead of repeatedly scanning it for every podcast.
-- Keeps the interface responsive while inspecting slower external players and building the Sync plan.
-- Avoids unnecessary feed and device refresh work after a successful Sync.
-- Includes internal interface cleanup that preserves the existing workflow while making future changes easier to maintain.
+- Adds an `Automatically check for updates` option to Settings so the preference can be changed at any time.
+- Checks quietly for updates each time the installed app opens when automatic checks are enabled, fitting the app's open-sync-close workflow.
+- Keeps `Simple Podcast Manager > Check for Updates…` available for an immediate manual check.

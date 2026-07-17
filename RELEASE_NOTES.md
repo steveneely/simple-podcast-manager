@@ -1,5 +1,5 @@
-# Simple Podcast Manager v1.1.8
+# Simple Podcast Manager v1.1.9
 
-- Keeps automatic update checks available while preventing updates from silently downloading, installing, or relaunching the app.
-- Shows the update details and lets you choose when to install and restart.
+- Publishes a new version so the prompt-before-install update behavior can be verified from v1.1.8.
+- Updates still require your approval before installation and relaunch.
 - Contains no podcast, download, Sync, or device workflow changes.

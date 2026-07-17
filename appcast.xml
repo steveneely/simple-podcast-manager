@@ -3,19 +3,20 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.1.11</title>
-            <pubDate>Fri, 17 Jul 2026 11:50:05 -0600</pubDate>
-            <sparkle:version>44</sparkle:version>
-            <sparkle:shortVersionString>1.1.11</sparkle:shortVersionString>
+            <title>1.2.0</title>
+            <pubDate>Fri, 17 Jul 2026 14:53:05 -0600</pubDate>
+            <sparkle:version>45</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.1.11
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.2.0
 
+- Add an Appearance setting with System, Light, and Dark modes. Changes preview immediately, and the chosen mode is remembered after saving.
 - Automatic update checks now show the available update window during the same app launch, while staying quiet when you already have the latest version.
 - New installs now show an Add Podcast button immediately, so you can subscribe to your first RSS feed without needing the Shows sidebar first.
 - Clarifies the onboarding guidance for adding your first podcast and subsequent shows.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.1.11/SimplePodcastManager-v1.1.11.dmg" length="4942756" type="application/octet-stream" sparkle:edSignature="6TEJdOGtb8JxWBUGjG6O706pU27qbrkOi7IY7IWPXhnNSkF3Yl08dpe0hDU/ZKJcixAk+zS30oQ6QAwuTEicDw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.2.0/SimplePodcastManager-v1.2.0.dmg" length="4955355" type="application/octet-stream" sparkle:edSignature="9tDXHIX100ivHZC3TovFY82lvE5Wnwp0F8V2A885aLl6V++6k/oinNCO34gJ+mc1TpuCYN1aEmN+6rSJs+c1Dw=="/>
         </item>
     </channel>
 </rss>

@@ -134,9 +134,9 @@ When importing, the app validates the backup before writing anything and saves a
 
 Choose `Simple Podcast Manager > Check for Updates…`.
 
-To check automatically whenever the installed app opens, enable `Automatically check for updates` in Settings. You can change this choice at any time.
+To check automatically whenever the installed app opens, enable `Automatically check for updates` in Settings. You can change this choice at any time. Automatic checks do not silently install or restart the app.
 
-If an update is available, the app will download it and offer to relaunch into the new version. The DMG install flow is only needed for first install or manual reinstall.
+If an update is available, the app will show the update details and let you choose when to install and relaunch. The DMG install flow is only needed for first install or manual reinstall.
 
 ## Troubleshooting
 

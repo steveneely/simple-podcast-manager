@@ -82,6 +82,7 @@ Release/update conventions:
 
 - installed app updates are handled by Sparkle 2
 - when the user enables automatic checks, the installed app checks quietly once per app launch; Settings must edit Sparkle's own preference
+- automatic checks may notify the user about an available update, but must never silently download, install, or relaunch the app; keep `SUAllowsAutomaticUpdates` set to false
 - local `swift run` builds must not check for production updates or show the automatic-update setting
 - first install still uses a DMG
 - `CFBundleVersion` must be an incrementing integer

@@ -33,6 +33,7 @@ release_tag=$(/usr/libexec/PlistBuddy -c "Print :SPMReleaseTag" "$info_plist")
 short_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$info_plist")
 feed_url=$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$info_plist")
 public_key=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$info_plist")
+allows_automatic_updates=$(/usr/libexec/PlistBuddy -c "Print :SUAllowsAutomaticUpdates" "$info_plist")
 update_dmg_path="${repo_root}/dist/updates/SimplePodcastManager-${release_tag}.dmg"
 
 if [[ ! "$bundle_version" =~ '^[0-9]+$' ]]; then
@@ -57,6 +58,11 @@ fi
 
 if [[ -z "$public_key" ]]; then
   echo "SUPublicEDKey must be set." >&2
+  exit 1
+fi
+
+if [[ "$allows_automatic_updates" != false ]]; then
+  echo "SUAllowsAutomaticUpdates must be false so updates cannot silently install and relaunch the app." >&2
   exit 1
 fi
 

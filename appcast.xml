@@ -3,6 +3,21 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
+            <title>1.1.8</title>
+            <pubDate>Thu, 16 Jul 2026 18:47:36 -0600</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>1.1.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.1.8
+
+- Keeps automatic update checks available while preventing updates from silently downloading, installing, or relaunching the app.
+- Shows the update details and lets you choose when to install and restart.
+- Contains no podcast, download, Sync, or device workflow changes.
+]]></description>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.1.8/SimplePodcastManager-v1.1.8.dmg" length="4939082" type="application/octet-stream" sparkle:edSignature="k0MIu621guRlS3Y/J/B4o3X16SK2mcvY8SL3K+Xgh5tKEpXMdh4rcUYACwGz9C0Xcet0gmGRuZfeQSNpodSEBQ=="/>
+        </item>
+        <item>
             <title>1.1.7</title>
             <pubDate>Thu, 16 Jul 2026 18:29:52 -0600</pubDate>
             <sparkle:version>40</sparkle:version>

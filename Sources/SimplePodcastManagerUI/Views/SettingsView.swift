@@ -6,15 +6,19 @@ public struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var ffmpegExecutablePath: String
+    @State private var appearancePreference: AppearancePreference
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
     @State private var isShowingCreateFolderConfirmation = false
     @State private var pendingSave: PendingSave?
+    @State private var hasSettledAppearancePreference = false
     private let selectedDeviceName: String?
     private let selectedDeviceRootURL: URL?
+    private let savedAppearancePreference: AppearancePreference
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let onSave: (AppSettings, String?) throws -> Void
+    private let onAppearancePreferencePreview: (AppearancePreference) -> Void
     private let onAutomaticallyChecksForUpdatesChange: (Bool) -> Void
     private let showsUpdateSettings: Bool
 
@@ -32,16 +36,20 @@ public struct SettingsView: View {
         automaticallyChecksForUpdates: Bool? = nil,
         shouldConfirmPodcastDirectoryCreation: @escaping (String?) throws -> Bool = { _ in false },
         onSave: @escaping (AppSettings, String?) throws -> Void,
+        onAppearancePreferencePreview: @escaping (AppearancePreference) -> Void = { _ in },
         onAutomaticallyChecksForUpdatesChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
+        self._appearancePreference = State(initialValue: settings.appearancePreference)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
         self.selectedDeviceName = selectedDeviceName
         self.selectedDeviceRootURL = selectedDeviceRootURL
+        self.savedAppearancePreference = settings.appearancePreference
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
         self.onSave = onSave
+        self.onAppearancePreferencePreview = onAppearancePreferencePreview
         self.onAutomaticallyChecksForUpdatesChange = onAutomaticallyChecksForUpdatesChange
         self.showsUpdateSettings = automaticallyChecksForUpdates != nil
     }
@@ -53,6 +61,19 @@ public struct SettingsView: View {
                 .fontWeight(.semibold)
 
             VStack(alignment: .leading, spacing: 14) {
+                LabeledField(
+                    title: "Appearance",
+                    detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode."
+                ) {
+                    Picker("Appearance", selection: $appearancePreference) {
+                        Text("System").tag(AppearancePreference.system)
+                        Text("Light").tag(AppearancePreference.light)
+                        Text("Dark").tag(AppearancePreference.dark)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+
                 LabeledField(
                     title: "ffmpeg Path",
                     detail: "Optional. Needed only to convert non-MP3 podcast audio."
@@ -70,8 +91,8 @@ public struct SettingsView: View {
 
                 LabeledField(
                     title: "Device Podcast Folder",
-                    detail: selectedDeviceName.map { "Stored on \($0) in .spmconfig. Use a relative path inside the device." }
-                        ?? "Connect a device to store its podcast folder in .spmconfig."
+                    detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
+                        ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\"."
                 ) {
                     chooserRow(
                         value: podcastDirectoryPath,
@@ -84,12 +105,9 @@ public struct SettingsView: View {
                 }
 
                 if showsUpdateSettings {
-                    LabeledField(
-                        title: "Updates",
-                        detail: "Checks quietly whenever the installed app opens."
-                    ) {
+                    LabeledField(title: "Updates") {
                         Toggle(
-                            "Automatically check for updates",
+                            "Check for updates on startup",
                             isOn: $automaticallyChecksForUpdates
                         )
                         .toggleStyle(.checkbox)
@@ -108,6 +126,7 @@ public struct SettingsView: View {
                 Spacer()
 
                 Button("Cancel") {
+                    restoreSavedAppearancePreference()
                     dismiss()
                 }
 
@@ -129,6 +148,12 @@ public struct SettingsView: View {
             }
         } message: {
             Text(createFolderConfirmationMessage)
+        }
+        .onChange(of: appearancePreference) { _, preference in
+            onAppearancePreferencePreview(preference)
+        }
+        .onDisappear {
+            restoreSavedAppearancePreference()
         }
     }
 
@@ -171,7 +196,8 @@ public struct SettingsView: View {
     private func save() {
         let pendingSave = PendingSave(
             settings: AppSettings(
-                ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines)
+                ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
+                appearancePreference: appearancePreference
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates
@@ -196,11 +222,19 @@ public struct SettingsView: View {
             if showsUpdateSettings {
                 onAutomaticallyChecksForUpdatesChange(pendingSave.automaticallyChecksForUpdates)
             }
+            hasSettledAppearancePreference = true
             self.pendingSave = nil
             dismiss()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    private func restoreSavedAppearancePreference() {
+        guard !hasSettledAppearancePreference else { return }
+
+        onAppearancePreferencePreview(savedAppearancePreference)
+        hasSettledAppearancePreference = true
     }
 
     private func chooseFFmpegExecutable() {

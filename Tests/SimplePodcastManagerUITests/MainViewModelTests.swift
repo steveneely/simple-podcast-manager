@@ -80,11 +80,13 @@ struct MainViewModelTests {
 
         viewModel.replaceSettings(
             AppSettings(
-                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg"
+                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
+                appearancePreference: .dark
             )
         )
 
         #expect(viewModel.settings.ffmpegExecutablePath == "/opt/homebrew/bin/ffmpeg")
+        #expect(viewModel.settings.appearancePreference == .dark)
         #expect(store.configuration.settings == viewModel.settings)
     }
 

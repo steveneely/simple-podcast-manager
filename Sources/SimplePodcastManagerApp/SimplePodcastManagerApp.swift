@@ -7,6 +7,7 @@ import SimplePodcastManagerUI
 struct SimplePodcastManagerDesktopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appUpdater = AppUpdater()
+    @State private var appearancePreference = AppearancePreference.system
     @State private var viewModel = MainViewModel(
         store: JSONConfigurationStore(fileURL: JSONConfigurationStore.defaultFileURL())
     )
@@ -18,8 +19,16 @@ struct SimplePodcastManagerDesktopApp: App {
                 automaticallyChecksForUpdates: Binding(
                     get: { appUpdater.automaticallyChecksForUpdates },
                     set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
-                )
+                ),
+                appearancePreference: $appearancePreference
             )
+            .preferredColorScheme(colorScheme(for: appearancePreference))
+            .onAppear {
+                applyAppearance(appearancePreference)
+            }
+            .onChange(of: appearancePreference) { _, preference in
+                applyAppearance(preference)
+            }
         }
         .defaultSize(width: 900, height: 720)
         .commands {
@@ -70,6 +79,28 @@ struct SimplePodcastManagerDesktopApp: App {
         }
 
         return options
+    }
+
+    private func colorScheme(for preference: AppearancePreference) -> ColorScheme? {
+        switch preference {
+        case .system:
+            nil
+        case .light:
+            .light
+        case .dark:
+            .dark
+        }
+    }
+
+    private func applyAppearance(_ preference: AppearancePreference) {
+        switch preference {
+        case .system:
+            NSApplication.shared.appearance = nil
+        case .light:
+            NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+        }
     }
 
     private func aboutApplicationVersion() -> String {

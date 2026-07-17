@@ -13,6 +13,7 @@ public struct MainView: View {
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     private let devicePodcastConfigurationService = DevicePodcastConfigurationService()
     private let automaticallyChecksForUpdates: Binding<Bool>?
+    private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var editorDraft = FeedDraft()
     @State private var feedEditorPresentationID = UUID()
@@ -33,7 +34,8 @@ public struct MainView: View {
 
     public init(
         viewModel: MainViewModel,
-        automaticallyChecksForUpdates: Binding<Bool>? = nil
+        automaticallyChecksForUpdates: Binding<Bool>? = nil,
+        appearancePreference: Binding<AppearancePreference>? = nil
     ) {
         self._viewModel = State(initialValue: viewModel)
         self._deviceViewModel = State(initialValue: DeviceViewModel())
@@ -44,6 +46,7 @@ public struct MainView: View {
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
         self.automaticallyChecksForUpdates = automaticallyChecksForUpdates
+        self.appearancePreference = appearancePreference
     }
 
     public var body: some View {
@@ -118,6 +121,7 @@ public struct MainView: View {
         .task {
             if !viewModel.hasLoadedConfiguration {
                 viewModel.load()
+                appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
             }
             if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
                 preparationPreviewViewModel.loadPersistedPreparedEpisodes()
@@ -157,6 +161,9 @@ public struct MainView: View {
                 },
                 onSave: { updatedSettings, updatedPodcastDirectoryPath in
                     try saveSettings(updatedSettings, podcastDirectoryPath: updatedPodcastDirectoryPath)
+                },
+                onAppearancePreferencePreview: { preference in
+                    appearancePreference?.wrappedValue = preference
                 },
                 onAutomaticallyChecksForUpdatesChange: { isEnabled in
                     automaticallyChecksForUpdates?.wrappedValue = isEnabled
@@ -972,6 +979,7 @@ public struct MainView: View {
         }
 
         viewModel.replaceSettings(updatedSettings)
+        appearancePreference?.wrappedValue = updatedSettings.appearancePreference
 
         if podcastDirectoryPath != nil {
             deviceViewModel.refresh()

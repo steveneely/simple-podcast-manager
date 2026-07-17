@@ -20,6 +20,10 @@ Current prerelease builds are not Developer ID signed or notarized yet. If macOS
 
 After the app is installed, use `Simple Podcast Manager > Check for Updates…` for an immediate check. You can also enable automatic checks in Settings; when enabled, the app checks each time it opens and shows an update window when a newer version is available. Local development builds do not check for app updates.
 
+## Appearance
+
+In Settings, choose `System`, `Light`, or `Dark` to control the app appearance. `System` follows the current macOS appearance.
+
 ## Prepare Your MP3 Player
 
 Simple Podcast Manager looks for removable or external volumes under `/Volumes`.

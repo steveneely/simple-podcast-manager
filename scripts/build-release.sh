@@ -233,7 +233,7 @@ if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
   update_notes_path="${updates_dir}/SimplePodcastManager-${release_tag}.md"
   release_notes_source="${RELEASE_NOTES_PATH:-${repo_root}/RELEASE_NOTES.md}"
   download_url_prefix="${SPARKLE_DOWNLOAD_URL_PREFIX:-https://github.com/steveneely/simple-podcast-manager/releases/download/${release_tag}/}"
-  maximum_versions="${SPARKLE_MAXIMUM_VERSIONS:-10}"
+  maximum_versions="${SPARKLE_MAXIMUM_VERSIONS:-1}"
 
   if [[ ! -s "$release_notes_source" ]]; then
     echo "Release notes are required for Sparkle updates: $release_notes_source" >&2

@@ -3,17 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.1.10</title>
-            <pubDate>Fri, 17 Jul 2026 11:34:07 -0600</pubDate>
-            <sparkle:version>43</sparkle:version>
-            <sparkle:shortVersionString>1.1.10</sparkle:shortVersionString>
+            <title>1.1.11</title>
+            <pubDate>Fri, 17 Jul 2026 11:50:05 -0600</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>1.1.11</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.1.10
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.1.11
 
+- Automatic update checks now show the available update window during the same app launch, while staying quiet when you already have the latest version.
 - New installs now show an Add Podcast button immediately, so you can subscribe to your first RSS feed without needing the Shows sidebar first.
 - Clarifies the onboarding guidance for adding your first podcast and subsequent shows.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.1.10/SimplePodcastManager-v1.1.10.dmg" length="4941335" type="application/octet-stream" sparkle:edSignature="UqHEWP2rBuZU8lLT46gV+WyEoUH1p83Tk43hwq7ZAzXl8Zfx9hsen5LK9551r/2JNys21xOFPjRq+Pp++lcfAQ=="/>
-        </item></channel>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.1.11/SimplePodcastManager-v1.1.11.dmg" length="4942756" type="application/octet-stream" sparkle:edSignature="6TEJdOGtb8JxWBUGjG6O706pU27qbrkOi7IY7IWPXhnNSkF3Yl08dpe0hDU/ZKJcixAk+zS30oQ6QAwuTEicDw=="/>
+        </item>
+    </channel>
 </rss>

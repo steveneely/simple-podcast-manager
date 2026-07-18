@@ -3,20 +3,23 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.2.0</title>
-            <pubDate>Fri, 17 Jul 2026 14:53:05 -0600</pubDate>
-            <sparkle:version>45</sparkle:version>
-            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <title>1.3.0</title>
+            <pubDate>Sat, 18 Jul 2026 14:46:27 -0600</pubDate>
+            <sparkle:version>46</sparkle:version>
+            <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.2.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.3.0
 
+- Checks available device space before syncing and stops before making changes when the planned sync will not fit.
+- When needed, runs only the device deletions you already selected before copying so the sync can make enough room.
+- Reports failed copies clearly, including when a partial file may remain on the device, and flags same-name files whose size suggests an interrupted earlier copy.
 - Add an Appearance setting with System, Light, and Dark modes. Changes preview immediately, and the chosen mode is remembered after saving.
 - Automatic update checks now show the available update window during the same app launch, while staying quiet when you already have the latest version.
 - New installs now show an Add Podcast button immediately, so you can subscribe to your first RSS feed without needing the Shows sidebar first.
 - Clarifies the onboarding guidance for adding your first podcast and subsequent shows.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.2.0/SimplePodcastManager-v1.2.0.dmg" length="4955355" type="application/octet-stream" sparkle:edSignature="9tDXHIX100ivHZC3TovFY82lvE5Wnwp0F8V2A885aLl6V++6k/oinNCO34gJ+mc1TpuCYN1aEmN+6rSJs+c1Dw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.3.0/SimplePodcastManager-v1.3.0.dmg" length="4970744" type="application/octet-stream" sparkle:edSignature="Li9uXq2sOTphfQqckR3ERvjbgMQA6Hyc6A2CliWN35skiFcbkCd05jKdkdlC0hVue/QmH/Up5dCFGCDeVwS3Aw=="/>
         </item>
     </channel>
 </rss>

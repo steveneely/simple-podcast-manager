@@ -89,6 +89,8 @@ When the RSS feed provides artwork, newly downloaded episodes include a small co
 5. Optionally check `Delete downloaded episodes when finished` to remove local downloaded episode files after a successful run.
 6. Click `Start`.
 
+Before the run begins, the app checks that the sync will fit. If necessary, it moves files you already selected for deletion ahead of copies to make room.
+
 The app keeps files organized by show:
 
 ```text

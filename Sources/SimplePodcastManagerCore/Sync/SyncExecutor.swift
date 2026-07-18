@@ -2,15 +2,18 @@ import Foundation
 
 public struct SyncExecutor: Sendable, SyncExecuting {
     private let fileSystem: any FileSystemOperating
+    private let storageInspector: any SyncStorageInspecting
     private let safetyValidator: SafetyValidator
     private let ejector: any DeviceEjecting
 
     public init(
         fileSystem: any FileSystemOperating = LocalFileSystem(),
+        storageInspector: any SyncStorageInspecting = LocalSyncStorageInspector(),
         safetyValidator: SafetyValidator = SafetyValidator(),
         ejector: any DeviceEjecting = DiskUtilityDeviceEjector()
     ) {
         self.fileSystem = fileSystem
+        self.storageInspector = storageInspector
         self.safetyValidator = safetyValidator
         self.ejector = ejector
     }
@@ -36,14 +39,30 @@ public struct SyncExecutor: Sendable, SyncExecuting {
 
             switch action {
             case .copyToDevice(let sourceURL, let destinationURL):
+                let requiredCapacity = try storageInspector.fileSize(at: sourceURL)
+                let availableCapacity = try storageInspector.availableCapacity(on: plan.device)
+                guard requiredCapacity <= availableCapacity else {
+                    throw SyncCapacityError.insufficientCapacity(
+                        requiredBytes: requiredCapacity,
+                        availableBytes: availableCapacity
+                    )
+                }
                 guard let parentDirectoryURL = destinationURL.deletingLastPathComponent() as URL? else {
                     throw SyncExecutionError.missingParentDirectory(destinationURL)
                 }
                 try fileSystem.createDirectory(at: parentDirectoryURL)
                 if fileSystem.fileExists(at: destinationURL) {
-                    try fileSystem.removeItem(at: destinationURL)
+                    throw SyncExecutionError.destinationAlreadyExists(destinationURL)
                 }
-                try fileSystem.copyItem(at: sourceURL, to: destinationURL)
+                do {
+                    try fileSystem.copyItem(at: sourceURL, to: destinationURL)
+                } catch {
+                    throw SyncExecutionError.copyFailed(
+                        fileName: sourceURL.lastPathComponent,
+                        partialFileMayRemain: fileSystem.fileExists(at: destinationURL),
+                        detail: error.localizedDescription
+                    )
+                }
                 result.copiedCount += 1
 
             case .deleteFromDevice(let targetURL):

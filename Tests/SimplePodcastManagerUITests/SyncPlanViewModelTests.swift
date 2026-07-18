@@ -30,7 +30,7 @@ struct SyncPlanViewModelTests {
             title: "Example Podcast",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
-        let planner = SyncPlanner(deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [:]))
+        let planner = makeTestPlanner(deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [:]))
         let viewModel = SyncPlanViewModel(planner: planner)
 
         await viewModel.buildPlan(
@@ -71,7 +71,7 @@ struct SyncPlanViewModelTests {
             podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
         let deviceLibrary = ThreadCapturingPlanDeviceLibrary()
-        let viewModel = SyncPlanViewModel(planner: SyncPlanner(deviceLibrary: deviceLibrary))
+        let viewModel = SyncPlanViewModel(planner: makeTestPlanner(deviceLibrary: deviceLibrary))
 
         await viewModel.buildPlan(
             device: device,

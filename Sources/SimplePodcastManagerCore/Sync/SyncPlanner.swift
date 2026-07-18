@@ -2,14 +2,17 @@ import Foundation
 
 public struct SyncPlanner: Sendable {
     private let deviceLibrary: any DeviceLibraryInspecting
+    private let storageInspector: any SyncStorageInspecting
     private let safetyValidator: SafetyValidator
     private let managedDirectoryResolver: ManagedDirectoryResolver
 
     public init(
         deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
+        storageInspector: any SyncStorageInspecting = LocalSyncStorageInspector(),
         safetyValidator: SafetyValidator = SafetyValidator()
     ) {
         self.deviceLibrary = deviceLibrary
+        self.storageInspector = storageInspector
         self.safetyValidator = safetyValidator
         self.managedDirectoryResolver = ManagedDirectoryResolver(deviceLibrary: deviceLibrary)
     }
@@ -45,12 +48,14 @@ public struct SyncPlanner: Sendable {
             )
             let existingFiles = deviceSnapshot.directFiles(in: managedDirectory)
                 .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
-            let existingFileNames = Set(existingFiles.map(\.lastPathComponent))
 
             for preparedEpisode in preparedEpisodes {
                 let destinationURL = managedDirectory.appendingPathComponent(preparedEpisode.preparedFileURL.lastPathComponent, isDirectory: false)
 
-                if existingFileNames.contains(destinationURL.lastPathComponent) {
+                if let existingFileURL = existingFiles.first(where: {
+                    $0.lastPathComponent == destinationURL.lastPathComponent
+                }) {
+                    try verifyExistingCopy(existingFileURL, matches: preparedEpisode.preparedFileURL)
                     actions.append(.skip(reason: "Already on device: \(preparedEpisode.episode.title)"))
                 } else {
                     try safetyValidator.validateWriteTarget(destinationURL, on: device)
@@ -72,6 +77,80 @@ public struct SyncPlanner: Sendable {
             actions.append(.ejectDevice(deviceRootURL: device.rootURL))
         }
 
-        return SyncPlan(device: device, actions: actions)
+        let capacityAwarePlan = try orderActionsToFit(actions, on: device)
+        return SyncPlan(
+            device: device,
+            actions: capacityAwarePlan.actions,
+            warnings: capacityAwarePlan.movedDeletions
+                ? ["Some selected deletions will run before copying so the sync has enough space."]
+                : []
+        )
+    }
+
+    private func verifyExistingCopy(_ deviceURL: URL, matches preparedURL: URL) throws {
+        let expectedSize = try storageInspector.fileSize(at: preparedURL)
+        let actualSize = try storageInspector.fileSize(at: deviceURL)
+        guard expectedSize == actualSize else {
+            throw SyncCapacityError.incompleteExistingCopy(
+                fileName: deviceURL.lastPathComponent,
+                expectedBytes: expectedSize,
+                actualBytes: actualSize
+            )
+        }
+    }
+
+    private func orderActionsToFit(
+        _ actions: [SyncAction],
+        on device: DeviceInfo
+    ) throws -> (actions: [SyncAction], movedDeletions: Bool) {
+        guard actions.contains(where: { if case .copyToDevice = $0 { true } else { false } }) else {
+            return (actions, false)
+        }
+
+        let initialCapacity = try storageInspector.availableCapacity(on: device)
+        var availableCapacity = initialCapacity
+        var remainingActions = actions
+        var orderedActions: [SyncAction] = []
+        var movedDeletions = false
+
+        while !remainingActions.isEmpty {
+            let action = remainingActions.removeFirst()
+
+            switch action {
+            case .copyToDevice(let sourceURL, _):
+                let requiredCapacity = try storageInspector.fileSize(at: sourceURL)
+
+                // Pull only deletions the user already approved forward, and only
+                // when the next copy would otherwise not fit.
+                while requiredCapacity > availableCapacity,
+                      let deleteIndex = remainingActions.firstIndex(where: {
+                          if case .deleteFromDevice = $0 { true } else { false }
+                      }) {
+                    let deleteAction = remainingActions.remove(at: deleteIndex)
+                    guard case .deleteFromDevice(let targetURL) = deleteAction else { continue }
+                    availableCapacity += try storageInspector.fileSize(at: targetURL)
+                    orderedActions.append(deleteAction)
+                    movedDeletions = true
+                }
+
+                guard requiredCapacity <= availableCapacity else {
+                    throw SyncCapacityError.insufficientCapacity(
+                        requiredBytes: requiredCapacity,
+                        availableBytes: availableCapacity
+                    )
+                }
+                availableCapacity -= requiredCapacity
+                orderedActions.append(action)
+
+            case .deleteFromDevice(let targetURL):
+                availableCapacity += try storageInspector.fileSize(at: targetURL)
+                orderedActions.append(action)
+
+            case .skip, .ejectDevice:
+                orderedActions.append(action)
+            }
+        }
+
+        return (orderedActions, movedDeletions)
     }
 }

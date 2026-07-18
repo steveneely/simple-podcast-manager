@@ -24,7 +24,7 @@ struct SyncExecutorTests {
             ]
         )
         let ejector = RecordingDeviceEjector()
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector)
+        let executor = makeTestExecutor(fileSystem: fileSystem, ejector: ejector)
 
         let result = try executor.execute(
             plan: SyncPlan(
@@ -62,7 +62,7 @@ struct SyncExecutorTests {
             ]
         )
         let ejector = RecordingDeviceEjector()
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: ejector)
+        let executor = makeTestExecutor(fileSystem: fileSystem, ejector: ejector)
 
         let result = try executor.execute(
             plan: SyncPlan(
@@ -96,7 +96,7 @@ struct SyncExecutorTests {
                 managedDirectory.standardizedFileURL.path: [deleteTargetURL, remainingEpisodeURL]
             ]
         )
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
+        let executor = makeTestExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
 
         _ = try executor.execute(
             plan: SyncPlan(
@@ -126,7 +126,7 @@ struct SyncExecutorTests {
             existingURLs: [deleteTargetURL],
             directoryContents: [:]
         )
-        let executor = SyncExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
+        let executor = makeTestExecutor(fileSystem: fileSystem, ejector: RecordingDeviceEjector())
         let collector = SyncProgressCollector()
 
         _ = try executor.execute(
@@ -147,6 +147,63 @@ struct SyncExecutorTests {
         #expect(updates[1] == SyncExecutionProgress(totalCount: 3, completedCount: 1, currentActionDescription: "Delete old episode: Example Podcast / Episode_1.mp3"))
         #expect(updates[2] == SyncExecutionProgress(totalCount: 3, completedCount: 2, currentActionDescription: "Skip: Already on device"))
         #expect(updates[3] == SyncExecutionProgress(totalCount: 3, completedCount: 3))
+    }
+
+    @Test
+    func rechecksCapacityImmediatelyBeforeCopying() throws {
+        let device = makeDevice()
+        let sourceURL = URL(fileURLWithPath: "/tmp/Episode_2.mp3")
+        let destinationURL = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast/Episode_2.mp3")
+        let fileSystem = RecordingFileSystem(existingURLs: [], directoryContents: [:])
+        let executor = makeTestExecutor(
+            fileSystem: fileSystem,
+            storageInspector: TestSyncStorageInspector(
+                availableBytes: 50,
+                sizesByPath: [sourceURL.path: 100]
+            ),
+            ejector: RecordingDeviceEjector()
+        )
+
+        #expect(throws: SyncCapacityError.insufficientCapacity(requiredBytes: 100, availableBytes: 50)) {
+            try executor.execute(plan: SyncPlan(
+                device: device,
+                actions: [.copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL)]
+            ))
+        }
+        #expect(fileSystem.copiedItems.isEmpty)
+    }
+
+    @Test
+    func reportsWhenCopyFailureMayHaveLeftPartialFile() throws {
+        let device = makeDevice()
+        let sourceURL = URL(fileURLWithPath: "/tmp/Episode_2.mp3")
+        let destinationURL = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast/Episode_2.mp3")
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [],
+            directoryContents: [:],
+            failCopiesLeavingPartialFile: true
+        )
+        let executor = makeTestExecutor(
+            fileSystem: fileSystem,
+            ejector: RecordingDeviceEjector()
+        )
+
+        do {
+            _ = try executor.execute(plan: SyncPlan(
+                device: device,
+                actions: [.copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL)]
+            ))
+            Issue.record("Expected the copy to fail")
+        } catch let error as SyncExecutionError {
+            guard case .copyFailed(let fileName, let partialFileMayRemain, _) = error else {
+                Issue.record("Expected copyFailed, got \(error)")
+                return
+            }
+            #expect(fileName == sourceURL.lastPathComponent)
+            #expect(partialFileMayRemain)
+        }
     }
 
     private func makeDevice() -> DeviceInfo {
@@ -171,6 +228,7 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     private var existingURLs: Set<URL>
     private var directoryContents: [String: Set<URL>]
+    private let failCopiesLeavingPartialFile: Bool
 
     private(set) var createdDirectories: [URL] = []
     private(set) var copiedItems: [CopyRecord] = []
@@ -179,12 +237,14 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     init(
         existingURLs: [URL],
-        directoryContents: [String: [URL]]
+        directoryContents: [String: [URL]],
+        failCopiesLeavingPartialFile: Bool = false
     ) {
         self.existingURLs = Set(existingURLs.map(\.standardizedFileURL))
         self.directoryContents = directoryContents.reduce(into: [:]) { result, entry in
             result[entry.key] = Set(entry.value.map(\.standardizedFileURL))
         }
+        self.failCopiesLeavingPartialFile = failCopiesLeavingPartialFile
     }
 
     func fileExists(at url: URL) -> Bool {
@@ -201,6 +261,11 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     func copyItem(at sourceURL: URL, to destinationURL: URL) throws {
         let standardizedDestination = destinationURL.standardizedFileURL
+        if failCopiesLeavingPartialFile {
+            existingURLs.insert(standardizedDestination)
+            addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
+            throw TestCopyError.failed
+        }
         copiedItems.append(.init(source: sourceURL, destination: standardizedDestination))
         existingURLs.insert(standardizedDestination)
         addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
@@ -239,6 +304,10 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
         let parentPath = parentURL.standardizedFileURL.path
         directoryContents[parentPath]?.remove(childURL.standardizedFileURL)
     }
+}
+
+private enum TestCopyError: Error {
+    case failed
 }
 
 private final class RecordingDeviceEjector: DeviceEjecting, @unchecked Sendable {

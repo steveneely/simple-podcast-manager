@@ -11,7 +11,7 @@ struct SyncPlannerTests {
             title: "Episode 1",
             preparedFileName: "Episode_1.mp3"
         )
-        let planner = SyncPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
 
         let plan = try planner.makePlan(
             device: device,
@@ -41,7 +41,7 @@ struct SyncPlannerTests {
         let destinationURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [destinationURL]
@@ -74,7 +74,7 @@ struct SyncPlannerTests {
         let sidecarURL = device.podcastDirectoryURL
             .appendingPathComponent("Example Podcast", isDirectory: true)
             .appendingPathComponent("._2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true).standardizedFileURL.path: [sidecarURL]
@@ -106,7 +106,7 @@ struct SyncPlannerTests {
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let olderEpisodeURL = managedDirectory.appendingPathComponent("Episode_1.mp3", isDirectory: false)
         let currentEpisodeURL = managedDirectory.appendingPathComponent("Episode_2.mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     managedDirectory.standardizedFileURL.path: [
@@ -137,7 +137,7 @@ struct SyncPlannerTests {
             preparedFileName: "Episode_1.mp3"
         )
         let unmanagedFileURL = device.podcastDirectoryURL.appendingPathComponent("random_track.mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     device.podcastDirectoryURL.standardizedFileURL.path: [unmanagedFileURL]
@@ -161,7 +161,7 @@ struct SyncPlannerTests {
         let subscription = makeSubscription()
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let existingFileURL = managedDirectory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     managedDirectory.standardizedFileURL.path: [existingFileURL]
@@ -188,7 +188,7 @@ struct SyncPlannerTests {
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let unmanagedFileURL = managedDirectory.appendingPathComponent("notes.txt", isDirectory: false)
         let unrelatedAudioURL = managedDirectory.appendingPathComponent("Favorite Song.mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     managedDirectory.standardizedFileURL.path: [
@@ -219,7 +219,7 @@ struct SyncPlannerTests {
             title: "Episode 1",
             preparedFileName: "Episode_1.mp3"
         )
-        let planner = SyncPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
 
         let plan = try planner.makePlan(
             device: device,
@@ -240,7 +240,7 @@ struct SyncPlannerTests {
         let subscription = makeSubscription()
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let existingFileURL = managedDirectory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3", isDirectory: false)
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     managedDirectory.standardizedFileURL.path: [existingFileURL]
@@ -276,7 +276,7 @@ struct SyncPlannerTests {
             "Sean Carroll's Mindscape, Science, Society, Philosophy, Culture, Arts, and Ideas",
             isDirectory: true
         )
-        let planner = SyncPlanner(
+        let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(
                 filesByDirectory: [
                     actualDirectory.standardizedFileURL.path: []
@@ -308,7 +308,7 @@ struct SyncPlannerTests {
             FeedSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
         ]
         let deviceLibrary = CountingPlannerDeviceLibrary()
-        let planner = SyncPlanner(deviceLibrary: deviceLibrary)
+        let planner = makeTestPlanner(deviceLibrary: deviceLibrary)
 
         _ = try planner.makePlan(
             device: device,
@@ -320,6 +320,149 @@ struct SyncPlannerTests {
         #expect(deviceLibrary.directoryRequestCount == 1)
         #expect(deviceLibrary.recursiveFileRequestCount == 1)
         #expect(deviceLibrary.directFileRequestCount == 0)
+    }
+
+    @Test
+    func keepsCopiesBeforeSelectedDeletionsWhenSpaceIsAvailable() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "new",
+            title: "New Episode",
+            preparedFileName: "2026.07.18-New Episode-(Example Podcast).mp3"
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let deleteURL = managedDirectory
+            .appendingPathComponent("2026.07.01-Old Episode-(Example Podcast).mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [deleteURL]]),
+            storageInspector: TestSyncStorageInspector(
+                availableBytes: 200,
+                sizesByPath: [
+                    preparedEpisode.preparedFileURL.path: 100,
+                    deleteURL.path: 60,
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            manualDeleteTargets: [deleteURL],
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions.count == 2)
+        #expect({ if case .copyToDevice = plan.actions[0] { true } else { false } }())
+        #expect(plan.actions[1] == .deleteFromDevice(targetURL: deleteURL))
+        #expect(plan.warnings.isEmpty)
+    }
+
+    @Test
+    func movesSelectedDeletionBeforeCopyWhenThatMakesTheSyncFit() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "new",
+            title: "New Episode",
+            preparedFileName: "2026.07.18-New Episode-(Example Podcast).mp3"
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let deleteURL = managedDirectory
+            .appendingPathComponent("2026.07.01-Old Episode-(Example Podcast).mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [deleteURL]]),
+            storageInspector: TestSyncStorageInspector(
+                availableBytes: 50,
+                sizesByPath: [
+                    preparedEpisode.preparedFileURL.path: 100,
+                    deleteURL.path: 60,
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            manualDeleteTargets: [deleteURL],
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions[0] == .deleteFromDevice(targetURL: deleteURL))
+        #expect({ if case .copyToDevice = plan.actions[1] { true } else { false } }())
+        #expect(plan.warnings == ["Some selected deletions will run before copying so the sync has enough space."])
+    }
+
+    @Test
+    func rejectsPlanWhenSelectedDeletionsStillDoNotMakeEnoughSpace() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "new",
+            title: "New Episode",
+            preparedFileName: "2026.07.18-New Episode-(Example Podcast).mp3"
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let deleteURL = managedDirectory
+            .appendingPathComponent("2026.07.01-Old Episode-(Example Podcast).mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [deleteURL]]),
+            storageInspector: TestSyncStorageInspector(
+                availableBytes: 50,
+                sizesByPath: [
+                    preparedEpisode.preparedFileURL.path: 100,
+                    deleteURL.path: 40,
+                ]
+            )
+        )
+
+        #expect(throws: SyncCapacityError.insufficientCapacity(requiredBytes: 100, availableBytes: 90)) {
+            try planner.makePlan(
+                device: device,
+                preparedEpisodes: [preparedEpisode],
+                subscriptions: [makeSubscription()],
+                manualDeleteTargets: [deleteURL],
+                ejectAfterSync: false
+            )
+        }
+    }
+
+    @Test
+    func reportsExistingDestinationWithUnexpectedSizeAsIncomplete() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "new",
+            title: "New Episode",
+            preparedFileName: "2026.07.18-New Episode-(Example Podcast).mp3"
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let destinationURL = managedDirectory
+            .appendingPathComponent(preparedEpisode.preparedFileURL.lastPathComponent)
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [destinationURL]]),
+            storageInspector: TestSyncStorageInspector(
+                sizesByPath: [
+                    preparedEpisode.preparedFileURL.path: 100,
+                    destinationURL.path: 25,
+                ]
+            )
+        )
+
+        #expect(throws: SyncCapacityError.incompleteExistingCopy(
+            fileName: destinationURL.lastPathComponent,
+            expectedBytes: 100,
+            actualBytes: 25
+        )) {
+            try planner.makePlan(
+                device: device,
+                preparedEpisodes: [preparedEpisode],
+                subscriptions: [makeSubscription()],
+                ejectAfterSync: false
+            )
+        }
     }
 
     private func makeDevice() -> DeviceInfo {

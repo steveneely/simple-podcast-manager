@@ -32,7 +32,7 @@ struct SyncExecutionViewModelTests {
         )
         let executor = RecordingSyncExecutor(result: SyncResult(copiedCount: 1))
         let viewModel = SyncExecutionViewModel(
-            planner: SyncPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
+            planner: makeTestPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
             executor: executor
         )
 
@@ -73,7 +73,7 @@ struct SyncExecutionViewModelTests {
             preparationAction: .passthroughMP3
         )
         let viewModel = SyncExecutionViewModel(
-            planner: SyncPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
+            planner: makeTestPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
             executor: RecordingSyncExecutor(result: SyncResult(copiedCount: 1))
         )
 

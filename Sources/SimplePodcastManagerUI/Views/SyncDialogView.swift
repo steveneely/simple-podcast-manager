@@ -101,6 +101,12 @@ struct SyncDialogView: View {
                 Text("\(preparedEpisodeCount) episode\(preparedEpisodeCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) show\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                ForEach(plan.warnings, id: \.self) { warning in
+                    Text(warning)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             } else {
                 Text("Choose a compatible device to build the full plan.")
                     .font(.caption)

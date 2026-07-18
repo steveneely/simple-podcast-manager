@@ -43,7 +43,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `DownloadService`: download episode media into a temporary workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
-- `SyncPlanner`: calculate copy, skip, delete, and eject actions
+- `SyncPlanner`: calculate copy, skip, delete, and eject actions, reordering selected deletions when needed to make the sync fit
 - `SyncExecutor`: perform scoped copies and deletes on the device
 - `SafetyValidator`: verify all device paths before any mutation
 

@@ -1,5 +1,7 @@
-# Simple Podcast Manager v1.3.0
+# Simple Podcast Manager v1.3.1
 
+- Writes episode and podcast names from the RSS feed into every prepared MP3, replacing missing, stale, or placeholder publisher metadata on offline players.
+- Uses one consistent metadata and artwork preparation path for original and converted MP3 files.
 - Checks available device space before syncing and stops before making changes when the planned sync will not fit.
 - When needed, runs only the device deletions you already selected before copying so the sync can make enough room.
 - Reports failed copies clearly, including when a partial file may remain on the device, and flags same-name files whose size suggests an interrupted earlier copy.

@@ -80,6 +80,8 @@ The app can prepare normal MP3 podcast episodes without `ffmpeg`. Choose an `ffm
 
 When the RSS feed provides artwork, newly downloaded episodes include a small copy of that image as MP3 cover art when possible.
 
+Episode titles and podcast names are prepared for reliable display on offline MP3 players.
+
 ## Sync To A Device
 
 1. Plug in your MP3 player.

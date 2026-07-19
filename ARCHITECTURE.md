@@ -176,11 +176,13 @@ All synced output on the device should be MP3.
 
 - if a downloaded enclosure is already acceptable MP3 output, keep it
 - otherwise convert it through `ffmpeg`
-- when RSS artwork is available for an MP3 file, prepare a small JPEG and write it as an ID3v2.3 APIC cover-art frame in Swift
-- when RSS artwork is available during non-MP3 conversion, ask `ffmpeg` to embed it in the converted output
+- finalize every MP3 with a small, deterministic ID3v2.3 tag using the RSS episode and podcast titles, plus prepared cover art when available
+- use `ffmpeg` only to convert audio; native Swift code handles MP3 metadata consistently afterward
 - conversion happens in a temporary workspace on the Mac before copy-to-device
 
-Release builds may bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg` or conversion failures clearly in the UI for non-MP3 files. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching, image conversion, or MP3 tagging fails.
+RSS metadata is authoritative. Podcast enclosure files may contain missing, stale, or placeholder ID3 tags because podcast apps normally display metadata from the RSS feed. Offline MP3 players cannot access that feed, so Simple Podcast Manager writes the RSS episode title and podcast title into a deterministic ID3v2.3 tag before syncing.
+
+Release builds may bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg`, conversion, and metadata-writing failures clearly. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching or image conversion fails.
 
 ## Update System
 

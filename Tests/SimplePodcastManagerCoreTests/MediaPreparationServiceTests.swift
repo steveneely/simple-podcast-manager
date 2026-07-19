@@ -58,7 +58,10 @@ struct MediaPreparationServiceTests {
         )
         let service = MediaPreparationService(
             downloadService: StubDownloadService(fileExtension: "aac"),
-            audioConversionService: FFmpegAudioConversionService(commandRunner: StubCommandRunner(result: .success(CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")))),
+            audioConversionService: FFmpegAudioConversionService(
+                commandRunner: StubCommandRunner(result: .success(CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: ""))),
+                metadataTaggingService: CapturingMP3MetadataTaggingService()
+            ),
             workspaceProvider: StubWorkspaceProvider()
         )
 
@@ -89,6 +92,7 @@ struct MediaPreparationServiceTests {
             downloadService: StubDownloadService(fileExtension: "wav"),
             audioConversionService: FFmpegAudioConversionService(
                 commandRunner: commandRunner,
+                metadataTaggingService: CapturingMP3MetadataTaggingService(),
                 bundledExecutableURL: bundledURL
             ),
             workspaceProvider: StubWorkspaceProvider()
@@ -102,7 +106,7 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
-    func embedsArtworkInMp3WithoutFfmpeg() async throws {
+    func normalizesMp3MetadataAndIncludesArtworkWithoutFfmpeg() async throws {
         let artworkURL = URL(string: "https://cdn.example.com/artwork.png")!
         let episode = Episode(
             id: "ep-mp3-art",
@@ -120,11 +124,11 @@ struct MediaPreparationServiceTests {
         let commandRunner = CapturingCommandRunner(
             result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
         )
-        let taggingService = CapturingMP3ArtworkTaggingService()
+        let taggingService = CapturingMP3MetadataTaggingService()
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
-            mp3ArtworkTaggingService: taggingService,
+            metadataTaggingService: taggingService,
             bundledExecutableURL: nil
         )
 
@@ -142,8 +146,10 @@ struct MediaPreparationServiceTests {
         #expect(commandRunner.executableURLs.isEmpty)
         #expect(commandRunner.arguments.isEmpty)
         #expect(taggingService.calls == [
-            MP3ArtworkTaggingCall(
+            MP3MetadataTaggingCall(
                 sourceFileURL: sourceFileURL,
+                episodeTitle: episode.title,
+                podcastTitle: episode.podcastTitle,
                 artworkFileURL: artworkFileURL,
                 destinationFileURL: preparedEpisode.preparedFileURL
             ),
@@ -151,7 +157,39 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
-    func warnsWhenMp3ArtworkTaggingFails() async throws {
+    func normalizesMp3MetadataWhenArtworkIsUnavailable() async throws {
+        let episode = Episode(
+            id: "ep-mp3-no-art",
+            podcastTitle: "Example Podcast",
+            title: "Episode MP3 Without Art",
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        let taggingService = CapturingMP3MetadataTaggingService()
+        let service = FFmpegAudioConversionService(
+            metadataTaggingService: taggingService,
+            bundledExecutableURL: nil
+        )
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings()
+        )
+
+        #expect(preparedEpisode.preparedFileURL != sourceFileURL)
+        #expect(preparedEpisode.preparationWarnings == nil)
+        #expect(taggingService.calls.first?.episodeTitle == episode.title)
+        #expect(taggingService.calls.first?.podcastTitle == episode.podcastTitle)
+        #expect(taggingService.calls.first?.artworkFileURL == nil)
+    }
+
+    @Test
+    func failsPreparationWhenMetadataCannotBeWritten() async throws {
         let episode = Episode(
             id: "ep-mp3-art-tagging-fails",
             podcastTitle: "Example Podcast",
@@ -171,24 +209,29 @@ struct MediaPreparationServiceTests {
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
-            mp3ArtworkTaggingService: FailingMP3ArtworkTaggingService(),
+            metadataTaggingService: FailingMP3MetadataTaggingService(),
             bundledExecutableURL: nil
         )
 
-        let preparedEpisode = try await service.prepareAudio(
-            for: episode,
-            sourceFileURL: sourceFileURL,
-            in: workspaceURL,
-            settings: AppSettings()
-        )
-
-        #expect(preparedEpisode.preparedFileURL == sourceFileURL)
-        #expect(preparedEpisode.preparationWarnings == ["Cover art was not added because the MP3 could not be tagged."])
+        do {
+            _ = try await service.prepareAudio(
+                for: episode,
+                sourceFileURL: sourceFileURL,
+                in: workspaceURL,
+                settings: AppSettings()
+            )
+            Issue.record("Expected metadata tagging to fail")
+        } catch let error as AudioConversionError {
+            guard case .metadataWritingFailed = error else {
+                Issue.record("Expected metadataWritingFailed, got \(error)")
+                return
+            }
+        }
         #expect(commandRunner.arguments.isEmpty)
     }
 
     @Test
-    func returnsOriginalMp3WhenArtworkCannotBePrepared() async throws {
+    func writesMetadataWithoutArtworkWhenArtworkCannotBePrepared() async throws {
         let episode = Episode(
             id: "ep-mp3-art-fallback",
             podcastTitle: "Example Podcast",
@@ -203,9 +246,11 @@ struct MediaPreparationServiceTests {
         let commandRunner = CapturingCommandRunner(
             result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
         )
+        let taggingService = CapturingMP3MetadataTaggingService()
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: FailingArtworkPreparationService(),
+            metadataTaggingService: taggingService,
             bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
         )
 
@@ -216,13 +261,14 @@ struct MediaPreparationServiceTests {
             settings: AppSettings()
         )
 
-        #expect(preparedEpisode.preparedFileURL == sourceFileURL)
+        #expect(preparedEpisode.preparedFileURL != sourceFileURL)
         #expect(preparedEpisode.preparationWarnings == ["Cover art was not added because the artwork could not be downloaded or read."])
+        #expect(taggingService.calls.first?.artworkFileURL == nil)
         #expect(commandRunner.arguments.isEmpty)
     }
 
     @Test
-    func embedsArtworkWhenConvertingNonMp3() async throws {
+    func convertsAudioThenWritesMetadataAndArtworkOnce() async throws {
         let artworkURL = URL(string: "https://cdn.example.com/artwork.png")!
         let episode = Episode(
             id: "ep-aac-art",
@@ -240,9 +286,11 @@ struct MediaPreparationServiceTests {
         let commandRunner = CapturingCommandRunner(
             result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
         )
+        let taggingService = CapturingMP3MetadataTaggingService()
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
+            metadataTaggingService: taggingService,
             bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
         )
 
@@ -255,49 +303,16 @@ struct MediaPreparationServiceTests {
 
         #expect(preparedEpisode.preparationAction == .convertedToMP3)
         #expect(preparedEpisode.preparationWarnings == nil)
-        #expect(commandRunner.arguments.first?.contains("-map") == true)
-        #expect(commandRunner.arguments.first?.contains("0:a") == true)
-        #expect(commandRunner.arguments.first?.contains("1:v") == true)
-        #expect(commandRunner.arguments.first?.contains(artworkFileURL.path) == true)
-    }
-
-    @Test
-    func retriesNonMp3ConversionWithoutArtworkWhenEmbeddingFails() async throws {
-        let episode = Episode(
-            id: "ep-aac-art-retry",
-            podcastTitle: "Example Podcast",
-            title: "Episode AAC With Art",
-            artworkURL: URL(string: "https://cdn.example.com/artwork.png")!,
-            enclosureURL: URL(string: "https://cdn.example.com/episode.aac")!,
-            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-        )
-        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
-        let sourceFileURL = workspaceURL.appending(path: "episode.aac")
-        let artworkFileURL = workspaceURL.appending(path: "cover.jpg")
-        try Data("audio".utf8).write(to: sourceFileURL)
-        try Data("artwork".utf8).write(to: artworkFileURL)
-        let commandRunner = SequencedCommandRunner(results: [
-            CommandRunResult(terminationStatus: 1, standardOutput: "", standardError: "art failed"),
-            CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: ""),
+        #expect(commandRunner.arguments.count == 1)
+        #expect(commandRunner.arguments.first == [
+            "-y",
+            "-i", sourceFileURL.path,
+            taggingService.calls[0].sourceFileURL.path,
         ])
-        let service = FFmpegAudioConversionService(
-            commandRunner: commandRunner,
-            artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
-            bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
-        )
-
-        let preparedEpisode = try await service.prepareAudio(
-            for: episode,
-            sourceFileURL: sourceFileURL,
-            in: workspaceURL,
-            settings: AppSettings()
-        )
-
-        #expect(preparedEpisode.preparationAction == .convertedToMP3)
-        #expect(preparedEpisode.preparationWarnings == ["Cover art was not added because ffmpeg could not embed it."])
-        #expect(commandRunner.arguments.count == 2)
-        #expect(commandRunner.arguments[0].contains(artworkFileURL.path))
-        #expect(!commandRunner.arguments[1].contains(artworkFileURL.path))
+        #expect(taggingService.calls[0].episodeTitle == episode.title)
+        #expect(taggingService.calls[0].podcastTitle == episode.podcastTitle)
+        #expect(taggingService.calls[0].artworkFileURL == artworkFileURL)
+        #expect(taggingService.calls[0].destinationFileURL == preparedEpisode.preparedFileURL)
     }
 
     @Test
@@ -471,45 +486,49 @@ private final class CapturingCommandRunner: CommandRunning, @unchecked Sendable 
     }
 }
 
-private final class SequencedCommandRunner: CommandRunning, @unchecked Sendable {
-    private var results: [CommandRunResult]
-    private(set) var arguments: [[String]] = []
-
-    init(results: [CommandRunResult]) {
-        self.results = results
-    }
-
-    func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
-        self.arguments.append(arguments)
-        return results.isEmpty
-            ? CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
-            : results.removeFirst()
-    }
-}
-
-private struct MP3ArtworkTaggingCall: Equatable {
+private struct MP3MetadataTaggingCall: Equatable {
     var sourceFileURL: URL
-    var artworkFileURL: URL
+    var episodeTitle: String
+    var podcastTitle: String
+    var artworkFileURL: URL?
     var destinationFileURL: URL
 }
 
-private final class CapturingMP3ArtworkTaggingService: MP3ArtworkTaggingService, @unchecked Sendable {
-    private(set) var calls: [MP3ArtworkTaggingCall] = []
+private final class CapturingMP3MetadataTaggingService: MP3MetadataTaggingService, @unchecked Sendable {
+    private(set) var calls: [MP3MetadataTaggingCall] = []
 
-    func writeArtwork(sourceFileURL: URL, artworkFileURL: URL, destinationFileURL: URL) throws {
+    func writeMetadata(
+        sourceFileURL: URL,
+        episodeTitle: String,
+        podcastTitle: String,
+        artworkFileURL: URL?,
+        destinationFileURL: URL
+    ) throws {
         calls.append(
-            MP3ArtworkTaggingCall(
+            MP3MetadataTaggingCall(
                 sourceFileURL: sourceFileURL,
+                episodeTitle: episodeTitle,
+                podcastTitle: podcastTitle,
                 artworkFileURL: artworkFileURL,
                 destinationFileURL: destinationFileURL
             )
+        )
+        try FileManager.default.createDirectory(
+            at: destinationFileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
         )
         try Data("tagged".utf8).write(to: destinationFileURL)
     }
 }
 
-private struct FailingMP3ArtworkTaggingService: MP3ArtworkTaggingService {
-    func writeArtwork(sourceFileURL: URL, artworkFileURL: URL, destinationFileURL: URL) throws {
+private struct FailingMP3MetadataTaggingService: MP3MetadataTaggingService {
+    func writeMetadata(
+        sourceFileURL: URL,
+        episodeTitle: String,
+        podcastTitle: String,
+        artworkFileURL: URL?,
+        destinationFileURL: URL
+    ) throws {
         throw CocoaError(.fileWriteUnknown)
     }
 }

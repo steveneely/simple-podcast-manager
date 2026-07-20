@@ -8,7 +8,7 @@ Simple Podcast Manager is a native macOS app for a plain RSS-to-MP3-player workf
 
 plug in device -> click sync -> done
 
-It is built for people who want to own their podcast subscriptions, download normal audio files, and copy MP3s to a standalone player without a hosted account or platform lock-in.
+It uses podcast RSS feeds directly, downloads episodes to your Mac, and syncs them to a standalone MP3 player.
 
 ## Install
 
@@ -31,7 +31,7 @@ After the first install, enable automatic checks in Settings or use `Simple Podc
 - Export and import subscriptions, settings, and local history.
 - Check for app updates in place with Sparkle.
 
-The app is local-first: no backend service, hosted account, Spotify dependency, or Apple Podcasts library integration.
+The app runs locally on your Mac and reads podcasts directly from their RSS feeds.
 
 ## Help
 

@@ -29,73 +29,32 @@ These rules override convenience or speed:
 
 If a proposed implementation weakens those guarantees, do not take it.
 
-## Architecture Guardrails
+## Working Conventions
 
-- Build the app in Swift using `SwiftUI`
-- Keep the sync engine in-process and in Swift
-- Treat feed metadata refresh as a separate service from media preparation and sync execution
-- Use `ffmpeg` as an external process for conversion
-- Prefer Foundation and direct platform APIs before adding packages
-- Use Sparkle only for installed-app updates; local `swift run` builds must not check for or install production updates
-- Avoid unnecessary frameworks, services, or abstraction layers
-- Keep modules small and explicit
-- Keep the user-visible plan and executed device actions aligned through the shared planner
+- Follow `ARCHITECTURE.md` for system design and technical boundaries; update it when the design changes
+- Prefer simple, explicit implementations and avoid unnecessary dependencies or abstraction layers
+- Keep user-visible behavior and executed behavior aligned
+- Preserve unrelated user changes in a dirty worktree
 
-Do not introduce:
+When adding files, use the existing package layout:
 
-- a Python backend
-- a database for v1
-- background schedulers
-- Spotify-dependent download or subscription workflows
-- Apple Podcasts library integration assumptions
-- extra documentation systems or process overhead
-
-## Implementation Priorities
-
-Implement in this order:
-
-1. safety model and path validation
-2. config and app state
-3. device detection
-4. RSS subscription flow
-5. feed parsing and episode selection
-6. download and conversion
-7. sync planning
-8. sync execution, direct device deletion, eject
-
-Prefer a plan-first sync flow:
-
-- compute the intended actions
-- show/report the plan
-- execute only validated actions
-
-## Repo Conventions
-
-Once code exists, use this structure:
-
-- `Sources/SimplePodcastManagerCore/`: domain types, persistence, validation, future sync services
+- `Sources/SimplePodcastManagerCore/`: domain types, persistence, validation, and sync services
 - `Sources/SimplePodcastManagerUI/`: SwiftUI screens and view models
 - `Tests/SimplePodcastManagerCoreTests/`: core behavior tests
 - `Tests/SimplePodcastManagerUITests/`: UI-facing state tests
 
-Release/update conventions:
+## Release Workflow
 
-- installed app updates are handled by Sparkle 2
-- when the user enables automatic checks, the installed app checks quietly once per app launch; when a newer version is found, present Sparkle's update window during that same launch, while current versions remain quiet; Settings must edit Sparkle's own preference
-- automatic checks may notify the user about an available update, but must never silently download, install, or relaunch the app; keep `SUAllowsAutomaticUpdates` set to false
-- local `swift run` builds must not check for production updates or show the automatic-update setting
-- first install still uses a DMG
 - `CFBundleVersion` must be an incrementing integer
 - `CFBundleShortVersionString` is the user-visible update version shown by Sparkle; do not leave it unchanged when publishing a user-facing update
 - `SPMReleaseTag` must match the GitHub release tag and start with `v<CFBundleShortVersionString>`
 - before any release/version bump, ask Steve which user-visible semver bump to use unless he has already specified it in the current request
-- use patch bumps, such as `0.1.1`, for small fixes, cleanup, copy changes, and narrow UX improvements
-- use minor bumps, such as `0.2.0`, for new workflows, meaningful user-facing capabilities, compatibility changes, or larger sync/download/device behavior changes while pre-1.0
-- reserve major bumps for 1.0 stability or, after 1.0, breaking changes to data compatibility, device behavior, or user workflows
+- use patch bumps, such as `1.3.2`, for small fixes, cleanup, copy changes, and narrow UX improvements
+- use minor bumps, such as `1.4.0`, for backward-compatible new workflows, meaningful user-facing capabilities, or larger sync/download/device behavior changes
+- use major bumps, such as `2.0.0`, for breaking changes to data compatibility, device behavior, or user workflows
 - `SUPublicEDKey` is public and may be committed
 - Sparkle private keys, Developer ID credentials, notarization profiles, and appcast signing secrets must never be committed
 - run `./scripts/swift-test.sh` and `./scripts/verify-release.sh` before publishing a release
-- do not reintroduce a parallel GitHub-release update checker in the app UI
 - every release must include clear user-facing notes in `RELEASE_NOTES.md` before building; these notes are embedded in the Sparkle appcast and shown in `Check for Updates…`, but the release-note requirement itself is developer/agent process and should not be surfaced to users
 - release notes must mention the exact `SPMReleaseTag` and describe user-visible changes; never ship generic notes like only `Build 32.`
 - keep only the currently published release in the Sparkle appcast
@@ -105,24 +64,12 @@ Release/update conventions:
 - the GitHub release asset name must match the Sparkle appcast enclosure URL exactly; do not upload only the generic `dist/SimplePodcastManager.dmg` for an update release
 - after publishing the release, make a HEAD request or equivalent check against the live appcast enclosure URL and confirm it resolves before calling the release done
 
-GitHub Pages conventions:
+Website publishing:
 
 - GitHub Pages serves from the `gh-pages` branch at repository root
 - keep the canonical website source in `main` at `docs/index.html`
 - when changing the website, copy `docs/index.html` to `gh-pages:index.html` and preserve existing `gh-pages` files such as `appcast.xml` and `.nojekyll`
 - Sparkle update publishing also updates `gh-pages:appcast.xml`
-
-Recommended service boundaries:
-
-- feed metadata should be resolved from RSS and applied to saved subscriptions
-- UI code should not contain sync logic
-- mutation code should be separate from planning code
-- path validation should be reusable and called before every destructive operation
-
-Current package targets:
-
-- `SimplePodcastManagerCore`
-- `SimplePodcastManagerUI`
 
 ## Testing Expectations
 

@@ -50,7 +50,7 @@ The UI should not contain sync logic. It should call focused core services and r
 
 ### Domain Models
 
-At minimum, v1 should define:
+The core domain models are:
 
 - `FeedSubscription`
 - `Episode`
@@ -126,7 +126,7 @@ The feed cache is derived data. It should not be included in app data export/imp
 
 ## Device Detection
 
-V1 device detection should be conservative and explicit.
+Device detection is conservative and explicit.
 
 Detection rules:
 
@@ -152,7 +152,7 @@ Validation gates before mutation:
 - no other device-root files or sibling folders may be written or deleted
 - any uncertain or malformed path must abort the destructive portion of the run
 
-V1 does not require Sony-specific identification beyond these rules.
+The app does not require manufacturer-specific identification beyond these rules.
 
 Device library refresh should inventory the configured podcast directory once and derive per-subscription and other-audio views from that snapshot. External players can have slow storage, so avoid repeatedly walking the same directory for every subscription. Device inventory and sync planning perform filesystem reads outside the main actor so a slow device does not freeze the UI.
 
@@ -162,7 +162,7 @@ Managed files should live under per-podcast folders:
 
 - `[configured podcast directory]/<podcast-name>/`
 
-This is the default layout for v1 because it makes ownership safer than a flat directory.
+This layout makes ownership safer than a flat directory.
 
 Delete behavior:
 
@@ -200,29 +200,9 @@ Update design:
 - local development builds launched with `swift run "Simple Podcast Manager"` disable update checks
 - Sparkle reads an HTTPS appcast from `SUFeedURL`
 - Sparkle verifies update archives with the public EdDSA key in `SUPublicEDKey`
-- the Sparkle private key must stay outside git, preferably in the developer's login Keychain
-- release builds must use a monotonically increasing numeric `CFBundleVersion`
-- `CFBundleShortVersionString` is the version Sparkle shows users in update UI
-- `SPMReleaseTag` should match the GitHub release tag and start with `v<CFBundleShortVersionString>`
-- release work should ask Steve which user-visible semver bump to use unless the bump is already specified
-- patch bumps (`0.1.1`) are for small fixes, cleanup, copy changes, and narrow UX improvements
-- minor bumps (`0.2.0`) are for new workflows, meaningful capabilities, compatibility changes, or larger sync/download/device behavior changes while pre-1.0
-- major bumps are for 1.0 stability or, after 1.0, breaking changes to data compatibility, device behavior, or user workflows
-- every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`; this is a developer/agent process requirement, not user-facing documentation
-- Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
-- keep only the currently published release in the appcast
-- release notes should describe user-visible changes since the previous release; repeat an older change only for compatibility, migration, safety, or required user action across skipped versions
-- keep Sparkle release notes concise, generally 3–6 bullets, and omit internal implementation details
-- a version bump is incomplete until the matching DMG is built, verified, uploaded to the GitHub release, published in `gh-pages:appcast.xml`, and confirmed in the live appcast
-- the GitHub release must include the exact versioned DMG file referenced by the Sparkle appcast enclosure, such as `dist/updates/SimplePodcastManager-v1.1.3.dmg`; uploading only the generic `dist/SimplePodcastManager.dmg` will break in-app downloads
-- release verification should include checking that the live appcast enclosure URL resolves successfully after the release asset is uploaded
-
-Release packaging responsibilities:
-
-- `scripts/build-release.sh` assembles the app bundle, embeds `Sparkle.framework`, builds the DMG, and generates `dist/updates/appcast.xml`
-- `scripts/build-release.sh` requires `RELEASE_NOTES.md` and copies it into the generated Sparkle update notes
-- `scripts/verify-release.sh` validates the bundle metadata, Sparkle framework embedding, appcast XML, appcast signature fields, non-generic release notes, DMG existence, and code signature
-- a release should not be published until `./scripts/swift-test.sh` and `./scripts/verify-release.sh` both pass
+- Sparkle compares the numeric `CFBundleVersion` to determine whether an update is newer
+- `CFBundleShortVersionString` is the user-visible version shown in update UI
+- `SPMReleaseTag` identifies the matching GitHub release artifact
 
 Do not keep a parallel GitHub-release update checker in the app UI. Sparkle owns installed-app update behavior.
 
@@ -240,15 +220,9 @@ These rules are non-negotiable:
 - never delete outside the configured podcast directory
 - refuse mutation if the device path cannot be proven safe
 
-Implementation priority should follow this order:
-
-1. path validation
-2. sync planning
-3. execution
-
 The app should be biased toward refusing unsafe work, even if that occasionally blocks a valid run.
 
-## Defaults Chosen For V1
+## Technology Choices
 
 - all Swift implementation
 - `SwiftUI` UI

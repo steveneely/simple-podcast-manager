@@ -3,13 +3,13 @@ import Foundation
 public struct MediaPreparationService: Sendable {
     private let downloadService: any DownloadService
     private let audioConversionService: any AudioConversionService
-    private let workspaceProvider: any TemporaryWorkspaceProviding
+    private let workspaceProvider: any MediaWorkspaceProviding
     private let maximumConcurrentPreparations: Int
 
     public init(
         downloadService: any DownloadService = URLSessionDownloadService(),
         audioConversionService: any AudioConversionService = FFmpegAudioConversionService(),
-        workspaceProvider: any TemporaryWorkspaceProviding = PersistentMediaWorkspaceProvider(),
+        workspaceProvider: any MediaWorkspaceProviding = PersistentMediaWorkspaceProvider(),
         maximumConcurrentPreparations: Int = 3
     ) {
         self.downloadService = downloadService
@@ -88,8 +88,7 @@ public struct MediaPreparationService: Sendable {
             },
             failures: failures.sorted {
                 $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
-            },
-            workspaceURL: workspaceURL
+            }
         )
     }
 
@@ -98,8 +97,10 @@ public struct MediaPreparationService: Sendable {
         workspaceURL: URL,
         settings: AppSettings
     ) async -> EpisodePreparationOutcome {
+        var downloadedFileURL: URL?
         do {
             let sourceFileURL = try await downloadService.download(episode, into: workspaceURL)
+            downloadedFileURL = sourceFileURL
             let preparedEpisode = try await audioConversionService.prepareAudio(
                 for: episode,
                 sourceFileURL: sourceFileURL,
@@ -108,6 +109,10 @@ public struct MediaPreparationService: Sendable {
             )
             return EpisodePreparationOutcome(episodeID: episode.id, result: .success(preparedEpisode))
         } catch {
+            // Failed preparations are not tracked by the UI, so remove their download.
+            if let downloadedFileURL {
+                try? FileManager.default.removeItem(at: downloadedFileURL)
+            }
             return EpisodePreparationOutcome(
                 episodeID: episode.id,
                 result: .failure(

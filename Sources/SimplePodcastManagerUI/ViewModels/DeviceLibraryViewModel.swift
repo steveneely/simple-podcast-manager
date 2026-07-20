@@ -11,7 +11,7 @@ public final class DeviceLibraryViewModel {
 
     private let deviceLibrary: any DeviceLibraryInspecting
     private let managedDirectoryResolver: ManagedDirectoryResolver
-    private let fileSystem: any FileSystemOperating
+    private let deletionService: DeviceFileDeletionService
     private let safetyValidator: SafetyValidator
     private var latestRefreshID: UUID?
 
@@ -21,8 +21,11 @@ public final class DeviceLibraryViewModel {
         safetyValidator: SafetyValidator = SafetyValidator()
     ) {
         self.deviceLibrary = deviceLibrary
-        self.managedDirectoryResolver = ManagedDirectoryResolver(deviceLibrary: deviceLibrary)
-        self.fileSystem = fileSystem
+        self.managedDirectoryResolver = ManagedDirectoryResolver()
+        self.deletionService = DeviceFileDeletionService(
+            fileSystem: fileSystem,
+            safetyValidator: safetyValidator
+        )
         self.safetyValidator = safetyValidator
         self.filesBySubscriptionID = [:]
         self.otherAudioFiles = []
@@ -81,9 +84,7 @@ public final class DeviceLibraryViewModel {
                     continue
                 }
 
-                try safetyValidator.validateDeleteTarget(standardizedURL, on: device)
-                try fileSystem.removeItem(at: standardizedURL)
-                try removeAppleDoubleSidecarIfPresent(for: standardizedURL, on: device)
+                try deletionService.deleteExplicitFile(at: standardizedURL, on: device)
                 deletedURLs.insert(standardizedURL)
             }
 
@@ -163,15 +164,6 @@ public final class DeviceLibraryViewModel {
 
     nonisolated private static func isAppleDoubleSidecar(_ fileURL: URL) -> Bool {
         fileURL.lastPathComponent.hasPrefix("._")
-    }
-
-    private func removeAppleDoubleSidecarIfPresent(for fileURL: URL, on device: DeviceInfo) throws {
-        let sidecarURL = fileURL.deletingLastPathComponent()
-            .appendingPathComponent("._" + fileURL.lastPathComponent, isDirectory: false)
-        guard fileSystem.fileExists(at: sidecarURL) else { return }
-
-        try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
-        try fileSystem.removeItem(at: sidecarURL)
     }
 }
 

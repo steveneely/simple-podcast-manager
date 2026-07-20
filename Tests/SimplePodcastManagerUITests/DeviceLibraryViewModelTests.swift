@@ -386,8 +386,6 @@ private final class CapturingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     func copyItem(at sourceURL: URL, to destinationURL: URL) throws {}
 
-    func moveItem(at sourceURL: URL, to destinationURL: URL) throws {}
-
     func removeItem(at url: URL) throws {
         removedItems.append(url.standardizedFileURL)
     }

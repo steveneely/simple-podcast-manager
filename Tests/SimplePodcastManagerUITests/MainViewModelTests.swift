@@ -31,7 +31,7 @@ struct MainViewModelTests {
         let store = InMemoryConfigurationStore()
         let viewModel = MainViewModel(
             store: store,
-            metadataResolver: MockFeedMetadataResolver(
+            feedResolver: MockFeedResolver(
                 summariesByURL: [
                     "https://relay.fm/connected/feed": FeedSummary(
                         subscriptionID: UUID(),
@@ -178,7 +178,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func updateFeedDeletesCachedFeedWhenURLChanges() async throws {
+    func updateFeedReplacesCachedFeedWhenURLChanges() async throws {
         let subscriptionID = UUID()
         let oldURL = URL(string: "https://example.com/old.xml")!
         let newURL = URL(string: "https://example.com/new.xml")!
@@ -196,7 +196,7 @@ struct MainViewModelTests {
         )
         let viewModel = MainViewModel(
             store: store,
-            metadataResolver: MockFeedMetadataResolver(
+            feedResolver: MockFeedResolver(
                 summariesByURL: [
                     newURL.absoluteString: FeedSummary(subscriptionID: subscriptionID, title: "Cached Feed")
                 ]
@@ -213,7 +213,8 @@ struct MainViewModelTests {
             )
         )
 
-        #expect(cacheStore.deletedSubscriptionIDs == [subscriptionID])
+        #expect(cacheStore.savedFeeds.map(\.rssURL) == [newURL])
+        #expect(cacheStore.deletedSubscriptionIDs.isEmpty)
     }
 }
 
@@ -235,31 +236,40 @@ private final class InMemoryConfigurationStore: ConfigurationStore, @unchecked S
 
 private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable {
     var deletedSubscriptionIDs: [UUID] = []
+    var savedFeeds: [CachedFeed] = []
 
     func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
         nil
     }
 
-    func saveCachedFeed(_ cachedFeed: CachedFeed) throws {}
+    func saveCachedFeed(_ cachedFeed: CachedFeed) throws {
+        savedFeeds.append(cachedFeed)
+    }
 
     func deleteCachedFeed(for subscriptionID: UUID) throws {
         deletedSubscriptionIDs.append(subscriptionID)
     }
 }
 
-private struct MockFeedMetadataResolver: FeedMetadataResolving {
+private struct MockFeedResolver: FeedResolving {
     let summariesByURL: [String: FeedSummary]
 
-    func resolveMetadata(for rssURL: URL, subscriptionID: UUID?) async throws -> FeedSummary {
+    func resolveFeed(for rssURL: URL, subscriptionID: UUID) async throws -> CachedFeed {
         guard let summary = summariesByURL[rssURL.absoluteString] else {
             throw FeedServiceError.invalidResponse
         }
 
-        return FeedSummary(
-            subscriptionID: subscriptionID ?? summary.subscriptionID,
-            title: summary.title,
-            artworkURL: summary.artworkURL,
-            description: summary.description
+        return CachedFeed(
+            subscriptionID: subscriptionID,
+            rssURL: rssURL,
+            fetchedAt: Date(timeIntervalSince1970: 0),
+            summary: FeedSummary(
+                subscriptionID: subscriptionID,
+                title: summary.title,
+                artworkURL: summary.artworkURL,
+                description: summary.description
+            ),
+            episodes: []
         )
     }
 }

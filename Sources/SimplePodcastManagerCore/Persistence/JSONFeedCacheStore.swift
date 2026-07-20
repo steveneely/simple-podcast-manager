@@ -13,7 +13,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
             return nil
         }
 
-        guard let cachedFeed = try? AppJSONCoding.makeDecoder().decode(CachedFeed.self, from: Data(contentsOf: fileURL)) else {
+        guard let cachedFeed = try? AppJSONFile.decode(CachedFeed.self, from: fileURL) else {
             return nil
         }
 
@@ -28,10 +28,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
     }
 
     public func saveCachedFeed(_ cachedFeed: CachedFeed) throws {
-        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-
-        let data = try AppJSONCoding.makeEncoder().encode(cachedFeed)
-        try data.write(to: fileURL(for: cachedFeed.subscriptionID), options: .atomic)
+        try AppJSONFile.save(cachedFeed, to: fileURL(for: cachedFeed.subscriptionID))
     }
 
     public func deleteCachedFeed(for subscriptionID: UUID) throws {

@@ -38,12 +38,13 @@ The UI should not contain sync logic. It should call focused core services and r
 
 ### Core Layer
 
-- `FeedService`: fetch, cache, and parse RSS feeds
+- `FeedResolving`: validate a newly added or edited RSS feed and return its parsed cache entry
+- `FeedService`: refresh, cache, and parse saved RSS subscriptions
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
-- `DownloadService`: download episode media into a temporary workspace
+- `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
-- `SyncPlanner`: calculate copy, skip, delete, and eject actions, reordering selected deletions when needed to make the sync fit
+- `SyncPlanner`: calculate copy, skip, delete, and eject actions, verify the complete plan fits, and order selected deletions before copies
 - `SyncExecutor`: perform scoped copies and deletes on the device
 - `SafetyValidator`: verify all device paths before any mutation
 
@@ -178,7 +179,7 @@ All synced output on the device should be MP3.
 - otherwise convert it through `ffmpeg`
 - finalize every MP3 with a small, deterministic ID3v2.3 tag using the RSS episode and podcast titles, plus prepared cover art when available
 - use `ffmpeg` only to convert audio; native Swift code handles MP3 metadata consistently afterward
-- conversion happens in a temporary workspace on the Mac before copy-to-device
+- conversion happens in the app's local media workspace on the Mac before copy-to-device
 
 RSS metadata is authoritative. Podcast enclosure files may contain missing, stale, or placeholder ID3 tags because podcast apps normally display metadata from the RSS feed. Offline MP3 players cannot access that feed, so Simple Podcast Manager writes the RSS episode title and podcast title into a deterministic ID3v2.3 tag before syncing.
 
@@ -209,7 +210,7 @@ Update design:
 - major bumps are for 1.0 stability or, after 1.0, breaking changes to data compatibility, device behavior, or user workflows
 - every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`; this is a developer/agent process requirement, not user-facing documentation
 - Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
-- keep multiple recent appcast entries so users upgrading across more than one release can see the notes they need for skipped versions
+- keep only the currently published release in the appcast, with cumulative notes for user-visible changes that matter when upgrading across skipped versions
 - a version bump is incomplete until the matching DMG is built, verified, uploaded to the GitHub release, published in `gh-pages:appcast.xml`, and confirmed in the live appcast
 - the GitHub release must include the exact versioned DMG file referenced by the Sparkle appcast enclosure, such as `dist/updates/SimplePodcastManager-v1.1.3.dmg`; uploading only the generic `dist/SimplePodcastManager.dmg` will break in-app downloads
 - release verification should include checking that the live appcast enclosure URL resolves successfully after the release asset is uploaded

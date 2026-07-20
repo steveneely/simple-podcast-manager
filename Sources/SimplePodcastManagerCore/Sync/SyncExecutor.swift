@@ -4,6 +4,7 @@ public struct SyncExecutor: Sendable, SyncExecuting {
     private let fileSystem: any FileSystemOperating
     private let storageInspector: any SyncStorageInspecting
     private let safetyValidator: SafetyValidator
+    private let deletionService: DeviceFileDeletionService
     private let ejector: any DeviceEjecting
 
     public init(
@@ -15,6 +16,10 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         self.fileSystem = fileSystem
         self.storageInspector = storageInspector
         self.safetyValidator = safetyValidator
+        self.deletionService = DeviceFileDeletionService(
+            fileSystem: fileSystem,
+            safetyValidator: safetyValidator
+        )
         self.ejector = ejector
     }
 
@@ -26,6 +31,10 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         let totalCount = plan.actions.count
 
         try safetyValidator.validateDevice(plan.device)
+        for action in plan.actions {
+            try safetyValidator.validate(action, on: plan.device)
+        }
+        try storageInspector.ensurePlanFits(plan.actions, on: plan.device)
 
         for (index, action) in plan.actions.enumerated() {
             progress?(
@@ -35,21 +44,9 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     currentActionDescription: action.summaryDescription
                 )
             )
-            try safetyValidator.validate(action, on: plan.device)
-
             switch action {
-            case .copyToDevice(let sourceURL, let destinationURL):
-                let requiredCapacity = try storageInspector.fileSize(at: sourceURL)
-                let availableCapacity = try storageInspector.availableCapacity(on: plan.device)
-                guard requiredCapacity <= availableCapacity else {
-                    throw SyncCapacityError.insufficientCapacity(
-                        requiredBytes: requiredCapacity,
-                        availableBytes: availableCapacity
-                    )
-                }
-                guard let parentDirectoryURL = destinationURL.deletingLastPathComponent() as URL? else {
-                    throw SyncExecutionError.missingParentDirectory(destinationURL)
-                }
+            case .copyToDevice(let sourceURL, let destinationURL, let fileSizeBytes):
+                let parentDirectoryURL = destinationURL.deletingLastPathComponent()
                 try fileSystem.createDirectory(at: parentDirectoryURL)
                 if fileSystem.fileExists(at: destinationURL) {
                     throw SyncExecutionError.destinationAlreadyExists(destinationURL)
@@ -64,12 +61,12 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     )
                 }
                 result.copiedCount += 1
+                result.copiedBytes += fileSizeBytes
 
-            case .deleteFromDevice(let targetURL):
-                try fileSystem.removeItem(at: targetURL)
-                try removeAppleDoubleSidecarIfPresent(for: targetURL)
-                try removeEmptyManagedDirectoryIfNeeded(containing: targetURL, on: plan.device)
+            case .deleteFromDevice(let targetURL, let fileSizeBytes):
+                try deletionService.deleteManagedFile(at: targetURL, on: plan.device)
                 result.deletedCount += 1
+                result.deletedBytes += fileSizeBytes
 
             case .ejectDevice:
                 try ejector.eject(device: plan.device)
@@ -88,31 +85,5 @@ public struct SyncExecutor: Sendable, SyncExecuting {
             )
         )
         return result
-    }
-
-    private func removeAppleDoubleSidecarIfPresent(for targetURL: URL) throws {
-        let sidecarURL = targetURL.deletingLastPathComponent()
-            .appendingPathComponent("._" + targetURL.lastPathComponent, isDirectory: false)
-        guard fileSystem.fileExists(at: sidecarURL) else { return }
-
-        try fileSystem.removeItem(at: sidecarURL)
-    }
-
-    private func removeEmptyManagedDirectoryIfNeeded(containing targetURL: URL, on device: DeviceInfo) throws {
-        let managedDirectoryURL = targetURL.deletingLastPathComponent().standardizedFileURL
-        guard managedDirectoryURL.deletingLastPathComponent().standardizedFileURL == device.podcastDirectoryURL.standardizedFileURL else {
-            return
-        }
-        guard fileSystem.fileExists(at: managedDirectoryURL) else {
-            return
-        }
-
-        let remainingChildren = try fileSystem.contentsOfDirectory(at: managedDirectoryURL)
-        guard remainingChildren.isEmpty else {
-            return
-        }
-
-        try safetyValidator.validateDeleteTarget(managedDirectoryURL, on: device)
-        try fileSystem.removeItem(at: managedDirectoryURL)
     }
 }

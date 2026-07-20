@@ -19,11 +19,6 @@ public final class SyncPlanViewModel {
         self.lastErrorMessage = nil
     }
 
-    public var actionDescriptions: [String] {
-        guard let plan else { return [] }
-        return plan.actions.map(\.summaryDescription)
-    }
-
     public func buildPlan(
         device: DeviceInfo?,
         preparedEpisodes: [PreparedEpisode],
@@ -42,6 +37,8 @@ public final class SyncPlanViewModel {
         }
 
         isPlanning = true
+        plan = nil
+        lastErrorMessage = nil
 
         do {
             let planner = planner
@@ -72,6 +69,14 @@ public final class SyncPlanViewModel {
         latestPlanningID = nil
         plan = nil
         isPlanning = false
+        lastErrorMessage = nil
+    }
+
+    /// Immediately prevents an older plan from being started while a replacement is queued.
+    public func prepareForPlanRebuild() {
+        latestPlanningID = nil
+        plan = nil
+        isPlanning = true
         lastErrorMessage = nil
     }
 }

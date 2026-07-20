@@ -30,6 +30,14 @@ public struct FFmpegAudioConversionService: AudioConversionService {
             workspaceURL: workspaceURL,
             settings: settings
         )
+        let intermediateFileURL = audioPreparation.mp3FileURL == sourceFileURL
+            ? nil
+            : audioPreparation.mp3FileURL
+        defer {
+            if let intermediateFileURL {
+                try? FileManager.default.removeItem(at: intermediateFileURL)
+            }
+        }
         let artworkPreparation = await preparedArtwork(for: episode, in: workspaceURL)
         let destinationURL = try preparedDestinationURL(for: episode, in: workspaceURL)
 

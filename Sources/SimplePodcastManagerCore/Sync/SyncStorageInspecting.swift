@@ -5,6 +5,42 @@ public protocol SyncStorageInspecting: Sendable {
     func fileSize(at url: URL) throws -> Int64
 }
 
+extension SyncStorageInspecting {
+    func ensurePlanFits(_ actions: [SyncAction], on device: DeviceInfo) throws {
+        var requiredCapacity: Int64 = 0
+        var availableCapacity = try availableCapacity(on: device)
+
+        for action in actions {
+            switch action {
+            case .copyToDevice(_, _, let fileSizeBytes):
+                requiredCapacity = addingCapacity(
+                    fileSizeBytes,
+                    to: requiredCapacity
+                )
+            case .deleteFromDevice(_, let fileSizeBytes):
+                availableCapacity = addingCapacity(
+                    fileSizeBytes,
+                    to: availableCapacity
+                )
+            case .skip, .ejectDevice:
+                break
+            }
+        }
+
+        guard requiredCapacity <= availableCapacity else {
+            throw SyncCapacityError.insufficientCapacity(
+                requiredBytes: requiredCapacity,
+                availableBytes: availableCapacity
+            )
+        }
+    }
+}
+
+private func addingCapacity(_ bytes: Int64, to total: Int64) -> Int64 {
+    let (sum, overflowed) = total.addingReportingOverflow(bytes)
+    return overflowed ? .max : sum
+}
+
 public struct LocalSyncStorageInspector: SyncStorageInspecting {
     public init() {}
 
@@ -38,7 +74,7 @@ public enum SyncCapacityError: LocalizedError, Equatable, Sendable {
         case .fileSizeUnavailable(let url):
             return "Could not determine the size of \(url.lastPathComponent)."
         case .insufficientCapacity(let requiredBytes, let availableBytes):
-            return "The sync needs \(Self.formatted(requiredBytes)) of free space, but only \(Self.formatted(availableBytes)) is available even after the selected deletions."
+            return "There is not enough free space to copy all selected files. This sync plan requires \(Self.formatted(requiredBytes)), but only \(Self.formatted(availableBytes)) is available."
         case .incompleteExistingCopy(let fileName, let expectedBytes, let actualBytes):
             return "\(fileName) on the device may be an incomplete copy (expected \(Self.formatted(expectedBytes)), found \(Self.formatted(actualBytes)). Select it for deletion and sync again."
         }

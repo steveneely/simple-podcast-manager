@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct SyncPlanViewModelTests {
     @Test
-    func buildPlanProducesActionDescriptions() async {
+    func buildPlanProducesTypedActions() async {
         let device = DeviceInfo(
             name: "SPM Test Walkman",
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
@@ -42,8 +42,60 @@ struct SyncPlanViewModelTests {
         )
 
         #expect(viewModel.plan != nil)
-        #expect(viewModel.actionDescriptions.contains(where: { $0.contains("Copy to device") }))
-        #expect(viewModel.actionDescriptions.contains("Eject device when finished"))
+        #expect(viewModel.plan?.actions.contains(where: { if case .copyToDevice = $0 { true } else { false } }) == true)
+        #expect(viewModel.plan?.actions.contains(where: { if case .ejectDevice = $0 { true } else { false } }) == true)
+
+        viewModel.prepareForPlanRebuild()
+
+        #expect(viewModel.plan == nil)
+        #expect(viewModel.isPlanning)
+        #expect(viewModel.lastErrorMessage == nil)
+    }
+
+    @Test
+    func insufficientSpaceClearsPlanAndSurfacesCapacityError() async {
+        let subscriptionID = UUID()
+        let device = DeviceInfo(
+            name: "Small Test Disk",
+            rootURL: URL(fileURLWithPath: "/Volumes/SMALL-TEST-DISK", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SMALL-TEST-DISK/music", isDirectory: true)
+        )
+        let preparedEpisode = PreparedEpisode(
+            episode: Episode(
+                id: "large-episode",
+                subscriptionID: subscriptionID,
+                podcastTitle: "Example Podcast",
+                title: "Large Episode",
+                enclosureURL: URL(string: "https://cdn.example.com/large.mp3")!,
+                sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+            ),
+            sourceFileURL: URL(fileURLWithPath: "/tmp/large.mp3"),
+            preparedFileURL: URL(fileURLWithPath: "/tmp/large.mp3"),
+            preparationAction: .passthroughMP3
+        )
+        let planner = makeTestPlanner(
+            deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [:]),
+            storageInspector: TestUISyncStorageInspector(availableBytes: 10, fileSizeBytes: 100)
+        )
+        let viewModel = SyncPlanViewModel(planner: planner)
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [
+                FeedSubscription(
+                    id: subscriptionID,
+                    title: "Example Podcast",
+                    rssURL: URL(string: "https://example.com/feed.xml")!
+                )
+            ],
+            ejectAfterSync: false
+        )
+
+        #expect(viewModel.plan == nil)
+        #expect(!viewModel.isPlanning)
+        #expect(viewModel.lastErrorMessage?.contains("free space") == true)
+        #expect(viewModel.lastErrorMessage?.contains("selected deletions") == false)
     }
 
     @Test

@@ -35,16 +35,19 @@ struct MediaPreparationServiceTests {
             enclosureURL: URL(string: "https://cdn.example.com/episode.m4a")!,
             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
         )
+        let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
         let service = MediaPreparationService(
             downloadService: StubDownloadService(fileExtension: "m4a"),
             audioConversionService: FFmpegAudioConversionService(commandRunner: StubCommandRunner(result: .success(CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")))),
-            workspaceProvider: StubWorkspaceProvider()
+            workspaceProvider: FixedWorkspaceProvider(workspaceURL: workspaceURL)
         )
 
         let result = try await service.prepareEpisodes([episode], settings: AppSettings())
 
         #expect(result.preparedEpisodes.isEmpty)
         #expect(result.failures.count == 1)
+        #expect(!FileManager.default.fileExists(atPath: workspaceURL.appendingPathComponent("ep-m4a.m4a").path))
     }
 
     @Test
@@ -313,6 +316,7 @@ struct MediaPreparationServiceTests {
         #expect(taggingService.calls[0].podcastTitle == episode.podcastTitle)
         #expect(taggingService.calls[0].artworkFileURL == artworkFileURL)
         #expect(taggingService.calls[0].destinationFileURL == preparedEpisode.preparedFileURL)
+        #expect(!FileManager.default.fileExists(atPath: taggingService.calls[0].sourceFileURL.path))
     }
 
     @Test
@@ -446,9 +450,18 @@ private struct StubAudioConversionService: AudioConversionService {
     }
 }
 
-private struct StubWorkspaceProvider: TemporaryWorkspaceProviding {
+private struct StubWorkspaceProvider: MediaWorkspaceProviding {
     func makeWorkspace() throws -> URL {
         let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        return workspaceURL
+    }
+}
+
+private struct FixedWorkspaceProvider: MediaWorkspaceProviding {
+    let workspaceURL: URL
+
+    func makeWorkspace() throws -> URL {
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         return workspaceURL
     }
@@ -474,6 +487,9 @@ private final class CapturingCommandRunner: CommandRunning, @unchecked Sendable 
     func run(executableURL: URL, arguments: [String]) async throws -> CommandRunResult {
         capturedExecutableURLs.append(executableURL)
         capturedArguments.append(arguments)
+        if result.terminationStatus == 0, let outputPath = arguments.last {
+            try Data("converted audio".utf8).write(to: URL(fileURLWithPath: outputPath))
+        }
         return result
     }
 

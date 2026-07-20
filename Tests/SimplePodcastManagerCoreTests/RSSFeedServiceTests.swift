@@ -4,6 +4,48 @@ import Testing
 
 struct RSSFeedServiceTests {
     @Test
+    func resolvesNewSubscriptionMetadataAndEpisodesInOneRequest() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+        let feedURL = URL(string: "https://example.com/new-feed.xml")!
+        let subscriptionID = UUID()
+        let fetchedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        FeedURLProtocolStub.stub(
+            feedURL: feedURL,
+            statusCode: 200,
+            headers: ["ETag": "new-feed-etag"],
+            responseBody: """
+            <rss version="2.0">
+              <channel>
+                <title>New Podcast</title>
+                <description>New description.</description>
+                <item>
+                  <title>First Episode</title>
+                  <guid>episode-1</guid>
+                  <enclosure url="https://cdn.example.com/episode-1.mp3" type="audio/mpeg"/>
+                </item>
+              </channel>
+            </rss>
+            """
+        )
+        let service = RSSFeedResolutionService(
+            session: URLSession(configuration: configuration),
+            currentDate: { fetchedAt }
+        )
+
+        let resolvedFeed = try await service.resolveFeed(
+            for: feedURL,
+            subscriptionID: subscriptionID
+        )
+
+        #expect(resolvedFeed.subscriptionID == subscriptionID)
+        #expect(resolvedFeed.summary.title == "New Podcast")
+        #expect(resolvedFeed.episodes.map(\.title) == ["First Episode"])
+        #expect(resolvedFeed.fetchedAt == fetchedAt)
+        #expect(resolvedFeed.etag == "new-feed-etag")
+    }
+
+    @Test
     func selectsLatestEpisodesPerEnabledFeed() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FeedURLProtocolStub.self]

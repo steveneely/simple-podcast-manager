@@ -2,15 +2,19 @@ import Foundation
 @testable import SimplePodcastManagerCore
 
 struct TestUISyncStorageInspector: SyncStorageInspecting {
-    func availableCapacity(on device: DeviceInfo) throws -> Int64 { .max }
-    func fileSize(at url: URL) throws -> Int64 { 1 }
+    var availableBytes: Int64 = .max
+    var fileSizeBytes: Int64 = 1
+
+    func availableCapacity(on device: DeviceInfo) throws -> Int64 { availableBytes }
+    func fileSize(at url: URL) throws -> Int64 { fileSizeBytes }
 }
 
 func makeTestPlanner(
-    deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary()
+    deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
+    storageInspector: any SyncStorageInspecting = TestUISyncStorageInspector()
 ) -> SyncPlanner {
     SyncPlanner(
         deviceLibrary: deviceLibrary,
-        storageInspector: TestUISyncStorageInspector()
+        storageInspector: storageInspector
     )
 }

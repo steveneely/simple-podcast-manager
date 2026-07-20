@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PersistentMediaWorkspaceProvider: TemporaryWorkspaceProviding {
+public struct PersistentMediaWorkspaceProvider: MediaWorkspaceProviding {
     private let baseURL: URL
 
     public init(baseURL: URL = PersistentMediaWorkspaceProvider.defaultBaseURL()) {

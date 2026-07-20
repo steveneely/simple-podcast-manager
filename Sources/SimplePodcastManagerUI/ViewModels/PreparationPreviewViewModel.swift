@@ -8,7 +8,6 @@ public final class PreparationPreviewViewModel {
     public private(set) var preparedEpisodes: [PreparedEpisode]
     public private(set) var downloadedEpisodes: [DownloadedEpisodeRecord]
     public private(set) var failures: [PreparationFailure]
-    public private(set) var workspaceURL: URL?
     public private(set) var progress: PreparationProgress?
     public private(set) var activeDownloads: [PreparationDownloadStatus]
     public private(set) var lastErrorMessage: String?
@@ -31,7 +30,6 @@ public final class PreparationPreviewViewModel {
         self.preparedEpisodes = []
         self.downloadedEpisodes = []
         self.failures = []
-        self.workspaceURL = nil
         self.progress = nil
         self.activeDownloads = []
         self.lastErrorMessage = nil
@@ -110,7 +108,6 @@ public final class PreparationPreviewViewModel {
                 }
                 return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
             }
-            self.workspaceURL = existingPreparedEpisodes.first?.preparedFileURL.deletingLastPathComponent()
             self.hasLoadedPreparedEpisodes = true
             self.lastErrorMessage = nil
 
@@ -148,13 +145,10 @@ public final class PreparationPreviewViewModel {
         }
         preparedEpisodes = []
         failures = []
-        workspaceURL = nil
         persistPreparedEpisodes()
     }
 
     private func merge(_ result: MediaPreparationResult) {
-        workspaceURL = result.workspaceURL
-
         var mergedPreparedEpisodes = Dictionary(uniqueKeysWithValues: preparedEpisodes.map { ($0.episode.id, $0) })
         for preparedEpisode in result.preparedEpisodes {
             mergedPreparedEpisodes[preparedEpisode.episode.id] = preparedEpisode

@@ -25,7 +25,8 @@ struct SyncPlannerTests {
                 sourceURL: preparedEpisode.preparedFileURL,
                 destinationURL: device.podcastDirectoryURL
                     .appendingPathComponent("Example Podcast", isDirectory: true)
-                    .appendingPathComponent("Episode_1.mp3", isDirectory: false)
+                    .appendingPathComponent("Episode_1.mp3", isDirectory: false),
+                fileSizeBytes: 1
             ))
         )
     }
@@ -90,7 +91,7 @@ struct SyncPlannerTests {
         )
 
         #expect(plan.actions.contains(where: {
-            guard case .copyToDevice(_, let destinationURL) = $0 else { return false }
+            guard case .copyToDevice(_, let destinationURL, _) = $0 else { return false }
             return destinationURL.lastPathComponent == preparedEpisode.preparedFileURL.lastPathComponent
         }))
     }
@@ -124,8 +125,8 @@ struct SyncPlannerTests {
             ejectAfterSync: false
         )
 
-        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: olderEpisodeURL)))
-        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: currentEpisodeURL)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: olderEpisodeURL, fileSizeBytes: 1)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: currentEpisodeURL, fileSizeBytes: 1)))
     }
 
     @Test
@@ -152,7 +153,7 @@ struct SyncPlannerTests {
             ejectAfterSync: false
         )
 
-        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL, fileSizeBytes: 1)))
     }
 
     @Test
@@ -177,7 +178,7 @@ struct SyncPlannerTests {
             ejectAfterSync: true
         )
 
-        #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
+        #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL, fileSizeBytes: 1)))
         #expect(plan.actions.contains(.ejectDevice(deviceRootURL: device.rootURL)))
     }
 
@@ -207,8 +208,8 @@ struct SyncPlannerTests {
             ejectAfterSync: false
         )
 
-        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL)))
-        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unrelatedAudioURL)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unmanagedFileURL, fileSizeBytes: 1)))
+        #expect(!plan.actions.contains(.deleteFromDevice(targetURL: unrelatedAudioURL, fileSizeBytes: 1)))
     }
 
     @Test
@@ -256,7 +257,7 @@ struct SyncPlannerTests {
             ejectAfterSync: false
         )
 
-        #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL)))
+        #expect(plan.actions.contains(.deleteFromDevice(targetURL: existingFileURL, fileSizeBytes: 1)))
     }
 
     @Test
@@ -295,7 +296,7 @@ struct SyncPlannerTests {
         )
 
         #expect(plan.actions.contains(where: {
-            guard case .copyToDevice(_, let destinationURL) = $0 else { return false }
+            guard case .copyToDevice(_, let destinationURL, _) = $0 else { return false }
             return destinationURL.deletingLastPathComponent().standardizedFileURL == actualDirectory.standardizedFileURL
         }))
     }
@@ -323,7 +324,7 @@ struct SyncPlannerTests {
     }
 
     @Test
-    func keepsCopiesBeforeSelectedDeletionsWhenSpaceIsAvailable() throws {
+    func putsSelectedDeletionsBeforeCopiesWhenSpaceIsAlreadyAvailable() throws {
         let device = makeDevice()
         let preparedEpisode = makePreparedEpisode(
             id: "new",
@@ -354,13 +355,49 @@ struct SyncPlannerTests {
         )
 
         #expect(plan.actions.count == 2)
-        #expect({ if case .copyToDevice = plan.actions[0] { true } else { false } }())
-        #expect(plan.actions[1] == .deleteFromDevice(targetURL: deleteURL))
-        #expect(plan.warnings.isEmpty)
+        #expect(plan.actions[0] == .deleteFromDevice(targetURL: deleteURL, fileSizeBytes: 60))
+        #expect({ if case .copyToDevice = plan.actions[1] { true } else { false } }())
     }
 
     @Test
-    func movesSelectedDeletionBeforeCopyWhenThatMakesTheSyncFit() throws {
+    func reportsTotalCopySizeWhenTheCompletePlanDoesNotFit() throws {
+        let device = makeDevice()
+        let firstEpisode = makePreparedEpisode(
+            id: "first",
+            title: "First Episode",
+            preparedFileName: "First Episode.mp3"
+        )
+        let secondEpisode = makePreparedEpisode(
+            id: "second",
+            title: "Second Episode",
+            preparedFileName: "Second Episode.mp3"
+        )
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]),
+            storageInspector: TestSyncStorageInspector(
+                availableBytes: 100,
+                sizesByPath: [
+                    firstEpisode.preparedFileURL.path: 70,
+                    secondEpisode.preparedFileURL.path: 80,
+                ]
+            )
+        )
+
+        #expect(throws: SyncCapacityError.insufficientCapacity(
+            requiredBytes: 150,
+            availableBytes: 100
+        )) {
+            try planner.makePlan(
+                device: device,
+                preparedEpisodes: [firstEpisode, secondEpisode],
+                subscriptions: [makeSubscription()],
+                ejectAfterSync: false
+            )
+        }
+    }
+
+    @Test
+    func putsSelectedDeletionBeforeCopyWhenDeletionMakesTheSyncFit() throws {
         let device = makeDevice()
         let preparedEpisode = makePreparedEpisode(
             id: "new",
@@ -390,9 +427,8 @@ struct SyncPlannerTests {
             ejectAfterSync: false
         )
 
-        #expect(plan.actions[0] == .deleteFromDevice(targetURL: deleteURL))
+        #expect(plan.actions[0] == .deleteFromDevice(targetURL: deleteURL, fileSizeBytes: 60))
         #expect({ if case .copyToDevice = plan.actions[1] { true } else { false } }())
-        #expect(plan.warnings == ["Some selected deletions will run before copying so the sync has enough space."])
     }
 
     @Test
@@ -418,7 +454,10 @@ struct SyncPlannerTests {
             )
         )
 
-        #expect(throws: SyncCapacityError.insufficientCapacity(requiredBytes: 100, availableBytes: 90)) {
+        #expect(throws: SyncCapacityError.insufficientCapacity(
+            requiredBytes: 100,
+            availableBytes: 90
+        )) {
             try planner.makePlan(
                 device: device,
                 preparedEpisodes: [preparedEpisode],

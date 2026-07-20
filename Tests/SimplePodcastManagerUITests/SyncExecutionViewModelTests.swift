@@ -25,30 +25,27 @@ struct SyncExecutionViewModelTests {
             preparedFileURL: URL(fileURLWithPath: "/tmp/Episode_1.mp3"),
             preparationAction: .passthroughMP3
         )
-        let subscription = FeedSubscription(
-            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
-            title: "Example Podcast",
-            rssURL: URL(string: "https://example.com/feed.xml")!
-        )
         let executor = RecordingSyncExecutor(result: SyncResult(copiedCount: 1))
-        let viewModel = SyncExecutionViewModel(
-            planner: makeTestPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
-            executor: executor
-        )
-
-        await viewModel.sync(
+        let plan = SyncPlan(
             device: device,
-            preparedEpisodes: [preparedEpisode],
-            subscriptions: [subscription],
-            manualDeleteTargets: [],
-            ejectAfterSync: false
+            actions: [
+                .copyToDevice(
+                    sourceURL: preparedEpisode.preparedFileURL,
+                    destinationURL: device.podcastDirectoryURL.appendingPathComponent("Example Podcast/Episode_1.mp3"),
+                    fileSizeBytes: 1
+                )
+            ]
         )
+        let viewModel = SyncExecutionViewModel(executor: executor)
+
+        await viewModel.sync(plan: plan)
 
         #expect(executor.executeCallCount == 1)
         #expect(executor.reportedProgress.count == 2)
         #expect(viewModel.lastResult?.copiedCount == 1)
         #expect(viewModel.progress == nil)
         #expect(viewModel.lastErrorMessage == nil)
+        #expect(viewModel.lastPlan == plan)
     }
 
     @Test
@@ -58,51 +55,19 @@ struct SyncExecutionViewModelTests {
             rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
             podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
         )
-        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
-        let preparedEpisode = PreparedEpisode(
-            episode: Episode(
-                id: "ep-1",
-                subscriptionID: subscriptionID,
-                podcastTitle: "Example Podcast",
-                title: "Episode 1",
-                enclosureURL: URL(string: "https://cdn.example.com/ep1.mp3")!,
-                sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-            ),
-            sourceFileURL: URL(fileURLWithPath: "/tmp/Episode_1.mp3"),
-            preparedFileURL: URL(fileURLWithPath: "/tmp/Episode_1.mp3"),
-            preparationAction: .passthroughMP3
-        )
-        let viewModel = SyncExecutionViewModel(
-            planner: makeTestPlanner(deviceLibrary: StubExecutionPlanDeviceLibrary(filesByDirectory: [:])),
-            executor: RecordingSyncExecutor(result: SyncResult(copiedCount: 1))
-        )
-
-        await viewModel.sync(
+        let plan = SyncPlan(
             device: device,
-            preparedEpisodes: [preparedEpisode],
-            subscriptions: [
-                FeedSubscription(
-                    id: subscriptionID,
-                    title: "Example Podcast",
-                    rssURL: URL(string: "https://example.com/feed.xml")!
-                )
-            ],
-            ejectAfterSync: false
+            actions: [.skip(reason: "Already on device")]
         )
+        let viewModel = SyncExecutionViewModel(executor: RecordingSyncExecutor(result: SyncResult(copiedCount: 1)))
+
+        await viewModel.sync(plan: plan)
 
         viewModel.clearLastResult()
 
         #expect(viewModel.lastResult == nil)
         #expect(viewModel.lastErrorMessage == nil)
         #expect(viewModel.lastPlan == nil)
-    }
-}
-
-private struct StubExecutionPlanDeviceLibrary: DeviceLibraryInspecting {
-    let filesByDirectory: [String: [URL]]
-
-    func files(in directoryURL: URL) throws -> [URL] {
-        filesByDirectory[directoryURL.standardizedFileURL.path] ?? []
     }
 }
 

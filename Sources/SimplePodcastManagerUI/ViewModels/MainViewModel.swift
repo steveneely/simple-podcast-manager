@@ -11,16 +11,16 @@ public final class MainViewModel {
     public private(set) var hasLoadedConfiguration: Bool
 
     private let store: any ConfigurationStore
-    private let metadataResolver: any FeedMetadataResolving
+    private let feedResolver: any FeedResolving
     private let feedCacheStore: any FeedCacheStore
 
     public init(
         store: any ConfigurationStore,
-        metadataResolver: any FeedMetadataResolving = RSSFeedMetadataService(),
+        feedResolver: any FeedResolving = RSSFeedResolutionService(),
         feedCacheStore: any FeedCacheStore = JSONFeedCacheStore(directoryURL: JSONFeedCacheStore.defaultDirectoryURL())
     ) {
         self.store = store
-        self.metadataResolver = metadataResolver
+        self.feedResolver = feedResolver
         self.feedCacheStore = feedCacheStore
         self.feedSubscriptions = []
         self.settings = AppSettings()
@@ -46,18 +46,13 @@ public final class MainViewModel {
 
     public func addFeed(from draft: FeedDraft) async throws {
         do {
-            let rssURL = try draft.resolvedRSSURL()
-            let summary = try await metadataResolver.resolveMetadata(for: rssURL, subscriptionID: draft.id)
+            let resolvedFeed = try await resolveFeed(from: draft)
             try commitConfiguration {
-                let subscription = try draft.makeSubscription(
-                    title: summary.title,
-                    artworkURL: summary.artworkURL ?? draft.artworkURL,
-                    description: summary.description
-                )
-                try ensureUniqueSubscription(subscription, in: $0.feedSubscriptions)
-                $0.feedSubscriptions.append(subscription)
+                try ensureUniqueSubscription(resolvedFeed.subscription, in: $0.feedSubscriptions)
+                $0.feedSubscriptions.append(resolvedFeed.subscription)
                 $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             }
+            try? feedCacheStore.saveCachedFeed(resolvedFeed.cachedFeed)
         } catch {
             self.lastErrorMessage = error.localizedDescription
             throw error
@@ -66,15 +61,9 @@ public final class MainViewModel {
 
     public func updateFeed(from draft: FeedDraft) async throws {
         do {
-            let rssURL = try draft.resolvedRSSURL()
-            let summary = try await metadataResolver.resolveMetadata(for: rssURL, subscriptionID: draft.id)
-            let previousSubscription = feedSubscriptions.first { $0.id == draft.id }
+            let resolvedFeed = try await resolveFeed(from: draft)
             try commitConfiguration {
-                let updatedSubscription = try draft.makeSubscription(
-                    title: summary.title,
-                    artworkURL: summary.artworkURL ?? draft.artworkURL,
-                    description: summary.description
-                )
+                let updatedSubscription = resolvedFeed.subscription
                 try ensureUniqueSubscription(updatedSubscription, in: $0.feedSubscriptions, excluding: updatedSubscription.id)
                 guard let existingIndex = $0.feedSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
                     $0.feedSubscriptions.append(updatedSubscription)
@@ -85,10 +74,7 @@ public final class MainViewModel {
                 $0.feedSubscriptions[existingIndex] = updatedSubscription
                 $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             }
-
-            if let previousSubscription, previousSubscription.rssURL != rssURL {
-                try? feedCacheStore.deleteCachedFeed(for: previousSubscription.id)
-            }
+            try? feedCacheStore.saveCachedFeed(resolvedFeed.cachedFeed)
         } catch {
             self.lastErrorMessage = error.localizedDescription
             throw error
@@ -182,6 +168,27 @@ public final class MainViewModel {
         }) {
             throw MainViewModelError.duplicateSubscription
         }
+    }
+
+    private func resolveFeed(from draft: FeedDraft) async throws -> (subscription: FeedSubscription, cachedFeed: CachedFeed) {
+        let rssURL = try draft.resolvedRSSURL()
+        let subscriptionID = draft.id ?? UUID()
+        var cachedFeed = try await feedResolver.resolveFeed(for: rssURL, subscriptionID: subscriptionID)
+
+        var resolvedDraft = draft
+        resolvedDraft.id = subscriptionID
+        let subscription = try resolvedDraft.makeSubscription(
+            title: cachedFeed.summary.title,
+            artworkURL: cachedFeed.summary.artworkURL ?? draft.artworkURL,
+            description: cachedFeed.summary.description
+        )
+        cachedFeed.summary = FeedSummary(
+            subscriptionID: subscription.id,
+            title: subscription.title,
+            artworkURL: subscription.artworkURL,
+            description: subscription.description
+        )
+        return (subscription, cachedFeed)
     }
 }
 

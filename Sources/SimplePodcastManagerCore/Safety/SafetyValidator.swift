@@ -40,9 +40,9 @@ public struct SafetyValidator: Sendable {
 
     public func validate(_ action: SyncAction, on device: DeviceInfo) throws {
         switch action {
-        case .copyToDevice(_, let destinationURL):
+        case .copyToDevice(_, let destinationURL, _):
             try validateWriteTarget(destinationURL, on: device)
-        case .deleteFromDevice(let targetURL):
+        case .deleteFromDevice(let targetURL, _):
             try validateDeleteTarget(targetURL, on: device)
         case .ejectDevice(let deviceRootURL):
             let canonicalDeviceRootURL = canonicalDirectoryURL(device.rootURL)

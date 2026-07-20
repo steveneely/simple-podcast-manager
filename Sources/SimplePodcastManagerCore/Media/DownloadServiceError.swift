@@ -12,7 +12,7 @@ public enum DownloadServiceError: LocalizedError, Equatable, Sendable {
         case .requestFailed(let statusCode):
             return "The episode download failed with HTTP \(statusCode)."
         case .missingDownloadLocation:
-            return "The episode could not be written into the temporary workspace."
+            return "The episode could not be written into the local media workspace."
         }
     }
 }

@@ -31,7 +31,6 @@ struct PreparationPreviewViewModelTests {
         await viewModel.prepare([episode], settings: AppSettings())
 
         #expect(viewModel.preparedEpisodes.count == 1)
-        #expect(viewModel.workspaceURL == workspaceURL)
         #expect(viewModel.failures.isEmpty)
         #expect(viewModel.progress == nil)
         #expect(store.preparedEpisodes.count == 1)
@@ -243,7 +242,7 @@ private struct StubPreparationAudioConversionService: AudioConversionService {
     }
 }
 
-private struct StubPreparationWorkspaceProvider: TemporaryWorkspaceProviding {
+private struct StubPreparationWorkspaceProvider: MediaWorkspaceProviding {
     let workspaceURL: URL
 
     func makeWorkspace() throws -> URL {

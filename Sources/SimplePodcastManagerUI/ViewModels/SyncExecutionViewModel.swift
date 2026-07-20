@@ -11,14 +11,9 @@ public final class SyncExecutionViewModel {
     public private(set) var lastErrorMessage: String?
     public private(set) var lastPlan: SyncPlan?
 
-    private let planner: SyncPlanner
     private let executor: any SyncExecuting
 
-    public init(
-        planner: SyncPlanner = SyncPlanner(),
-        executor: any SyncExecuting = SyncExecutor()
-    ) {
-        self.planner = planner
+    public init(executor: any SyncExecuting = SyncExecutor()) {
         self.executor = executor
         self.isSyncing = false
         self.progress = nil
@@ -27,26 +22,13 @@ public final class SyncExecutionViewModel {
         self.lastPlan = nil
     }
 
-    public func sync(
-        device: DeviceInfo?,
-        preparedEpisodes: [PreparedEpisode],
-        subscriptions: [FeedSubscription],
-        manualDeleteTargets: Set<URL> = [],
-        ejectAfterSync: Bool
-    ) async {
-        guard let device else {
-            lastErrorMessage = "Select a compatible device before syncing."
+    public func sync(plan: SyncPlan?) async {
+        guard let plan else {
+            lastErrorMessage = "Build and review a sync plan before syncing."
             return
         }
 
         do {
-            let plan = try planner.makePlan(
-                device: device,
-                preparedEpisodes: preparedEpisodes,
-                subscriptions: subscriptions,
-                manualDeleteTargets: manualDeleteTargets,
-                ejectAfterSync: ejectAfterSync
-            )
             lastPlan = plan
             isSyncing = true
             progress = SyncExecutionProgress(totalCount: plan.actions.count, completedCount: 0)

@@ -30,15 +30,17 @@ struct SyncExecutorTests {
             plan: SyncPlan(
                 device: device,
                 actions: [
-                    .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL),
-                    .deleteFromDevice(targetURL: deleteTargetURL),
+                    .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL, fileSizeBytes: 1),
+                    .deleteFromDevice(targetURL: deleteTargetURL, fileSizeBytes: 1),
                     .skip(reason: "Already on device"),
                 ]
             )
         )
 
         #expect(result.copiedCount == 1)
+        #expect(result.copiedBytes == 1)
         #expect(result.deletedCount == 1)
+        #expect(result.deletedBytes == 1)
         #expect(result.skippedCount == 1)
         #expect(fileSystem.createdDirectories.contains(destinationURL.deletingLastPathComponent()))
         #expect(fileSystem.copiedItems.contains(where: { $0.source == sourceURL && $0.destination == destinationURL }))
@@ -68,15 +70,15 @@ struct SyncExecutorTests {
             plan: SyncPlan(
                 device: device,
                 actions: [
-                    .deleteFromDevice(targetURL: deleteTargetURL),
+                    .deleteFromDevice(targetURL: deleteTargetURL, fileSizeBytes: 1),
                     .ejectDevice(deviceRootURL: device.rootURL),
                 ]
             )
         )
 
         #expect(result.deletedCount == 1)
+        #expect(result.deletedBytes == 1)
         #expect(result.ejected)
-        #expect(result.warnings.isEmpty)
         #expect(fileSystem.removedItems.contains(deleteTargetURL.standardizedFileURL))
         #expect(fileSystem.removedItems.contains(managedDirectory.standardizedFileURL))
         #expect(ejector.didEject)
@@ -102,7 +104,7 @@ struct SyncExecutorTests {
             plan: SyncPlan(
                 device: device,
                 actions: [
-                    .deleteFromDevice(targetURL: deleteTargetURL)
+                    .deleteFromDevice(targetURL: deleteTargetURL, fileSizeBytes: 1)
                 ]
             )
         )
@@ -133,8 +135,8 @@ struct SyncExecutorTests {
             plan: SyncPlan(
                 device: device,
                 actions: [
-                    .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL),
-                    .deleteFromDevice(targetURL: deleteTargetURL),
+                    .copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL, fileSizeBytes: 1),
+                    .deleteFromDevice(targetURL: deleteTargetURL, fileSizeBytes: 1),
                     .skip(reason: "Already on device"),
                 ]
             ),
@@ -150,7 +152,7 @@ struct SyncExecutorTests {
     }
 
     @Test
-    func rechecksCapacityImmediatelyBeforeCopying() throws {
+    func rechecksPlanCapacityImmediatelyBeforeExecution() throws {
         let device = makeDevice()
         let sourceURL = URL(fileURLWithPath: "/tmp/Episode_2.mp3")
         let destinationURL = device.podcastDirectoryURL
@@ -168,7 +170,7 @@ struct SyncExecutorTests {
         #expect(throws: SyncCapacityError.insufficientCapacity(requiredBytes: 100, availableBytes: 50)) {
             try executor.execute(plan: SyncPlan(
                 device: device,
-                actions: [.copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL)]
+                actions: [.copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL, fileSizeBytes: 100)]
             ))
         }
         #expect(fileSystem.copiedItems.isEmpty)
@@ -193,7 +195,7 @@ struct SyncExecutorTests {
         do {
             _ = try executor.execute(plan: SyncPlan(
                 device: device,
-                actions: [.copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL)]
+                actions: [.copyToDevice(sourceURL: sourceURL, destinationURL: destinationURL, fileSizeBytes: 1)]
             ))
             Issue.record("Expected the copy to fail")
         } catch let error as SyncExecutionError {
@@ -221,18 +223,12 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
         let destination: URL
     }
 
-    struct MoveRecord: Equatable {
-        let source: URL
-        let destination: URL
-    }
-
     private var existingURLs: Set<URL>
     private var directoryContents: [String: Set<URL>]
     private let failCopiesLeavingPartialFile: Bool
 
     private(set) var createdDirectories: [URL] = []
     private(set) var copiedItems: [CopyRecord] = []
-    private(set) var movedItems: [MoveRecord] = []
     private(set) var removedItems: [URL] = []
 
     init(
@@ -268,16 +264,6 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
         }
         copiedItems.append(.init(source: sourceURL, destination: standardizedDestination))
         existingURLs.insert(standardizedDestination)
-        addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
-    }
-
-    func moveItem(at sourceURL: URL, to destinationURL: URL) throws {
-        let standardizedSource = sourceURL.standardizedFileURL
-        let standardizedDestination = destinationURL.standardizedFileURL
-        movedItems.append(.init(source: standardizedSource, destination: standardizedDestination))
-        existingURLs.remove(standardizedSource)
-        existingURLs.insert(standardizedDestination)
-        removeChild(standardizedSource, from: standardizedSource.deletingLastPathComponent())
         addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
     }
 

@@ -10,20 +10,11 @@ public struct JSONConfigurationStore: ConfigurationStore {
     }
 
     public func loadConfiguration() throws -> AppConfiguration {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return AppConfiguration()
-        }
-
-        let data = try Data(contentsOf: fileURL)
-        return try AppJSONCoding.makeDecoder().decode(AppConfiguration.self, from: data)
+        try AppJSONFile.load(AppConfiguration.self, from: fileURL, defaultValue: AppConfiguration())
     }
 
     public func saveConfiguration(_ configuration: AppConfiguration) throws {
-        let parentDirectoryURL = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: parentDirectoryURL, withIntermediateDirectories: true, attributes: nil)
-
-        let data = try AppJSONCoding.makeEncoder().encode(configuration)
-        try data.write(to: fileURL, options: .atomic)
+        try AppJSONFile.save(configuration, to: fileURL)
     }
 
     public static func defaultFileURL(fileManager: FileManager = .default) -> URL {

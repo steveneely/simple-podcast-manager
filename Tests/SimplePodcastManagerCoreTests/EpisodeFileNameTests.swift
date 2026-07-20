@@ -4,7 +4,7 @@ import Testing
 
 struct EpisodeFileNameTests {
     @Test
-    func directoryNameUsesWalkmanFriendlyASCII() {
+    func directoryNameUsesMP3PlayerFriendlyASCII() {
         let subscription = FeedSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "\u{201C}The Cognitive Revolution\u{201D} | AI Builders, Researchers, and Live Player Analysis",

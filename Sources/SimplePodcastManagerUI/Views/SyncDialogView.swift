@@ -4,10 +4,10 @@ import SimplePodcastManagerCore
 
 struct SyncDialogView: View {
     let plan: SyncPlan?
-    let actionDescriptions: [String]
     let progress: SyncExecutionProgress?
     let isSyncing: Bool
     let isPlanning: Bool
+    let planningErrorMessage: String?
     let lastResult: SyncResult?
     let lastErrorMessage: String?
     let preparedEpisodeCount: Int
@@ -48,8 +48,8 @@ struct SyncDialogView: View {
                     isPresented = false
                 }
 
-                if !hasSuccessfulResult {
-                    Button(isSyncing ? "Working..." : "Start") {
+                if !hasSuccessfulResult, planningErrorMessage == nil {
+                    Button(isSyncing ? "Working..." : isPlanning ? "Checking..." : "Start") {
                         onSync()
                     }
                     .buttonStyle(.borderedProminent)
@@ -77,9 +77,13 @@ struct SyncDialogView: View {
                     resultCard(lastResult)
                 }
 
+                if let planningErrorMessage {
+                    planningErrorCard(planningErrorMessage)
+                }
+
                 planSummary
 
-                if !actionDescriptions.isEmpty {
+                if plan?.actions.isEmpty == false {
                     plannedActions
                 }
             }
@@ -102,17 +106,35 @@ struct SyncDialogView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                ForEach(plan.warnings, id: \.self) { warning in
-                    Text(warning)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+            } else if isPlanning {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Checking actions and available device space...")
                 }
-            } else {
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else if planningErrorMessage == nil {
                 Text("Choose a compatible device to build the full plan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func planningErrorCard(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Cannot Start Sync", systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var successConfirmation: some View {
@@ -131,11 +153,6 @@ struct SyncDialogView: View {
                     Text("The device was ejected after the run finished.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                ForEach(lastResult.warnings, id: \.self) { warning in
-                    Text(warning)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
                 }
             }
         }
@@ -157,11 +174,6 @@ struct SyncDialogView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ForEach(result.warnings, id: \.self) { warning in
-                Text(warning)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -175,15 +187,22 @@ struct SyncDialogView: View {
                 .font(.headline)
             ScrollView {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(actionDescriptions.enumerated()), id: \.offset) { _, description in
+                    ForEach(Array((plan?.actions ?? []).enumerated()), id: \.offset) { _, action in
                         HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: SyncPresentation.iconName(for: description))
-                                .foregroundStyle(SyncPresentation.iconColor(for: description))
+                            Image(systemName: SyncPresentation.iconName(for: action))
+                                .foregroundStyle(SyncPresentation.iconColor(for: action))
                                 .frame(width: 14)
-                            Text(description)
+                            Text(action.summaryDescription)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                            if let fileSizeBytes = action.fileSizeBytes {
+                                Text(SyncPresentation.formattedFileSize(fileSizeBytes))
+                                    .font(.caption)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize()
+                            }
                         }
                     }
                 }
@@ -191,6 +210,7 @@ struct SyncDialogView: View {
             .frame(minHeight: 100, maxHeight: 180)
         }
     }
+
 }
 
 struct SyncProgressView: View {
@@ -213,20 +233,27 @@ struct SyncProgressView: View {
 enum SyncPresentation {
     static func resultSummary(_ result: SyncResult) -> String {
         let finishedText = result.finishedAt?.formatted(date: .omitted, time: .shortened) ?? "now"
-        return "Last run at \(finishedText): \(result.copiedCount) copied, \(result.deletedCount) deleted, \(result.skippedCount) skipped."
+        return "Last run at \(finishedText): \(result.copiedCount) copied (\(formattedFileSize(result.copiedBytes))), \(result.deletedCount) deleted (\(formattedFileSize(result.deletedBytes))), \(result.skippedCount) skipped."
     }
 
-    static func iconName(for description: String) -> String {
-        if description.hasPrefix("Copy to device") { return "arrow.down.circle" }
-        if description.hasPrefix("Delete old episode") { return "trash" }
-        if description.hasPrefix("Skip") { return "arrow.right" }
-        if description == "Eject device when finished" { return "eject" }
-        return "circle"
+    static func formattedFileSize(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
-    static func iconColor(for description: String) -> Color {
-        if description.hasPrefix("Delete old episode") { return .red }
-        if description.hasPrefix("Copy to device") { return .accentColor }
-        return .secondary
+    static func iconName(for action: SyncAction) -> String {
+        switch action {
+        case .copyToDevice: "arrow.down.circle"
+        case .deleteFromDevice: "trash"
+        case .skip: "arrow.right"
+        case .ejectDevice: "eject"
+        }
+    }
+
+    static func iconColor(for action: SyncAction) -> Color {
+        switch action {
+        case .deleteFromDevice: .red
+        case .copyToDevice: .accentColor
+        case .skip, .ejectDevice: .secondary
+        }
     }
 }

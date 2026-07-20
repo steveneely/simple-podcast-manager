@@ -44,12 +44,9 @@ public final class FeedPreviewViewModel {
             cachedSummaries.append(cachedFeed.summary)
         }
 
-        guard !cachedEpisodes.isEmpty || !cachedSummaries.isEmpty else {
-            return
-        }
-
         self.allEpisodes = cachedEpisodes.sorted(by: EpisodeSelector.isHigherPriority(_:than:))
         self.feedSummaries = Dictionary(uniqueKeysWithValues: cachedSummaries.map { ($0.subscriptionID, $0) })
+        self.failures = []
     }
 
     public func refreshPreview(for subscriptions: [FeedSubscription]) async {

@@ -8,20 +8,11 @@ public struct JSONDownloadedEpisodeStore: DownloadedEpisodeStore {
     }
 
     public func loadDownloadedEpisodes() throws -> [DownloadedEpisodeRecord] {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return []
-        }
-
-        let data = try Data(contentsOf: fileURL)
-        return try AppJSONCoding.makeDecoder().decode([DownloadedEpisodeRecord].self, from: data)
+        try AppJSONFile.load([DownloadedEpisodeRecord].self, from: fileURL, defaultValue: [])
     }
 
     public func saveDownloadedEpisodes(_ downloadedEpisodes: [DownloadedEpisodeRecord]) throws {
-        let parentDirectoryURL = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: parentDirectoryURL, withIntermediateDirectories: true)
-
-        let data = try AppJSONCoding.makeEncoder().encode(downloadedEpisodes)
-        try data.write(to: fileURL, options: .atomic)
+        try AppJSONFile.save(downloadedEpisodes, to: fileURL)
     }
 
     public static func defaultFileURL(fileManager: FileManager = .default) -> URL {

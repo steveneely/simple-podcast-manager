@@ -1,20 +1,7 @@
 import Foundation
 
 public struct ManagedDirectoryResolver: Sendable {
-    private let deviceLibrary: any DeviceLibraryInspecting
-
-    public init(deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary()) {
-        self.deviceLibrary = deviceLibrary
-    }
-
-    public func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) throws -> URL {
-        let candidateDirectories = try deviceLibrary.directories(in: device.podcastDirectoryURL)
-        return managedDirectoryURL(
-            for: subscription,
-            on: device,
-            candidateDirectories: candidateDirectories
-        )
-    }
+    public init() {}
 
     public func managedDirectoryURL(
         for subscription: FeedSubscription,

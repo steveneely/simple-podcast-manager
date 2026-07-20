@@ -91,12 +91,6 @@ public struct MainView: View {
                     .foregroundStyle(.red)
             }
 
-            if let syncPlanErrorMessage = syncPlanViewModel.lastErrorMessage {
-                Text(syncPlanErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
             if let deviceLibraryErrorMessage = deviceLibraryViewModel.lastErrorMessage {
                 Text(deviceLibraryErrorMessage)
                     .font(.footnote)
@@ -260,7 +254,7 @@ public struct MainView: View {
                 feedEditorPresentationID = UUID()
                 isShowingFeedEditor = true
             },
-            onRefresh: { Task { await refreshFeedPreview() } },
+            onRefresh: { Task { await refreshAllContent() } },
             onEdit: { subscription in
                 editorDraft = FeedDraft(subscription: subscription)
                 feedEditorPresentationID = UUID()
@@ -306,7 +300,7 @@ public struct MainView: View {
                         helpText: feedPreviewViewModel.isLoading ? "Refreshing" : "Refresh",
                         isDisabled: feedPreviewViewModel.isLoading
                     ) {
-                        Task { await refreshFeedPreview(for: selectedSubscription) }
+                        Task { await refreshContent(for: selectedSubscription) }
                     }
                 }
 
@@ -411,10 +405,10 @@ public struct MainView: View {
     private var syncDialog: some View {
         SyncDialogView(
             plan: syncPlanViewModel.plan,
-            actionDescriptions: syncPlanViewModel.actionDescriptions,
             progress: syncExecutionViewModel.progress,
             isSyncing: syncExecutionViewModel.isSyncing,
             isPlanning: syncPlanViewModel.isPlanning,
+            planningErrorMessage: syncPlanViewModel.lastErrorMessage,
             lastResult: syncExecutionViewModel.lastResult,
             lastErrorMessage: syncExecutionViewModel.lastErrorMessage,
             preparedEpisodeCount: preparationPreviewViewModel.preparedEpisodes.count,
@@ -541,7 +535,9 @@ public struct MainView: View {
         } else {
             try await viewModel.updateFeed(from: updatedDraft)
         }
-        await refreshFeedPreview()
+        feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
+        await refreshDeviceLibrary()
+
         if selectedFeedID == nil {
             selectedFeedID = viewModel.feedSubscriptions.first?.id
         }
@@ -550,16 +546,25 @@ public struct MainView: View {
     private func refreshFeedPreview() async {
         await feedPreviewViewModel.refreshPreview(for: viewModel.feedSubscriptions)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
-        await refreshDeviceLibrary()
     }
 
     private func refreshFeedPreview(for subscription: FeedSubscription) async {
         await feedPreviewViewModel.refreshPreview(for: subscription)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+    }
+
+    private func refreshAllContent() async {
+        await refreshFeedPreview()
+        await refreshDeviceLibrary()
+    }
+
+    private func refreshContent(for subscription: FeedSubscription) async {
+        await refreshFeedPreview(for: subscription)
         await refreshDeviceLibrary()
     }
 
     private func rebuildSyncPlan() {
+        syncPlanViewModel.prepareForPlanRebuild()
         Task {
             await syncPlanViewModel.buildPlan(
                 device: deviceViewModel.selectedDevice,
@@ -635,8 +640,7 @@ public struct MainView: View {
         visibleEpisodeCountsByFeedID = [:]
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
-        Task { await refreshFeedPreview() }
-        Task { await refreshDeviceLibrary() }
+        Task { await refreshAllContent() }
     }
 
     private func deleteFeeds(at offsets: IndexSet) {
@@ -644,7 +648,7 @@ public struct MainView: View {
         if let selectedFeedID, !viewModel.feedSubscriptions.contains(where: { $0.id == selectedFeedID }) {
             self.selectedFeedID = viewModel.feedSubscriptions.first?.id
         }
-        Task { await refreshFeedPreview() }
+        Task { await refreshAllContent() }
     }
 
     private func allEpisodes(for subscription: FeedSubscription) -> [Episode] {
@@ -769,6 +773,12 @@ public struct MainView: View {
 
     private var syncPlanSummaryText: String {
         guard let plan = syncPlanViewModel.plan else {
+            if syncPlanViewModel.isPlanning {
+                return "Checking the sync plan and available device space..."
+            }
+            if syncPlanViewModel.lastErrorMessage != nil {
+                return "The sync plan could not be completed."
+            }
             return deviceViewModel.selectedDevice == nil
                 ? "Pick a compatible device to build the plan."
                 : "The plan will appear here once episodes are prepared."
@@ -787,20 +797,14 @@ public struct MainView: View {
             return (subscriptionID, episode)
         }, by: \.0).mapValues { $0.map(\.1) }
 
-        await syncExecutionViewModel.sync(
-            device: deviceViewModel.selectedDevice,
-            preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
-            subscriptions: viewModel.feedSubscriptions,
-            manualDeleteTargets: manuallySelectedDeletionTargets,
-            ejectAfterSync: isEjectAfterSyncEnabled
-        )
+        await syncExecutionViewModel.sync(plan: syncPlanViewModel.plan)
 
         if
             let result = syncExecutionViewModel.lastResult,
             let lastPlan = syncExecutionViewModel.lastPlan
         {
             let deletedTargetURLs = lastPlan.actions.compactMap { action -> URL? in
-                guard case .deleteFromDevice(let targetURL) = action else { return nil }
+                guard case .deleteFromDevice(let targetURL, _) = action else { return nil }
                 return targetURL
             }
             removedEpisodeHistoryViewModel.recordDeletedEpisodes(
@@ -836,11 +840,7 @@ public struct MainView: View {
 
     private func removedEpisodeLabel(for record: RemovedEpisodeRecord) -> String {
         let removedDate = record.removedAt.formatted(date: .abbreviated, time: .omitted)
-        let deviceName = record.deviceName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let deviceName, !deviceName.isEmpty {
-            return "Removed from \(deviceName) \(removedDate)"
-        }
-        return "Removed from device \(removedDate)"
+        return "Removed from MP3 player \(removedDate)"
     }
 
     private func episodeDurationLabel(for episode: Episode) -> String? {
@@ -963,8 +963,7 @@ public struct MainView: View {
 
     private var otherAudioDeletionConfirmationMessage: String {
         let count = selectedOtherAudioDeletionTargets.count
-        let deviceName = deviceViewModel.selectedDevice?.name ?? "the device"
-        return "Delete \(count) selected file\(count == 1 ? "" : "s") from \(deviceName)? These files are not associated with a podcast subscription in Simple Podcast Manager. They will be deleted directly from the device. This cannot be undone."
+        return "Delete \(count) selected file\(count == 1 ? "" : "s") from the MP3 player? These files are not associated with a podcast subscription in Simple Podcast Manager. They will be deleted directly from the MP3 player. This cannot be undone."
     }
 
     private var selectedDevicePodcastDirectoryPath: String? {

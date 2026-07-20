@@ -98,7 +98,9 @@ Release/update conventions:
 - do not reintroduce a parallel GitHub-release update checker in the app UI
 - every release must include clear user-facing notes in `RELEASE_NOTES.md` before building; these notes are embedded in the Sparkle appcast and shown in `Check for Updates…`, but the release-note requirement itself is developer/agent process and should not be surfaced to users
 - release notes must mention the exact `SPMReleaseTag` and describe user-visible changes; never ship generic notes like only `Build 32.`
-- keep only the currently published release in the Sparkle appcast; the current release notes must include any earlier user-visible changes that matter to people upgrading across skipped versions
+- keep only the currently published release in the Sparkle appcast
+- release notes should describe user-visible changes since the previous release; repeat an older change only when it affects compatibility, migration, safety, or requires user action when upgrading across skipped versions
+- keep Sparkle release notes concise, generally 3–6 bullets, and omit internal implementation details
 - when bumping `CFBundleVersion` or `SPMReleaseTag`, complete the full update path before calling the work done: build the DMG, run `./scripts/verify-release.sh`, upload the exact versioned DMG referenced by the appcast from `dist/updates/SimplePodcastManager-<SPMReleaseTag>.dmg`, publish `gh-pages:appcast.xml`, and verify the live appcast advertises the new Sparkle version
 - the GitHub release asset name must match the Sparkle appcast enclosure URL exactly; do not upload only the generic `dist/SimplePodcastManager.dmg` for an update release
 - after publishing the release, make a HEAD request or equivalent check against the live appcast enclosure URL and confirm it resolves before calling the release done

@@ -210,7 +210,9 @@ Update design:
 - major bumps are for 1.0 stability or, after 1.0, breaking changes to data compatibility, device behavior, or user workflows
 - every release must have clear user-facing notes in `RELEASE_NOTES.md` for the exact `SPMReleaseTag`; this is a developer/agent process requirement, not user-facing documentation
 - Sparkle embeds those notes in the appcast so `Check for Updates…` and automatic update prompts explain what changed
-- keep only the currently published release in the appcast, with cumulative notes for user-visible changes that matter when upgrading across skipped versions
+- keep only the currently published release in the appcast
+- release notes should describe user-visible changes since the previous release; repeat an older change only for compatibility, migration, safety, or required user action across skipped versions
+- keep Sparkle release notes concise, generally 3–6 bullets, and omit internal implementation details
 - a version bump is incomplete until the matching DMG is built, verified, uploaded to the GitHub release, published in `gh-pages:appcast.xml`, and confirmed in the live appcast
 - the GitHub release must include the exact versioned DMG file referenced by the Sparkle appcast enclosure, such as `dist/updates/SimplePodcastManager-v1.1.3.dmg`; uploading only the generic `dist/SimplePodcastManager.dmg` will break in-app downloads
 - release verification should include checking that the live appcast enclosure URL resolves successfully after the release asset is uploaded

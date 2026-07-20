@@ -6,12 +6,19 @@ Simple Podcast Manager should feel extremely simple:
 
 plug in device -> click sync -> everything handled -> done
 
-The codebase should optimize for:
+## Engineering Standards
 
-- simplicity over cleverness
-- safety over convenience
-- low-friction UX over feature breadth
-- RSS ownership over platform lock-in
+Code should be:
+
+- clear and readable, with descriptive names and explicit control flow
+- simple to change and maintain
+- divided into small, focused components with clear responsibilities
+- reusable where behavior is genuinely shared, without premature abstraction
+- testable through explicit inputs, outputs, and dependency boundaries
+- consistent with established project patterns
+- covered by focused tests, especially around sync and device safety
+
+Remove duplication when doing so improves clarity. Do not apply DRY mechanically when a shared abstraction would make the code harder to understand.
 
 ## Critical Safety Rules
 
@@ -45,42 +52,79 @@ When adding files, use the existing package layout:
 
 ## Release Workflow
 
-- `CFBundleVersion` must be an incrementing integer
-- `CFBundleShortVersionString` is the user-visible update version shown by Sparkle; do not leave it unchanged when publishing a user-facing update
-- `SPMReleaseTag` must match the GitHub release tag and start with `v<CFBundleShortVersionString>`
-- before any release/version bump, ask Steve which user-visible semver bump to use unless he has already specified it in the current request
-- use patch bumps, such as `1.3.2`, for small fixes, cleanup, copy changes, and narrow UX improvements
-- use minor bumps, such as `1.4.0`, for backward-compatible new workflows, meaningful user-facing capabilities, or larger sync/download/device behavior changes
-- use major bumps, such as `2.0.0`, for breaking changes to data compatibility, device behavior, or user workflows
-- `SUPublicEDKey` is public and may be committed
-- Sparkle private keys, Developer ID credentials, notarization profiles, and appcast signing secrets must never be committed
-- run `./scripts/swift-test.sh` and `./scripts/verify-release.sh` before publishing a release
-- every release must include clear user-facing notes in `RELEASE_NOTES.md` before building; these notes are embedded in the Sparkle appcast and shown in `Check for Updates…`, but the release-note requirement itself is developer/agent process and should not be surfaced to users
-- release notes must mention the exact `SPMReleaseTag` and describe user-visible changes; never ship generic notes like only `Build 32.`
-- keep only the currently published release in the Sparkle appcast
-- release notes should describe user-visible changes since the previous release; repeat an older change only when it affects compatibility, migration, safety, or requires user action when upgrading across skipped versions
-- keep Sparkle release notes concise, generally 3–6 bullets, and omit internal implementation details
-- when bumping `CFBundleVersion` or `SPMReleaseTag`, complete the full update path before calling the work done: build the DMG, run `./scripts/verify-release.sh`, upload the exact versioned DMG referenced by the appcast from `dist/updates/SimplePodcastManager-<SPMReleaseTag>.dmg`, publish `gh-pages:appcast.xml`, and verify the live appcast advertises the new Sparkle version
-- the GitHub release asset name must match the Sparkle appcast enclosure URL exactly; do not upload only the generic `dist/SimplePodcastManager.dmg` for an update release
-- after publishing the release, make a HEAD request or equivalent check against the live appcast enclosure URL and confirm it resolves before calling the release done
+### Versioning
 
-Website publishing:
+Before changing release metadata, ask Steve which user-visible semver bump to use unless he already specified it in the current request.
+
+- use a patch bump, such as `1.3.2`, for a small fix, cleanup, copy change, or narrow UX improvement
+- use a minor bump, such as `1.4.0`, for a backward-compatible workflow, meaningful capability, or larger sync/download/device behavior change
+- use a major bump, such as `2.0.0`, for a breaking change to data compatibility, device behavior, or user workflows
+
+Keep the release identifiers aligned:
+
+- increment the integer `CFBundleVersion`
+- update `CFBundleShortVersionString` for every user-facing release
+- set `SPMReleaseTag` to the GitHub tag, beginning with `v<CFBundleShortVersionString>`
+
+### Release Notes
+
+Write `RELEASE_NOTES.md` before building because its contents are embedded in the Sparkle appcast.
+
+- mention the exact `SPMReleaseTag`
+- describe user-visible changes since the previous release
+- keep the notes concise, generally 3–6 bullets
+- omit internal implementation details
+- repeat an older change only when it affects compatibility, migration, safety, or requires user action across skipped versions
+- never publish generic notes such as only `Build 32.`
+
+### Credentials
+
+- `SUPublicEDKey` is public and may be committed
+- never commit Sparkle private keys, Developer ID credentials, notarization profiles, or appcast signing secrets
+
+### Publish Checklist
+
+Complete every step before calling a release finished:
+
+1. Update the version identifiers and `RELEASE_NOTES.md`.
+2. Run `./scripts/swift-test.sh`.
+3. Build the DMG and Sparkle appcast with `./scripts/build-release.sh`.
+4. Run `./scripts/verify-release.sh`.
+5. Commit and push the exact source and release metadata used for the build. Rebuild if any tracked release input changes afterward.
+6. Create the GitHub release from that commit and upload `dist/updates/SimplePodcastManager-<SPMReleaseTag>.dmg`. The asset name must exactly match the appcast enclosure URL; the generic `dist/SimplePodcastManager.dmg` is not sufficient.
+7. Keep only the current release in the appcast, publish it as `gh-pages:appcast.xml`, and preserve other `gh-pages` files.
+8. Verify the live appcast advertises the new Sparkle version and exact release asset URL.
+9. Make a HEAD request, or an equivalent check, and confirm the live enclosure URL resolves successfully.
+
+### Website Publishing
 
 - GitHub Pages serves from the `gh-pages` branch at repository root
 - keep the canonical website source in `main` at `docs/index.html`
 - when changing the website, copy `docs/index.html` to `gh-pages:index.html` and preserve existing `gh-pages` files such as `appcast.xml` and `.nojekyll`
-- Sparkle update publishing also updates `gh-pages:appcast.xml`
 
 ## Testing Expectations
 
-Add tests around behavior with the highest risk first:
+For every behavior change:
 
-- valid device detection
-- invalid or ambiguous device detection
+- test observable behavior rather than implementation details
+- cover the successful path, relevant failure paths, and important boundaries
+- add a regression test when fixing a bug
+- keep tests deterministic and independent of real devices, network services, clocks, or user data
+- use focused fakes and temporary directories instead of broad integration setup when possible
+- place domain and service tests in `SimplePodcastManagerCoreTests`; use `SimplePodcastManagerUITests` for view-model and presentation behavior
+- run `./scripts/swift-test.sh` before handing off code changes
+- never weaken or remove a valid assertion merely to make a test pass
+
+Prioritize coverage where mistakes carry the most risk:
+
+- valid, invalid, and ambiguous device detection
+- path validation before every device mutation
 - user-visible sync plan parity with executed device actions
+- complete-plan capacity math, including space recovered by selected deletions
 - config writes touching only `[device root]/.spmconfig`
 - automatic copy/delete touching only app-managed files under the configured device podcast directory
 - explicit other-audio deletion requiring per-file selection and confirmation inside the configured device podcast directory
+- failed-copy and incomplete-existing-file reporting
 - eject only after successful sync
 
-Prefer small focused tests around planner and safety logic before broader integration coverage.
+Prefer small, focused tests around planner and safety behavior before broader integration coverage.

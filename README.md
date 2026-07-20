@@ -25,17 +25,14 @@ After the first install, enable automatic checks in Settings or use `Simple Podc
 - Review the full-device plan before changing your MP3 player.
 - Check that a sync will fit before changing your MP3 player.
 - Copy managed episodes to the device and delete selected managed episodes from it.
-- Keep device changes safely scoped to the selected podcast folder.
 - Remember downloaded and removed episodes.
-- Cache parsed feed data locally for faster startup, then refresh feeds in the background.
-- Export and import subscriptions, settings, and local history.
-- Check for app updates in place with Sparkle.
+- Back up and restore your subscriptions, settings, and history.
 
 The app runs locally on your Mac and reads podcasts directly from their RSS feeds.
 
 ## Help
 
-New users should start with the [User Manual](docs/USER_MANUAL.md).
+New users should start with the [Quick Start](docs/USER_MANUAL.md).
 
 For technical context, see [Architecture](ARCHITECTURE.md).
 

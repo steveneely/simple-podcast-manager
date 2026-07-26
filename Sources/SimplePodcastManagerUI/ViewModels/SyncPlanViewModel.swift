@@ -65,13 +65,6 @@ public final class SyncPlanViewModel {
         }
     }
 
-    public func clearPlan() {
-        latestPlanningID = nil
-        plan = nil
-        isPlanning = false
-        lastErrorMessage = nil
-    }
-
     /// Immediately prevents an older plan from being started while a replacement is queued.
     public func prepareForPlanRebuild() {
         latestPlanningID = nil

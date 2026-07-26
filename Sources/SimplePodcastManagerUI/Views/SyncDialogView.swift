@@ -12,7 +12,6 @@ struct SyncDialogView: View {
     let lastErrorMessage: String?
     let preparedEpisodeCount: Int
     let enabledSubscriptionCount: Int
-    let summaryText: String
     @Binding var isPresented: Bool
     @Binding var ejectAfterSync: Bool
     @Binding var deleteDownloadsAfterSync: Bool
@@ -37,11 +36,7 @@ struct SyncDialogView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Text(summaryText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
+            HStack {
                 Spacer()
 
                 Button("Close") {
@@ -71,10 +66,6 @@ struct SyncDialogView: View {
 
                 if let progress, isSyncing {
                     SyncProgressView(progress: progress)
-                }
-
-                if let lastResult {
-                    resultCard(lastResult)
                 }
 
                 if let planningErrorMessage {
@@ -154,25 +145,6 @@ struct SyncDialogView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func resultCard(_ result: SyncResult) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Last Run")
-                .font(.headline)
-            Text(SyncPresentation.resultSummary(result))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if result.ejected {
-                Text("The device was ejected after the run finished.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .padding(12)

@@ -220,10 +220,8 @@ public struct MainView: View {
                 Task { await refreshDeviceLibrary() }
             },
             syncControls: {
-                Group {
-                    if viewModel.hasFeeds {
-                        syncControlsRow
-                    }
+                if viewModel.hasFeeds, deviceViewModel.selectedDevice != nil {
+                    syncControlsRow
                 }
             },
             otherAudio: { otherAudioSection }
@@ -358,12 +356,9 @@ public struct MainView: View {
     @ViewBuilder
     private var syncControlsRow: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Whole Library Sync")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Text(syncPlanSummaryText)
+            HStack {
+                if let lastResult = syncExecutionViewModel.lastResult {
+                    Text(SyncPresentation.resultSummary(lastResult))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -373,17 +368,10 @@ public struct MainView: View {
                 Button("Sync") {
                     openSyncDialog()
                 }
-                .disabled(!canOpenSyncDialog)
             }
 
             if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
                 SyncProgressView(progress: progress)
-            }
-
-            if let lastResult = syncExecutionViewModel.lastResult {
-                Text(SyncPresentation.resultSummary(lastResult))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -413,7 +401,6 @@ public struct MainView: View {
             lastErrorMessage: syncExecutionViewModel.lastErrorMessage,
             preparedEpisodeCount: preparationPreviewViewModel.preparedEpisodes.count,
             enabledSubscriptionCount: enabledSubscriptionCount,
-            summaryText: syncPlanSummaryText,
             isPresented: $isShowingSyncDialog,
             ejectAfterSync: $isEjectAfterSyncEnabled,
             deleteDownloadsAfterSync: $isDeleteDownloadedAfterSyncEnabled,
@@ -763,29 +750,8 @@ public struct MainView: View {
         subscription.artworkURL ?? feedPreviewViewModel.artworkURL(for: subscription.id)
     }
 
-    private var canOpenSyncDialog: Bool {
-        deviceViewModel.selectedDevice != nil && !viewModel.feedSubscriptions.isEmpty
-    }
-
     private var enabledSubscriptionCount: Int {
         viewModel.feedSubscriptions.filter(\.isEnabled).count
-    }
-
-    private var syncPlanSummaryText: String {
-        guard let plan = syncPlanViewModel.plan else {
-            if syncPlanViewModel.isPlanning {
-                return "Checking the sync plan and available device space..."
-            }
-            if syncPlanViewModel.lastErrorMessage != nil {
-                return "The sync plan could not be completed."
-            }
-            return deviceViewModel.selectedDevice == nil
-                ? "Pick a compatible device to build the plan."
-                : "The plan will appear here once episodes are prepared."
-        }
-
-        let actionCount = plan.actions.count
-        return "Review the full-device plan for all shows. \(actionCount) action\(actionCount == 1 ? "" : "s") planned."
     }
 
     private func runSync() async {

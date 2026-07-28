@@ -196,13 +196,30 @@ public struct MainView: View {
     }
 
     private var header: some View {
-        HStack {
+        HStack(alignment: .center) {
             Text("Simple Podcast Manager")
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
             Spacer()
+
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(globalDownloadStatusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 130, alignment: .trailing)
+            .opacity(preparationPreviewViewModel.isPreparing ? 1 : 0)
+            .accessibilityHidden(!preparationPreviewViewModel.isPreparing)
+            .animation(.easeInOut(duration: 0.15), value: preparationPreviewViewModel.isPreparing)
         }
+    }
+
+    private var globalDownloadStatusText: String {
+        let count = preparationPreviewViewModel.preparingEpisodeCount
+        return "\(count) downloading"
     }
 
     private var deviceSection: some View {
@@ -304,10 +321,6 @@ public struct MainView: View {
 
                 if deviceViewModel.selectedDevice != nil {
                     deviceFilesSection(for: selectedSubscription)
-                }
-
-                if preparationPreviewViewModel.isPreparing {
-                    downloadsSection
                 }
 
                 if !feedIssues(for: selectedSubscription).isEmpty {
@@ -494,14 +507,6 @@ public struct MainView: View {
             return viewModel.feedSubscriptions.first(where: { $0.id == selectedFeedID })
         }
         return viewModel.feedSubscriptions.first
-    }
-
-    @ViewBuilder
-    private var downloadsSection: some View {
-        DownloadsSectionView(
-            downloads: preparationPreviewViewModel.activeDownloads,
-            progress: preparationPreviewViewModel.progress
-        )
     }
 
     private var deviceSelectionBinding: Binding<String> {

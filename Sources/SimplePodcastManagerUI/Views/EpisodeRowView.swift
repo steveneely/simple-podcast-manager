@@ -73,9 +73,14 @@ struct EpisodeRowView<Details: View>: View {
                         action: onRemoveDownload
                     )
                 } else if isPreparing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .help("Downloading episode")
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Downloading")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .help("Downloading episode")
                 } else {
                     HoverIconButton(
                         systemName: "arrow.down.circle",

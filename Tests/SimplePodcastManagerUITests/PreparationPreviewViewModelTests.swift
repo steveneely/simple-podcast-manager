@@ -32,7 +32,6 @@ struct PreparationPreviewViewModelTests {
 
         #expect(viewModel.preparedEpisodes.count == 1)
         #expect(viewModel.failures.isEmpty)
-        #expect(viewModel.progress == nil)
         #expect(store.preparedEpisodes.count == 1)
         #expect(downloadedStore.downloadedEpisodes.count == 1)
         #expect(downloadedStore.downloadedEpisodes.first?.episodeID == "ep-1")
@@ -162,7 +161,7 @@ struct PreparationPreviewViewModelTests {
     }
 
     @Test
-    func tracksActiveDownloadsWhilePreparingMultipleEpisodes() async throws {
+    func tracksPreparingStateForEachEpisode() async throws {
         let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: workspaceURL) }
 
@@ -203,15 +202,67 @@ struct PreparationPreviewViewModelTests {
             await Task.yield()
         }
 
-        #expect(viewModel.activeDownloads.count == 2)
+        #expect(viewModel.preparingEpisodeCount == 2)
         #expect(viewModel.isPreparing(episodes[0]))
         #expect(viewModel.isPreparing(episodes[1]))
 
         await preparationTask.value
 
-        #expect(viewModel.activeDownloads.isEmpty)
         #expect(!viewModel.isPreparing)
+        #expect(viewModel.preparingEpisodeCount == 0)
+        #expect(!viewModel.isPreparing(episodes[0]))
+        #expect(!viewModel.isPreparing(episodes[1]))
         #expect(viewModel.preparedEpisodes.count == 2)
+    }
+
+    @Test
+    func preparingStateIsScopedToItsPodcast() async throws {
+        let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
+
+        let downloadGate = PreparationDownloadGate()
+        let viewModel = PreparationPreviewViewModel(
+            service: MediaPreparationService(
+                downloadService: SuspendedPreparationDownloadService(gate: downloadGate),
+                audioConversionService: StubPreparationAudioConversionService(),
+                workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL)
+            ),
+            store: InMemoryPreparedEpisodeStore(),
+            downloadedEpisodeStore: InMemoryDownloadedEpisodeStore()
+        )
+        let firstPodcastEpisode = Episode(
+            id: "shared-guid",
+            subscriptionID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            podcastTitle: "First Podcast",
+            title: "First Episode",
+            enclosureURL: URL(string: "https://cdn.example.com/first.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/first.xml")!
+        )
+        let secondPodcastEpisode = Episode(
+            id: "shared-guid",
+            subscriptionID: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            podcastTitle: "Second Podcast",
+            title: "Second Episode",
+            enclosureURL: URL(string: "https://cdn.example.com/second.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/second.xml")!
+        )
+
+        let preparationTask = Task {
+            await viewModel.prepare([firstPodcastEpisode], settings: AppSettings())
+        }
+
+        while !(await downloadGate.hasStarted) {
+            await Task.yield()
+        }
+
+        #expect(viewModel.isPreparing(firstPodcastEpisode))
+        #expect(!viewModel.isPreparing(secondPodcastEpisode))
+
+        await downloadGate.allowDownload()
+        await preparationTask.value
+
+        #expect(viewModel.preparedEpisode(for: firstPodcastEpisode) != nil)
+        #expect(viewModel.preparedEpisode(for: secondPodcastEpisode) == nil)
     }
 }
 
@@ -224,6 +275,35 @@ private struct StubPreparationDownloadService: DownloadService {
 private struct DelayedPreparationDownloadService: DownloadService {
     func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
         try await Task.sleep(nanoseconds: 10_000_000)
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
+        try Data("audio".utf8).write(to: fileURL)
+        return fileURL
+    }
+}
+
+private actor PreparationDownloadGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var hasStarted = false
+
+    func waitForPermission() async {
+        hasStarted = true
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func allowDownload() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private struct SuspendedPreparationDownloadService: DownloadService {
+    let gate: PreparationDownloadGate
+
+    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+        await gate.waitForPermission()
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
         try Data("audio".utf8).write(to: fileURL)

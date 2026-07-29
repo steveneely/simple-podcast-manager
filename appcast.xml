@@ -3,19 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.4.2</title>
-            <pubDate>Tue, 28 Jul 2026 17:14:21 -0600</pubDate>
-            <sparkle:version>50</sparkle:version>
-            <sparkle:shortVersionString>1.4.2</sparkle:shortVersionString>
+            <title>1.4.3</title>
+            <pubDate>Tue, 28 Jul 2026 18:04:49 -0600</pubDate>
+            <sparkle:version>51</sparkle:version>
+            <sparkle:shortVersionString>1.4.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.2
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.3
 
-- Shows download activity directly on the episode being downloaded instead of adding a separate panel to every podcast.
-- Adds a compact app-wide download indicator beside the main heading without shifting the interface as it appears or disappears.
-- Keeps download and downloaded states associated with the correct podcast, even when different feeds use the same episode identifier.
+- Simplifies podcast and connected-device details so the main window is easier to scan.
+- Shows download, feed, device, and sync errors where they occurred instead of collecting unrelated messages at the bottom of the window.
+- Keeps download failures associated with the correct podcast when different feeds use the same episode identifier.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.2/SimplePodcastManager-v1.4.2.dmg" length="4951978" type="application/octet-stream" sparkle:edSignature="O5qf6DuPy6BbodeJFQKyzrS/SOOWkcRaqjsu6ReSlk4eKmv4yVAy9hcOh5LMp/iHCvoEGEIMbFZsHU+mdlECDQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.3/SimplePodcastManager-v1.4.3.dmg" length="4965131" type="application/octet-stream" sparkle:edSignature="dOX6aHQ7roDyGALobKtCJhMkSRD1i7R8x+IEz1AucwWSW6qaLvsnLwpuprZ39Vj91GUoVi1HtLoqbwQEUbgJAA=="/>
         </item>
     </channel>
 </rss>

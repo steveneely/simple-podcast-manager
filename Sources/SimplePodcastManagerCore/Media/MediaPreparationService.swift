@@ -109,7 +109,7 @@ public struct MediaPreparationService: Sendable {
             )
             return EpisodePreparationOutcome(episodeID: episode.id, result: .success(preparedEpisode))
         } catch {
-            // Failed preparations are not tracked by the UI, so remove their download.
+            // A failed preparation should not leave an incomplete local download behind.
             if let downloadedFileURL {
                 try? FileManager.default.removeItem(at: downloadedFileURL)
             }
@@ -117,8 +117,7 @@ public struct MediaPreparationService: Sendable {
                 episodeID: episode.id,
                 result: .failure(
                     PreparationFailure(
-                        episodeID: episode.id,
-                        episodeTitle: episode.title,
+                        episode: episode,
                         message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                     )
                 )

@@ -6,14 +6,14 @@ import SimplePodcastManagerCore
 @Observable
 public final class PreparationPreviewViewModel {
     public private(set) var preparedEpisodes: [PreparedEpisode]
-    public private(set) var downloadedEpisodes: [DownloadedEpisodeRecord]
-    public private(set) var failures: [PreparationFailure]
     public private(set) var lastErrorMessage: String?
     public private(set) var hasLoadedPreparedEpisodes: Bool
 
     private let service: MediaPreparationService
     private let store: any PreparedEpisodeStore
     private let downloadedEpisodeStore: any DownloadedEpisodeStore
+    private var downloadedEpisodes: [DownloadedEpisodeRecord]
+    private var failures: [PreparationFailure]
     private var preparingEpisodesByID: [EpisodePreparationID: Episode]
 
     public init(
@@ -30,10 +30,6 @@ public final class PreparationPreviewViewModel {
         self.lastErrorMessage = nil
         self.hasLoadedPreparedEpisodes = false
         self.preparingEpisodesByID = [:]
-    }
-
-    public var hasResults: Bool {
-        !preparedEpisodes.isEmpty || !failures.isEmpty
     }
 
     public var isPreparing: Bool {
@@ -63,7 +59,9 @@ public final class PreparationPreviewViewModel {
             persistDownloadedEpisodes()
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            mergeFailures(for: episodesToPrepare, message: message)
+            lastErrorMessage = nil
         }
     }
 
@@ -109,13 +107,18 @@ public final class PreparationPreviewViewModel {
         })
     }
 
+    public func failure(for episode: Episode) -> PreparationFailure? {
+        let episodeID = EpisodePreparationID(episode)
+        return failures.first(where: { EpisodePreparationID($0.episode) == episodeID })
+    }
+
     public func removePreparedEpisode(for episode: Episode) {
         guard let existingPreparedEpisode = preparedEpisode(for: episode) else { return }
 
         removeFiles(for: existingPreparedEpisode)
         let episodeID = EpisodePreparationID(episode)
         preparedEpisodes.removeAll(where: { EpisodePreparationID($0.episode) == episodeID })
-        failures.removeAll(where: { $0.episodeID == episode.id })
+        failures.removeAll(where: { EpisodePreparationID($0.episode) == episodeID })
         persistPreparedEpisodes()
     }
 
@@ -137,11 +140,27 @@ public final class PreparationPreviewViewModel {
         }
         preparedEpisodes = mergedPreparedEpisodes.values.sorted { $0.episode.title.localizedCaseInsensitiveCompare($1.episode.title) == .orderedAscending }
 
-        var mergedFailures = Dictionary(uniqueKeysWithValues: failures.map { ($0.episodeID, $0) })
-        for failure in result.failures {
-            mergedFailures[failure.episodeID] = failure
+        let successfulEpisodeIDs = Set(result.preparedEpisodes.map { EpisodePreparationID($0.episode) })
+        failures.removeAll { failure in
+            successfulEpisodeIDs.contains(EpisodePreparationID(failure.episode))
         }
-        failures = mergedFailures.values.sorted { $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending }
+        mergeFailures(result.failures)
+    }
+
+    private func mergeFailures(for episodes: [Episode], message: String) {
+        mergeFailures(episodes.map { PreparationFailure(episode: $0, message: message) })
+    }
+
+    private func mergeFailures(_ newFailures: [PreparationFailure]) {
+        var failuresByEpisodeID = Dictionary(uniqueKeysWithValues: failures.map {
+            (EpisodePreparationID($0.episode), $0)
+        })
+        for failure in newFailures {
+            failuresByEpisodeID[EpisodePreparationID(failure.episode)] = failure
+        }
+        failures = failuresByEpisodeID.values.sorted {
+            $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
+        }
     }
 
     private func persistPreparedEpisodes() {
@@ -192,6 +211,8 @@ public final class PreparationPreviewViewModel {
     }
 
     private func beginPreparing(_ episodes: [Episode]) {
+        let episodeIDs = Set(episodes.map(EpisodePreparationID.init))
+        failures.removeAll { episodeIDs.contains(EpisodePreparationID($0.episode)) }
         for episode in episodes {
             preparingEpisodesByID[EpisodePreparationID(episode)] = episode
         }
@@ -215,4 +236,5 @@ private enum EpisodePreparationID: Hashable {
             self = .feed(episode.sourceFeedURL, episodeID: episode.id)
         }
     }
+
 }

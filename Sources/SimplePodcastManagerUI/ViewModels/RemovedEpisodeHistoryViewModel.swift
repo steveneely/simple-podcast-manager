@@ -34,10 +34,6 @@ public final class RemovedEpisodeHistoryViewModel {
         }
     }
 
-    public func removedAt(for episode: Episode) -> Date? {
-        removedRecord(for: episode)?.removedAt
-    }
-
     public func removedRecord(for episode: Episode) -> RemovedEpisodeRecord? {
         guard let subscriptionID = episode.subscriptionID else { return nil }
         let fileStem = EpisodeFileName.fileStem(for: episode)

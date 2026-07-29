@@ -30,7 +30,7 @@ struct RemovedEpisodeHistoryViewModelTests {
             removedAt: removedAt
         )
 
-        #expect(viewModel.removedAt(for: episode) == removedAt)
+        #expect(viewModel.removedRecord(for: episode)?.removedAt == removedAt)
         #expect(store.removedEpisodes.count == 1)
         #expect(viewModel.removedRecord(for: episode)?.deviceName == "WALKMAN")
     }
@@ -64,7 +64,7 @@ struct RemovedEpisodeHistoryViewModelTests {
         #expect(store.removedEpisodes.first?.episodeID == nil)
         #expect(store.removedEpisodes.first?.episodeTitle == "Episode 1")
         #expect(store.removedEpisodes.first?.deviceName == "WALKMAN")
-        #expect(viewModel.removedAt(for: laterLoadedEpisode) == removedAt)
+        #expect(viewModel.removedRecord(for: laterLoadedEpisode)?.removedAt == removedAt)
     }
 
     @Test
@@ -90,7 +90,7 @@ struct RemovedEpisodeHistoryViewModelTests {
             removedAt: Date(timeIntervalSince1970: 1_713_800_000)
         )
 
-        #expect(viewModel.removedAt(for: episode) == nil)
+        #expect(viewModel.removedRecord(for: episode) == nil)
         #expect(store.removedEpisodes.count == 1)
         #expect(store.removedEpisodes.first?.episodeTitle == "Unknown")
     }
@@ -126,7 +126,7 @@ struct RemovedEpisodeHistoryViewModelTests {
             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
         )
 
-        #expect(viewModel.removedAt(for: currentFeedEpisode) == removedAt)
+        #expect(viewModel.removedRecord(for: currentFeedEpisode)?.removedAt == removedAt)
     }
 
     @Test
@@ -155,7 +155,7 @@ struct RemovedEpisodeHistoryViewModelTests {
         )
 
         #expect(store.removedEpisodes.first?.episodeID == currentFeedEpisode.id)
-        #expect(viewModel.removedAt(for: currentFeedEpisode) == removedAt)
+        #expect(viewModel.removedRecord(for: currentFeedEpisode)?.removedAt == removedAt)
     }
 }
 

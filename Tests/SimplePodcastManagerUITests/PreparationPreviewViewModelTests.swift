@@ -31,7 +31,7 @@ struct PreparationPreviewViewModelTests {
         await viewModel.prepare([episode], settings: AppSettings())
 
         #expect(viewModel.preparedEpisodes.count == 1)
-        #expect(viewModel.failures.isEmpty)
+        #expect(viewModel.failure(for: episode) == nil)
         #expect(store.preparedEpisodes.count == 1)
         #expect(downloadedStore.downloadedEpisodes.count == 1)
         #expect(downloadedStore.downloadedEpisodes.first?.episodeID == "ep-1")
@@ -154,7 +154,7 @@ struct PreparationPreviewViewModelTests {
         viewModel.removeAllPreparedEpisodes()
 
         #expect(viewModel.preparedEpisodes.isEmpty)
-        #expect(!viewModel.downloadedEpisodes.isEmpty)
+        #expect(!downloadedStore.downloadedEpisodes.isEmpty)
         #expect(store.preparedEpisodes.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: sourceURL.path))
         #expect(!FileManager.default.fileExists(atPath: preparedURL.path))
@@ -264,11 +264,61 @@ struct PreparationPreviewViewModelTests {
         #expect(viewModel.preparedEpisode(for: firstPodcastEpisode) != nil)
         #expect(viewModel.preparedEpisode(for: secondPodcastEpisode) == nil)
     }
+
+    @Test
+    func preparationFailureIsScopedToItsPodcast() async {
+        let firstPodcastEpisode = Episode(
+            id: "shared-guid",
+            subscriptionID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            podcastTitle: "First Podcast",
+            title: "First Episode",
+            enclosureURL: URL(string: "https://cdn.example.com/first.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/first.xml")!
+        )
+        let secondPodcastEpisode = Episode(
+            id: "shared-guid",
+            subscriptionID: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            podcastTitle: "Second Podcast",
+            title: "Second Episode",
+            enclosureURL: URL(string: "https://cdn.example.com/second.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/second.xml")!
+        )
+        let viewModel = PreparationPreviewViewModel(
+            service: MediaPreparationService(
+                downloadService: FailingPreparationDownloadService(),
+                audioConversionService: StubPreparationAudioConversionService(),
+                workspaceProvider: StubPreparationWorkspaceProvider(
+                    workspaceURL: URL(fileURLWithPath: "/tmp/simple-podcast-manager-workspace", isDirectory: true)
+                )
+            ),
+            store: InMemoryPreparedEpisodeStore(),
+            downloadedEpisodeStore: InMemoryDownloadedEpisodeStore()
+        )
+
+        await viewModel.prepare([firstPodcastEpisode], settings: AppSettings())
+
+        #expect(viewModel.failure(for: firstPodcastEpisode)?.message == "Download failed.")
+        #expect(viewModel.failure(for: secondPodcastEpisode) == nil)
+    }
 }
 
 private struct StubPreparationDownloadService: DownloadService {
     func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
         workspaceURL.appendingPathComponent("\(episode.id).mp3")
+    }
+}
+
+private struct FailingPreparationDownloadService: DownloadService {
+    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+        throw TestPreparationError.downloadFailed
+    }
+}
+
+private enum TestPreparationError: LocalizedError {
+    case downloadFailed
+
+    var errorDescription: String? {
+        "Download failed."
     }
 }
 

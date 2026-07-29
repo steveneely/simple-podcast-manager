@@ -101,10 +101,6 @@ public final class MainViewModel {
         }
     }
 
-    public func clearLastError() {
-        lastErrorMessage = nil
-    }
-
     public func applyFeedSummaries(_ feedSummaries: [FeedSummary]) {
         guard !feedSummaries.isEmpty else { return }
         let summariesByID = Dictionary(uniqueKeysWithValues: feedSummaries.map { ($0.subscriptionID, $0) })

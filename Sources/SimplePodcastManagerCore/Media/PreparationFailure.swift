@@ -2,19 +2,19 @@ import Foundation
 
 public struct PreparationFailure: Equatable, Sendable, Identifiable {
     public var id: UUID
-    public var episodeID: String
-    public var episodeTitle: String
+    public var episode: Episode
     public var message: String
+
+    public var episodeID: String { episode.id }
+    public var episodeTitle: String { episode.title }
 
     public init(
         id: UUID = UUID(),
-        episodeID: String,
-        episodeTitle: String,
+        episode: Episode,
         message: String
     ) {
         self.id = id
-        self.episodeID = episodeID
-        self.episodeTitle = episodeTitle
+        self.episode = episode
         self.message = message
     }
 }

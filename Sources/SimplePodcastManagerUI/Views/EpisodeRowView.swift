@@ -7,6 +7,7 @@ struct EpisodeRowView<Details: View>: View {
     let durationLabel: String?
     let downloadLabel: String?
     let downloadWarnings: [String]
+    let downloadErrorMessage: String?
     let removedLabel: String?
     let isPrepared: Bool
     let isPreparing: Bool
@@ -52,6 +53,11 @@ struct EpisodeRowView<Details: View>: View {
                             Text(warning)
                                 .font(.caption)
                                 .foregroundStyle(.orange)
+                        }
+                        if let downloadErrorMessage {
+                            Text(downloadErrorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.red)
                         }
                         if let removedLabel {
                             Text(removedLabel)

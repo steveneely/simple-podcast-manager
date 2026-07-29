@@ -26,7 +26,6 @@ public struct MainView: View {
     @State private var visibleEpisodeCountsByFeedID: [UUID: Int] = [:]
     @State private var expandedEpisodeIDs: Set<String> = []
     @State private var expandedDescriptionFeedIDs: Set<UUID> = []
-    @State private var isHoveringDeviceStatus = false
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
@@ -73,32 +72,8 @@ public struct MainView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            if let lastErrorMessage = viewModel.lastErrorMessage {
-                Text(lastErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            if let feedPreviewErrorMessage = feedPreviewViewModel.lastErrorMessage {
-                Text(feedPreviewErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            if let preparationErrorMessage = preparationPreviewViewModel.lastErrorMessage {
-                Text(preparationErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            if let deviceLibraryErrorMessage = deviceLibraryViewModel.lastErrorMessage {
-                Text(deviceLibraryErrorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            if let syncExecutionErrorMessage = syncExecutionViewModel.lastErrorMessage {
-                Text(syncExecutionErrorMessage)
+            if let applicationErrorMessage {
+                Text(applicationErrorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
@@ -226,7 +201,7 @@ public struct MainView: View {
         DeviceSectionView(
             viewModel: deviceViewModel,
             isShowingDetails: $isShowingDeviceDetails,
-            isHoveringStatus: $isHoveringDeviceStatus,
+            libraryErrorMessage: deviceLibraryViewModel.lastErrorMessage,
             deviceSelection: deviceSelectionBinding,
             onDisconnect: {
                 deviceViewModel.disconnectSelectedDevice()
@@ -300,9 +275,6 @@ public struct MainView: View {
                             Text(selectedSubscription.title)
                                 .font(.title2)
                                 .fontWeight(.semibold)
-                            Text(selectedSubscription.rssURL.absoluteString)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
 
                             podcastDescriptionSection(for: selectedSubscription)
                         }
@@ -333,6 +305,12 @@ public struct MainView: View {
                                 .foregroundStyle(.orange)
                         }
                     }
+                }
+
+                if let feedPreviewErrorMessage = feedPreviewViewModel.lastErrorMessage {
+                    Text(feedPreviewErrorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
 
                 if allEpisodes(for: selectedSubscription).isEmpty {
@@ -424,19 +402,18 @@ public struct MainView: View {
 
     @ViewBuilder
     private func episodeRow(for episode: Episode) -> some View {
-        let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode)
-        let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode)
-        let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode)
+        let status = episodeStatus(for: episode)
 
         EpisodeRowView(
             episode: episode,
             isExpanded: isEpisodeExpanded(episode),
             durationLabel: episodeDurationLabel(for: episode),
-            downloadLabel: preparedEpisode.map(downloadedEpisodeLabel(for:))
-                ?? downloadedRecord.map(downloadedEpisodeLabel(for:)),
-            downloadWarnings: preparedEpisode?.preparationWarnings ?? [],
-            removedLabel: removedRecord.map(removedEpisodeLabel(for:)),
-            isPrepared: preparedEpisode != nil,
+            downloadLabel: status.preparedEpisode.map(downloadedEpisodeLabel(for:))
+                ?? status.downloadedRecord.map(downloadedEpisodeLabel(for:)),
+            downloadWarnings: status.preparedEpisode?.preparationWarnings ?? [],
+            downloadErrorMessage: status.preparationFailure?.message,
+            removedLabel: status.removedRecord.map(removedEpisodeLabel(for:)),
+            isPrepared: status.preparedEpisode != nil,
             isPreparing: preparationPreviewViewModel.isPreparing(episode),
             onToggleDetails: { toggleEpisodeDetails(for: episode) },
             onRemoveDownload: {
@@ -449,24 +426,28 @@ public struct MainView: View {
                     rebuildSyncPlan()
                 }
             },
-            details: { episodeDetails(for: episode) }
+            details: { episodeDetails(for: episode, status: status) }
         )
     }
 
     @ViewBuilder
-    private func episodeDetails(for episode: Episode) -> some View {
-        let preparedEpisode = preparationPreviewViewModel.preparedEpisode(for: episode)
-        let downloadedRecord = preparationPreviewViewModel.downloadedRecord(for: episode)
-        let removedRecord = removedEpisodeHistoryViewModel.removedRecord(for: episode)
-        let downloadLabel = preparedEpisode.map(downloadedEpisodeLabel(for:))
-            ?? downloadedRecord.map(downloadedEpisodeLabel(for:))
-
+    private func episodeDetails(for episode: Episode, status: EpisodeStatus) -> some View {
         EpisodeDetailsView(
             episode: episode,
             durationLabel: episodeDurationLabel(for: episode),
-            downloadLabel: downloadLabel,
-            downloadWarnings: preparedEpisode?.preparationWarnings ?? [],
-            removedLabel: removedRecord.map(removedEpisodeLabel(for:))
+            downloadLabel: status.preparedEpisode.map(downloadedEpisodeLabel(for:))
+                ?? status.downloadedRecord.map(downloadedEpisodeLabel(for:)),
+            downloadWarnings: status.preparedEpisode?.preparationWarnings ?? [],
+            removedLabel: status.removedRecord.map(removedEpisodeLabel(for:))
+        )
+    }
+
+    private func episodeStatus(for episode: Episode) -> EpisodeStatus {
+        EpisodeStatus(
+            preparedEpisode: preparationPreviewViewModel.preparedEpisode(for: episode),
+            downloadedRecord: preparationPreviewViewModel.downloadedRecord(for: episode),
+            removedRecord: removedEpisodeHistoryViewModel.removedRecord(for: episode),
+            preparationFailure: preparationPreviewViewModel.failure(for: episode)
         )
     }
 
@@ -759,6 +740,12 @@ public struct MainView: View {
         viewModel.feedSubscriptions.filter(\.isEnabled).count
     }
 
+    private var applicationErrorMessage: String? {
+        viewModel.lastErrorMessage
+            ?? preparationPreviewViewModel.lastErrorMessage
+            ?? removedEpisodeHistoryViewModel.lastErrorMessage
+    }
+
     private func runSync() async {
         let filesBySubscriptionID = Dictionary(uniqueKeysWithValues: viewModel.feedSubscriptions.map {
             ($0.id, deviceLibraryViewModel.files(for: $0))
@@ -980,4 +967,11 @@ public struct MainView: View {
         return String(filePath.dropFirst(podcastDirectoryPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
+}
+
+private struct EpisodeStatus {
+    let preparedEpisode: PreparedEpisode?
+    let downloadedRecord: DownloadedEpisodeRecord?
+    let removedRecord: RemovedEpisodeRecord?
+    let preparationFailure: PreparationFailure?
 }

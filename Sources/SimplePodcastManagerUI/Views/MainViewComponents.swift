@@ -5,7 +5,7 @@ import SimplePodcastManagerCore
 struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     @Bindable var viewModel: DeviceViewModel
     @Binding var isShowingDetails: Bool
-    @Binding var isHoveringStatus: Bool
+    let libraryErrorMessage: String?
     let deviceSelection: Binding<String>
     let onDisconnect: () -> Void
     let onRefresh: () -> Void
@@ -22,9 +22,7 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
                         Button(viewModel.statusMessage) {
                             isShowingDetails.toggle()
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(isHoveringStatus ? Color.blue : Color.white)
-                        .onHover { isHoveringStatus = $0 }
+                        .buttonStyle(.link)
                         .popover(isPresented: $isShowingDetails, arrowEdge: .bottom) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(selectedDevice.name)
@@ -80,6 +78,12 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
 
             if let errorMessage = viewModel.lastErrorMessage {
                 Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            if let libraryErrorMessage {
+                Text(libraryErrorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
             }

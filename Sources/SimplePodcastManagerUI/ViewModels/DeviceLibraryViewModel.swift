@@ -5,7 +5,6 @@ import SimplePodcastManagerCore
 @MainActor
 @Observable
 public final class DeviceLibraryViewModel {
-    public private(set) var filesBySubscriptionID: [UUID: [URL]]
     public private(set) var otherAudioFiles: [URL]
     public private(set) var lastErrorMessage: String?
 
@@ -13,6 +12,7 @@ public final class DeviceLibraryViewModel {
     private let managedDirectoryResolver: ManagedDirectoryResolver
     private let deletionService: DeviceFileDeletionService
     private let safetyValidator: SafetyValidator
+    private var filesBySubscriptionID: [UUID: [URL]]
     private var latestRefreshID: UUID?
 
     public init(

@@ -3,19 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.4.4</title>
-            <pubDate>Wed, 29 Jul 2026 21:35:33 -0600</pubDate>
-            <sparkle:version>52</sparkle:version>
-            <sparkle:shortVersionString>1.4.4</sparkle:shortVersionString>
+            <title>1.4.5</title>
+            <pubDate>Wed, 29 Jul 2026 22:26:49 -0600</pubDate>
+            <sparkle:version>53</sparkle:version>
+            <sparkle:shortVersionString>1.4.5</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.4
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.5
 
-- Shows whether an episode is on the MP3 player directly in its episode row.
-- Lets you clear that checkbox to remove the episode during the next sync.
-- Keeps older device episodes available in a compact section below the current feed.
+- Removes excess empty space around the Other Audio section.
+- Keeps longer Other Audio lists compact and scrollable.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.4/SimplePodcastManager-v1.4.4.dmg" length="4978203" type="application/octet-stream" sparkle:edSignature="MrdX4CSm+lTmDtZrh4rcl8f4HRFz7D3RzNPKwWuRM+P2OCxcKHyBrgkMbhaU4hLBENVE1pdRLz+0ZW/wy16mAg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.5/SimplePodcastManager-v1.4.5.dmg" length="4978592" type="application/octet-stream" sparkle:edSignature="AKlN7qk93tgUGv8LM2TYoUVRapH/TprkzYHNUDOXYW5hcijPBr+1cfl0hGGgO0zJ4/49LjfmhUY00TjcdKqHDw=="/>
         </item>
     </channel>
 </rss>

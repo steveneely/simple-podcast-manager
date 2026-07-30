@@ -1,5 +1,5 @@
-# Simple Podcast Manager v1.4.3
+# Simple Podcast Manager v1.4.4
 
-- Simplifies podcast and connected-device details so the main window is easier to scan.
-- Shows download, feed, device, and sync errors where they occurred instead of collecting unrelated messages at the bottom of the window.
-- Keeps download failures associated with the correct podcast when different feeds use the same episode identifier.
+- Shows whether an episode is on the MP3 player directly in its episode row.
+- Lets you clear that checkbox to remove the episode during the next sync.
+- Keeps older device episodes available in a compact section below the current feed.

@@ -72,6 +72,27 @@ public final class DeviceLibraryViewModel {
         filesBySubscriptionID[subscription.id] ?? []
     }
 
+    public func file(for episode: Episode) -> URL? {
+        guard let subscriptionID = episode.subscriptionID else {
+            return nil
+        }
+
+        let expectedFileStem = EpisodeFileName.fileStem(for: episode)
+        return filesBySubscriptionID[subscriptionID]?.first {
+            $0.deletingPathExtension().lastPathComponent == expectedFileStem
+        }
+    }
+
+    public func unmatchedFiles(
+        for subscription: FeedSubscription,
+        episodes: [Episode]
+    ) -> [URL] {
+        let currentEpisodeFileStems = Set(episodes.map(EpisodeFileName.fileStem(for:)))
+        return files(for: subscription).filter {
+            !currentEpisodeFileStems.contains($0.deletingPathExtension().lastPathComponent)
+        }
+    }
+
     public func deleteOtherAudioFiles(_ fileURLs: Set<URL>, on device: DeviceInfo?) {
         guard let device else { return }
 

@@ -42,10 +42,11 @@ The app checks that the complete sync will fit before changing the player.
 
 ## Remove Episodes From The Player
 
-Open a show and find its files under `On Device`:
+Connect the player, then open a show:
 
-- Checked files stay on the player.
-- Unchecked files are deleted during the next sync.
+- Episodes already on the player have a checked `On MP3 player` box in their episode row.
+- Clear the box to mark the episode `Remove on next sync`. Select it again to keep the episode.
+- Use `Older episodes on MP3 player` at the bottom of the list for files no longer included in the current feed. The same checkbox is available there.
 
 Other audio is deleted only when you select and confirm those exact files.
 

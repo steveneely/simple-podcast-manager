@@ -236,37 +236,8 @@
       border-block: 1px solid rgba(58, 78, 69, 0.14);
     }
 
-    .section-head {
-      display: grid;
-      grid-template-columns: minmax(0, 0.82fr) minmax(280px, 0.5fr);
-      gap: 32px;
-      align-items: end;
+    .section-title {
       margin-bottom: 34px;
-    }
-
-    .section-head p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 19px;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-    }
-
-    .feature {
-      min-height: 180px;
-      padding: 24px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--surface);
-    }
-
-    .feature p {
-      margin: 14px 0 0;
-      color: var(--muted);
     }
 
     .steps {
@@ -333,19 +304,9 @@
       font-size: 14px;
     }
 
-    .gallery {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px;
-    }
-
-    .gallery .screen:first-child {
-      grid-column: 1 / -1;
-    }
-
     .promise {
       display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(320px, 0.62fr);
+      grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1fr);
       gap: 34px;
       align-items: center;
       padding: 34px;
@@ -365,6 +326,10 @@
       margin: 0;
       padding: 0;
       list-style: none;
+    }
+
+    .promise ul {
+      margin-top: 22px;
     }
 
     .promise li {
@@ -478,8 +443,7 @@
     @media (max-width: 900px) {
       .hero-grid,
       .steps,
-      .promise,
-      .section-head {
+      .promise {
         grid-template-columns: 1fr;
       }
 
@@ -487,8 +451,6 @@
         padding-top: 52px;
       }
 
-      .feature-grid,
-      .gallery,
       .faq-grid {
         grid-template-columns: 1fr;
       }
@@ -547,7 +509,7 @@
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="#setup">Setup</a>
-        <a href="#screenshots">Screenshots</a>
+        <a href="#safety">Safety</a>
         <a href="#faq">FAQ</a>
       </nav>
     </div>
@@ -562,7 +524,6 @@
           <p class="lede">RSS podcasts for your MP3 player. Add feeds, download episodes, plug in your device, review the plan, and sync.</p>
           <div class="actions">
             <a class="button primary" href="https://github.com/steveneely/simple-podcast-manager/releases">Download for macOS</a>
-            <a class="button" href="https://github.com/steveneely/simple-podcast-manager/blob/main/docs/USER_MANUAL.md">Read the quick start</a>
             <a class="button" href="https://github.com/steveneely/simple-podcast-manager">View source</a>
           </div>
         </div>
@@ -574,40 +535,17 @@
       </div>
     </section>
 
-    <section class="section alt">
-      <div class="wrap">
-        <div class="section-head">
-          <h2>Built for the plain old MP3-player workflow.</h2>
-          <p>No hosted account. No podcast-platform lock-in. Just RSS feeds, local files, and a device you control.</p>
-        </div>
-        <div class="feature-grid">
-          <article class="feature">
-            <h3>RSS-first</h3>
-            <p>Use normal podcast feed URLs without a hosted account or platform subscription.</p>
-          </article>
-          <article class="feature">
-            <h3>Made for MP3 players</h3>
-            <p>Prepare podcast episodes as files your standalone player can use.</p>
-          </article>
-          <article class="feature">
-            <h3>Plan before changes</h3>
-            <p>Review the device sync plan before anything is copied or removed.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="setup" class="section">
+    <section id="setup" class="section alt">
       <div class="wrap steps">
         <div>
-          <p class="eyebrow">Setup</p>
-          <h2>Five steps from fresh install to synced podcasts.</h2>
+          <p class="eyebrow">Quick Start</p>
+          <h2>From RSS feed to MP3 player.</h2>
           <ol class="step-list">
-            <li><span><strong>Install the app.</strong> Download the DMG from GitHub Releases, open it, and drag the app to Applications.</span></li>
-            <li><span><strong>Add podcast feeds.</strong> Paste RSS feed URLs for the shows you want to keep on your player.</span></li>
-            <li><span><strong>Download episodes.</strong> Choose individual episodes or prepare all loaded episodes for a show.</span></li>
-            <li><span><strong>Plug in your MP3 player.</strong> The device needs to mount in Finder. Podcasts can go in a target folder such as <code>music</code> or <code>podcasts</code>.</span></li>
-            <li><span><strong>Review and start.</strong> Check the sync plan, then let the app copy managed podcast files to the device.</span></li>
+            <li><span><strong>Install.</strong> Open the DMG and drag the app to Applications.</span></li>
+            <li><span><strong>Add a show.</strong> Paste its podcast RSS feed URL.</span></li>
+            <li><span><strong>Download episodes.</strong> Click the download button beside each one you want.</span></li>
+            <li><span><strong>Connect your player.</strong> Make sure it appears in Finder.</span></li>
+            <li><span><strong>Sync.</strong> Review the plan, then click Start.</span></li>
           </ol>
         </div>
         <div class="screen-pair">
@@ -627,90 +565,46 @@
       </div>
     </section>
 
-    <section id="screenshots" class="section alt">
-      <div class="wrap">
-        <div class="section-head">
-          <h2>Know what will change before it changes.</h2>
-          <p>The interface keeps the important state visible: subscribed shows, prepared episodes, detected device, and the exact work that will happen during sync.</p>
-        </div>
-        <div class="gallery">
-          <figure class="screen">
-            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/sync-plan.png" data-lightbox-alt="Sync plan view showing device actions before sync starts." data-lightbox-caption="Review the planned device actions before running sync.">
-              <img src="assets/screenshots/sync-plan.png" alt="Sync plan view showing device actions before sync starts.">
-            </button>
-            <figcaption class="screen-caption">Review the planned device actions before running sync.</figcaption>
-          </figure>
-          <figure class="screen">
-            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/episode-list.png" data-lightbox-alt="Episode list with podcast episodes and download controls." data-lightbox-caption="Download the episodes you want before syncing. The main window keeps show, episode, and device state in one place.">
-              <img src="assets/screenshots/episode-list.png" alt="Episode list with podcast episodes and download controls.">
-            </button>
-            <figcaption class="screen-caption">Download the episodes you want before syncing. The main window keeps show, episode, and device state in one place.</figcaption>
-          </figure>
-          <figure class="screen">
-            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/settings.png" data-lightbox-alt="Settings window showing optional ffmpeg and device podcast folder paths." data-lightbox-caption="Settings keeps both paths optional: set ffmpeg for non-MP3 conversion, and choose a device podcast folder when your player uses a folder name other than &quot;music&quot;.">
-              <img src="assets/screenshots/settings.png" alt="Settings window showing optional ffmpeg and device podcast folder paths.">
-            </button>
-            <figcaption class="screen-caption">Settings keeps both paths optional: set ffmpeg for non-MP3 conversion, and choose a device podcast folder when your player uses a folder name other than <code>music</code>.</figcaption>
-          </figure>
-        </div>
-      </div>
-    </section>
-
     <section id="safety" class="section">
       <div class="wrap promise">
         <div>
           <p class="eyebrow">Device Safety</p>
-          <h2>The sync plan is the contract.</h2>
-          <p>Simple Podcast Manager is intentionally cautious. It plans first, shows you the intended changes, validates paths, and only performs device actions that fit those rules.</p>
+          <h2>Review every change before syncing.</h2>
+          <p>The app shows the complete plan before it copies or removes anything.</p>
+          <ul>
+            <li>Writes only inside the device’s podcast folder.</li>
+            <li>Deletes app-managed episodes only when selected.</li>
+            <li>Stops when device paths cannot be validated.</li>
+          </ul>
         </div>
-        <ul>
-          <li>Remembers the podcast folder you choose for each device.</li>
-          <li>Writes podcast files only inside the configured target folder, such as <code>music</code> or <code>podcasts</code>.</li>
-          <li>Sync only deletes app-managed podcast files; other audio requires explicit selection and confirmation.</li>
-          <li>Does not touch other folders on the device.</li>
-          <li>Aborts destructive work when validation is uncertain.</li>
-        </ul>
+        <figure class="screen">
+          <button class="image-button" type="button" data-lightbox-src="assets/screenshots/sync-plan.png" data-lightbox-alt="Sync plan showing device actions before sync starts." data-lightbox-caption="Review the planned device actions before running sync.">
+            <img src="assets/screenshots/sync-plan.png" alt="Sync plan showing device actions before sync starts.">
+          </button>
+          <figcaption class="screen-caption">The complete sync plan appears before Start.</figcaption>
+        </figure>
       </div>
     </section>
 
     <section id="faq" class="section alt">
       <div class="wrap">
-        <div class="section-head">
-          <h2>Common Questions</h2>
-          <p>Short answers for people deciding whether this fits their player and podcast habits.</p>
-        </div>
+        <h2 class="section-title">Common questions</h2>
         <ul class="faq faq-grid">
           <li>
-            <h3>Does it require Spotify or Apple Podcasts?</h3>
-            <p>No. Simple Podcast Manager works from podcast RSS feed URLs and keeps downloaded audio local.</p>
-          </li>
-          <li>
             <h3>What devices work?</h3>
-            <p>The device should mount in Finder as an external volume. Podcasts can sync to a configured target folder, such as <code>music</code> or <code>podcasts</code>. That includes many simple USB MP3 players.</p>
+            <p>USB MP3 players that mount in Finder as external volumes.</p>
           </li>
           <li>
             <h3>Do I need an account?</h3>
-            <p>No. There is no hosted service, login, or sync account.</p>
+            <p>No. Add shows with podcast RSS feed URLs; Spotify and Apple Podcasts are not required.</p>
           </li>
           <li>
-            <h3>Is it free and open source?</h3>
-            <p>Yes. Simple Podcast Manager is free and open source under the MIT License.</p>
-          </li>
-          <li>
-            <h3>Why do I need to set an ffmpeg path?</h3>
-            <p>Most MP3 podcast episodes work without ffmpeg. Some podcasts publish audio in other formats, and Simple Podcast Manager uses ffmpeg to convert those files into MP3s.</p>
+            <h3>Do I need ffmpeg?</h3>
+            <p>Only when a podcast publishes audio in a format other than MP3.</p>
           </li>
           <li>
             <h3>Is it signed and notarized?</h3>
             <p>Current prerelease builds may require manual approval in macOS Privacy &amp; Security. Release signing and notarization are planned.</p>
-          </li>
-          <li>
-            <h3>Where should I start?</h3>
-            <p>Download the latest release, add one RSS feed, prepare one episode, and try a sync with a device that mounts in Finder.</p>
-          </li>
-          <li>
-            <h3>How can I ask for a new feature or submit a bug?</h3>
-            <p>Open a <a href="https://github.com/steveneely/simple-podcast-manager/issues">GitHub Issue</a> on the project repo.</p>
           </li>
         </ul>
       </div>

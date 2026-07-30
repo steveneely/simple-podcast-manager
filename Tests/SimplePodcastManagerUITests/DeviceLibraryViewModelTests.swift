@@ -6,6 +6,47 @@ import Testing
 @MainActor
 struct DeviceLibraryViewModelTests {
     @Test
+    func matchesCurrentEpisodesAndKeepsOlderDeviceFilesSeparate() async throws {
+        let subscription = FeedSubscription(
+            title: "Connected",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "current-episode",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Current Episode",
+            publicationDate: Date(timeIntervalSince1970: 1_777_000_000),
+            enclosureURL: URL(string: "https://example.com/current.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let subscriptionDirectory = device.podcastDirectoryURL.appendingPathComponent(subscription.title, isDirectory: true)
+        let currentEpisodeFile = subscriptionDirectory.appendingPathComponent(
+            EpisodeFileName.fileName(for: episode, fileExtension: "mp3")
+        )
+        let olderEpisodeFile = subscriptionDirectory.appendingPathComponent(
+            "2025.01.01-Older Episode-(Connected).mp3"
+        )
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    subscriptionDirectory: [olderEpisodeFile, currentEpisodeFile]
+                ]
+            )
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(viewModel.file(for: episode) == currentEpisodeFile)
+        #expect(viewModel.unmatchedFiles(for: subscription, episodes: [episode]) == [olderEpisodeFile])
+    }
+
+    @Test
     func refreshOrdersDeviceFilesNewestToOldestWhenEpisodesMatch() async throws {
         let subscription = FeedSubscription(
             title: "Connected",

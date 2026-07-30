@@ -291,10 +291,6 @@ public struct MainView: View {
                     }
                 }
 
-                if deviceViewModel.selectedDevice != nil {
-                    deviceFilesSection(for: selectedSubscription)
-                }
-
                 if !feedIssues(for: selectedSubscription).isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Feed Issues")
@@ -313,7 +309,8 @@ public struct MainView: View {
                         .foregroundStyle(.red)
                 }
 
-                if allEpisodes(for: selectedSubscription).isEmpty {
+                if allEpisodes(for: selectedSubscription).isEmpty,
+                   unmatchedDeviceFiles(for: selectedSubscription).isEmpty {
                     ContentUnavailableView(
                         "No Episodes Yet",
                         systemImage: "waveform",
@@ -325,6 +322,8 @@ public struct MainView: View {
                         ForEach(displayedEpisodes(for: selectedSubscription)) { episode in
                             episodeRow(for: episode)
                         }
+
+                        olderDeviceFilesSection(for: selectedSubscription)
 
                         if shouldOfferEpisodeFooter(for: selectedSubscription) {
                             episodeListFooter(for: selectedSubscription)
@@ -403,6 +402,10 @@ public struct MainView: View {
     @ViewBuilder
     private func episodeRow(for episode: Episode) -> some View {
         let status = episodeStatus(for: episode)
+        let deviceFileURL = status.deviceFileURL
+        let isSelectedForDeviceRemoval = deviceFileURL.map {
+            manuallySelectedDeletionTargets.contains($0.standardizedFileURL)
+        } ?? false
 
         EpisodeRowView(
             episode: episode,
@@ -412,10 +415,17 @@ public struct MainView: View {
                 ?? status.downloadedRecord.map(downloadedEpisodeLabel(for:)),
             downloadWarnings: status.preparedEpisode?.preparationWarnings ?? [],
             downloadErrorMessage: status.preparationFailure?.message,
-            removedLabel: status.removedRecord.map(removedEpisodeLabel(for:)),
+            removedLabel: visibleRemovedLabel(for: status),
+            isOnDevice: deviceFileURL != nil,
+            isSelectedForDeviceRemoval: isSelectedForDeviceRemoval,
             isPrepared: status.preparedEpisode != nil,
             isPreparing: preparationPreviewViewModel.isPreparing(episode),
             onToggleDetails: { toggleEpisodeDetails(for: episode) },
+            onToggleDeviceRemoval: {
+                if let deviceFileURL {
+                    toggleDeletionSelection(for: deviceFileURL)
+                }
+            },
             onRemoveDownload: {
                 preparationPreviewViewModel.removePreparedEpisode(for: episode)
                 rebuildSyncPlan()
@@ -438,8 +448,15 @@ public struct MainView: View {
             downloadLabel: status.preparedEpisode.map(downloadedEpisodeLabel(for:))
                 ?? status.downloadedRecord.map(downloadedEpisodeLabel(for:)),
             downloadWarnings: status.preparedEpisode?.preparationWarnings ?? [],
-            removedLabel: status.removedRecord.map(removedEpisodeLabel(for:))
+            removedLabel: visibleRemovedLabel(for: status)
         )
+    }
+
+    private func visibleRemovedLabel(for status: EpisodeStatus) -> String? {
+        guard status.deviceFileURL == nil else {
+            return nil
+        }
+        return status.removedRecord.map(removedEpisodeLabel(for:))
     }
 
     private func episodeStatus(for episode: Episode) -> EpisodeStatus {
@@ -447,7 +464,51 @@ public struct MainView: View {
             preparedEpisode: preparationPreviewViewModel.preparedEpisode(for: episode),
             downloadedRecord: preparationPreviewViewModel.downloadedRecord(for: episode),
             removedRecord: removedEpisodeHistoryViewModel.removedRecord(for: episode),
-            preparationFailure: preparationPreviewViewModel.failure(for: episode)
+            preparationFailure: preparationPreviewViewModel.failure(for: episode),
+            deviceFileURL: deviceLibraryViewModel.file(for: episode)
+        )
+    }
+
+    @ViewBuilder
+    private func olderDeviceFilesSection(for subscription: FeedSubscription) -> some View {
+        let unmatchedFiles = unmatchedDeviceFiles(for: subscription)
+
+        if deviceViewModel.selectedDevice != nil, !unmatchedFiles.isEmpty {
+            DisclosureGroup {
+                ForEach(unmatchedFiles, id: \.path) { fileURL in
+                    let standardizedFileURL = fileURL.standardizedFileURL
+                    let isSelectedForRemoval = manuallySelectedDeletionTargets.contains(standardizedFileURL)
+
+                    HStack(spacing: 8) {
+                        Text(EpisodeFileName.parsedMetadata(from: fileURL)?.episodeTitle ?? fileURL.lastPathComponent)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        DevicePresenceToggle(
+                            isSelectedForRemoval: isSelectedForRemoval,
+                            onToggleSelection: {
+                                toggleDeletionSelection(for: fileURL)
+                            }
+                        )
+                    }
+                    .padding(.vertical, 3)
+                }
+            } label: {
+                Text("Older episodes on MP3 player (\(unmatchedFiles.count))")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+            }
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    private func unmatchedDeviceFiles(for subscription: FeedSubscription) -> [URL] {
+        deviceLibraryViewModel.unmatchedFiles(
+            for: subscription,
+            episodes: allEpisodes(for: subscription)
         )
     }
 
@@ -873,52 +934,6 @@ public struct MainView: View {
         selectedOtherAudioDeletionTargets = selectedOtherAudioDeletionTargets.intersection(allOtherAudioFiles)
     }
 
-    @ViewBuilder
-    private func deviceFilesSection(for subscription: FeedSubscription) -> some View {
-        let deviceFiles = deviceLibraryViewModel.files(for: subscription)
-        let deletions = selectedDeletionTargets(for: subscription)
-
-        VStack(alignment: .leading, spacing: 8) {
-            Text("On Device")
-                .font(.headline)
-
-            if deviceFiles.isEmpty {
-                Text("No files for this show are currently on the device.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Checked files stay on the device. Uncheck a file to delete it on the next run.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                ForEach(deviceFiles, id: \.path) { fileURL in
-                    Button {
-                        toggleDeletionSelection(for: fileURL)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: deletions.contains(fileURL.standardizedFileURL) ? "square" : "checkmark.square.fill")
-                                .foregroundStyle(deletions.contains(fileURL.standardizedFileURL) ? Color.red : Color.accentColor)
-                            Text(fileURL.lastPathComponent)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    private func selectedDeletionTargets(for subscription: FeedSubscription) -> Set<URL> {
-        let deviceFiles = Set(deviceLibraryViewModel.files(for: subscription).map(\.standardizedFileURL))
-        return manuallySelectedDeletionTargets.intersection(deviceFiles)
-    }
-
     private var otherAudioDeletionConfirmationMessage: String {
         let count = selectedOtherAudioDeletionTargets.count
         return "Delete \(count) selected file\(count == 1 ? "" : "s") from the MP3 player? These files are not associated with a podcast subscription in Simple Podcast Manager. They will be deleted directly from the MP3 player. This cannot be undone."
@@ -974,4 +989,5 @@ private struct EpisodeStatus {
     let downloadedRecord: DownloadedEpisodeRecord?
     let removedRecord: RemovedEpisodeRecord?
     let preparationFailure: PreparationFailure?
+    let deviceFileURL: URL?
 }

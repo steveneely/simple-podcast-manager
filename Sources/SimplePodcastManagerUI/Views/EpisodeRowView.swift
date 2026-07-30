@@ -9,9 +9,12 @@ struct EpisodeRowView<Details: View>: View {
     let downloadWarnings: [String]
     let downloadErrorMessage: String?
     let removedLabel: String?
+    let isOnDevice: Bool
+    let isSelectedForDeviceRemoval: Bool
     let isPrepared: Bool
     let isPreparing: Bool
     let onToggleDetails: () -> Void
+    let onToggleDeviceRemoval: () -> Void
     let onRemoveDownload: () -> Void
     let onDownload: () -> Void
     @ViewBuilder let details: Details
@@ -19,62 +22,74 @@ struct EpisodeRowView<Details: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 12)
-                        .padding(.top, 4)
+                VStack(alignment: .leading, spacing: 4) {
+                    Button(action: onToggleDetails) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 12)
+                                .padding(.top, 4)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text(episode.title)
-                                .font(.body)
-                                .fontWeight(.medium)
-                            if let durationLabel {
-                                Text(durationLabel)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize()
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Text(episode.title)
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.primary)
+                                    if let durationLabel {
+                                        Text(durationLabel)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize()
+                                    }
+                                }
+
+                                if let publicationDate = episode.publicationDate {
+                                    Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let downloadLabel {
+                                    Text(downloadLabel)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                ForEach(downloadWarnings, id: \.self) { warning in
+                                    Text(warning)
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                                if let downloadErrorMessage {
+                                    Text(downloadErrorMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                }
+                                if let removedLabel {
+                                    Text(removedLabel)
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
                             }
                         }
+                    }
+                    .buttonStyle(.plain)
 
-                        if let publicationDate = episode.publicationDate {
-                            Text(publicationDate.formatted(date: .abbreviated, time: .omitted))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        if let downloadLabel {
-                            Text(downloadLabel)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        ForEach(downloadWarnings, id: \.self) { warning in
-                            Text(warning)
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
-                        if let downloadErrorMessage {
-                            Text(downloadErrorMessage)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                        if let removedLabel {
-                            Text(removedLabel)
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
+                    if isOnDevice {
+                        DevicePresenceToggle(
+                            isSelectedForRemoval: isSelectedForDeviceRemoval,
+                            onToggleSelection: onToggleDeviceRemoval
+                        )
+                        .padding(.leading, 20)
                     }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onToggleDetails)
 
                 Spacer()
 
                 if isPrepared {
                     HoverIconButton(
                         systemName: "trash",
-                        helpText: "Remove downloaded media",
+                        helpText: "Delete downloaded podcast",
                         isDestructive: true,
                         action: onRemoveDownload
                     )

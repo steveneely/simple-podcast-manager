@@ -3,19 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.4.3</title>
-            <pubDate>Tue, 28 Jul 2026 18:04:49 -0600</pubDate>
-            <sparkle:version>51</sparkle:version>
-            <sparkle:shortVersionString>1.4.3</sparkle:shortVersionString>
+            <title>1.4.4</title>
+            <pubDate>Wed, 29 Jul 2026 21:35:33 -0600</pubDate>
+            <sparkle:version>52</sparkle:version>
+            <sparkle:shortVersionString>1.4.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.3
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.4
 
-- Simplifies podcast and connected-device details so the main window is easier to scan.
-- Shows download, feed, device, and sync errors where they occurred instead of collecting unrelated messages at the bottom of the window.
-- Keeps download failures associated with the correct podcast when different feeds use the same episode identifier.
+- Shows whether an episode is on the MP3 player directly in its episode row.
+- Lets you clear that checkbox to remove the episode during the next sync.
+- Keeps older device episodes available in a compact section below the current feed.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.3/SimplePodcastManager-v1.4.3.dmg" length="4965131" type="application/octet-stream" sparkle:edSignature="dOX6aHQ7roDyGALobKtCJhMkSRD1i7R8x+IEz1AucwWSW6qaLvsnLwpuprZ39Vj91GUoVi1HtLoqbwQEUbgJAA=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.4/SimplePodcastManager-v1.4.4.dmg" length="4978203" type="application/octet-stream" sparkle:edSignature="MrdX4CSm+lTmDtZrh4rcl8f4HRFz7D3RzNPKwWuRM+P2OCxcKHyBrgkMbhaU4hLBENVE1pdRLz+0ZW/wy16mAg=="/>
         </item>
     </channel>
 </rss>

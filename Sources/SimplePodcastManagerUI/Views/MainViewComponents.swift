@@ -184,8 +184,14 @@ struct OtherAudioSectionView: View {
     let onToggleSelection: (URL) -> Void
     let onDeleteSelected: () -> Void
 
+    private var fileListHeight: CGFloat {
+        let rowHeight: CGFloat = 22
+        let maximumListHeight: CGFloat = 96
+        return min(CGFloat(files.count) * rowHeight, maximumListHeight)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Other Audio on Device")
                     .font(.subheadline)
@@ -206,7 +212,7 @@ struct OtherAudioSectionView: View {
                 .foregroundStyle(.secondary)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(files, id: \.path) { fileURL in
                         let standardizedURL = fileURL.standardizedFileURL
                         Button {
@@ -227,9 +233,10 @@ struct OtherAudioSectionView: View {
                     }
                 }
             }
-            .frame(maxHeight: 120)
+            .frame(height: fileListHeight)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(NSColor.windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))

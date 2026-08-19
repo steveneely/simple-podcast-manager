@@ -668,10 +668,8 @@ public struct MainView: View {
     }
 
     private var selectedSubscription: FeedSubscription? {
-        if let selectedFeedID {
-            return viewModel.feedSubscriptions.first(where: { $0.id == selectedFeedID })
-        }
-        return viewModel.feedSubscriptions.first
+        guard let selectedFeedID else { return nil }
+        return viewModel.feedSubscriptions.first(where: { $0.id == selectedFeedID })
     }
 
     private var deviceSelectionBinding: Binding<String> {

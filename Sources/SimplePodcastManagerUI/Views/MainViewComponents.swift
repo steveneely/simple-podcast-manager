@@ -132,75 +132,98 @@ struct FeedSidebarView: View {
                 }
             }
 
-            List(selection: $selectedFeedID) {
+            List {
                 ForEach(subscriptions) { subscription in
-                    HStack(alignment: .top, spacing: 10) {
-                        PodcastArtworkView(
-                            artworkURL: artworkURL(subscription),
-                            allowsInsecureHTTP: allowsInsecureArtwork(subscription),
-                            size: 42,
-                            cornerRadius: 9
-                        )
+                    let count = episodeCount(subscription)
+                    let isSelected = selectedFeedID == subscription.id
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(subscription.title)
-                                    .font(.headline)
-                                if !subscription.isEnabled {
-                                    Text("Disabled")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button {
+                            selectedFeedID = Self.selection(
+                                afterClicking: subscription.id,
+                                currentSelection: selectedFeedID
+                            )
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                PodcastArtworkView(
+                                    artworkURL: artworkURL(subscription),
+                                    allowsInsecureHTTP: allowsInsecureArtwork(subscription),
+                                    size: 42,
+                                    cornerRadius: 9
+                                )
 
-                            let count = episodeCount(subscription)
-                            if isRefreshing && count == 0 {
-                                Text("Loading episodes…")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("\(count) episode\(count == 1 ? "" : "s")")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            if selectedFeedID == subscription.id {
-                                HStack(spacing: 4) {
-                                    if isRefreshing {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                            .frame(width: 28, height: 28)
-                                            .help("Refreshing")
-                                    } else {
-                                        HoverIconButton(
-                                            systemName: "arrow.clockwise",
-                                            helpText: "Refresh"
-                                        ) {
-                                            onRefreshSubscription(subscription)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text(subscription.title)
+                                            .font(.headline)
+                                        if !subscription.isEnabled {
+                                            Text("Disabled")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
                                         }
                                     }
-                                    HoverIconButton(systemName: "pencil", helpText: "Edit") {
-                                        onEdit(subscription)
-                                    }
-                                    HoverIconButton(
-                                        systemName: "trash",
-                                        helpText: "Remove",
-                                        isDestructive: true
-                                    ) {
-                                        onDelete(subscription)
+
+                                    if isRefreshing && count == 0 {
+                                        Text("Loading episodes…")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("\(count) episode\(count == 1 ? "" : "s")")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .contentShape(Rectangle())
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .buttonStyle(.plain)
+
+                        if isSelected {
+                            HStack(spacing: 4) {
+                                if isRefreshing {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .frame(width: 28, height: 28)
+                                        .help("Refreshing")
+                                } else {
+                                    HoverIconButton(
+                                        systemName: "arrow.clockwise",
+                                        helpText: "Refresh"
+                                    ) {
+                                        onRefreshSubscription(subscription)
+                                    }
+                                }
+                                HoverIconButton(systemName: "pencil", helpText: "Edit") {
+                                    onEdit(subscription)
+                                }
+                                HoverIconButton(
+                                    systemName: "trash",
+                                    helpText: "Remove",
+                                    isDestructive: true
+                                ) {
+                                    onDelete(subscription)
+                                }
+                            }
+                            .padding(.leading, 52)
+                        }
                     }
                     .padding(.vertical, 4)
-                    .tag(subscription.id)
+                    .listRowBackground(
+                        isSelected ? Color.accentColor.opacity(0.12) : Color.clear
+                    )
                 }
                 .onDelete(perform: onDeleteOffsets)
             }
         }
         .padding(14)
+    }
+
+    static func selection(
+        afterClicking subscriptionID: FeedSubscription.ID,
+        currentSelection: FeedSubscription.ID?
+    ) -> FeedSubscription.ID? {
+        currentSelection == subscriptionID ? nil : subscriptionID
     }
 }
 

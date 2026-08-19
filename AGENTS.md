@@ -4,7 +4,7 @@
 
 Simple Podcast Manager should feel extremely simple:
 
-plug in device -> click sync -> everything handled -> done
+plug in device, click sync, done
 
 ## Engineering Standards
 
@@ -26,7 +26,7 @@ These rules override convenience or speed:
 
 - Only write `.spmconfig` at `[device root]/.spmconfig` for app-managed device configuration such as the podcast target folder
 - Only write podcast media under the configured device podcast directory, defaulting to `[device root]/music` when no target is configured
-- Only delete app-managed podcast files automatically under the configured device podcast directory
+- Only delete app-managed podcast files selected by the user under the configured device podcast directory
 - The app may delete other audio under the configured device podcast directory only when the user explicitly selects and confirms those exact files
 - Never touch the Mac's local Trash
 - Never modify files outside the mounted external device
@@ -72,7 +72,7 @@ Write `RELEASE_NOTES.md` before building because its contents are embedded in th
 
 - mention the exact `SPMReleaseTag`
 - describe user-visible changes since the previous release
-- keep the notes concise, generally 3–6 bullets
+- keep the notes concise, generally 1 to 4 bullets
 - omit internal implementation details
 - repeat an older change only when it affects compatibility, migration, safety, or requires user action across skipped versions
 - never publish generic notes such as only `Build 32.`
@@ -162,7 +162,7 @@ Prioritize coverage where mistakes carry the most risk:
 - user-visible sync plan parity with executed device actions
 - complete-plan capacity math, including space recovered by selected deletions
 - config writes touching only `[device root]/.spmconfig`
-- automatic copy/delete touching only app-managed files under the configured device podcast directory
+- app-managed copies and selected deletions touching only the configured device podcast directory
 - explicit other-audio deletion requiring per-file selection and confirmation inside the configured device podcast directory
 - failed-copy and incomplete-existing-file reporting
 - eject only after successful sync

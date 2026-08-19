@@ -1,20 +1,20 @@
-# Simple Podcast Manager Quick Start
+# Simple Podcast Manager quick start
 
 Simple Podcast Manager downloads podcast episodes from RSS feeds and syncs them to a standalone MP3 player.
 
-## 1. Install the app
+## Install the app
 
 Download the latest DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag the app to Applications.
 
-If macOS blocks the app the first time you open it, approve it in System Settings > Privacy & Security.
+The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, allow it in System Settings > Privacy & Security.
 
-## 2. Prepare your MP3 player
+## Prepare your MP3 player
 
 Connect the player.
 
 By default, the player needs a `music` folder at its top level. To use a different folder, select the player in Simple Podcast Manager and change the podcast folder in Settings. The app asks before creating a missing folder.
 
-## 3. Add a podcast
+## Add podcasts
 
 1. Click `Add Podcast`, or use the plus button in the Shows list.
 2. Paste the podcast's RSS feed URL.
@@ -22,7 +22,11 @@ By default, the player needs a `music` folder at its top level. To use a differe
 
 The show and its latest episodes will appear in the app.
 
-## 4. Download episodes
+To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
+
+Use `File > Export Subscriptions…` to create an OPML file for another podcast app.
+
+## Download episodes
 
 1. Select a show.
 2. Click the download button beside each episode you want.
@@ -32,19 +36,11 @@ If an episode is not already an MP3, the app needs `ffmpeg` to convert it. Choos
 
 If episode audio or artwork is available only over unencrypted HTTP, the app warns you first. You can allow that episode once or always allow HTTP podcast downloads in Settings.
 
-Settings can prefix new MP3 titles with the publication date in `MM.dd` format, such as `08.11 Original Title`. Existing downloads are unchanged.
+When the feed provides a publication date, files copied to the player start with it in `yyyy.MM.dd` format so they sort reliably. Their embedded MP3 titles keep the original feed text, including special characters. Settings can add a shorter `MM.dd` date to new MP3 titles, such as `08.11 Original Title`. Existing downloads are unchanged.
 
 To download new episodes after each feed refresh, choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new` under `Settings > Episode Preparation > Automatic Downloads`. The first refresh records the episodes already in each feed without downloading them, so existing subscriptions do not create a backlog. Edit a show to exclude it from automatic downloads.
 
-## Move Your Podcast Subscriptions
-
-To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it; feeds already in Simple Podcast Manager and duplicate entries are skipped.
-
-Use `File > Export Subscriptions…` to create a standard OPML file that other podcast apps can import.
-
-For a quick import test, the source checkout includes `SampleData/gpodder-sample-subscriptions.opml`.
-
-## 5. Sync
+## Sync
 
 1. Connect the MP3 player and wait for it to appear in the Device section.
 2. Click `Sync`.

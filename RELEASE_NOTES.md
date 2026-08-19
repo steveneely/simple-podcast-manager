@@ -1,4 +1,3 @@
-# Simple Podcast Manager v1.7.3
+# Simple Podcast Manager v1.7.4
 
-- Fixes valid RSS feeds failing to load when they include a long XML preamble.
-- Improves compatibility with podcast feeds that include XML stylesheet declarations.
+- Fixes the feed editor occasionally opening without the saved feed URL.

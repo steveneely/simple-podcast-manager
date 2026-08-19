@@ -9,6 +9,7 @@ public struct SettingsView: View {
     @State private var appearancePreference: AppearancePreference
     @State private var allowsInsecureDownloads: Bool
     @State private var prefixesPublicationDateInEpisodeTitles: Bool
+    @State private var automaticDownloadLimit: AutomaticDownloadLimit
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -51,6 +52,7 @@ public struct SettingsView: View {
         self._prefixesPublicationDateInEpisodeTitles = State(
             initialValue: settings.prefixesPublicationDateInEpisodeTitles
         )
+        self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -100,6 +102,22 @@ public struct SettingsView: View {
                 }
 
                 SettingsSection(title: "Episode Preparation") {
+                    LabeledField(
+                        title: "Automatic Downloads",
+                        detail: "Runs after refresh. The first refresh sets a baseline.",
+                        emphasizesTitle: true
+                    ) {
+                        Picker("Automatic Downloads", selection: $automaticDownloadLimit) {
+                            Text("Off").tag(AutomaticDownloadLimit.off)
+                            Text("Latest 1").tag(AutomaticDownloadLimit.latest1)
+                            Text("Latest 2").tag(AutomaticDownloadLimit.latest2)
+                            Text("Latest 3").tag(AutomaticDownloadLimit.latest3)
+                            Text("All new").tag(AutomaticDownloadLimit.allNew)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                    }
+
                     LabeledField(
                         title: "ffmpeg Path",
                         detail: "Optional. Needed only to convert non-MP3 podcast audio.",
@@ -256,7 +274,8 @@ public struct SettingsView: View {
                 ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
                 appearancePreference: appearancePreference,
                 allowsInsecureDownloads: allowsInsecureDownloads,
-                prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles
+                prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles,
+                automaticDownloadLimit: automaticDownloadLimit
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates

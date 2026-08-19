@@ -41,6 +41,9 @@ public struct FeedEditorView: View {
 
                 Toggle("Feed enabled", isOn: $draft.isEnabled)
 
+                Toggle("Include in automatic downloads", isOn: $draft.includesInAutomaticDownloads)
+                    .disabled(!draft.isEnabled)
+
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.footnote)

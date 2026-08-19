@@ -31,6 +31,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `SettingsView`: app preferences, device podcast folder, app data backup and restore
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
+- `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
 - `SyncPlanViewModel`: build the full-device plan shown before execution
 - `SyncExecutionViewModel`: execute the selected plan and expose progress/state
 - `DeviceViewModel`: monitor device availability and selected target
@@ -42,6 +43,8 @@ The UI should not contain sync logic. It should call focused core services and r
 - `FeedResolving`: validate an edited RSS feed before replacing a working subscription and return its parsed cache entry
 - `FeedService`: refresh, cache, and parse saved RSS subscriptions
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
+- `AutomaticDownloadPlanner`: identify newly observed episodes and apply the per-feed download limit
+- `AutomaticDownloadStateStore`: persist observed and pending episode IDs per subscription
 - `OPMLSubscriptionService`: parse, validate, de-duplicate, and export standard OPML subscription lists
 - `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
@@ -70,7 +73,7 @@ Expected runtime flow:
 2. The user adds a podcast by entering an RSS feed URL.
 3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
-5. The user downloads the episodes they want to prepare locally.
+5. The user downloads episodes manually, or a successful refresh prepares new episodes allowed by the automatic-download settings.
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
@@ -138,6 +141,14 @@ Refresh behavior:
 - if refresh fails and no cache exists, show the refresh failure with no feed preview data
 
 The feed cache is derived data. It should not be included in app data export/import, and deleting or retargeting a subscription should remove its stale cache file.
+
+## Automatic Downloads
+
+Automatic downloads run after startup, full, targeted, and new-subscription refreshes. They prepare files on the Mac but do not start a device sync.
+
+The app stores stable episode IDs in `automatic-downloads.json`. The first successful refresh for a new, re-enabled, or retargeted subscription records a baseline without downloading older episodes. Later successful refreshes can prepare the latest 1, 2, 3, or all newly observed episodes for each included feed. Episodes outside a numeric limit are recorded as observed so they do not download on a later refresh.
+
+Failed refreshes do not advance the baseline. Failed media downloads remain pending for a later successful refresh, while download history prevents deleted local files from being downloaded again. Turning automatic downloads off clears pending work. Disabled feeds discard their baseline; excluded feeds keep their baseline current.
 
 ## Device Detection
 

@@ -23,12 +23,19 @@ struct AppDataBackupServiceTests {
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "prepared-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "downloaded-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "removed-episodes.json").path))
+        #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "automatic-downloads.json").path))
 
         let manifestData = try Data(contentsOf: backupURL.appending(path: "manifest.json"))
         let manifest = try JSONDecoder.iso8601Decoder.decode(AppDataBackupManifest.self, from: manifestData)
         #expect(manifest.appName == AppIdentity.displayName)
         #expect(manifest.formatVersion == 1)
-        #expect(manifest.files == ["config.json", "downloaded-episodes.json", "prepared-episodes.json", "removed-episodes.json"])
+        #expect(manifest.files == [
+            "automatic-downloads.json",
+            "config.json",
+            "downloaded-episodes.json",
+            "prepared-episodes.json",
+            "removed-episodes.json",
+        ])
     }
 
     @Test
@@ -59,6 +66,10 @@ struct AppDataBackupServiceTests {
             fileURL: destinationSupportURL.appending(path: "downloaded-episodes.json")
         ).loadDownloadedEpisodes()
         #expect(restoredDownloadHistory.map(\.episodeID) == ["episode-1"])
+        let restoredAutomaticDownloadState = try JSONAutomaticDownloadStateStore(
+            fileURL: destinationSupportURL.appending(path: "automatic-downloads.json")
+        ).loadState()
+        #expect(restoredAutomaticDownloadState.feeds.first?.observedEpisodeIDs == ["episode-1"])
         #expect(previousBackupURL != nil)
         #expect(FileManager.default.fileExists(atPath: previousBackupURL!.appending(path: "config.json").path))
     }
@@ -138,6 +149,17 @@ struct AppDataBackupServiceTests {
                 removedAt: Date(timeIntervalSince1970: 1)
             )
         ])
+        try JSONAutomaticDownloadStateStore(
+            fileURL: supportURL.appending(path: "automatic-downloads.json")
+        ).saveState(
+            AutomaticDownloadState(feeds: [
+                AutomaticDownloadFeedState(
+                    subscriptionID: subscriptionID,
+                    rssURL: URL(string: "https://example.com/feed.xml")!,
+                    observedEpisodeIDs: ["episode-1"]
+                )
+            ])
+        )
     }
 
     private func writeAlternateConfiguration(to supportURL: URL) throws {

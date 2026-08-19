@@ -11,19 +11,22 @@ public struct FeedDraft: Equatable, Sendable {
     public var artworkURL: URL?
     public var currentTitle: String?
     public var isEnabled: Bool
+    public var includesInAutomaticDownloads: Bool
 
     public init(
         id: UUID? = nil,
         rssURLString: String = "",
         artworkURL: URL? = nil,
         currentTitle: String? = nil,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        includesInAutomaticDownloads: Bool = true
     ) {
         self.id = id
         self.rssURLString = rssURLString
         self.artworkURL = artworkURL
         self.currentTitle = currentTitle
         self.isEnabled = isEnabled
+        self.includesInAutomaticDownloads = includesInAutomaticDownloads
     }
 
     public init(subscription: FeedSubscription) {
@@ -32,6 +35,7 @@ public struct FeedDraft: Equatable, Sendable {
         self.artworkURL = subscription.artworkURL
         self.currentTitle = subscription.title
         self.isEnabled = subscription.isEnabled
+        self.includesInAutomaticDownloads = subscription.includesInAutomaticDownloads
     }
 
     public var canSave: Bool {
@@ -60,7 +64,8 @@ public struct FeedDraft: Equatable, Sendable {
             rssURL: try resolvedRSSURL(),
             artworkURL: artworkURL,
             description: description,
-            isEnabled: isEnabled
+            isEnabled: isEnabled,
+            includesInAutomaticDownloads: includesInAutomaticDownloads
         )
     }
 }

@@ -27,7 +27,8 @@ struct JSONConfigurationStoreTests {
             settings: AppSettings(
                 ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
                 allowsInsecureDownloads: true,
-                prefixesPublicationDateInEpisodeTitles: true
+                prefixesPublicationDateInEpisodeTitles: true,
+                automaticDownloadLimit: .latest3
             ),
             feedSubscriptions: [
                 FeedSubscription(
@@ -73,6 +74,8 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.appearancePreference == .system)
         #expect(!configuration.settings.allowsInsecureDownloads)
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
+        #expect(configuration.settings.automaticDownloadLimit == .off)
+        #expect(configuration.feedSubscriptions.isEmpty)
     }
 
     @Test
@@ -97,5 +100,29 @@ struct JSONConfigurationStoreTests {
 
         #expect(configuration.settings.allowsInsecureDownloads)
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
+        #expect(configuration.settings.automaticDownloadLimit == .off)
+    }
+
+    @Test
+    func loadsLegacyFeedAsIncludedInAutomaticDownloads() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fileURL = directory.appendingPathComponent("config.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try #"""
+        {
+          "settings" : {},
+          "feedSubscriptions" : [{
+            "id" : "00000000-0000-0000-0000-000000000001",
+            "title" : "Example",
+            "rssURL" : "https:\/\/example.com\/feed.xml",
+            "isEnabled" : true
+          }]
+        }
+        """#.data(using: .utf8)!.write(to: fileURL)
+
+        let configuration = try JSONConfigurationStore(fileURL: fileURL).loadConfiguration()
+
+        #expect(configuration.feedSubscriptions.first?.includesInAutomaticDownloads == true)
     }
 }

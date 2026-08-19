@@ -60,13 +60,15 @@ struct MainViewModelTests {
                 rssURLString: "https://relay.fm/connected/feed",
                 artworkURL: existingSubscription.artworkURL,
                 currentTitle: existingSubscription.title,
-                isEnabled: false
+                isEnabled: false,
+                includesInAutomaticDownloads: false
             )
         )
 
         #expect(viewModel.feedSubscriptions.first?.title == "Connected")
         #expect(viewModel.feedSubscriptions.first?.description == "A show about connected things.")
         #expect(viewModel.feedSubscriptions.first?.isEnabled == false)
+        #expect(viewModel.feedSubscriptions.first?.includesInAutomaticDownloads == false)
 
         viewModel.removeFeeds(at: IndexSet(integer: 0))
 
@@ -106,7 +108,8 @@ struct MainViewModelTests {
                 ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
                 appearancePreference: .dark,
                 allowsInsecureDownloads: true,
-                prefixesPublicationDateInEpisodeTitles: true
+                prefixesPublicationDateInEpisodeTitles: true,
+                automaticDownloadLimit: .latest3
             )
         )
 
@@ -114,6 +117,7 @@ struct MainViewModelTests {
         #expect(viewModel.settings.appearancePreference == .dark)
         #expect(viewModel.settings.allowsInsecureDownloads)
         #expect(viewModel.settings.prefixesPublicationDateInEpisodeTitles)
+        #expect(viewModel.settings.automaticDownloadLimit == .latest3)
         #expect(store.configuration.settings == viewModel.settings)
     }
 

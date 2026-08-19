@@ -34,6 +34,8 @@ If episode audio or artwork is available only over unencrypted HTTP, the app war
 
 Settings can prefix new MP3 titles with the publication date in `MM.dd` format, such as `08.11 Original Title`. Existing downloads are unchanged.
 
+To download new episodes after each feed refresh, choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new` under `Settings > Episode Preparation > Automatic Downloads`. The first refresh records the episodes already in each feed without downloading them, so existing subscriptions do not create a backlog. Edit a show to exclude it from automatic downloads.
+
 ## Move Your Podcast Subscriptions
 
 To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it; feeds already in Simple Podcast Manager and duplicate entries are skipped.

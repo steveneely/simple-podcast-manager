@@ -40,6 +40,12 @@ public final class PreparationPreviewViewModel {
         preparingEpisodesByID.count
     }
 
+    public var downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID> {
+        Set(downloadedEpisodes.map {
+            AutomaticDownloadEpisodeID(subscriptionID: $0.subscriptionID, episodeID: $0.episodeID)
+        })
+    }
+
     public func prepare(_ episodes: [Episode], settings: AppSettings) async {
         let episodesToPrepare = episodes.filter {
             preparedEpisode(for: $0) == nil && preparingEpisodesByID[EpisodePreparationID($0)] == nil

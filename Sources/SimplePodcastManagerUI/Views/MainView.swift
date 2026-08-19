@@ -9,6 +9,7 @@ public struct MainView: View {
     @State private var deviceLibraryViewModel: DeviceLibraryViewModel
     @State private var feedPreviewViewModel: FeedPreviewViewModel
     @State private var preparationPreviewViewModel: PreparationPreviewViewModel
+    @State private var automaticDownloadViewModel: AutomaticDownloadViewModel
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
@@ -33,6 +34,7 @@ public struct MainView: View {
     @State private var appDataMessage: String?
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
     @State private var insecureDownloadEpisode: Episode?
+    @State private var insecureDownloadQueue: [Episode] = []
     @State private var temporarilyAllowedInsecureArtworkURLs: Set<URL> = []
 
     public init(
@@ -45,6 +47,7 @@ public struct MainView: View {
         self._deviceLibraryViewModel = State(initialValue: DeviceLibraryViewModel())
         self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
         self._preparationPreviewViewModel = State(initialValue: PreparationPreviewViewModel())
+        self._automaticDownloadViewModel = State(initialValue: AutomaticDownloadViewModel())
         self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
@@ -117,6 +120,9 @@ public struct MainView: View {
             }
             if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
                 preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+            }
+            if !automaticDownloadViewModel.hasLoadedState {
+                automaticDownloadViewModel.load()
             }
             if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
                 removedEpisodeHistoryViewModel.load()
@@ -202,7 +208,7 @@ public struct MainView: View {
             presenting: insecureDownloadEpisode
         ) { episode in
             Button("Cancel", role: .cancel) {
-                insecureDownloadEpisode = nil
+                finishInsecureDownloadPrompt()
             }
             Button("Download Once") {
                 retryInsecureDownload(episode, alwaysAllow: false)
@@ -485,7 +491,7 @@ public struct MainView: View {
                 Task {
                     await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
                     if preparationPreviewViewModel.requiresInsecureDownloadPermission(for: episode) {
-                        insecureDownloadEpisode = episode
+                        enqueueInsecureDownloadPermissions(for: [episode])
                     }
                     rebuildSyncPlan()
                 }
@@ -498,17 +504,47 @@ public struct MainView: View {
         insecureDownloadEpisode = nil
         var downloadSettings = viewModel.settings
         downloadSettings.allowsInsecureDownloads = true
+        var episodesToPrepare = [episode]
 
         if alwaysAllow {
             viewModel.replaceSettings(downloadSettings)
+            episodesToPrepare.append(contentsOf: insecureDownloadQueue)
+            insecureDownloadQueue.removeAll()
         } else {
             allowArtworkOnce(for: episode)
         }
+        let requestedEpisodes = episodesToPrepare
+        let requestedSettings = downloadSettings
 
         Task {
-            await preparationPreviewViewModel.prepare([episode], settings: downloadSettings)
+            await preparationPreviewViewModel.prepare(requestedEpisodes, settings: requestedSettings)
+            automaticDownloadViewModel.markDownloaded(requestedEpisodes.filter {
+                preparationPreviewViewModel.downloadedRecord(for: $0) != nil
+            })
             rebuildSyncPlan()
+            showNextInsecureDownloadPrompt()
         }
+    }
+
+    private func enqueueInsecureDownloadPermissions(for episodes: [Episode]) {
+        var queuedIDs = Set(([insecureDownloadEpisode].compactMap { $0 } + insecureDownloadQueue).compactMap {
+            AutomaticDownloadEpisodeID($0)
+        })
+        insecureDownloadQueue.append(contentsOf: episodes.filter { episode in
+            guard let episodeID = AutomaticDownloadEpisodeID(episode) else { return false }
+            return queuedIDs.insert(episodeID).inserted
+        })
+        showNextInsecureDownloadPrompt()
+    }
+
+    private func finishInsecureDownloadPrompt() {
+        insecureDownloadEpisode = nil
+        showNextInsecureDownloadPrompt()
+    }
+
+    private func showNextInsecureDownloadPrompt() {
+        guard insecureDownloadEpisode == nil, !insecureDownloadQueue.isEmpty else { return }
+        insecureDownloadEpisode = insecureDownloadQueue.removeFirst()
     }
 
     private func allowArtworkOnce(for episode: Episode) {
@@ -661,23 +697,62 @@ public struct MainView: View {
         }
 
         try await viewModel.updateFeed(from: updatedDraft)
+        automaticDownloadViewModel.applyPreferences(
+            subscriptions: viewModel.feedSubscriptions,
+            limit: viewModel.settings.automaticDownloadLimit
+        )
         feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
         await refreshDeviceLibrary()
     }
 
     private func refreshFeedPreview() async {
-        await feedPreviewViewModel.refreshPreview(for: viewModel.feedSubscriptions)
+        let refreshedSubscriptions = viewModel.feedSubscriptions.filter(\.isEnabled)
+        await feedPreviewViewModel.refreshPreview(for: refreshedSubscriptions)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        await downloadNewEpisodes(afterRefreshing: refreshedSubscriptions)
     }
 
     private func refreshFeedPreview(for subscription: FeedSubscription) async {
         await feedPreviewViewModel.refreshPreview(for: subscription)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        await downloadNewEpisodes(afterRefreshing: [subscription])
     }
 
     private func refreshFeedPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
         await feedPreviewViewModel.refreshPreview(forNewSubscriptions: subscriptions)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        await downloadNewEpisodes(afterRefreshing: subscriptions)
+    }
+
+    private func downloadNewEpisodes(afterRefreshing subscriptions: [FeedSubscription]) async {
+        let refreshedSubscriptionIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
+        let failedSubscriptionIDs: Set<UUID>
+        if feedPreviewViewModel.lastErrorMessage != nil {
+            failedSubscriptionIDs = refreshedSubscriptionIDs
+        } else {
+            failedSubscriptionIDs = Set(feedPreviewViewModel.failures.compactMap { failure in
+                refreshedSubscriptionIDs.contains(failure.subscriptionID) ? failure.subscriptionID : nil
+            })
+        }
+        let episodes = automaticDownloadViewModel.episodesToDownload(
+            afterRefreshing: refreshedSubscriptionIDs,
+            failedSubscriptionIDs: failedSubscriptionIDs,
+            subscriptions: viewModel.feedSubscriptions,
+            episodes: feedPreviewViewModel.allEpisodes,
+            downloadedEpisodeIDs: preparationPreviewViewModel.downloadedEpisodeIDs,
+            limit: viewModel.settings.automaticDownloadLimit
+        )
+        guard !episodes.isEmpty else { return }
+
+        await preparationPreviewViewModel.prepare(episodes, settings: viewModel.settings)
+        let downloadedEpisodes = episodes.filter {
+            preparationPreviewViewModel.downloadedRecord(for: $0) != nil
+        }
+        automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+        enqueueInsecureDownloadPermissions(for: episodes.filter {
+            preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
+        })
+        rebuildSyncPlan()
     }
 
     private func refreshAllContent() async {
@@ -841,6 +916,7 @@ public struct MainView: View {
     private func reloadAppData() {
         viewModel.load()
         preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+        automaticDownloadViewModel.load()
         removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
@@ -853,6 +929,10 @@ public struct MainView: View {
 
     private func deleteFeeds(at offsets: IndexSet) {
         viewModel.removeFeeds(at: offsets)
+        automaticDownloadViewModel.applyPreferences(
+            subscriptions: viewModel.feedSubscriptions,
+            limit: viewModel.settings.automaticDownloadLimit
+        )
         if let selectedFeedID, !viewModel.feedSubscriptions.contains(where: { $0.id == selectedFeedID }) {
             self.selectedFeedID = viewModel.feedSubscriptions.first?.id
         }
@@ -978,6 +1058,7 @@ public struct MainView: View {
     private var applicationErrorMessage: String? {
         viewModel.lastErrorMessage
             ?? preparationPreviewViewModel.lastErrorMessage
+            ?? automaticDownloadViewModel.lastErrorMessage
             ?? removedEpisodeHistoryViewModel.lastErrorMessage
     }
 
@@ -1125,6 +1206,10 @@ public struct MainView: View {
         }
 
         viewModel.replaceSettings(updatedSettings)
+        automaticDownloadViewModel.applyPreferences(
+            subscriptions: viewModel.feedSubscriptions,
+            limit: updatedSettings.automaticDownloadLimit
+        )
         appearancePreference?.wrappedValue = updatedSettings.appearancePreference
 
         if podcastDirectoryPath != nil {

@@ -127,6 +127,8 @@ public struct AppDataBackupService {
             _ = try AppJSONCoding.makeDecoder().decode([DownloadedEpisodeRecord].self, from: data)
         case "removed-episodes.json":
             _ = try AppJSONCoding.makeDecoder().decode([RemovedEpisodeRecord].self, from: data)
+        case "automatic-downloads.json":
+            _ = try AppJSONCoding.makeDecoder().decode(AutomaticDownloadState.self, from: data)
         default:
             throw AppDataBackupError.unknownFiles([fileName])
         }
@@ -160,6 +162,7 @@ public struct AppDataBackupService {
         "prepared-episodes.json",
         "downloaded-episodes.json",
         "removed-episodes.json",
+        "automatic-downloads.json",
     ]
 
     private static let backupDateFormatter: DateFormatter = {

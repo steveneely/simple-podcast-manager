@@ -131,7 +131,7 @@ public struct MainView: View {
                 await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
             }
             if !automaticDownloadViewModel.hasLoadedState {
-                automaticDownloadViewModel.load()
+                await automaticDownloadViewModel.load()
             }
             if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
                 await removedEpisodeHistoryViewModel.load()
@@ -515,7 +515,7 @@ public struct MainView: View {
 
         Task {
             await preparationPreviewViewModel.prepare(requestedEpisodes, settings: requestedSettings)
-            automaticDownloadViewModel.markDownloaded(requestedEpisodes.filter {
+            await automaticDownloadViewModel.markDownloaded(requestedEpisodes.filter {
                 preparationPreviewViewModel.downloadedRecord(for: $0) != nil
             })
             rebuildSyncPlan()
@@ -692,7 +692,7 @@ public struct MainView: View {
         }
 
         try await viewModel.updateFeed(from: updatedDraft)
-        automaticDownloadViewModel.applyPreferences(
+        await automaticDownloadViewModel.applyPreferences(
             subscriptions: viewModel.feedSubscriptions,
             limit: viewModel.settings.automaticDownloadLimit
         )
@@ -729,7 +729,7 @@ public struct MainView: View {
                 refreshedSubscriptionIDs.contains(failure.subscriptionID) ? failure.subscriptionID : nil
             })
         }
-        let episodes = automaticDownloadViewModel.episodesToDownload(
+        let episodes = await automaticDownloadViewModel.episodesToDownload(
             afterRefreshing: refreshedSubscriptionIDs,
             failedSubscriptionIDs: failedSubscriptionIDs,
             subscriptions: viewModel.feedSubscriptions,
@@ -743,7 +743,7 @@ public struct MainView: View {
         let downloadedEpisodes = episodes.filter {
             preparationPreviewViewModel.downloadedRecord(for: $0) != nil
         }
-        automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+        await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
         enqueueInsecureDownloadPermissions(for: episodes.filter {
             preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
         })
@@ -948,7 +948,7 @@ public struct MainView: View {
     private func reloadAppData() async {
         viewModel.load()
         await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
-        automaticDownloadViewModel.load()
+        await automaticDownloadViewModel.load()
         await removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
@@ -961,14 +961,16 @@ public struct MainView: View {
 
     private func deleteFeeds(at offsets: IndexSet) {
         viewModel.removeFeeds(at: offsets)
-        automaticDownloadViewModel.applyPreferences(
-            subscriptions: viewModel.feedSubscriptions,
-            limit: viewModel.settings.automaticDownloadLimit
-        )
         if let selectedFeedID, !viewModel.feedSubscriptions.contains(where: { $0.id == selectedFeedID }) {
             self.selectedFeedID = viewModel.feedSubscriptions.first?.id
         }
-        Task { await refreshAllContent() }
+        Task {
+            await automaticDownloadViewModel.applyPreferences(
+                subscriptions: viewModel.feedSubscriptions,
+                limit: viewModel.settings.automaticDownloadLimit
+            )
+            await refreshAllContent()
+        }
     }
 
     private func allEpisodes(for subscription: FeedSubscription) -> [Episode] {
@@ -1238,10 +1240,12 @@ public struct MainView: View {
         }
 
         viewModel.replaceSettings(updatedSettings)
-        automaticDownloadViewModel.applyPreferences(
-            subscriptions: viewModel.feedSubscriptions,
-            limit: updatedSettings.automaticDownloadLimit
-        )
+        Task {
+            await automaticDownloadViewModel.applyPreferences(
+                subscriptions: viewModel.feedSubscriptions,
+                limit: updatedSettings.automaticDownloadLimit
+            )
+        }
         appearancePreference?.wrappedValue = updatedSettings.appearancePreference
 
         if podcastDirectoryPath != nil {

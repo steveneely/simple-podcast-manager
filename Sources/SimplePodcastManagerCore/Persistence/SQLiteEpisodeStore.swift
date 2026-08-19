@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, @unchecked Sendable {
+public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, @unchecked Sendable {
     public static let shared = SQLiteEpisodeStore()
 
     public let fileURL: URL
@@ -57,27 +57,42 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         try mergeRows(try removedEpisodes.map(Self.removedRow), into: .removed)
     }
 
-    func loadAllEpisodeData() throws -> SQLiteEpisodeData {
+    public func loadState() throws -> AutomaticDownloadState {
+        let queue = try databaseQueue()
+        return try queue.read(Self.loadAutomaticDownloadState)
+    }
+
+    public func saveState(_ state: AutomaticDownloadState) throws {
+        let queue = try databaseQueue()
+        try queue.write { database in
+            try Self.saveAutomaticDownloadState(state, database: database)
+        }
+    }
+
+    func loadAllAppData() throws -> SQLiteAppData {
         let queue = try databaseQueue()
         return try queue.read { database in
-            try SQLiteEpisodeData(
+            try SQLiteAppData(
                 preparedEpisodes: Self.loadRecords(PreparedEpisode.self, from: .prepared, database: database),
                 downloadedEpisodes: Self.loadRecords(DownloadedEpisodeRecord.self, from: .downloaded, database: database),
-                removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database)
+                removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database),
+                automaticDownloadState: Self.loadAutomaticDownloadState(database: database)
             )
         }
     }
 
-    public func replaceAllEpisodeData(
+    public func replaceAllAppData(
         preparedEpisodes: [PreparedEpisode],
         downloadedEpisodes: [DownloadedEpisodeRecord],
-        removedEpisodes: [RemovedEpisodeRecord]
+        removedEpisodes: [RemovedEpisodeRecord],
+        automaticDownloadState: AutomaticDownloadState
     ) throws {
         let queue = try databaseQueue()
         try queue.write { database in
             try Self.replaceRows(try preparedEpisodes.map(Self.preparedRow), in: .prepared, database: database)
             try Self.replaceRows(try downloadedEpisodes.map(Self.downloadedRow), in: .downloaded, database: database)
             try Self.replaceRows(try removedEpisodes.map(Self.removedRow), in: .removed, database: database)
+            try Self.saveAutomaticDownloadState(automaticDownloadState, database: database)
         }
     }
 
@@ -141,8 +156,32 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                 );
                 """)
         }
+        migrator.registerMigration("automatic-download-state-v1") { database in
+            try database.execute(sql: """
+                CREATE TABLE automaticDownloadFeeds (
+                    subscriptionID TEXT PRIMARY KEY NOT NULL,
+                    rssURL TEXT NOT NULL
+                );
+
+                CREATE TABLE automaticDownloadObservedEpisodes (
+                    subscriptionID TEXT NOT NULL,
+                    episodeID TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    PRIMARY KEY (subscriptionID, episodeID)
+                );
+                CREATE INDEX automaticDownloadObservedEpisodes_order
+                    ON automaticDownloadObservedEpisodes(subscriptionID, position);
+
+                CREATE TABLE automaticDownloadPendingEpisodes (
+                    subscriptionID TEXT NOT NULL,
+                    episodeID TEXT NOT NULL,
+                    PRIMARY KEY (subscriptionID, episodeID)
+                );
+                """)
+        }
         try migrator.migrate(queue)
         try importLegacyJSONIfNeeded(into: queue)
+        try importLegacyAutomaticDownloadJSONIfNeeded(into: queue)
         return queue
     }
 
@@ -181,6 +220,166 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                 arguments: [Self.legacyImportKey, "complete"]
             )
         }
+    }
+
+    private func importLegacyAutomaticDownloadJSONIfNeeded(into queue: DatabaseQueue) throws {
+        let hasImported = try queue.read { database in
+            try String.fetchOne(
+                database,
+                sql: "SELECT value FROM appMetadata WHERE key = ?",
+                arguments: [Self.legacyAutomaticDownloadImportKey]
+            ) == "complete"
+        }
+        guard !hasImported else { return }
+
+        let state = try AppJSONFile.load(
+            AutomaticDownloadState.self,
+            from: supportDirectoryURL.appending(path: "automatic-downloads.json"),
+            defaultValue: AutomaticDownloadState()
+        )
+
+        try queue.write { database in
+            try Self.saveAutomaticDownloadState(state, database: database)
+            try database.execute(
+                sql: "INSERT INTO appMetadata (key, value) VALUES (?, ?)",
+                arguments: [Self.legacyAutomaticDownloadImportKey, "complete"]
+            )
+        }
+    }
+
+    private static func loadAutomaticDownloadState(database: Database) throws -> AutomaticDownloadState {
+        let feedRows = try Row.fetchAll(
+            database,
+            sql: "SELECT subscriptionID, rssURL FROM automaticDownloadFeeds ORDER BY subscriptionID"
+        )
+        let observedRows = try Row.fetchAll(
+            database,
+            sql: """
+                SELECT subscriptionID, episodeID
+                FROM automaticDownloadObservedEpisodes
+                ORDER BY subscriptionID, position
+                """
+        )
+        let pendingRows = try Row.fetchAll(
+            database,
+            sql: """
+                SELECT subscriptionID, episodeID
+                FROM automaticDownloadPendingEpisodes
+                ORDER BY subscriptionID, episodeID
+                """
+        )
+
+        var observedEpisodeIDsBySubscription: [String: [String]] = [:]
+        for row in observedRows {
+            let subscriptionID: String = row["subscriptionID"]
+            let episodeID: String = row["episodeID"]
+            observedEpisodeIDsBySubscription[subscriptionID, default: []].append(episodeID)
+        }
+
+        var pendingEpisodeIDsBySubscription: [String: Set<String>] = [:]
+        for row in pendingRows {
+            let subscriptionID: String = row["subscriptionID"]
+            let episodeID: String = row["episodeID"]
+            pendingEpisodeIDsBySubscription[subscriptionID, default: []].insert(episodeID)
+        }
+
+        let feeds = try feedRows.map { row -> AutomaticDownloadFeedState in
+            let storedSubscriptionID: String = row["subscriptionID"]
+            let storedRSSURL: String = row["rssURL"]
+            guard let subscriptionID = UUID(uuidString: storedSubscriptionID) else {
+                throw SQLiteAutomaticDownloadStateError.invalidSubscriptionID(storedSubscriptionID)
+            }
+            guard let rssURL = URL(string: storedRSSURL) else {
+                throw SQLiteAutomaticDownloadStateError.invalidRSSURL(storedRSSURL)
+            }
+            return AutomaticDownloadFeedState(
+                subscriptionID: subscriptionID,
+                rssURL: rssURL,
+                observedEpisodeIDs: observedEpisodeIDsBySubscription[storedSubscriptionID] ?? [],
+                pendingEpisodeIDs: pendingEpisodeIDsBySubscription[storedSubscriptionID] ?? []
+            )
+        }
+        return AutomaticDownloadState(feeds: feeds)
+    }
+
+    private static func saveAutomaticDownloadState(
+        _ state: AutomaticDownloadState,
+        database: Database
+    ) throws {
+        let existingState = try loadAutomaticDownloadState(database: database)
+        let existingFeedsByID = Dictionary(uniqueKeysWithValues: existingState.feeds.map { ($0.subscriptionID, $0) })
+        var updatedFeedsByID: [UUID: AutomaticDownloadFeedState] = [:]
+        for feed in state.feeds {
+            updatedFeedsByID[feed.subscriptionID] = normalized(feed)
+        }
+
+        for removedSubscriptionID in Set(existingFeedsByID.keys).subtracting(updatedFeedsByID.keys) {
+            try deleteAutomaticDownloadFeed(subscriptionID: removedSubscriptionID, database: database)
+        }
+
+        for feed in updatedFeedsByID.values where existingFeedsByID[feed.subscriptionID] != feed {
+            let subscriptionID = feed.subscriptionID.uuidString.lowercased()
+            try database.execute(
+                sql: "DELETE FROM automaticDownloadObservedEpisodes WHERE subscriptionID = ?",
+                arguments: [subscriptionID]
+            )
+            try database.execute(
+                sql: "DELETE FROM automaticDownloadPendingEpisodes WHERE subscriptionID = ?",
+                arguments: [subscriptionID]
+            )
+            try database.execute(
+                sql: """
+                    INSERT INTO automaticDownloadFeeds (subscriptionID, rssURL)
+                    VALUES (?, ?)
+                    ON CONFLICT(subscriptionID) DO UPDATE SET rssURL = excluded.rssURL
+                    """,
+                arguments: [subscriptionID, feed.rssURL.absoluteString]
+            )
+
+            for (position, episodeID) in feed.observedEpisodeIDs.enumerated() {
+                try database.execute(
+                    sql: """
+                        INSERT INTO automaticDownloadObservedEpisodes (subscriptionID, episodeID, position)
+                        VALUES (?, ?, ?)
+                        """,
+                    arguments: [subscriptionID, episodeID, position]
+                )
+            }
+            for episodeID in feed.pendingEpisodeIDs.sorted() {
+                try database.execute(
+                    sql: """
+                        INSERT INTO automaticDownloadPendingEpisodes (subscriptionID, episodeID)
+                        VALUES (?, ?)
+                        """,
+                    arguments: [subscriptionID, episodeID]
+                )
+            }
+        }
+    }
+
+    private static func deleteAutomaticDownloadFeed(subscriptionID: UUID, database: Database) throws {
+        let storedSubscriptionID = subscriptionID.uuidString.lowercased()
+        try database.execute(
+            sql: "DELETE FROM automaticDownloadObservedEpisodes WHERE subscriptionID = ?",
+            arguments: [storedSubscriptionID]
+        )
+        try database.execute(
+            sql: "DELETE FROM automaticDownloadPendingEpisodes WHERE subscriptionID = ?",
+            arguments: [storedSubscriptionID]
+        )
+        try database.execute(
+            sql: "DELETE FROM automaticDownloadFeeds WHERE subscriptionID = ?",
+            arguments: [storedSubscriptionID]
+        )
+    }
+
+    private static func normalized(_ feed: AutomaticDownloadFeedState) -> AutomaticDownloadFeedState {
+        var seenEpisodeIDs: Set<String> = []
+        var normalizedFeed = feed
+        normalizedFeed.observedEpisodeIDs = feed.observedEpisodeIDs.filter {
+            seenEpisodeIDs.insert($0).inserted
+        }
+        return normalizedFeed
     }
 
     private func loadRecords<Record: Decodable>(_ type: Record.Type, from table: Table) throws -> [Record] {
@@ -316,21 +515,39 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
     }
 
     private static let legacyImportKey = "legacyEpisodeJSONImport"
+    private static let legacyAutomaticDownloadImportKey = "legacyAutomaticDownloadJSONImport"
 }
 
-struct SQLiteEpisodeData: Equatable, Sendable {
+struct SQLiteAppData: Equatable, Sendable {
     var preparedEpisodes: [PreparedEpisode]
     var downloadedEpisodes: [DownloadedEpisodeRecord]
     var removedEpisodes: [RemovedEpisodeRecord]
+    var automaticDownloadState: AutomaticDownloadState
 
     init(
         preparedEpisodes: [PreparedEpisode],
         downloadedEpisodes: [DownloadedEpisodeRecord],
-        removedEpisodes: [RemovedEpisodeRecord]
+        removedEpisodes: [RemovedEpisodeRecord],
+        automaticDownloadState: AutomaticDownloadState
     ) {
         self.preparedEpisodes = preparedEpisodes
         self.downloadedEpisodes = downloadedEpisodes
         self.removedEpisodes = removedEpisodes
+        self.automaticDownloadState = automaticDownloadState
+    }
+}
+
+private enum SQLiteAutomaticDownloadStateError: LocalizedError {
+    case invalidSubscriptionID(String)
+    case invalidRSSURL(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidSubscriptionID(let value):
+            return "Automatic download state contains an invalid subscription ID: \(value)"
+        case .invalidRSSURL(let value):
+            return "Automatic download state contains an invalid RSS URL: \(value)"
+        }
     }
 }
 

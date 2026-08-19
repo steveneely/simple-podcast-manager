@@ -71,12 +71,13 @@ public struct AppDataBackupService {
             try validate(fileName: "config.json", at: configurationURL)
         }
 
-        let episodeData = try episodeStore.loadAllEpisodeData()
+        let appData = try episodeStore.loadAllAppData()
         return AppDataSnapshot(
             configurationData: configurationData,
-            preparedEpisodes: episodeData.preparedEpisodes,
-            downloadedEpisodes: episodeData.downloadedEpisodes,
-            removedEpisodes: episodeData.removedEpisodes
+            preparedEpisodes: appData.preparedEpisodes,
+            downloadedEpisodes: appData.downloadedEpisodes,
+            removedEpisodes: appData.removedEpisodes,
+            automaticDownloadState: appData.automaticDownloadState
         )
     }
 
@@ -94,16 +95,22 @@ public struct AppDataBackupService {
             configurationData: configurationData,
             preparedEpisodes: decode([PreparedEpisode].self, fileName: "prepared-episodes.json", defaultValue: []),
             downloadedEpisodes: decode([DownloadedEpisodeRecord].self, fileName: "downloaded-episodes.json", defaultValue: []),
-            removedEpisodes: decode([RemovedEpisodeRecord].self, fileName: "removed-episodes.json", defaultValue: [])
+            removedEpisodes: decode([RemovedEpisodeRecord].self, fileName: "removed-episodes.json", defaultValue: []),
+            automaticDownloadState: decode(
+                AutomaticDownloadState.self,
+                fileName: "automatic-downloads.json",
+                defaultValue: AutomaticDownloadState()
+            )
         )
     }
 
     private func apply(_ snapshot: AppDataSnapshot) throws {
         try fileManager.createDirectory(at: supportDirectoryURL, withIntermediateDirectories: true)
-        try episodeStore.replaceAllEpisodeData(
+        try episodeStore.replaceAllAppData(
             preparedEpisodes: snapshot.preparedEpisodes,
             downloadedEpisodes: snapshot.downloadedEpisodes,
-            removedEpisodes: snapshot.removedEpisodes
+            removedEpisodes: snapshot.removedEpisodes,
+            automaticDownloadState: snapshot.automaticDownloadState
         )
 
         let configurationURL = supportDirectoryURL.appending(path: "config.json", directoryHint: .notDirectory)
@@ -129,7 +136,8 @@ public struct AppDataBackupService {
         try write(snapshot.preparedEpisodes, fileName: "prepared-episodes.json", to: directoryURL)
         try write(snapshot.downloadedEpisodes, fileName: "downloaded-episodes.json", to: directoryURL)
         try write(snapshot.removedEpisodes, fileName: "removed-episodes.json", to: directoryURL)
-        includedFiles.formUnion(Self.episodeFileNames)
+        try write(snapshot.automaticDownloadState, fileName: "automatic-downloads.json", to: directoryURL)
+        includedFiles.formUnion(Self.stateFileNames)
 
         let manifest = AppDataBackupManifest(
             appName: AppIdentity.displayName,
@@ -222,13 +230,13 @@ public struct AppDataBackupService {
     }
 
     private static let manifestFileName = "manifest.json"
-    private static let episodeFileNames: Set<String> = [
+    private static let stateFileNames: Set<String> = [
         "prepared-episodes.json",
         "downloaded-episodes.json",
         "removed-episodes.json",
         "automatic-downloads.json",
     ]
-    private static let backedUpFileNames = episodeFileNames.union(["config.json"])
+    private static let backedUpFileNames = stateFileNames.union(["config.json"])
 
     private static let backupDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -245,12 +253,14 @@ private struct AppDataSnapshot {
     var preparedEpisodes: [PreparedEpisode]
     var downloadedEpisodes: [DownloadedEpisodeRecord]
     var removedEpisodes: [RemovedEpisodeRecord]
+    var automaticDownloadState: AutomaticDownloadState
 
     var hasData: Bool {
         configurationData != nil
             || !preparedEpisodes.isEmpty
             || !downloadedEpisodes.isEmpty
             || !removedEpisodes.isEmpty
+            || !automaticDownloadState.feeds.isEmpty
     }
 }
 

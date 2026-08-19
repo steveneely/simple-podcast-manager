@@ -109,6 +109,90 @@ struct SQLiteEpisodeStoreTests {
     }
 
     @Test
+    func savesLoadsAndReplacesAutomaticDownloadState() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let firstState = AutomaticDownloadState(feeds: [
+            AutomaticDownloadFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                observedEpisodeIDs: ["newest", "older"],
+                pendingEpisodeIDs: ["newest"]
+            )
+        ])
+        try fixture.store.saveState(firstState)
+
+        #expect(try fixture.store.loadState() == firstState)
+
+        let replacementState = AutomaticDownloadState(feeds: [
+            AutomaticDownloadFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                observedEpisodeIDs: ["latest", "newest", "older"],
+                pendingEpisodeIDs: ["latest"]
+            )
+        ])
+        try fixture.store.saveState(replacementState)
+
+        #expect(try fixture.store.loadState() == replacementState)
+        try fixture.store.saveState(AutomaticDownloadState())
+        #expect(try fixture.store.loadState().feeds.isEmpty)
+    }
+
+    @Test
+    func importsLegacyAutomaticDownloadStateOnceAndKeepsSourceFile() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let legacyURL = fixture.supportURL.appending(path: "automatic-downloads.json")
+        let original = AutomaticDownloadState(feeds: [
+            AutomaticDownloadFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                observedEpisodeIDs: ["episode-2", "episode-1"],
+                pendingEpisodeIDs: ["episode-2"]
+            )
+        ])
+        try JSONAutomaticDownloadStateStore(fileURL: legacyURL).saveState(original)
+
+        #expect(try fixture.store.loadState() == original)
+        #expect(FileManager.default.fileExists(atPath: legacyURL.path))
+
+        try JSONAutomaticDownloadStateStore(fileURL: legacyURL).saveState(AutomaticDownloadState())
+        let reopenedStore = SQLiteEpisodeStore(
+            fileURL: fixture.databaseURL,
+            supportDirectoryURL: fixture.supportURL
+        )
+        #expect(try reopenedStore.loadState() == original)
+    }
+
+    @Test
+    func handlesLargeAutomaticDownloadState() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let feeds = (0..<40).map { feedNumber in
+            AutomaticDownloadFeedState(
+                subscriptionID: UUID(
+                    uuidString: String(format: "00000000-0000-0000-0000-%012d", feedNumber + 1)
+                )!,
+                rssURL: URL(string: "https://example.com/feed-\(feedNumber).xml")!,
+                observedEpisodeIDs: (0..<400).map { "feed-\(feedNumber)-episode-\($0)" },
+                pendingEpisodeIDs: ["feed-\(feedNumber)-episode-0"]
+            )
+        }
+        let state = AutomaticDownloadState(feeds: feeds)
+        try fixture.store.saveState(state)
+
+        let loaded = try fixture.store.loadState()
+        #expect(loaded.feeds.count == 40)
+        #expect(loaded.feeds.reduce(0) { $0 + $1.observedEpisodeIDs.count } == 16_000)
+
+        var updated = loaded
+        updated.feeds[0].pendingEpisodeIDs.removeAll()
+        try fixture.store.saveState(updated)
+        #expect(try fixture.store.loadState() == updated)
+    }
+
+    @Test
     func handlesLargeDownloadHistoryWithoutReplacingExistingRows() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

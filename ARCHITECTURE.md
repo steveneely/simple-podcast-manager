@@ -152,18 +152,19 @@ Small configuration data remains in `config.json`. Growing episode state is stor
 - prepared episodes
 - download history
 - removal history
+- automatic-download baselines and pending episodes
 
 Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
 
-On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. The import marker is written only after every file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
+On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. Automatic-download state uses a separate one-time import so upgrades from development builds can retain `automatic-downloads.json`. Import markers are written only after every source file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
 
-App data backups remain version-1 JSON directories. Export reads current database records into the established JSON files, so v1.8 backups remain readable by earlier releases. Restore validates the complete backup before changing live data, writes all episode collections in one database transaction, and restores the previous snapshot if applying the backup fails.
+App data backups remain version-1 JSON directories. v1.9 can restore v1.8 backups; new backups also include `automatic-downloads.json`. Restore validates the complete backup before changing live data, writes all episode state in one database transaction, and restores the previous snapshot if applying the backup fails.
 
 ## Automatic Downloads
 
 Automatic downloads run after startup, full, targeted, and new-subscription refreshes. They prepare files on the Mac but do not start a device sync.
 
-The app stores stable episode IDs in `automatic-downloads.json`, with current episodes ordered newest first. The first successful refresh for a new, re-enabled, or retargeted subscription records a baseline without downloading older episodes. Later successful refreshes can prepare the latest 1, 2, 3, or all newly observed episodes for each included feed. Episodes outside a numeric limit are recorded as observed so they do not download on a later refresh.
+The app stores stable episode IDs as indexed SQLite rows, with current episodes ordered newest first. Existing `automatic-downloads.json` state is imported once and retained for recovery. The first successful refresh for a new, re-enabled, or retargeted subscription records a baseline without downloading older episodes. Later successful refreshes can prepare the latest 1, 2, 3, or all newly observed episodes for each included feed. Episodes outside a numeric limit are recorded as observed so they do not download on a later refresh.
 
 Failed refreshes do not advance the baseline. Failed media downloads remain pending for a later successful refresh, while download history prevents deleted local files from being downloaded again. Turning automatic downloads off clears pending work. Disabled feeds discard their baseline; excluded feeds keep their baseline current.
 

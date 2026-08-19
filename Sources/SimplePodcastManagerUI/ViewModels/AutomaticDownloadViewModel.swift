@@ -8,23 +8,21 @@ public final class AutomaticDownloadViewModel {
     public private(set) var lastErrorMessage: String?
     public private(set) var hasLoadedState: Bool
 
-    private let store: any AutomaticDownloadStateStore
+    private let persistence: AutomaticDownloadStatePersistence
     private var state: AutomaticDownloadState
 
     public init(
-        store: any AutomaticDownloadStateStore = JSONAutomaticDownloadStateStore(
-            fileURL: JSONAutomaticDownloadStateStore.defaultFileURL()
-        )
+        store: any AutomaticDownloadStateStore = SQLiteEpisodeStore.shared
     ) {
-        self.store = store
+        self.persistence = AutomaticDownloadStatePersistence(store: store)
         self.state = AutomaticDownloadState()
         self.lastErrorMessage = nil
         self.hasLoadedState = false
     }
 
-    public func load() {
+    public func load() async {
         do {
-            state = try store.loadState()
+            state = try await persistence.load()
             lastErrorMessage = nil
             hasLoadedState = true
         } catch {
@@ -40,7 +38,7 @@ public final class AutomaticDownloadViewModel {
         episodes: [Episode],
         downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,
         limit: AutomaticDownloadLimit
-    ) -> [Episode] {
+    ) async -> [Episode] {
         let plan = AutomaticDownloadPlanner.makePlan(
             state: state,
             subscriptions: subscriptions,
@@ -51,33 +49,49 @@ public final class AutomaticDownloadViewModel {
             limit: limit
         )
         state = plan.state
-        persistState()
+        await persistState()
         return plan.episodesToDownload
     }
 
     public func applyPreferences(
         subscriptions: [FeedSubscription],
         limit: AutomaticDownloadLimit
-    ) {
+    ) async {
         state = AutomaticDownloadPlanner.applyingPreferences(
             to: state,
             subscriptions: subscriptions,
             limit: limit
         )
-        persistState()
+        await persistState()
     }
 
-    public func markDownloaded(_ episodes: [Episode]) {
+    public func markDownloaded(_ episodes: [Episode]) async {
         state = AutomaticDownloadPlanner.markingDownloaded(episodes, in: state)
-        persistState()
+        await persistState()
     }
 
-    private func persistState() {
+    private func persistState() async {
         do {
-            try store.saveState(state)
+            try await persistence.save(state)
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+}
+
+private actor AutomaticDownloadStatePersistence {
+    private let store: any AutomaticDownloadStateStore
+
+    init(store: any AutomaticDownloadStateStore) {
+        self.store = store
+    }
+
+    func load() throws -> AutomaticDownloadState {
+        try store.loadState()
+    }
+
+    func save(_ state: AutomaticDownloadState) throws {
+        try store.saveState(state)
     }
 }

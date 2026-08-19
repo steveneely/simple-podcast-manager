@@ -70,8 +70,9 @@ struct AppDataBackupServiceTests {
             supportDirectoryURL: destinationSupportURL
         ).loadDownloadedEpisodes()
         #expect(restoredDownloadHistory.map(\.episodeID) == ["episode-1"])
-        let restoredAutomaticDownloadState = try JSONAutomaticDownloadStateStore(
-            fileURL: destinationSupportURL.appending(path: "automatic-downloads.json")
+        let restoredAutomaticDownloadState = try SQLiteEpisodeStore(
+            fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: destinationSupportURL
         ).loadState()
         #expect(restoredAutomaticDownloadState.feeds.first?.observedEpisodeIDs == ["episode-1"])
         #expect(previousBackupURL != nil)
@@ -169,6 +170,7 @@ struct AppDataBackupServiceTests {
         #expect(try episodeStore.loadPreparedEpisodes().isEmpty)
         #expect(try episodeStore.loadDownloadedEpisodes().isEmpty)
         #expect(try episodeStore.loadRemovedEpisodes().isEmpty)
+        #expect(try episodeStore.loadState().feeds.isEmpty)
     }
 
     private func writeSampleAppData(to supportURL: URL) throws {

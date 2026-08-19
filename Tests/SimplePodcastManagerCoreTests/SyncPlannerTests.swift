@@ -65,6 +65,50 @@ struct SyncPlannerTests {
     }
 
     @Test
+    func skipsCopyWhenTransliteratedUnicodeFileAlreadyExists() throws {
+        let device = makeDevice()
+        let subscription = FeedSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "Hörspiel für große Hörer",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "unicode-episode",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Die größte Folge",
+            enclosureURL: URL(string: "https://example.com/unicode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let preparedFileURL = URL(
+            fileURLWithPath: "/tmp/\(EpisodeFileName.fileName(for: episode, fileExtension: "mp3"))"
+        )
+        let preparedEpisode = PreparedEpisode(
+            episode: episode,
+            sourceFileURL: preparedFileURL,
+            preparedFileURL: preparedFileURL,
+            preparationAction: .passthroughMP3
+        )
+        let podcastDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Horspiel fur grosse Horer",
+            isDirectory: true
+        )
+        let podcastFile = podcastDirectory.appendingPathComponent(preparedFileURL.lastPathComponent)
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [podcastDirectory.path: [podcastFile]])
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions == [.skip(reason: "Already on device: Die größte Folge")])
+    }
+
+    @Test
     func appleDoubleSidecarDoesNotCountAsExistingEpisodeOnDevice() throws {
         let device = makeDevice()
         let preparedEpisode = makePreparedEpisode(

@@ -47,6 +47,43 @@ struct DeviceLibraryViewModelTests {
     }
 
     @Test
+    func associatesTransliteratedUnicodeFilesWithTheirPodcast() async throws {
+        let subscription = FeedSubscription(
+            title: "Hörspiel für große Hörer",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "unicode-episode",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Die größte Folge",
+            enclosureURL: URL(string: "https://example.com/unicode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let podcastDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Horspiel fur grosse Horer",
+            isDirectory: true
+        )
+        let podcastFile = podcastDirectory.appendingPathComponent(
+            "Die grosste Folge-(Horspiel fur grosse Horer).mp3"
+        )
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [podcastDirectory: [podcastFile]])
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(viewModel.files(for: subscription) == [podcastFile])
+        #expect(viewModel.file(for: episode) == podcastFile)
+        #expect(viewModel.otherAudioFiles.isEmpty)
+    }
+
+    @Test
     func refreshOrdersDeviceFilesNewestToOldestWhenEpisodesMatch() async throws {
         let subscription = FeedSubscription(
             title: "Connected",
@@ -242,6 +279,29 @@ struct DeviceLibraryViewModelTests {
 
         #expect(viewModel.files(for: subscription) == [managedFile])
         #expect(viewModel.otherAudioFiles == [musicFile, otherPodcastFile])
+    }
+
+    @Test
+    func matchingFileNameInAnUnrelatedFolderRemainsOtherAudio() async throws {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let unrelatedDirectory = device.podcastDirectoryURL.appendingPathComponent("Archive", isDirectory: true)
+        let unrelatedFile = unrelatedDirectory.appendingPathComponent("Old Recording-(ATP).mp3")
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [unrelatedDirectory: [unrelatedFile]])
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(viewModel.files(for: subscription).isEmpty)
+        #expect(viewModel.otherAudioFiles == [unrelatedFile])
     }
 
     @Test

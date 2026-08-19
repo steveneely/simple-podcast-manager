@@ -28,6 +28,22 @@ struct MP3MetadataTaggingServiceTests {
     }
 
     @Test
+    func preservesOriginalUnicodeRSSMetadataInID3TextFrames() {
+        let episodeTitle = "Das größte Hörspiel aus Łódź"
+        let podcastTitle = "Hörspiele für große Hörer"
+
+        let taggedData = ID3MP3MetadataTaggingService.taggedMP3Data(
+            sourceData: Data([0xFF, 0xFB, 0x90, 0x64, 0x00]),
+            episodeTitle: episodeTitle,
+            podcastTitle: podcastTitle,
+            artworkData: nil
+        )
+
+        #expect(taggedData.contains(utf16Text(episodeTitle)))
+        #expect(taggedData.contains(utf16Text(podcastTitle)))
+    }
+
+    @Test
     func replacesPublisherMetadataWithRSSMetadata() throws {
         let placeholder = "Title Placeholder Episode ID: 122792502"
         let publisherTitleFrame = makeTextFrame(id: "TIT2", text: placeholder)

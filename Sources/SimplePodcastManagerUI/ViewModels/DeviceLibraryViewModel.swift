@@ -127,6 +127,7 @@ public final class DeviceLibraryViewModel {
             directoryURL: device.podcastDirectoryURL
         )
         var filesBySubscriptionID: [UUID: [URL]] = [:]
+        var managedFileURLs: Set<URL> = []
         for subscription in subscriptions {
             let managedDirectoryURL = managedDirectoryResolver.managedDirectoryURL(
                 for: subscription,
@@ -136,11 +137,12 @@ public final class DeviceLibraryViewModel {
             let files = deviceSnapshot.directFiles(in: managedDirectoryURL)
                 .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
             filesBySubscriptionID[subscription.id] = sortFiles(files)
+            managedFileURLs.formUnion(files.map(\.standardizedFileURL))
         }
 
         return DeviceLibraryInventory(
             filesBySubscriptionID: filesBySubscriptionID,
-            otherAudioFiles: otherAudioFiles(in: deviceSnapshot.files, subscriptions: subscriptions)
+            otherAudioFiles: otherAudioFiles(in: deviceSnapshot.files, excluding: managedFileURLs)
         )
     }
 
@@ -165,14 +167,12 @@ public final class DeviceLibraryViewModel {
 
     nonisolated private static func otherAudioFiles(
         in deviceFiles: [URL],
-        subscriptions: [FeedSubscription]
+        excluding managedFileURLs: Set<URL>
     ) -> [URL] {
         deviceFiles
             .filter { isAudioFile($0) }
             .filter { !isAppleDoubleSidecar($0) }
-            .filter { fileURL in
-                !subscriptions.contains(where: { EpisodeFileName.isManagedEpisodeFile(fileURL, for: $0) })
-            }
+            .filter { !managedFileURLs.contains($0.standardizedFileURL) }
             .sorted {
                 $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
             }

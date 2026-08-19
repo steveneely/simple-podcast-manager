@@ -17,7 +17,7 @@ public struct ManagedDirectoryResolver: Sendable {
         }
 
         let matchingDirectories = candidateDirectories.filter {
-            normalizedTitle($0.lastPathComponent) == normalizedTitle(subscription.title)
+            EpisodeFileName.titlesMatch($0.lastPathComponent, subscription.title)
         }
 
         if matchingDirectories.count == 1 {
@@ -25,15 +25,5 @@ public struct ManagedDirectoryResolver: Sendable {
         }
 
         return exactURL
-    }
-
-    private func normalizedTitle(_ value: String) -> String {
-        let scalars = value.unicodeScalars.map { scalar -> Character in
-            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
-        }
-        return String(scalars)
-            .lowercased()
-            .split(whereSeparator: \.isWhitespace)
-            .joined(separator: " ")
     }
 }

@@ -113,7 +113,7 @@ public enum EpisodeFileName {
     }
 
     private static func sanitizedComponent(_ value: String) -> String {
-        let asciiFriendly = value
+        var asciiFriendly = value
             .replacingOccurrences(of: "\u{2018}", with: "'")
             .replacingOccurrences(of: "\u{2019}", with: "'")
             .replacingOccurrences(of: "\u{201C}", with: "\"")
@@ -121,6 +121,9 @@ public enum EpisodeFileName {
             .replacingOccurrences(of: "\u{2013}", with: "-")
             .replacingOccurrences(of: "\u{2014}", with: "-")
             .replacingOccurrences(of: "\u{2026}", with: "...")
+        for (source, replacement) in specialLatinReplacements {
+            asciiFriendly = asciiFriendly.replacingOccurrences(of: source, with: replacement)
+        }
         let trimmed = asciiFriendly
             .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -140,6 +143,17 @@ public enum EpisodeFileName {
         return collapsed.isEmpty ? "" : collapsed
     }
 
+    private static let specialLatinReplacements: [(String, String)] = [
+        ("ß", "ss"), ("ẞ", "SS"),
+        ("Æ", "AE"), ("æ", "ae"),
+        ("Œ", "OE"), ("œ", "oe"),
+        ("Ø", "O"), ("ø", "o"),
+        ("Ł", "L"), ("ł", "l"),
+        ("Đ", "D"), ("đ", "d"),
+        ("Ð", "D"), ("ð", "d"),
+        ("Þ", "Th"), ("þ", "th"),
+    ]
+
     private static func normalizedTitle(_ value: String) -> String {
         let scalars = value.unicodeScalars.map { scalar -> Character in
             CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
@@ -150,23 +164,35 @@ public enum EpisodeFileName {
             .joined(separator: " ")
     }
 
-    private static func titlesMatch(_ lhs: String, _ rhs: String) -> Bool {
-        let lhsTitle = normalizedTitle(lhs)
-        let rhsTitle = normalizedTitle(rhs)
-        guard !lhsTitle.isEmpty, !rhsTitle.isEmpty else {
+    static func titlesMatch(_ lhs: String, _ rhs: String) -> Bool {
+        let lhsTitles = normalizedTitleVariants(lhs)
+        let rhsTitles = normalizedTitleVariants(rhs)
+        guard !lhsTitles.isEmpty, !rhsTitles.isEmpty else {
             return false
         }
-        if lhsTitle == rhsTitle {
+        if !lhsTitles.isDisjoint(with: rhsTitles) {
             return true
         }
 
-        let shorterTitle = lhsTitle.count < rhsTitle.count ? lhsTitle : rhsTitle
-        let longerTitle = lhsTitle.count < rhsTitle.count ? rhsTitle : lhsTitle
-        guard shorterTitle.split(separator: " ").count >= 2 else {
-            return false
+        for lhsTitle in lhsTitles {
+            for rhsTitle in rhsTitles {
+                let shorterTitle = lhsTitle.count < rhsTitle.count ? lhsTitle : rhsTitle
+                let longerTitle = lhsTitle.count < rhsTitle.count ? rhsTitle : lhsTitle
+                if shorterTitle.split(separator: " ").count >= 2,
+                   longerTitle.contains(shorterTitle) {
+                    return true
+                }
+            }
         }
 
-        return longerTitle.contains(shorterTitle)
+        return false
+    }
+
+    private static func normalizedTitleVariants(_ value: String) -> Set<String> {
+        Set([
+            normalizedTitle(value),
+            normalizedTitle(sanitizedComponent(value)),
+        ].filter { !$0.isEmpty })
     }
 
     private static let dateFormatter: DateFormatter = {

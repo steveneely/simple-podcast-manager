@@ -3,6 +3,19 @@ import SwiftUI
 import UniformTypeIdentifiers
 import SimplePodcastManagerCore
 
+struct FeedEditorPresentation: Identifiable {
+    let id = UUID()
+    let draft: FeedDraft
+
+    init(draft: FeedDraft) {
+        self.draft = draft
+    }
+
+    init(subscription: FeedSubscription) {
+        self.draft = FeedDraft(subscription: subscription)
+    }
+}
+
 public struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var deviceViewModel: DeviceViewModel
@@ -16,9 +29,7 @@ public struct MainView: View {
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedFeedID: FeedSubscription.ID?
-    @State private var editorDraft = FeedDraft()
-    @State private var feedEditorPresentationID = UUID()
-    @State private var isShowingFeedEditor = false
+    @State private var feedEditorPresentation: FeedEditorPresentation?
     @State private var isShowingSettings = false
     @State private var isShowingSyncDialog = false
     @State private var isEjectAfterSyncEnabled = true
@@ -68,9 +79,7 @@ public struct MainView: View {
                     )
 
                     Button("Add Podcast", systemImage: "plus") {
-                        editorDraft = FeedDraft()
-                        feedEditorPresentationID = UUID()
-                        isShowingFeedEditor = true
+                        feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -132,14 +141,13 @@ public struct MainView: View {
             }
             await refreshDeviceLibrary()
         }
-        .sheet(isPresented: $isShowingFeedEditor) {
+        .sheet(item: $feedEditorPresentation) { presentation in
             FeedEditorView(
-                title: editorDraft.id == nil ? "Add Feed" : "Edit Feed",
-                draft: editorDraft
+                title: presentation.draft.id == nil ? "Add Feed" : "Edit Feed",
+                draft: presentation.draft
             ) { updatedDraft in
                 try await saveFeed(updatedDraft)
             }
-            .id(feedEditorPresentationID)
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
@@ -286,15 +294,11 @@ public struct MainView: View {
             artworkURL: { artworkURL(for: $0) },
             allowsInsecureArtwork: { allowsInsecureArtwork(for: $0) },
             onAdd: {
-                editorDraft = FeedDraft()
-                feedEditorPresentationID = UUID()
-                isShowingFeedEditor = true
+                feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
             },
             onRefresh: { Task { await refreshAllContent() } },
             onEdit: { subscription in
-                editorDraft = FeedDraft(subscription: subscription)
-                feedEditorPresentationID = UUID()
-                isShowingFeedEditor = true
+                feedEditorPresentation = FeedEditorPresentation(subscription: subscription)
             },
             onDelete: { subscription in
                 guard let index = viewModel.feedSubscriptions.firstIndex(where: { $0.id == subscription.id }) else {

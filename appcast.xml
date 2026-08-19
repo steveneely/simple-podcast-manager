@@ -3,18 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.8.1</title>
-            <pubDate>Wed, 19 Aug 2026 14:34:39 -0600</pubDate>
-            <sparkle:version>63</sparkle:version>
-            <sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+            <title>1.8.2</title>
+            <pubDate>Wed, 19 Aug 2026 15:05:43 -0600</pubDate>
+            <sparkle:version>64</sparkle:version>
+            <sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.8.1
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.8.2
 
-- Asks for confirmation before restoring an app data backup.
-- Clearly explains which data will be replaced and what will be preserved.
+- Confirms when an app data restore finishes successfully.
+- Shows where the pre-restore backup was saved and can reveal it in Finder.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.8.1/SimplePodcastManager-v1.8.1.dmg" length="6851159" type="application/octet-stream" sparkle:edSignature="kfgR5dnzCvOvgLUixYJXxgWw1FSZKlO09oOSl0RXzYdsRJ92Jk0WFrSex0omF/CnkRd6Q+NtR7volOAoflLxAg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.8.2/SimplePodcastManager-v1.8.2.dmg" length="6855668" type="application/octet-stream" sparkle:edSignature="yRyF/iAYWry8xdRfQ0IbM1wo0yWMIPq7Ja3UGEXK3Y8L9CDM2kOIePx1bVuejcizK4qWz9PjsN0Hlspa6wbRAA=="/>
         </item>
     </channel>
 </rss>

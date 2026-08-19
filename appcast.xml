@@ -3,19 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.8.0</title>
-            <pubDate>Wed, 19 Aug 2026 11:58:27 -0600</pubDate>
-            <sparkle:version>62</sparkle:version>
-            <sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+            <title>1.8.1</title>
+            <pubDate>Wed, 19 Aug 2026 14:34:39 -0600</pubDate>
+            <sparkle:version>63</sparkle:version>
+            <sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.8.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.8.1
 
-- Keeps large download and removal histories responsive with SQLite storage.
-- Imports existing episode history automatically on first launch.
-- Keeps app data backups compatible with the existing JSON backup format.
+- Asks for confirmation before restoring an app data backup.
+- Clearly explains which data will be replaced and what will be preserved.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.8.0/SimplePodcastManager-v1.8.0.dmg" length="6844642" type="application/octet-stream" sparkle:edSignature="wy9/nYO2sH6q9//bUHqZ8zSRJnF7n0z2HKJP37z44tn4s8/Lk8WnB3cCALeii0180zl4oDiH5+7DradvMrcgCg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.8.1/SimplePodcastManager-v1.8.1.dmg" length="6851159" type="application/octet-stream" sparkle:edSignature="kfgR5dnzCvOvgLUixYJXxgWw1FSZKlO09oOSl0RXzYdsRJ92Jk0WFrSex0omF/CnkRd6Q+NtR7volOAoflLxAg=="/>
         </item>
     </channel>
 </rss>

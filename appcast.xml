@@ -3,19 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.7.0</title>
-            <pubDate>Tue, 18 Aug 2026 19:28:27 -0600</pubDate>
-            <sparkle:version>57</sparkle:version>
-            <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
+            <title>1.7.1</title>
+            <pubDate>Tue, 18 Aug 2026 19:48:12 -0600</pubDate>
+            <sparkle:version>58</sparkle:version>
+            <sparkle:shortVersionString>1.7.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.7.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.7.1
 
-- Adds an option to prefix MP3 titles with the publication date in `MM.dd` format.
-- Organizes Settings into clearer sections with stronger labels.
-- Applies the title prefix to new downloads without changing existing files.
+- Keeps episodes with special characters associated with the correct podcast on the device.
+- Uses readable MP3-player-friendly filenames such as `grosse` instead of `gro-e`.
+- Keeps similarly named audio in unrelated folders listed under Other Audio.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.7.0/SimplePodcastManager-v1.7.0.dmg" length="5077847" type="application/octet-stream" sparkle:edSignature="0tKdlzbw2tJhv6NTCsCI0MWRb+52KKV9RcwS8OC+WdttQX8zaH1xPgz5ndHe5yrl7Uv5u/jgKpua4LvYt5HfAQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.7.1/SimplePodcastManager-v1.7.1.dmg" length="5076141" type="application/octet-stream" sparkle:edSignature="EMajkBBCQ/R4x9c7Wq4IT8OPrH506lgwQ4KrpGeETun7+Snirg3Ld8PfBdzezFHzrANtTC7AW1+6Z628+C28DA=="/>
         </item>
     </channel>
 </rss>

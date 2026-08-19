@@ -1,3 +1,3 @@
-# Simple Podcast Manager v1.9.1
+# Simple Podcast Manager v1.9.2
 
-- Asks for confirmation before deleting a podcast feed.
+- Adds File > Add Podcast Feed with the Command-N shortcut and removes the unused new-window command.

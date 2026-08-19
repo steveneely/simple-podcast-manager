@@ -182,6 +182,9 @@ public struct MainView: View {
         .sheet(isPresented: $isShowingSyncDialog) {
             syncDialog
         }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPodcastFeed)) { _ in
+            feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
+        }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
             isShowingSettings = true
         }

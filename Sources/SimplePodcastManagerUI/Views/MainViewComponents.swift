@@ -116,7 +116,6 @@ struct FeedSidebarView: View {
                 Spacer()
 
                 HoverIconButton(systemName: "plus", helpText: "Add show", action: onAdd)
-                    .keyboardShortcut("n")
 
                 if isRefreshing {
                     ProgressView()

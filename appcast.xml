@@ -3,17 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.9.3</title>
-            <pubDate>Wed, 19 Aug 2026 16:22:14 -0600</pubDate>
-            <sparkle:version>68</sparkle:version>
-            <sparkle:shortVersionString>1.9.3</sparkle:shortVersionString>
+            <title>1.9.4</title>
+            <pubDate>Wed, 19 Aug 2026 16:37:57 -0600</pubDate>
+            <sparkle:version>69</sparkle:version>
+            <sparkle:shortVersionString>1.9.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.9.3
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.9.4
 
-- Removes the duplicate in-window app title and moves download progress into the window toolbar.
+- Keeps Settings fully on-screen with a scrollable layout that no longer shifts the main window.
+- Shows complete Settings descriptions instead of truncating them with an ellipsis.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.9.3/SimplePodcastManager-v1.9.3.dmg" length="6956618" type="application/octet-stream" sparkle:edSignature="jzqC5TTS8BnvWEUlEWpWehuJZIEiumK4pRDOR43N8FG1QJpVLcAjv1HUOm/Dg+G4j7kRGgJkZPUrCEziGmW+Aw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.9.4/SimplePodcastManager-v1.9.4.dmg" length="6952661" type="application/octet-stream" sparkle:edSignature="1KmgVvNZ06gcflISPCYncGNALm3vjHGBAbyEIaENmswL7HZxr1G0EQlQ+9TdBgi3makSSAbO280tz0jLcOJaAQ=="/>
         </item>
     </channel>
 </rss>

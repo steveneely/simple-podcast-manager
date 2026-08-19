@@ -31,6 +31,7 @@ public struct MainView: View {
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedFeedID: FeedSubscription.ID?
     @State private var feedEditorPresentation: FeedEditorPresentation?
+    @State private var pendingFeedDeletionConfirmation: FeedDeletionConfirmation?
     @State private var isShowingSettings = false
     @State private var isShowingSyncDialog = false
     @State private var isEjectAfterSyncEnabled = true
@@ -199,6 +200,21 @@ public struct MainView: View {
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didRenameVolumeNotification)) { _ in
             handleDeviceTopologyChange()
         }
+        .alert(
+            pendingFeedDeletionConfirmation?.title ?? "Delete Podcast Feed?",
+            isPresented: Binding(
+                get: { pendingFeedDeletionConfirmation != nil },
+                set: { if !$0 { pendingFeedDeletionConfirmation = nil } }
+            ),
+            presenting: pendingFeedDeletionConfirmation
+        ) { confirmation in
+            Button(confirmation.cancelButtonTitle, role: .cancel) {}
+            Button(confirmation.deleteButtonTitle, role: .destructive) {
+                confirmFeedDeletion(confirmation)
+            }
+        } message: { confirmation in
+            Text(confirmation.message)
+        }
         .alert("Delete Selected Other Audio?", isPresented: $isShowingOtherAudioDeletionConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete Files", role: .destructive) {
@@ -313,9 +329,9 @@ public struct MainView: View {
                 guard let index = viewModel.feedSubscriptions.firstIndex(where: { $0.id == subscription.id }) else {
                     return
                 }
-                deleteFeeds(at: IndexSet(integer: index))
+                requestFeedDeletion(at: IndexSet(integer: index))
             },
-            onDeleteOffsets: deleteFeeds
+            onDeleteOffsets: requestFeedDeletion
         )
     }
 
@@ -957,6 +973,28 @@ public struct MainView: View {
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
         await refreshAllContent()
+    }
+
+    private func requestFeedDeletion(at offsets: IndexSet) {
+        let subscriptions = offsets.compactMap { offset in
+            viewModel.feedSubscriptions.indices.contains(offset) ? viewModel.feedSubscriptions[offset] : nil
+        }
+        guard !subscriptions.isEmpty else { return }
+
+        pendingFeedDeletionConfirmation = FeedDeletionConfirmation(subscriptions: subscriptions)
+    }
+
+    private func confirmFeedDeletion(_ confirmation: FeedDeletionConfirmation) {
+        let subscriptionIDs = Set(confirmation.subscriptionIDs)
+        let offsets = IndexSet(
+            viewModel.feedSubscriptions.indices.filter { index in
+                subscriptionIDs.contains(viewModel.feedSubscriptions[index].id)
+            }
+        )
+        pendingFeedDeletionConfirmation = nil
+        guard !offsets.isEmpty else { return }
+
+        deleteFeeds(at: offsets)
     }
 
     private func deleteFeeds(at offsets: IndexSet) {

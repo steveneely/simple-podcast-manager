@@ -1,3 +1,4 @@
-# Simple Podcast Manager v1.9.3
+# Simple Podcast Manager v1.9.4
 
-- Removes the duplicate in-window app title and moves download progress into the window toolbar.
+- Keeps Settings fully on-screen with a scrollable layout that no longer shifts the main window.
+- Shows complete Settings descriptions instead of truncating them with an ellipsis.

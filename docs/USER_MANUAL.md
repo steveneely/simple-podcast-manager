@@ -30,6 +30,14 @@ The show and its latest episodes will appear in the app.
 
 If an episode is not already an MP3, the app needs `ffmpeg` to convert it. Choose an `ffmpeg` executable in Settings if prompted.
 
+## Move Your Podcast Subscriptions
+
+To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it; feeds already in Simple Podcast Manager and duplicate entries are skipped.
+
+Use `File > Export Subscriptions…` to create a standard OPML file that other podcast apps can import.
+
+For a quick import test, the source checkout includes `SampleData/gpodder-sample-subscriptions.opml`.
+
 ## 5. Sync
 
 1. Connect the MP3 player and wait for it to appear in the Device section.
@@ -52,8 +60,8 @@ Other audio is deleted only when you select and confirm those exact files.
 
 ## Backup, Restore, And Update
 
-- Back up app data: `File > Export App Data…`
-- Restore app data: `File > Import App Data…`
+- Back up app data: `Settings > App Data > Back Up…`
+- Restore app data: `Settings > App Data > Restore…`
 - Check for updates: `Simple Podcast Manager > Check for Updates…`
 
 Backups include subscriptions, settings, and history, but not downloaded audio files.

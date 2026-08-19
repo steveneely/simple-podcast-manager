@@ -27,6 +27,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds
+- `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: optional custom `ffmpeg` path, device podcast folder, and automatic update preference
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
@@ -38,9 +39,10 @@ The UI should not contain sync logic. It should call focused core services and r
 
 ### Core Layer
 
-- `FeedResolving`: validate a newly added or edited RSS feed and return its parsed cache entry
+- `FeedResolving`: validate an edited RSS feed before replacing a working subscription and return its parsed cache entry
 - `FeedService`: refresh, cache, and parse saved RSS subscriptions
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
+- `OPMLSubscriptionService`: parse, validate, de-duplicate, and export standard OPML subscription lists
 - `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
@@ -66,7 +68,7 @@ Expected runtime flow:
 
 1. The app loads persisted feeds and settings.
 2. The user adds a podcast by entering an RSS feed URL.
-3. The app resolves feed metadata from RSS and creates a `FeedSubscription`.
+3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
 5. The user downloads the episodes they want to prepare locally.
 6. The user clicks `Sync`.
@@ -86,12 +88,19 @@ The plan shown to the user is the plan executed by the app.
 
 Subscription should be RSS-first. The purpose of add/edit flow is to capture a feed URL, resolve title and artwork metadata from the feed itself, and store a clean subscription the sync engine can trust.
 
-The flow should be:
+The new-subscription flow should be:
 
 - user enters an RSS feed URL
-- the app fetches the feed and reads title/artwork metadata
-- the app stores the resolved subscription
+- the app validates and stores the URL immediately with a temporary title derived from its host
+- the editor closes and the new show displays a loading state
+- a background refresh fetches episodes and replaces the temporary title, artwork, and description with RSS metadata
 - later refreshes can update the stored title and artwork if the feed changes
+
+Editing an existing subscription remains validate-before-save. The app resolves the edited URL before replacing a working subscription, so an invalid edit cannot discard previously working feed data.
+
+OPML import is subscription-only: it validates HTTP(S) feed URLs, skips subscriptions already present and duplicates within the file, then lets normal feed refresh resolve current feed metadata. OPML export contains only feed titles and URLs, keeping local downloads, settings, and history out of a portable subscription list.
+
+Manual entry and OPML import share the same atomic subscription persistence and targeted background-refresh path. A manual entry is a batch of one; an OPML import is a batch of many. Only newly added subscriptions are refreshed, and existing preview data remains visible.
 
 ## Feed Refresh And Cache
 

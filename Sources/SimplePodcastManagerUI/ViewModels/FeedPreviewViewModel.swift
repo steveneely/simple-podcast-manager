@@ -69,12 +69,17 @@ public final class FeedPreviewViewModel {
     }
 
     public func refreshPreview(for subscription: FeedSubscription) async {
+        await refreshPreview(forNewSubscriptions: [subscription])
+    }
+
+    public func refreshPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
+        guard !subscriptions.isEmpty else { return }
         isLoading = true
         defer { isLoading = false }
 
         do {
-            let result = try await service.fetchLatestEpisodes(for: [subscription])
-            replacePreviewData(for: subscription.id, with: result)
+            let result = try await service.fetchLatestEpisodes(for: subscriptions)
+            replacePreviewData(for: Set(subscriptions.map(\.id)), with: result)
             self.lastErrorMessage = nil
         } catch {
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -89,12 +94,14 @@ public final class FeedPreviewViewModel {
         feedSummaries[subscriptionID]?.description
     }
 
-    private func replacePreviewData(for subscriptionID: UUID, with result: FeedFetchResult) {
-        allEpisodes.removeAll { $0.subscriptionID == subscriptionID }
+    private func replacePreviewData(for subscriptionIDs: Set<UUID>, with result: FeedFetchResult) {
+        allEpisodes.removeAll { episode in
+            episode.subscriptionID.map(subscriptionIDs.contains) ?? false
+        }
         allEpisodes.append(contentsOf: result.allEpisodes)
         allEpisodes.sort(by: EpisodeSelector.isHigherPriority(_:than:))
 
-        failures.removeAll { $0.subscriptionID == subscriptionID }
+        failures.removeAll { subscriptionIDs.contains($0.subscriptionID) }
         failures.append(contentsOf: result.failures)
 
         for summary in result.feedSummaries {

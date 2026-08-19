@@ -44,15 +44,16 @@ public final class MainViewModel {
         }
     }
 
-    public func addFeed(from draft: FeedDraft) async throws {
+    @discardableResult
+    public func addFeed(from draft: FeedDraft) throws -> FeedSubscription.ID {
         do {
-            let resolvedFeed = try await resolveFeed(from: draft)
-            try commitConfiguration {
-                try ensureUniqueSubscription(resolvedFeed.subscription, in: $0.feedSubscriptions)
-                $0.feedSubscriptions.append(resolvedFeed.subscription)
-                $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-            }
-            try? feedCacheStore.saveCachedFeed(resolvedFeed.cachedFeed)
+            let rssURL = try draft.resolvedRSSURL()
+            let subscription = try draft.makeSubscription(
+                title: provisionalTitle(for: rssURL),
+                artworkURL: draft.artworkURL,
+                description: nil
+            )
+            return try addSubscriptions([subscription])[0]
         } catch {
             self.lastErrorMessage = error.localizedDescription
             throw error
@@ -99,6 +100,14 @@ public final class MainViewModel {
         mutateConfiguration {
             $0.settings = settings
         }
+    }
+
+    @discardableResult
+    public func importSubscriptions(_ subscriptions: [OPMLSubscription]) throws -> [FeedSubscription.ID] {
+        let feedSubscriptions = subscriptions.map {
+            FeedSubscription(title: $0.title, rssURL: $0.rssURL)
+        }
+        return try addSubscriptions(feedSubscriptions)
     }
 
     public func applyFeedSummaries(_ feedSummaries: [FeedSummary]) {
@@ -166,6 +175,24 @@ public final class MainViewModel {
         }
     }
 
+    private func addSubscriptions(_ subscriptions: [FeedSubscription]) throws -> [FeedSubscription.ID] {
+        guard !subscriptions.isEmpty else { return [] }
+
+        do {
+            try commitConfiguration {
+                for subscription in subscriptions {
+                    try ensureUniqueSubscription(subscription, in: $0.feedSubscriptions)
+                    $0.feedSubscriptions.append(subscription)
+                }
+                $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            }
+            return subscriptions.map(\.id)
+        } catch {
+            self.lastErrorMessage = error.localizedDescription
+            throw error
+        }
+    }
+
     private func resolveFeed(from draft: FeedDraft) async throws -> (subscription: FeedSubscription, cachedFeed: CachedFeed) {
         let rssURL = try draft.resolvedRSSURL()
         let subscriptionID = draft.id ?? UUID()
@@ -185,6 +212,14 @@ public final class MainViewModel {
             description: subscription.description
         )
         return (subscription, cachedFeed)
+    }
+
+    private func provisionalTitle(for rssURL: URL) -> String {
+        guard let host = rssURL.host(percentEncoded: false), !host.isEmpty else {
+            return rssURL.absoluteString
+        }
+
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 }
 

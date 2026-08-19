@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Simple Podcast Manager Subscriptions</title>
+  </head>
+  <body>
+    <outline type="rss" text="&quot;The Cognitive Revolution&quot; | AI Builders, Researchers, and Live Player Analysis" title="&quot;The Cognitive Revolution&quot; | AI Builders, Researchers, and Live Player Analysis" xmlUrl="https://feeds.megaphone.fm/RINTP3108857801"/>
+    <outline type="rss" text="Future of Life Institute Podcast" title="Future of Life Institute Podcast" xmlUrl="https://feeds.transistor.fm/future-of-life-institute-podcast-4e4d1fa5-a878-4cb2-91be-91c3ce266dfd"/>
+    <outline type="rss" text="Lex Fridman Podcast" title="Lex Fridman Podcast" xmlUrl="https://lexfridman.com/feed/podcast/"/>
+  </body>
+</opml>

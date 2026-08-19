@@ -148,7 +148,7 @@ The feed cache is derived data. It should not be included in app data export/imp
 
 Automatic downloads run after startup, full, targeted, and new-subscription refreshes. They prepare files on the Mac but do not start a device sync.
 
-The app stores stable episode IDs in `automatic-downloads.json`. The first successful refresh for a new, re-enabled, or retargeted subscription records a baseline without downloading older episodes. Later successful refreshes can prepare the latest 1, 2, 3, or all newly observed episodes for each included feed. Episodes outside a numeric limit are recorded as observed so they do not download on a later refresh.
+The app stores stable episode IDs in `automatic-downloads.json`, with current episodes ordered newest first. The first successful refresh for a new, re-enabled, or retargeted subscription records a baseline without downloading older episodes. Later successful refreshes can prepare the latest 1, 2, 3, or all newly observed episodes for each included feed. Episodes outside a numeric limit are recorded as observed so they do not download on a later refresh.
 
 Failed refreshes do not advance the baseline. Failed media downloads remain pending for a later successful refresh, while download history prevents deleted local files from being downloaded again. Turning automatic downloads off clears pending work. Disabled feeds discard their baseline; excluded feeds keep their baseline current.
 

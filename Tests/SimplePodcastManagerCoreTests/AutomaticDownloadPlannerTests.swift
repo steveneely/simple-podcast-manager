@@ -19,7 +19,7 @@ struct AutomaticDownloadPlannerTests {
         )
 
         #expect(plan.episodesToDownload.isEmpty)
-        #expect(plan.state.feeds.first?.observedEpisodeIDs == ["older", "newer"])
+        #expect(plan.state.feeds.first?.observedEpisodeIDs == ["newer", "older"])
     }
 
     @Test(arguments: [
@@ -248,7 +248,7 @@ struct AutomaticDownloadPlannerTests {
 
     private func baselineState(
         subscription: FeedSubscription,
-        episodeIDs: Set<String>
+        episodeIDs: [String]
     ) -> AutomaticDownloadState {
         AutomaticDownloadState(feeds: [
             AutomaticDownloadFeedState(

@@ -18,13 +18,13 @@ public struct AutomaticDownloadEpisodeID: Hashable, Sendable {
 public struct AutomaticDownloadFeedState: Codable, Equatable, Sendable {
     public var subscriptionID: UUID
     public var rssURL: URL
-    public var observedEpisodeIDs: Set<String>
+    public var observedEpisodeIDs: [String]
     public var pendingEpisodeIDs: Set<String>
 
     public init(
         subscriptionID: UUID,
         rssURL: URL,
-        observedEpisodeIDs: Set<String> = [],
+        observedEpisodeIDs: [String] = [],
         pendingEpisodeIDs: Set<String> = []
     ) {
         self.subscriptionID = subscriptionID

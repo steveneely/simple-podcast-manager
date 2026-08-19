@@ -45,7 +45,8 @@ public enum AutomaticDownloadPlanner {
             let currentEpisodes = (episodesBySubscription[subscription.id] ?? [])
                 .map(\.1)
                 .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
-            let currentEpisodeIDs = Set(currentEpisodes.map(\.id))
+            let currentEpisodeIDs = uniqueEpisodeIDs(currentEpisodes.map(\.id))
+            let currentEpisodeIDSet = Set(currentEpisodeIDs)
 
             guard var feedState = statesBySubscription[subscription.id], feedState.rssURL == subscription.rssURL else {
                 statesBySubscription[subscription.id] = AutomaticDownloadFeedState(
@@ -56,8 +57,12 @@ public enum AutomaticDownloadPlanner {
                 continue
             }
 
-            let newEpisodes = currentEpisodes.filter { !feedState.observedEpisodeIDs.contains($0.id) }
-            feedState.observedEpisodeIDs.formUnion(currentEpisodeIDs)
+            let previouslyObservedEpisodeIDs = Set(feedState.observedEpisodeIDs)
+            let newEpisodes = currentEpisodes.filter { !previouslyObservedEpisodeIDs.contains($0.id) }
+            let olderObservedEpisodeIDs = uniqueEpisodeIDs(feedState.observedEpisodeIDs.filter {
+                !currentEpisodeIDSet.contains($0)
+            })
+            feedState.observedEpisodeIDs = currentEpisodeIDs + olderObservedEpisodeIDs
 
             if limit != .off, subscription.includesInAutomaticDownloads {
                 let selectedNewEpisodes: ArraySlice<Episode>
@@ -75,7 +80,7 @@ public enum AutomaticDownloadPlanner {
                 $0.subscriptionID == subscription.id ? $0.episodeID : nil
             })
             feedState.pendingEpisodeIDs.subtract(downloadedIDsForSubscription)
-            feedState.pendingEpisodeIDs.formIntersection(currentEpisodeIDs)
+            feedState.pendingEpisodeIDs.formIntersection(currentEpisodeIDSet)
 
             plannedEpisodes.append(contentsOf: currentEpisodes.filter {
                 feedState.pendingEpisodeIDs.contains($0.id)
@@ -128,5 +133,10 @@ public enum AutomaticDownloadPlanner {
             return updatedState
         }
         return AutomaticDownloadState(feeds: feeds)
+    }
+
+    private static func uniqueEpisodeIDs(_ episodeIDs: [String]) -> [String] {
+        var seenEpisodeIDs: Set<String> = []
+        return episodeIDs.filter { seenEpisodeIDs.insert($0).inserted }
     }
 }

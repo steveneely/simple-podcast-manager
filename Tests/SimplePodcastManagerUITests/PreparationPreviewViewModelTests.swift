@@ -303,13 +303,13 @@ struct PreparationPreviewViewModelTests {
 }
 
 private struct StubPreparationDownloadService: DownloadService {
-    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         workspaceURL.appendingPathComponent("\(episode.id).mp3")
     }
 }
 
 private struct FailingPreparationDownloadService: DownloadService {
-    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         throw TestPreparationError.downloadFailed
     }
 }
@@ -323,7 +323,7 @@ private enum TestPreparationError: LocalizedError {
 }
 
 private struct DelayedPreparationDownloadService: DownloadService {
-    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         try await Task.sleep(nanoseconds: 10_000_000)
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
@@ -352,7 +352,7 @@ private actor PreparationDownloadGate {
 private struct SuspendedPreparationDownloadService: DownloadService {
     let gate: PreparationDownloadGate
 
-    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         await gate.waitForPermission()
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")

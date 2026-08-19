@@ -112,6 +112,10 @@ public final class PreparationPreviewViewModel {
         return failures.first(where: { EpisodePreparationID($0.episode) == episodeID })
     }
 
+    public func requiresInsecureDownloadPermission(for episode: Episode) -> Bool {
+        failure(for: episode)?.reason == .insecureDownloadRequiresPermission
+    }
+
     public func removePreparedEpisode(for episode: Episode) {
         guard let existingPreparedEpisode = preparedEpisode(for: episode) else { return }
 

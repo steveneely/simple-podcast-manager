@@ -7,6 +7,7 @@ public struct SettingsView: View {
 
     @State private var ffmpegExecutablePath: String
     @State private var appearancePreference: AppearancePreference
+    @State private var allowsInsecureEpisodeDownloads: Bool
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -45,6 +46,7 @@ public struct SettingsView: View {
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
         self._appearancePreference = State(initialValue: settings.appearancePreference)
+        self._allowsInsecureEpisodeDownloads = State(initialValue: settings.allowsInsecureEpisodeDownloads)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -93,6 +95,17 @@ public struct SettingsView: View {
                     } onClear: {
                         ffmpegExecutablePath = ""
                     }
+                }
+
+                LabeledField(
+                    title: "Insecure Downloads",
+                    detail: "HTTPS is always tried first. HTTP downloads are unencrypted and could be intercepted or changed in transit."
+                ) {
+                    Toggle(
+                        "Always allow HTTP episode downloads",
+                        isOn: $allowsInsecureEpisodeDownloads
+                    )
+                    .toggleStyle(.checkbox)
                 }
 
                 LabeledField(
@@ -215,7 +228,8 @@ public struct SettingsView: View {
         let pendingSave = PendingSave(
             settings: AppSettings(
                 ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
-                appearancePreference: appearancePreference
+                appearancePreference: appearancePreference,
+                allowsInsecureEpisodeDownloads: allowsInsecureEpisodeDownloads
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates

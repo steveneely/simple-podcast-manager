@@ -25,7 +25,8 @@ struct JSONConfigurationStoreTests {
         let store = JSONConfigurationStore(fileURL: fileURL)
         let configuration = AppConfiguration(
             settings: AppSettings(
-                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg"
+                ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
+                allowsInsecureEpisodeDownloads: true
             ),
             feedSubscriptions: [
                 FeedSubscription(
@@ -69,5 +70,6 @@ struct JSONConfigurationStoreTests {
 
         #expect(configuration.settings.ffmpegExecutablePath == "/opt/homebrew/bin/ffmpeg")
         #expect(configuration.settings.appearancePreference == .system)
+        #expect(!configuration.settings.allowsInsecureEpisodeDownloads)
     }
 }

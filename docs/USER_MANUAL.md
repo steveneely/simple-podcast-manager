@@ -2,19 +2,19 @@
 
 Simple Podcast Manager downloads podcast episodes from RSS feeds and syncs them to a standalone MP3 player.
 
-## 1. Install The App
+## 1. Install the app
 
 Download the latest DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag the app to Applications.
 
 If macOS blocks the app the first time you open it, approve it in System Settings > Privacy & Security.
 
-## 2. Prepare Your MP3 Player
+## 2. Prepare your MP3 player
 
-Connect the player and make sure it appears in Finder.
+Connect the player.
 
 By default, the player needs a `music` folder at its top level. To use a different folder, select the player in Simple Podcast Manager and change the podcast folder in Settings. The app asks before creating a missing folder.
 
-## 3. Add A Podcast
+## 3. Add a podcast
 
 1. Click `Add Podcast`, or use the plus button in the Shows list.
 2. Paste the podcast's RSS feed URL.
@@ -22,13 +22,15 @@ By default, the player needs a `music` folder at its top level. To use a differe
 
 The show and its latest episodes will appear in the app.
 
-## 4. Download Episodes
+## 4. Download episodes
 
 1. Select a show.
 2. Click the download button beside each episode you want.
 3. Wait for the downloads to finish.
 
 If an episode is not already an MP3, the app needs `ffmpeg` to convert it. Choose an `ffmpeg` executable in Settings if prompted.
+
+If an episode is available only over unencrypted HTTP, the app warns you before downloading it. You can allow that download once or always allow HTTP episode downloads in Settings.
 
 ## Move Your Podcast Subscriptions
 
@@ -48,7 +50,7 @@ For a quick import test, the source checkout includes `SampleData/gpodder-sample
 
 The app checks that the complete sync will fit before changing the player.
 
-## Remove Episodes From The Player
+## Remove episodes from the player
 
 Connect the player, then open a show:
 
@@ -58,7 +60,7 @@ Connect the player, then open a show:
 
 Other audio is deleted only when you select and confirm those exact files.
 
-## Backup, Restore, And Update
+## Back up, restore, and update
 
 - Back up app data: `Settings > App Data > Back Up…`
 - Restore app data: `Settings > App Data > Restore…`

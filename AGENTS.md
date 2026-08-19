@@ -104,6 +104,15 @@ Complete every step before calling a release finished:
 
 ## Testing Expectations
 
+Use `swift run "Simple Podcast Manager"` for routine local development and UI checks. Test with a packaged local `.app` when behavior depends on the application bundle, including App Transport Security, Sparkle, `Info.plist`, bundled resources, code signing, or installer behavior:
+
+```bash
+SKIP_SPARKLE_APPCAST=1 ./scripts/build-release.sh
+open -n "dist/build/Simple Podcast Manager.app"
+```
+
+Quit any other running copy first so the packaged local build is the instance under test.
+
 For every behavior change:
 
 - test observable behavior rather than implementation details

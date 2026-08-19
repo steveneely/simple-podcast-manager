@@ -32,6 +32,7 @@ public struct MainView: View {
     @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var appDataMessage: String?
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
+    @State private var insecureDownloadEpisode: Episode?
 
     public init(
         viewModel: MainViewModel,
@@ -190,6 +191,26 @@ public struct MainView: View {
             }
         } message: {
             Text(otherAudioDeletionConfirmationMessage)
+        }
+        .alert(
+            "Allow Insecure Download?",
+            isPresented: Binding(
+                get: { insecureDownloadEpisode != nil },
+                set: { if !$0 { insecureDownloadEpisode = nil } }
+            ),
+            presenting: insecureDownloadEpisode
+        ) { episode in
+            Button("Cancel", role: .cancel) {
+                insecureDownloadEpisode = nil
+            }
+            Button("Download Once") {
+                retryInsecureDownload(episode, alwaysAllow: false)
+            }
+            Button("Always Allow", role: .destructive) {
+                retryInsecureDownload(episode, alwaysAllow: true)
+            }
+        } message: { episode in
+            Text("“\(episode.title)” is only available over unencrypted HTTP. The download could be intercepted or changed in transit. Simple Podcast Manager tried HTTPS first.")
         }
     }
 
@@ -466,11 +487,29 @@ public struct MainView: View {
             onDownload: {
                 Task {
                     await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
+                    if preparationPreviewViewModel.requiresInsecureDownloadPermission(for: episode) {
+                        insecureDownloadEpisode = episode
+                    }
                     rebuildSyncPlan()
                 }
             },
             details: { episodeDetails(for: episode, status: status) }
         )
+    }
+
+    private func retryInsecureDownload(_ episode: Episode, alwaysAllow: Bool) {
+        insecureDownloadEpisode = nil
+        var downloadSettings = viewModel.settings
+        downloadSettings.allowsInsecureEpisodeDownloads = true
+
+        if alwaysAllow {
+            viewModel.replaceSettings(downloadSettings)
+        }
+
+        Task {
+            await preparationPreviewViewModel.prepare([episode], settings: downloadSettings)
+            rebuildSyncPlan()
+        }
     }
 
     @ViewBuilder

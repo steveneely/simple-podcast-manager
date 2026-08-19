@@ -3,18 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.6.1</title>
-            <pubDate>Tue, 18 Aug 2026 19:10:09 -0600</pubDate>
-            <sparkle:version>56</sparkle:version>
-            <sparkle:shortVersionString>1.6.1</sparkle:shortVersionString>
+            <title>1.7.0</title>
+            <pubDate>Tue, 18 Aug 2026 19:28:27 -0600</pubDate>
+            <sparkle:version>57</sparkle:version>
+            <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.6.1
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.7.0
 
-- Loads podcast artwork over HTTPS when feeds publish an HTTP image URL.
-- Applies one-time and saved HTTP download choices consistently to episode audio and artwork.
+- Adds an option to prefix MP3 titles with the publication date in `MM.dd` format.
+- Organizes Settings into clearer sections with stronger labels.
+- Applies the title prefix to new downloads without changing existing files.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.6.1/SimplePodcastManager-v1.6.1.dmg" length="5065052" type="application/octet-stream" sparkle:edSignature="m+oeQ1oDdNnp1Byk2BHFdR7cQir8nXT9K8c2lw6UCpwXVJP67MByubpJQSi/hshuJn87yzHZ4fms7j+OUBcZCw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.7.0/SimplePodcastManager-v1.7.0.dmg" length="5077847" type="application/octet-stream" sparkle:edSignature="0tKdlzbw2tJhv6NTCsCI0MWRb+52KKV9RcwS8OC+WdttQX8zaH1xPgz5ndHe5yrl7Uv5u/jgKpua4LvYt5HfAQ=="/>
         </item>
     </channel>
 </rss>

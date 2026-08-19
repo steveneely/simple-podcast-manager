@@ -163,37 +163,36 @@ struct FeedSidebarView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                        }
 
-                        Spacer(minLength: 8)
-
-                        if selectedFeedID == subscription.id {
-                            HStack(spacing: 4) {
-                                if isRefreshing {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                        .frame(width: 28, height: 28)
-                                        .help("Refreshing")
-                                } else {
-                                    HoverIconButton(
-                                        systemName: "arrow.clockwise",
-                                        helpText: "Refresh"
-                                    ) {
-                                        onRefreshSubscription(subscription)
+                            if selectedFeedID == subscription.id {
+                                HStack(spacing: 4) {
+                                    if isRefreshing {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                            .frame(width: 28, height: 28)
+                                            .help("Refreshing")
+                                    } else {
+                                        HoverIconButton(
+                                            systemName: "arrow.clockwise",
+                                            helpText: "Refresh"
+                                        ) {
+                                            onRefreshSubscription(subscription)
+                                        }
                                     }
-                                }
-                                HoverIconButton(systemName: "pencil", helpText: "Edit") {
-                                    onEdit(subscription)
-                                }
-                                HoverIconButton(
-                                    systemName: "trash",
-                                    helpText: "Remove",
-                                    isDestructive: true
-                                ) {
-                                    onDelete(subscription)
+                                    HoverIconButton(systemName: "pencil", helpText: "Edit") {
+                                        onEdit(subscription)
+                                    }
+                                    HoverIconButton(
+                                        systemName: "trash",
+                                        helpText: "Remove",
+                                        isDestructive: true
+                                    ) {
+                                        onDelete(subscription)
+                                    }
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.vertical, 4)
                     .tag(subscription.id)

@@ -282,7 +282,7 @@ public struct MainView: View {
     private var librarySection: some View {
         HSplitView {
             feedSidebar
-                .frame(minWidth: 250, idealWidth: 280, maxWidth: 320)
+                .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
             episodeDetailSection
                 .frame(minWidth: 420)
         }

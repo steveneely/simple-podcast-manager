@@ -33,7 +33,7 @@ struct MainViewModelTests {
             store: store,
             feedResolver: MockFeedResolver(
                 summariesByURL: [
-                    "https://relay.fm/connected/feed": FeedSummary(
+                    "https://relay.fm/connected/updated-feed": FeedSummary(
                         subscriptionID: UUID(),
                         title: "Connected",
                         artworkURL: URL(string: "https://relay.fm/connected.png"),
@@ -57,7 +57,7 @@ struct MainViewModelTests {
         try await viewModel.updateFeed(
             from: FeedDraft(
                 id: existingSubscription.id,
-                rssURLString: "https://relay.fm/connected/feed",
+                rssURLString: "https://relay.fm/connected/updated-feed",
                 artworkURL: existingSubscription.artworkURL,
                 currentTitle: existingSubscription.title,
                 isEnabled: false,
@@ -74,6 +74,34 @@ struct MainViewModelTests {
 
         #expect(viewModel.feedSubscriptions.isEmpty)
         #expect(store.configuration.feedSubscriptions.isEmpty)
+    }
+
+    @Test
+    func updateFeedPreferencesDoesNotResolveUnchangedURL() async throws {
+        let subscription = FeedSubscription(
+            title: "Example",
+            rssURL: URL(string: "https://example.com/feed.xml")!,
+            artworkURL: URL(string: "https://example.com/art.png")!,
+            description: "Existing description"
+        )
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(feedSubscriptions: [subscription])
+        )
+        let viewModel = MainViewModel(
+            store: store,
+            feedResolver: MockFeedResolver(summariesByURL: [:])
+        )
+        viewModel.load()
+        var draft = FeedDraft(subscription: subscription)
+        draft.includesInAutomaticDownloads = false
+
+        try await viewModel.updateFeed(from: draft)
+
+        let updatedSubscription = try #require(viewModel.feedSubscriptions.first)
+        #expect(!updatedSubscription.includesInAutomaticDownloads)
+        #expect(updatedSubscription.title == subscription.title)
+        #expect(updatedSubscription.artworkURL == subscription.artworkURL)
+        #expect(updatedSubscription.description == subscription.description)
     }
 
     @Test

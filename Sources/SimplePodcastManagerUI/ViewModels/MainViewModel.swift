@@ -62,19 +62,21 @@ public final class MainViewModel {
 
     public func updateFeed(from draft: FeedDraft) async throws {
         do {
-            let resolvedFeed = try await resolveFeed(from: draft)
-            try commitConfiguration {
-                let updatedSubscription = resolvedFeed.subscription
-                try ensureUniqueSubscription(updatedSubscription, in: $0.feedSubscriptions, excluding: updatedSubscription.id)
-                guard let existingIndex = $0.feedSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
-                    $0.feedSubscriptions.append(updatedSubscription)
-                    $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-                    return
-                }
-
-                $0.feedSubscriptions[existingIndex] = updatedSubscription
-                $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            let rssURL = try draft.resolvedRSSURL()
+            if let subscriptionID = draft.id,
+               let existingSubscription = feedSubscriptions.first(where: { $0.id == subscriptionID }),
+               rssURL == existingSubscription.rssURL {
+                let updatedSubscription = try draft.makeSubscription(
+                    title: existingSubscription.title,
+                    artworkURL: existingSubscription.artworkURL,
+                    description: existingSubscription.description
+                )
+                try saveUpdatedSubscription(updatedSubscription)
+                return
             }
+
+            let resolvedFeed = try await resolveFeed(from: draft)
+            try saveUpdatedSubscription(resolvedFeed.subscription)
             try? feedCacheStore.saveCachedFeed(resolvedFeed.cachedFeed)
         } catch {
             self.lastErrorMessage = error.localizedDescription
@@ -212,6 +214,24 @@ public final class MainViewModel {
             description: subscription.description
         )
         return (subscription, cachedFeed)
+    }
+
+    private func saveUpdatedSubscription(_ updatedSubscription: FeedSubscription) throws {
+        try commitConfiguration {
+            try ensureUniqueSubscription(
+                updatedSubscription,
+                in: $0.feedSubscriptions,
+                excluding: updatedSubscription.id
+            )
+            guard let existingIndex = $0.feedSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
+                $0.feedSubscriptions.append(updatedSubscription)
+                $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+                return
+            }
+
+            $0.feedSubscriptions[existingIndex] = updatedSubscription
+            $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        }
     }
 
     private func provisionalTitle(for rssURL: URL) -> String {

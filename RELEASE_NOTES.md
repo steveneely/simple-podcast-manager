@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.7.2
+# Simple Podcast Manager v1.7.3
 
-- Shows sync progress only in the sync dialog instead of duplicating it in the background window.
-- Keeps the Device section focused on device status and the last completed sync.
+- Fixes valid RSS feeds failing to load when they include a long XML preamble.
+- Adds compatibility with podcast feeds from Deutschlandfunk Nova and SR Mediathek that use XML stylesheets.

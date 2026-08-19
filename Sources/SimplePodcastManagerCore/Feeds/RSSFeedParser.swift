@@ -5,19 +5,14 @@ public final class RSSFeedParser: Sendable {
     public init() {}
 
     public func parse(data: Data, sourceFeedURL: URL, subscriptionID: UUID?) throws -> ParsedRSSFeed {
-        let parsedFeed: Feed
+        let rssFeed: RSSFeed
         do {
-            parsedFeed = try Feed(data: data)
+            rssFeed = try RSSFeed(data: data)
         } catch {
             throw FeedServiceError.invalidFeedData
         }
 
-        switch parsedFeed {
-        case .rss(let rssFeed):
-            return Self.makeParsedRSSFeed(from: rssFeed, sourceFeedURL: sourceFeedURL, subscriptionID: subscriptionID)
-        default:
-            throw FeedServiceError.invalidFeedData
-        }
+        return Self.makeParsedRSSFeed(from: rssFeed, sourceFeedURL: sourceFeedURL, subscriptionID: subscriptionID)
     }
 }
 

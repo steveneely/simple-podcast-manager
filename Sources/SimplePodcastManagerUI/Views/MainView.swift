@@ -832,6 +832,7 @@ public struct MainView: View {
         panel.allowsMultipleSelection = false
 
         guard panel.runModal() == .OK, let backupURL = panel.url else { return }
+        guard confirmsAppDataRestore(from: backupURL) else { return }
 
         Task {
             do {
@@ -848,6 +849,18 @@ public struct MainView: View {
                 appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
         }
+    }
+
+    private func confirmsAppDataRestore(from backupURL: URL) -> Bool {
+        let confirmation = AppDataRestoreConfirmation(backupURL: backupURL)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = confirmation.title
+        alert.informativeText = confirmation.message
+        alert.addButton(withTitle: confirmation.cancelButtonTitle)
+        let restoreButton = alert.addButton(withTitle: confirmation.restoreButtonTitle)
+        restoreButton.hasDestructiveAction = true
+        return alert.runModal() == .alertSecondButtonReturn
     }
 
     private func reloadAppData() async {

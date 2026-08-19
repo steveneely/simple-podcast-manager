@@ -64,7 +64,7 @@ Other audio is deleted only when you select and confirm those exact files.
 - Restore app data: `Settings > App Data > Restore…`
 - Check for updates: `Simple Podcast Manager > Check for Updates…`
 
-Backups include subscriptions, settings, and history, but not downloaded audio files.
+Backups include subscriptions, settings, and history, but not downloaded audio files. Before restoring, the app asks for confirmation and backs up the current app data.
 
 ## Troubleshooting
 

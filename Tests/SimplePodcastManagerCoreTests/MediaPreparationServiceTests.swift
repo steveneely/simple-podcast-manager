@@ -392,12 +392,51 @@ struct MediaPreparationServiceTests {
         #expect(result.preparedEpisodes.count == 4)
         #expect(await tracker.maximumActiveCount == 2)
     }
+
+    @Test
+    func reportsPermissionRequirementAndForwardsSavedInsecureDownloadChoice() async throws {
+        let episode = Episode(
+            id: "http-episode",
+            podcastTitle: "Example Podcast",
+            title: "HTTP Episode",
+            enclosureURL: URL(string: "http://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let service = MediaPreparationService(
+            downloadService: PolicySensitiveDownloadService(),
+            audioConversionService: StubAudioConversionService(),
+            workspaceProvider: StubWorkspaceProvider()
+        )
+
+        let blockedResult = try await service.prepareEpisodes([episode], settings: AppSettings())
+        let allowedResult = try await service.prepareEpisodes(
+            [episode],
+            settings: AppSettings(allowsInsecureEpisodeDownloads: true)
+        )
+
+        #expect(blockedResult.failures.first?.reason == .insecureDownloadRequiresPermission)
+        #expect(allowedResult.preparedEpisodes.count == 1)
+        #expect(allowedResult.failures.isEmpty)
+    }
+}
+
+private struct PolicySensitiveDownloadService: DownloadService {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
+        guard allowsInsecureHTTP else {
+            throw DownloadServiceError.insecureDownloadRequiresPermission
+        }
+
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
+        try Data("audio".utf8).write(to: fileURL)
+        return fileURL
+    }
 }
 
 private struct StubDownloadService: DownloadService {
     let fileExtension: String
 
-    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).\(fileExtension)")
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         try Data("audio".utf8).write(to: fileURL)
@@ -409,7 +448,7 @@ private struct DelayedDownloadService: DownloadService {
     let fileExtension: String
     let tracker: DownloadConcurrencyTracker
 
-    func download(_ episode: Episode, into workspaceURL: URL) async throws -> URL {
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         await tracker.start()
         try await Task.sleep(nanoseconds: 10_000_000)
         await tracker.finish()

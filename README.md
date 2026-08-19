@@ -22,9 +22,8 @@ After the first install, enable automatic checks in Settings or use `Simple Podc
 
 - Subscribe to podcasts with RSS feed URLs.
 - Download episodes, embed podcast artwork, and optionally convert non-MP3 audio with `ffmpeg`.
-- Review the full-device plan before changing your MP3 player.
-- Check that a sync will fit before changing your MP3 player.
-- Copy managed episodes to the device and delete selected managed episodes from it.
+- Review file sizes and confirm the complete sync will fit before changing your MP3 player.
+- Copy downloaded episodes to the player and remove episodes you select.
 - Remember downloaded and removed episodes.
 - Back up and restore your subscriptions, settings, and history.
 

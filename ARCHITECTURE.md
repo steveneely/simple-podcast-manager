@@ -2,7 +2,7 @@
 
 ## Summary
 
-Simple Podcast Manager is a native macOS app built in Swift. The app uses `SwiftUI` for the UI and a plain Swift sync engine for feed processing, device validation, sync planning, safe deletion, and optional eject behavior. `ffmpeg` can be provided as an external executable for non-MP3 conversion, with an optional custom path override for development and advanced users.
+Simple Podcast Manager is a native Swift macOS app. It uses `SwiftUI` for the UI and an in-process sync engine for feeds, device validation, planning, file operations, and eject behavior. An external `ffmpeg` executable handles optional non-MP3 conversion.
 
 The architecture should stay simple:
 
@@ -27,7 +27,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds
-- `SettingsView`: optional custom `ffmpeg` path, device podcast folder, and automatic update preference
+- `SettingsView`: appearance, optional custom `ffmpeg` path, insecure episode download preference, device podcast folder, and automatic update preference
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `SyncPlanViewModel`: build the full-device plan shown before execution
@@ -82,9 +82,15 @@ Expected runtime flow:
 
 The plan shown to the user is the plan executed by the app.
 
+## Episode Download Security
+
+Episode downloads use HTTPS whenever possible. When a feed publishes an HTTP enclosure, `DownloadService` first tries the equivalent HTTPS URL. HTTPS URLs that redirect to HTTP are also treated as insecure.
+
+If the secure attempt fails, the UI asks before downloading that episode over HTTP. The user may approve one download or persist an app-wide preference in Settings. The main app keeps App Transport Security enabled; an approved HTTP fallback is isolated to that episode by invoking the system `curl` executable with only HTTP and HTTPS protocols permitted. Feed loading, artwork, updates, and unapproved episode downloads remain protected by ATS.
+
 ## RSS Subscription
 
-Subscription should be RSS-first. The purpose of add/edit flow is to capture a feed URL, resolve title and artwork metadata from the feed itself, and store a clean subscription the sync engine can trust.
+Subscriptions are RSS-first. The add/edit flow captures a feed URL, resolves title and artwork metadata from the feed, and stores the subscription.
 
 The flow should be:
 
@@ -158,7 +164,7 @@ Device library refresh should inventory the configured podcast directory once an
 
 ## Sync Layout And Deletion
 
-Managed files should live under per-podcast folders:
+Managed files live under per-podcast folders:
 
 - `[configured podcast directory]/<podcast-name>/`
 
@@ -194,8 +200,7 @@ Update design:
 - the DMG remains the first-install path
 - installed `.app` bundles expose `Simple Podcast Manager > Check for Updates…`
 - Settings reads and writes Sparkle's own automatic-check preference rather than maintaining a parallel app setting
-- automatic launch checks present Sparkle's update window during that launch when a newer version is available; current versions remain quiet
-- when automatic checks are enabled, the installed app performs one quiet background check each time it launches
+- when automatic checks are enabled, the installed app checks once per launch and shows Sparkle's update window only when a newer version is available
 - `SUAllowsAutomaticUpdates` is false so a background check can notify the user but cannot silently download, install, or relaunch the app
 - local development builds launched with `swift run "Simple Podcast Manager"` disable update checks
 - Sparkle reads an HTTPS appcast from `SUFeedURL`
@@ -219,8 +224,6 @@ These rules are non-negotiable:
 - never modify other device-root files or other folders on the device
 - never delete outside the configured podcast directory
 - refuse mutation if the device path cannot be proven safe
-
-The app should be biased toward refusing unsafe work, even if that occasionally blocks a valid run.
 
 ## Technology Choices
 

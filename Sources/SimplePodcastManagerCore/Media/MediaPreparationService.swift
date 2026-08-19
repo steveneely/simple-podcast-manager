@@ -99,7 +99,11 @@ public struct MediaPreparationService: Sendable {
     ) async -> EpisodePreparationOutcome {
         var downloadedFileURL: URL?
         do {
-            let sourceFileURL = try await downloadService.download(episode, into: workspaceURL)
+            let sourceFileURL = try await downloadService.download(
+                episode,
+                into: workspaceURL,
+                allowsInsecureHTTP: settings.allowsInsecureEpisodeDownloads
+            )
             downloadedFileURL = sourceFileURL
             let preparedEpisode = try await audioConversionService.prepareAudio(
                 for: episode,
@@ -118,7 +122,10 @@ public struct MediaPreparationService: Sendable {
                 result: .failure(
                     PreparationFailure(
                         episode: episode,
-                        message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                        message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription,
+                        reason: error as? DownloadServiceError == .insecureDownloadRequiresPermission
+                            ? .insecureDownloadRequiresPermission
+                            : .other
                     )
                 )
             )

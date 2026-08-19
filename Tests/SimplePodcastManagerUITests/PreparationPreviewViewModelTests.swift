@@ -38,7 +38,7 @@ struct PreparationPreviewViewModelTests {
     }
 
     @Test
-    func loadsPersistedPreparedEpisodesOnLaunch() throws {
+    func loadsPersistedPreparedEpisodesOnLaunch() async throws {
         let existingFileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp3")
         try Data("audio".utf8).write(to: existingFileURL)
         defer { try? FileManager.default.removeItem(at: existingFileURL) }
@@ -66,14 +66,14 @@ struct PreparationPreviewViewModelTests {
             store: store
         )
 
-        viewModel.loadPersistedPreparedEpisodes()
+        await viewModel.loadPersistedPreparedEpisodes()
 
         #expect(viewModel.hasLoadedPreparedEpisodes)
         #expect(viewModel.preparedEpisodes == [preparedEpisode])
     }
 
     @Test
-    func loadsPersistedDownloadedEpisodeHistory() throws {
+    func loadsPersistedDownloadedEpisodeHistory() async throws {
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let downloadedRecord = DownloadedEpisodeRecord(
             subscriptionID: subscriptionID,
@@ -100,13 +100,13 @@ struct PreparationPreviewViewModelTests {
             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
         )
 
-        viewModel.loadPersistedPreparedEpisodes()
+        await viewModel.loadPersistedPreparedEpisodes()
 
         #expect(viewModel.downloadedRecord(for: episode) == downloadedRecord)
     }
 
     @Test
-    func removeAllPreparedEpisodesDeletesLocalFilesAndPersistsEmptyState() throws {
+    func removeAllPreparedEpisodesDeletesLocalFilesAndPersistsEmptyState() async throws {
         let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let sourceURL = temporaryDirectoryURL.appendingPathComponent("source.m4a")
         let preparedURL = temporaryDirectoryURL.appendingPathComponent("prepared.mp3")
@@ -149,7 +149,7 @@ struct PreparationPreviewViewModelTests {
             store: store,
             downloadedEpisodeStore: downloadedStore
         )
-        viewModel.loadPersistedPreparedEpisodes()
+        await viewModel.loadPersistedPreparedEpisodes()
 
         viewModel.removeAllPreparedEpisodes()
 

@@ -18,8 +18,8 @@ public final class PreparationPreviewViewModel {
 
     public init(
         service: MediaPreparationService = MediaPreparationService(),
-        store: any PreparedEpisodeStore = JSONPreparedEpisodeStore(fileURL: JSONPreparedEpisodeStore.defaultFileURL()),
-        downloadedEpisodeStore: any DownloadedEpisodeStore = JSONDownloadedEpisodeStore(fileURL: JSONDownloadedEpisodeStore.defaultFileURL())
+        store: any PreparedEpisodeStore = SQLiteEpisodeStore.shared,
+        downloadedEpisodeStore: any DownloadedEpisodeStore = SQLiteEpisodeStore.shared
     ) {
         self.service = service
         self.store = store
@@ -54,10 +54,10 @@ public final class PreparationPreviewViewModel {
         do {
             let result = try await service.prepareEpisodes(episodesToPrepare, settings: settings)
             merge(result)
-            recordDownloadedEpisodes(result.preparedEpisodes)
-            persistPreparedEpisodes()
-            persistDownloadedEpisodes()
+            let downloadedRecords = recordDownloadedEpisodes(result.preparedEpisodes)
             lastErrorMessage = nil
+            persistNewPreparedEpisodes(result.preparedEpisodes)
+            persistNewDownloadedEpisodes(downloadedRecords)
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             mergeFailures(for: episodesToPrepare, message: message)
@@ -69,16 +69,20 @@ public final class PreparationPreviewViewModel {
         preparingEpisodesByID[EpisodePreparationID(episode)] != nil
     }
 
-    public func loadPersistedPreparedEpisodes() {
+    public func loadPersistedPreparedEpisodes() async {
         do {
-            let persistedEpisodes = try store.loadPreparedEpisodes()
+            let store = self.store
+            let downloadedEpisodeStore = self.downloadedEpisodeStore
+            let (persistedEpisodes, downloadedEpisodes) = try await Task.detached {
+                try (store.loadPreparedEpisodes(), downloadedEpisodeStore.loadDownloadedEpisodes())
+            }.value
             let existingPreparedEpisodes = persistedEpisodes.filter {
                 FileManager.default.fileExists(atPath: $0.preparedFileURL.path)
             }
             self.preparedEpisodes = existingPreparedEpisodes.sorted {
                 $0.episode.title.localizedCaseInsensitiveCompare($1.episode.title) == .orderedAscending
             }
-            self.downloadedEpisodes = try downloadedEpisodeStore.loadDownloadedEpisodes().sorted {
+            self.downloadedEpisodes = downloadedEpisodes.sorted {
                 if $0.downloadedAt != $1.downloadedAt {
                     return $0.downloadedAt > $1.downloadedAt
                 }
@@ -88,7 +92,9 @@ public final class PreparationPreviewViewModel {
             self.lastErrorMessage = nil
 
             if existingPreparedEpisodes.count != persistedEpisodes.count {
-                persistPreparedEpisodes()
+                try await Task.detached {
+                    try store.savePreparedEpisodes(existingPreparedEpisodes)
+                }.value
             }
         } catch {
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -175,10 +181,19 @@ public final class PreparationPreviewViewModel {
         }
     }
 
-    private func recordDownloadedEpisodes(_ preparedEpisodes: [PreparedEpisode]) {
-        guard !preparedEpisodes.isEmpty else { return }
+    private func persistNewPreparedEpisodes(_ preparedEpisodes: [PreparedEpisode]) {
+        do {
+            try store.mergePreparedEpisodes(preparedEpisodes)
+        } catch {
+            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func recordDownloadedEpisodes(_ preparedEpisodes: [PreparedEpisode]) -> [DownloadedEpisodeRecord] {
+        guard !preparedEpisodes.isEmpty else { return [] }
 
         var recordsByID = Dictionary(uniqueKeysWithValues: downloadedEpisodes.map { ($0.id, $0) })
+        var newRecords: [DownloadedEpisodeRecord] = []
         for preparedEpisode in preparedEpisodes {
             guard let subscriptionID = preparedEpisode.episode.subscriptionID else { continue }
             let record = DownloadedEpisodeRecord(
@@ -189,6 +204,7 @@ public final class PreparationPreviewViewModel {
                 downloadedAt: preparedEpisode.preparedAt
             )
             recordsByID[record.id] = record
+            newRecords.append(record)
         }
 
         downloadedEpisodes = recordsByID.values.sorted {
@@ -197,11 +213,12 @@ public final class PreparationPreviewViewModel {
             }
             return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
         }
+        return newRecords
     }
 
-    private func persistDownloadedEpisodes() {
+    private func persistNewDownloadedEpisodes(_ downloadedEpisodes: [DownloadedEpisodeRecord]) {
         do {
-            try downloadedEpisodeStore.saveDownloadedEpisodes(downloadedEpisodes)
+            try downloadedEpisodeStore.mergeDownloadedEpisodes(downloadedEpisodes)
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

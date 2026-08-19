@@ -11,16 +11,19 @@ public final class RemovedEpisodeHistoryViewModel {
 
     private let store: any RemovedEpisodeStore
 
-    public init(store: any RemovedEpisodeStore = JSONRemovedEpisodeStore(fileURL: JSONRemovedEpisodeStore.defaultFileURL())) {
+    public init(store: any RemovedEpisodeStore = SQLiteEpisodeStore.shared) {
         self.store = store
         self.removedEpisodes = []
         self.lastErrorMessage = nil
         self.hasLoadedRemovedEpisodes = false
     }
 
-    public func load() {
+    public func load() async {
         do {
-            removedEpisodes = try store.loadRemovedEpisodes()
+            let store = self.store
+            removedEpisodes = try await Task.detached {
+                try store.loadRemovedEpisodes()
+            }.value
                 .sorted { lhs, rhs in
                     if lhs.removedAt != rhs.removedAt {
                         return lhs.removedAt > rhs.removedAt
@@ -59,6 +62,7 @@ public final class RemovedEpisodeHistoryViewModel {
         guard !deletedTargetURLs.isEmpty else { return }
 
         var recordsByID = Dictionary(uniqueKeysWithValues: removedEpisodes.map { ($0.id, $0) })
+        var newRecords: [RemovedEpisodeRecord] = []
 
         for targetURL in deletedTargetURLs.map(\.standardizedFileURL) {
             guard
@@ -86,6 +90,7 @@ public final class RemovedEpisodeHistoryViewModel {
                 removedAt: removedAt
             )
             recordsByID[record.id] = record
+            newRecords.append(record)
         }
 
         removedEpisodes = recordsByID.values.sorted { lhs, rhs in
@@ -94,12 +99,12 @@ public final class RemovedEpisodeHistoryViewModel {
             }
             return lhs.episodeTitle.localizedCaseInsensitiveCompare(rhs.episodeTitle) == .orderedAscending
         }
-        persist()
+        persist(newRecords)
     }
 
-    private func persist() {
+    private func persist(_ records: [RemovedEpisodeRecord]) {
         do {
-            try store.saveRemovedEpisodes(removedEpisodes)
+            try store.mergeRemovedEpisodes(records)
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription

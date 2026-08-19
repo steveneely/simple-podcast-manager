@@ -125,10 +125,10 @@ public struct MainView: View {
                 appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
             }
             if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
-                preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+                await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
             }
             if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
-                removedEpisodeHistoryViewModel.load()
+                await removedEpisodeHistoryViewModel.load()
             }
             if selectedFeedID == nil {
                 selectedFeedID = viewModel.feedSubscriptions.first?.id
@@ -744,11 +744,15 @@ public struct MainView: View {
 
         guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
 
-        do {
-            let backupURL = try AppDataBackupService().exportBackup(to: destinationURL)
-            appDataMessage = "Exported app data to \(backupURL.lastPathComponent)."
-        } catch {
-            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        Task {
+            do {
+                let backupURL = try await Task.detached {
+                    try AppDataBackupService().exportBackup(to: destinationURL)
+                }.value
+                appDataMessage = "Exported app data to \(backupURL.lastPathComponent)."
+            } catch {
+                appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
         }
     }
 
@@ -829,30 +833,34 @@ public struct MainView: View {
 
         guard panel.runModal() == .OK, let backupURL = panel.url else { return }
 
-        do {
-            let previousBackupURL = try AppDataBackupService().importBackup(from: backupURL)
-            reloadAppData()
-            if let previousBackupURL {
-                appDataMessage = "Imported app data. Previous data was backed up to \(previousBackupURL.lastPathComponent)."
-            } else {
-                appDataMessage = "Imported app data."
+        Task {
+            do {
+                let previousBackupURL = try await Task.detached {
+                    try AppDataBackupService().importBackup(from: backupURL)
+                }.value
+                await reloadAppData()
+                if let previousBackupURL {
+                    appDataMessage = "Imported app data. Previous data was backed up to \(previousBackupURL.lastPathComponent)."
+                } else {
+                    appDataMessage = "Imported app data."
+                }
+            } catch {
+                appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
-        } catch {
-            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
-    private func reloadAppData() {
+    private func reloadAppData() async {
         viewModel.load()
-        preparationPreviewViewModel.loadPersistedPreparedEpisodes()
-        removedEpisodeHistoryViewModel.load()
+        await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+        await removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
         visibleEpisodeCountsByFeedID = [:]
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
-        Task { await refreshAllContent() }
+        await refreshAllContent()
     }
 
     private func deleteFeeds(at offsets: IndexSet) {

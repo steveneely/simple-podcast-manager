@@ -2,6 +2,12 @@ import Foundation
 
 public struct PreparedEpisode: Codable, Equatable, Sendable, Identifiable {
     public var id: String { episode.id }
+    var persistenceKey: String {
+        if let subscriptionID = episode.subscriptionID {
+            return "subscription:\(subscriptionID.uuidString.lowercased())::\(episode.id)"
+        }
+        return "feed:\(episode.sourceFeedURL.absoluteString)::\(episode.id)"
+    }
     public var episode: Episode
     public var sourceFileURL: URL
     public var preparedFileURL: URL

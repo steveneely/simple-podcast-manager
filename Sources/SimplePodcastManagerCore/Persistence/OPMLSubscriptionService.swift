@@ -87,14 +87,14 @@ public struct OPMLSubscriptionService {
     public func exportSubscriptions(_ subscriptions: [FeedSubscription]) -> Data {
         let outlines = subscriptions
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-            .map { subscription in
+            .map { subscription -> String in
                 let title = escapedXML(subscription.title)
                 let url = escapedXML(subscription.rssURL.absoluteString)
                 return "    <outline type=\"rss\" text=\"\(title)\" title=\"\(title)\" xmlUrl=\"\(url)\"/>"
             }
             .joined(separator: "\n")
 
-        let document = """
+        let document: String = """
         <?xml version=\"1.0\" encoding=\"UTF-8\"?>
         <opml version=\"2.0\">
           <head>

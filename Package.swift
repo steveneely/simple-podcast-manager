@@ -22,6 +22,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/nmdias/FeedKit", from: "10.4.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.10.0"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
     ],
     targets: [
@@ -29,6 +30,7 @@ let package = Package(
             name: "SimplePodcastManagerCore",
             dependencies: [
                 .product(name: "FeedKit", package: "FeedKit"),
+                .product(name: "GRDB", package: "GRDB.swift"),
             ],
             path: "Sources/SimplePodcastManagerCore"
         ),

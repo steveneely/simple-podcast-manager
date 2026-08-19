@@ -1,5 +1,4 @@
-# Simple Podcast Manager v1.7.1
+# Simple Podcast Manager v1.7.2
 
-- Keeps episodes with special characters associated with the correct podcast on the device.
-- Uses readable MP3-player-friendly filenames such as `grosse` instead of `gro-e`.
-- Keeps similarly named audio in unrelated folders listed under Other Audio.
+- Shows sync progress only in the sync dialog instead of duplicating it in the background window.
+- Keeps the Device section focused on device status and the last completed sync.

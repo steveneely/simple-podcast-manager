@@ -402,23 +402,17 @@ public struct MainView: View {
 
     @ViewBuilder
     private var syncControlsRow: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                if let lastResult = syncExecutionViewModel.lastResult {
-                    Text(SyncPresentation.resultSummary(lastResult))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button("Sync") {
-                    openSyncDialog()
-                }
+        HStack {
+            if let lastResult = syncExecutionViewModel.lastResult {
+                Text(SyncPresentation.resultSummary(lastResult))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
-            if let progress = syncExecutionViewModel.progress, syncExecutionViewModel.isSyncing {
-                SyncProgressView(progress: progress)
+            Spacer()
+
+            Button("Sync") {
+                openSyncDialog()
             }
         }
     }

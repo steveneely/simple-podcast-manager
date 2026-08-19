@@ -113,6 +113,37 @@ open -n "dist/build/Simple Podcast Manager.app"
 
 Quit any other running copy first so the packaged local build is the instance under test.
 
+### Manual Disk-Image Device Test
+
+Use a disposable FAT disk image to manually test device detection, sync behavior, and device UI without a physical MP3 player. When handing off a device or sync change for manual verification, suggest this workflow to Steve.
+
+Create and mount the test device:
+
+```bash
+SPM_TEST_IMAGE=/tmp/SimplePodcastManager-Safety-Test.dmg
+
+hdiutil create \
+  -size 512m \
+  -fs MS-DOS \
+  -volname SPMTEST \
+  "$SPM_TEST_IMAGE"
+
+hdiutil attach "$SPM_TEST_IMAGE"
+mkdir -p /Volumes/SPMTEST/music
+```
+
+The mounted test device is available at `/Volumes/SPMTEST`, with its default podcast directory at `/Volumes/SPMTEST/music`.
+
+After testing, quit the app, detach the test device, and remove the disposable image:
+
+```bash
+hdiutil detach /Volumes/SPMTEST
+rm -f /tmp/SimplePodcastManager-Safety-Test.dmg
+unset SPM_TEST_IMAGE
+```
+
+Never substitute a real device or another mounted volume into destructive test commands.
+
 For every behavior change:
 
 - test observable behavior rather than implementation details

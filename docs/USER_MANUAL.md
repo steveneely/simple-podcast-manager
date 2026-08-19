@@ -22,6 +22,8 @@ By default, the player needs a `music` folder at its top level. To use a differe
 
 The show and its latest episodes will appear in the app.
 
+Select a show to reveal its Refresh, Edit, and Remove controls. Select it again to clear the selection.
+
 To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
 
 Use `File > Export Subscriptions…` to create an OPML file for another podcast app.
@@ -38,7 +40,9 @@ If episode audio or artwork is available only over unencrypted HTTP, the app war
 
 When the feed provides a publication date, files copied to the player start with it in `yyyy.MM.dd` format so they sort reliably. Their embedded MP3 titles keep the original feed text, including special characters. Settings can add a shorter `MM.dd` date to new MP3 titles, such as `08.11 Original Title`. Existing downloads are unchanged.
 
-To download new episodes after each feed refresh, choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new` under `Settings > Episode Preparation > Automatic Downloads`. The first refresh records the episodes already in each feed without downloading them, so existing subscriptions do not create a backlog. Edit a show to exclude it from automatic downloads.
+Leave `Settings > Episode Preparation > Automatic Downloads` set to `Off` for manual downloads, or choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new`. The limit applies separately to each included show after feed refreshes. The first successful refresh records existing episodes without downloading them, so subscriptions do not create a backlog.
+
+Edit a show to change `Include in automatic downloads`. Turn off `Feed enabled` to stop refreshing that show. Automatic downloads prepare episodes on the Mac; syncing starts only when you click `Sync`.
 
 ## Sync
 

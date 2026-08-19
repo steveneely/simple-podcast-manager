@@ -26,6 +26,7 @@ The UI should not contain sync logic. It should call focused core services and r
 
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface; shows device status and the last completed sync
+- `FeedSidebarView`: show selection and grouped refresh, edit, and remove actions for the selected feed
 - `FeedEditorView`: add or edit feeds
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: app preferences, device podcast folder, app data backup and restore

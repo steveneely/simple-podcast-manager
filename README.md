@@ -19,7 +19,7 @@ After the first install, enable automatic checks in Settings or use `Simple Podc
 ## What It Does
 
 - Add podcasts with RSS feed URLs or import subscriptions from OPML.
-- Download episodes manually or automatically, add podcast artwork, and convert non-MP3 audio with `ffmpeg` when needed.
+- Download episodes manually or automatically after feed refreshes, add podcast artwork, and convert non-MP3 audio with `ffmpeg` when needed.
 - Review every copy and deletion before sync and confirm the complete plan will fit.
 - Remember download and removal history.
 - Export subscriptions or back up the app's settings and history.

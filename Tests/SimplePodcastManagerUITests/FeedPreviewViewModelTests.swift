@@ -134,6 +134,52 @@ struct FeedPreviewViewModelTests {
         #expect(viewModel.feedSummaries[secondSubscription.id]?.title == "Second Old")
     }
 
+    @Test
+    func refreshNewSubscriptionsFetchesBatchAndPreservesExistingPreviewData() async throws {
+        let existingSubscription = FeedSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "Existing",
+            rssURL: URL(string: "https://example.com/existing.xml")!
+        )
+        let firstNewSubscription = FeedSubscription(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            title: "First New",
+            rssURL: URL(string: "https://example.com/first-new.xml")!
+        )
+        let secondNewSubscription = FeedSubscription(
+            id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+            title: "Second New",
+            rssURL: URL(string: "https://example.com/second-new.xml")!
+        )
+        let service = SequencedFeedService(results: [
+            FeedFetchResult(
+                allEpisodes: [makeEpisode(id: "existing-old", subscription: existingSubscription, title: "Existing Episode")],
+                feedSummaries: [FeedSummary(subscriptionID: existingSubscription.id, title: "Existing")]
+            ),
+            FeedFetchResult(
+                allEpisodes: [
+                    makeEpisode(id: "first-new", subscription: firstNewSubscription, title: "First Episode"),
+                    makeEpisode(id: "second-new", subscription: secondNewSubscription, title: "Second Episode"),
+                ],
+                feedSummaries: [
+                    FeedSummary(subscriptionID: firstNewSubscription.id, title: "First New"),
+                    FeedSummary(subscriptionID: secondNewSubscription.id, title: "Second New"),
+                ]
+            ),
+        ])
+        let viewModel = FeedPreviewViewModel(service: service)
+
+        await viewModel.refreshPreview(for: [existingSubscription])
+        await viewModel.refreshPreview(forNewSubscriptions: [firstNewSubscription, secondNewSubscription])
+
+        #expect(service.requestedSubscriptionIDs == [
+            [existingSubscription.id],
+            [firstNewSubscription.id, secondNewSubscription.id],
+        ])
+        #expect(Set(viewModel.allEpisodes.map(\.title)) == ["Existing Episode", "First Episode", "Second Episode"])
+        #expect(viewModel.feedSummaries[existingSubscription.id]?.title == "Existing")
+    }
+
     private func makeEpisode(id: String, subscription: FeedSubscription, title: String) -> Episode {
         Episode(
             id: id,

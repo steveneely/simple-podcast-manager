@@ -116,12 +116,18 @@ struct FeedSidebarView: View {
                 HoverIconButton(systemName: "plus", helpText: "Add show", action: onAdd)
                     .keyboardShortcut("n")
 
-                HoverIconButton(
-                    systemName: "arrow.clockwise",
-                    helpText: isRefreshing ? "Refreshing shows" : "Refresh shows",
-                    isDisabled: isRefreshing,
-                    action: onRefresh
-                )
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 24, height: 24)
+                        .help("Loading feeds")
+                } else {
+                    HoverIconButton(
+                        systemName: "arrow.clockwise",
+                        helpText: "Refresh shows",
+                        action: onRefresh
+                    )
+                }
             }
 
             List(selection: $selectedFeedID) {
@@ -145,9 +151,15 @@ struct FeedSidebarView: View {
                             }
 
                             let count = episodeCount(subscription)
-                            Text("\(count) episode\(count == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if isRefreshing && count == 0 {
+                                Text("Loading episodes…")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(count) episode\(count == 1 ? "" : "s")")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
 
                         Spacer(minLength: 8)

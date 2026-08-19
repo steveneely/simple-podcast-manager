@@ -21,6 +21,7 @@ After the first install, enable automatic checks in Settings or use `Simple Podc
 ## What It Does
 
 - Subscribe to podcasts with RSS feed URLs.
+- Import or export podcast subscriptions with standard OPML files.
 - Download episodes, embed podcast artwork, and optionally convert non-MP3 audio with `ffmpeg`.
 - Review file sizes and confirm the complete sync will fit before changing your MP3 player.
 - Copy downloaded episodes to the player and remove episodes you select.

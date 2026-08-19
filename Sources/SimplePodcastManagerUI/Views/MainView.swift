@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import SimplePodcastManagerCore
 
 public struct MainView: View {
@@ -30,6 +31,7 @@ public struct MainView: View {
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var appDataMessage: String?
+    @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
     @State private var insecureDownloadEpisode: Episode?
 
     public init(
@@ -88,6 +90,25 @@ public struct MainView: View {
         }
         .padding(20)
         .frame(minWidth: 720, minHeight: 460)
+        .overlay {
+            if let opmlImportPreview {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+
+                    OPMLImportReviewView(
+                        preview: opmlImportPreview,
+                        onCancel: { self.opmlImportPreview = nil },
+                        onImport: { try importOPMLSubscriptions(opmlImportPreview) }
+                    )
+                    .background(Color(NSColor.windowBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(radius: 18)
+                    .padding(24)
+                }
+            }
+        }
         .task {
             if !viewModel.hasLoadedConfiguration {
                 viewModel.load()
@@ -137,7 +158,9 @@ public struct MainView: View {
                 },
                 onAutomaticallyChecksForUpdatesChange: { isEnabled in
                     automaticallyChecksForUpdates?.wrappedValue = isEnabled
-                }
+                },
+                onBackUpAppData: exportAppData,
+                onRestoreAppData: importAppData
             )
         }
         .sheet(isPresented: $isShowingSyncDialog) {
@@ -146,11 +169,11 @@ public struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
             isShowingSettings = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerExportAppData)) { _ in
-            exportAppData()
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerExportSubscriptions)) { _ in
+            exportOPMLSubscriptions()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerImportAppData)) { _ in
-            importAppData()
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerImportSubscriptions)) { _ in
+            openOPMLSubscriptionImport()
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in
             handleDeviceTopologyChange()
@@ -332,12 +355,22 @@ public struct MainView: View {
 
                 if allEpisodes(for: selectedSubscription).isEmpty,
                    unmatchedDeviceFiles(for: selectedSubscription).isEmpty {
-                    ContentUnavailableView(
-                        "No Episodes Yet",
-                        systemImage: "waveform",
-                        description: Text("Refresh feeds to load the latest retained episodes for this show.")
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if feedPreviewViewModel.isLoading {
+                        VStack(spacing: 10) {
+                            ProgressView()
+                                .controlSize(.large)
+                            Text("Loading episodes…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ContentUnavailableView(
+                            "No Episodes Yet",
+                            systemImage: "waveform",
+                            description: Text("Refresh feeds to load the latest retained episodes for this show.")
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 } else {
                     List {
                         ForEach(displayedEpisodes(for: selectedSubscription)) { episode in
@@ -604,16 +637,14 @@ public struct MainView: View {
     @MainActor
     private func saveFeed(_ updatedDraft: FeedDraft) async throws {
         if updatedDraft.id == nil {
-            try await viewModel.addFeed(from: updatedDraft)
-        } else {
-            try await viewModel.updateFeed(from: updatedDraft)
+            let subscriptionID = try viewModel.addFeed(from: updatedDraft)
+            refreshAddedSubscriptions(withIDs: [subscriptionID])
+            return
         }
+
+        try await viewModel.updateFeed(from: updatedDraft)
         feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
         await refreshDeviceLibrary()
-
-        if selectedFeedID == nil {
-            selectedFeedID = viewModel.feedSubscriptions.first?.id
-        }
     }
 
     private func refreshFeedPreview() async {
@@ -626,6 +657,11 @@ public struct MainView: View {
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
     }
 
+    private func refreshFeedPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
+        await feedPreviewViewModel.refreshPreview(forNewSubscriptions: subscriptions)
+        viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+    }
+
     private func refreshAllContent() async {
         await refreshFeedPreview()
         await refreshDeviceLibrary()
@@ -634,6 +670,19 @@ public struct MainView: View {
     private func refreshContent(for subscription: FeedSubscription) async {
         await refreshFeedPreview(for: subscription)
         await refreshDeviceLibrary()
+    }
+
+    private func refreshAddedSubscriptions(withIDs subscriptionIDs: [FeedSubscription.ID]) {
+        guard !subscriptionIDs.isEmpty else { return }
+        let addedIDSet = Set(subscriptionIDs)
+        let addedSubscriptions = viewModel.feedSubscriptions.filter { addedIDSet.contains($0.id) }
+        guard !addedSubscriptions.isEmpty else { return }
+
+        selectedFeedID = subscriptionIDs[0]
+        Task {
+            await refreshFeedPreview(forNewSubscriptions: addedSubscriptions)
+            await refreshDeviceLibrary()
+        }
     }
 
     private func rebuildSyncPlan() {
@@ -666,7 +715,7 @@ public struct MainView: View {
 
     private func exportAppData() {
         let panel = NSSavePanel()
-        panel.title = "Export App Data"
+        panel.title = "Back Up App Data"
         panel.nameFieldStringValue = AppDataBackupService.defaultBackupFileName()
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
@@ -681,9 +730,77 @@ public struct MainView: View {
         }
     }
 
+    private func exportOPMLSubscriptions() {
+        let panel = NSSavePanel()
+        panel.title = "Export Podcast Subscriptions"
+        panel.nameFieldStringValue = "Simple Podcast Manager Subscriptions.opml"
+        panel.allowedContentTypes = [opmlContentType]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+
+        guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
+
+        do {
+            let data = OPMLSubscriptionService().exportSubscriptions(viewModel.feedSubscriptions)
+            try data.write(to: destinationURL, options: .atomic)
+            appDataMessage = "Exported podcast subscriptions to \(destinationURL.lastPathComponent)."
+        } catch {
+            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private var opmlContentType: UTType {
+        UTType(filenameExtension: "opml") ?? .xml
+    }
+
+    private func openOPMLSubscriptionImport() {
+        guard let window = NSApplication.shared.keyWindow ?? NSApplication.shared.mainWindow else {
+            appDataMessage = "Could not open the OPML file picker."
+            return
+        }
+
+        let panel = NSOpenPanel()
+        panel.title = "Import Podcast Subscriptions"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let sourceURL = panel.url else { return }
+            handleOPMLFile(at: sourceURL)
+        }
+    }
+
+    private func handleOPMLFile(at sourceURL: URL) {
+        do {
+            let canAccessURL = sourceURL.startAccessingSecurityScopedResource()
+            defer {
+                if canAccessURL {
+                    sourceURL.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let data = try Data(contentsOf: sourceURL)
+            let preview = try OPMLSubscriptionService().importPreview(
+                data: data,
+                existingSubscriptions: viewModel.feedSubscriptions
+            )
+            opmlImportPreview = preview
+        } catch {
+            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func importOPMLSubscriptions(_ preview: OPMLSubscriptionImportPreview) throws {
+        let addedSubscriptionIDs = try viewModel.importSubscriptions(preview.subscriptionsToAdd)
+        opmlImportPreview = nil
+        appDataMessage = "Added \(preview.subscriptionsToAdd.count) podcast subscription\(preview.subscriptionsToAdd.count == 1 ? "" : "s")."
+        refreshAddedSubscriptions(withIDs: addedSubscriptionIDs)
+    }
+
     private func importAppData() {
         let panel = NSOpenPanel()
-        panel.title = "Import App Data"
+        panel.title = "Restore App Data"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false

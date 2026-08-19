@@ -8,8 +8,16 @@ struct AppIdentityTests {
         let supportURL = AppIdentity.applicationSupportDirectory(
             bundleURL: URL(fileURLWithPath: "/Users/sneely/code/simple-podcast-manager/.build/debug/Simple Podcast Manager")
         )
+        let repositoryRootURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .resolvingSymlinksInPath()
+        let expectedURL = repositoryRootURL
+            .appending(path: AppIdentity.developmentDataDirectoryName, directoryHint: .isDirectory)
+            .appending(path: AppIdentity.supportDirectoryName, directoryHint: .isDirectory)
 
-        #expect(supportURL.path.hasSuffix("/simple-podcast-manager/.dev-data/SimplePodcastManager"))
+        #expect(supportURL == expectedURL)
     }
 
     @Test

@@ -1,5 +1,7 @@
-# Simple Podcast Manager v1.5.0
+# Simple Podcast Manager v1.6.0
 
-- Tries HTTPS before downloading any episode over an insecure HTTP connection.
-- Lets you allow an insecure download once or always after a clear warning.
-- Adds a Settings control for changing the saved HTTP download preference.
+- Imports podcast subscriptions from standard OPML files with a review step that skips duplicates.
+- Exports subscriptions as OPML for moving them to another podcast app.
+- Shows newly added and imported podcasts immediately while their episodes load in the background.
+- Keeps subscription transfer in the File menu and moves app backup and restore into Settings.
+- Includes HTTPS-first episode downloads and explicit approval before using insecure HTTP for users upgrading from before v1.5.0.

@@ -21,6 +21,8 @@ public struct SettingsView: View {
     private let onSave: (AppSettings, String?) throws -> Void
     private let onAppearancePreferencePreview: (AppearancePreference) -> Void
     private let onAutomaticallyChecksForUpdatesChange: (Bool) -> Void
+    private let onBackUpAppData: () -> Void
+    private let onRestoreAppData: () -> Void
     private let showsUpdateSettings: Bool
 
     private struct PendingSave {
@@ -38,7 +40,9 @@ public struct SettingsView: View {
         shouldConfirmPodcastDirectoryCreation: @escaping (String?) throws -> Bool = { _ in false },
         onSave: @escaping (AppSettings, String?) throws -> Void,
         onAppearancePreferencePreview: @escaping (AppearancePreference) -> Void = { _ in },
-        onAutomaticallyChecksForUpdatesChange: @escaping (Bool) -> Void = { _ in }
+        onAutomaticallyChecksForUpdatesChange: @escaping (Bool) -> Void = { _ in },
+        onBackUpAppData: @escaping () -> Void = {},
+        onRestoreAppData: @escaping () -> Void = {}
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
         self._appearancePreference = State(initialValue: settings.appearancePreference)
@@ -53,6 +57,8 @@ public struct SettingsView: View {
         self.onSave = onSave
         self.onAppearancePreferencePreview = onAppearancePreferencePreview
         self.onAutomaticallyChecksForUpdatesChange = onAutomaticallyChecksForUpdatesChange
+        self.onBackUpAppData = onBackUpAppData
+        self.onRestoreAppData = onRestoreAppData
         self.showsUpdateSettings = automaticallyChecksForUpdates != nil
     }
 
@@ -124,6 +130,18 @@ public struct SettingsView: View {
                             isOn: $automaticallyChecksForUpdates
                         )
                         .toggleStyle(.checkbox)
+                    }
+                }
+
+                LabeledField(title: "App Data") {
+                    HStack(spacing: 8) {
+                        Button("Back Up…", systemImage: "archivebox") {
+                            onBackUpAppData()
+                        }
+
+                        Button("Restore…", systemImage: "arrow.counterclockwise") {
+                            onRestoreAppData()
+                        }
                     }
                 }
 

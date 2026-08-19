@@ -43,7 +43,7 @@ struct MainViewModelTests {
             )
         )
 
-        try await viewModel.addFeed(
+        try viewModel.addFeed(
             from: FeedDraft(
                 rssURLString: "https://relay.fm/connected/feed"
             )
@@ -51,6 +51,7 @@ struct MainViewModelTests {
 
         #expect(viewModel.feedSubscriptions.count == 1)
         #expect(store.configuration.feedSubscriptions.count == 1)
+        #expect(viewModel.feedSubscriptions.first?.title == "relay.fm")
 
         let existingSubscription = try #require(viewModel.feedSubscriptions.first)
         try await viewModel.updateFeed(
@@ -74,6 +75,28 @@ struct MainViewModelTests {
     }
 
     @Test
+    func addFeedPersistsBeforeResolvingFeedMetadata() throws {
+        let store = InMemoryConfigurationStore()
+        let cacheStore = InMemoryFeedCacheStore()
+        let viewModel = MainViewModel(
+            store: store,
+            feedResolver: MockFeedResolver(summariesByURL: [:]),
+            feedCacheStore: cacheStore
+        )
+
+        let subscriptionID = try viewModel.addFeed(
+            from: FeedDraft(rssURLString: "https://www.example.com/podcast.xml")
+        )
+
+        let subscription = try #require(viewModel.feedSubscriptions.first)
+        #expect(subscription.id == subscriptionID)
+        #expect(subscription.title == "example.com")
+        #expect(subscription.rssURL.absoluteString == "https://www.example.com/podcast.xml")
+        #expect(store.configuration.feedSubscriptions == [subscription])
+        #expect(cacheStore.savedFeeds.isEmpty)
+    }
+
+    @Test
     func settingsMutationsPersist() throws {
         let store = InMemoryConfigurationStore()
         let viewModel = MainViewModel(store: store)
@@ -90,6 +113,37 @@ struct MainViewModelTests {
         #expect(viewModel.settings.appearancePreference == .dark)
         #expect(viewModel.settings.allowsInsecureEpisodeDownloads)
         #expect(store.configuration.settings == viewModel.settings)
+    }
+
+    @Test
+    func importSubscriptionsPersistsNewSubscriptionsAndLeavesConflictingImportAtomic() throws {
+        let existingURL = URL(string: "https://example.com/existing.xml")!
+        let newURL = URL(string: "https://example.com/new.xml")!
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(
+                feedSubscriptions: [
+                    FeedSubscription(title: "Existing", rssURL: existingURL)
+                ]
+            )
+        )
+        let viewModel = MainViewModel(store: store)
+        viewModel.load()
+
+        let addedSubscriptionIDs = try viewModel.importSubscriptions([
+            OPMLSubscription(title: "New", rssURL: newURL)
+        ])
+
+        #expect(viewModel.feedSubscriptions.map(\.title) == ["Existing", "New"])
+        #expect(store.configuration.feedSubscriptions.map(\.rssURL) == [existingURL, newURL])
+        #expect(addedSubscriptionIDs == [viewModel.feedSubscriptions[1].id])
+
+        #expect(throws: MainViewModelError.duplicateSubscription) {
+            try viewModel.importSubscriptions([
+                OPMLSubscription(title: "Another New", rssURL: URL(string: "https://example.com/another.xml")!),
+                OPMLSubscription(title: "Duplicate", rssURL: existingURL),
+            ])
+        }
+        #expect(store.configuration.feedSubscriptions.map(\.rssURL) == [existingURL, newURL])
     }
 
     @Test

@@ -3,18 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.4.5</title>
-            <pubDate>Wed, 29 Jul 2026 22:26:49 -0600</pubDate>
-            <sparkle:version>53</sparkle:version>
-            <sparkle:shortVersionString>1.4.5</sparkle:shortVersionString>
+            <title>1.5.0</title>
+            <pubDate>Tue, 18 Aug 2026 18:39:44 -0600</pubDate>
+            <sparkle:version>54</sparkle:version>
+            <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.4.5
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.5.0
 
-- Removes excess empty space around the Other Audio section.
-- Keeps longer Other Audio lists compact and scrollable.
+- Tries HTTPS before downloading any episode over an insecure HTTP connection.
+- Lets you allow an insecure download once or always after a clear warning.
+- Adds a Settings control for changing the saved HTTP download preference.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.4.5/SimplePodcastManager-v1.4.5.dmg" length="4978592" type="application/octet-stream" sparkle:edSignature="AKlN7qk93tgUGv8LM2TYoUVRapH/TprkzYHNUDOXYW5hcijPBr+1cfl0hGGgO0zJ4/49LjfmhUY00TjcdKqHDw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.5.0/SimplePodcastManager-v1.5.0.dmg" length="4997206" type="application/octet-stream" sparkle:edSignature="KeD8pHjZHMJYPfH5ll9BcdutU7LifXfPZ5yd/7tdTyTx/6rqvZmH+5clMz3DfqM1tBLZ1lseL7uSqX65mMJ/Bw=="/>
         </item>
     </channel>
 </rss>

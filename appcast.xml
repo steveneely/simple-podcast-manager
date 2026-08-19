@@ -3,21 +3,17 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.9.0</title>
-            <pubDate>Wed, 19 Aug 2026 15:20:26 -0600</pubDate>
-            <sparkle:version>65</sparkle:version>
-            <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+            <title>1.9.1</title>
+            <pubDate>Wed, 19 Aug 2026 15:53:12 -0600</pubDate>
+            <sparkle:version>66</sparkle:version>
+            <sparkle:shortVersionString>1.9.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.9.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.9.1
 
-- Automatically prepares the latest 1, 2, 3, or all new episodes after feed refreshes.
-- Sets a first-refresh baseline so existing feed backlogs are not downloaded.
-- Lets each show opt out of automatic downloads or be disabled entirely.
-- Keeps device sync manual so every copy and deletion can still be reviewed.
-- Groups Refresh, Edit, and Remove controls under the selected show.
+- Asks for confirmation before deleting a podcast feed.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.9.0/SimplePodcastManager-v1.9.0.dmg" length="6938976" type="application/octet-stream" sparkle:edSignature="lnOcArBeqEfpltrHER5OONQZYcTpKIoXIILMlI3zxRNLicLjCvf7cC1Ft1h02ncRk+7dv2dHsGKvkMvaS/P3AA=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.9.1/SimplePodcastManager-v1.9.1.dmg" length="6950678" type="application/octet-stream" sparkle:edSignature="kAdkgKkSBhv0BpwExO8lbERy1iT5PBAgSfm3cGV1dWhj40mCkIT4S4NzsO49q6uIs6mvrk02ZKjVx/KYn4K6Bw=="/>
         </item>
     </channel>
 </rss>

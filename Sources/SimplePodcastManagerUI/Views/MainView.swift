@@ -69,7 +69,6 @@ public struct MainView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            header
             deviceSection
 
             if viewModel.hasFeeds {
@@ -104,6 +103,20 @@ public struct MainView: View {
         }
         .padding(20)
         .frame(minWidth: 720, minHeight: 460)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                if preparationPreviewViewModel.isPreparing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(globalDownloadStatusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
         .overlay {
             if let opmlImportPreview {
                 ZStack {
@@ -245,28 +258,6 @@ public struct MainView: View {
             }
         } message: { episode in
             Text("Some files for “\(episode.title)” are only available over unencrypted HTTP. The audio or artwork could be intercepted or changed in transit. Simple Podcast Manager tried HTTPS first.")
-        }
-    }
-
-    private var header: some View {
-        HStack(alignment: .center) {
-            Text("Simple Podcast Manager")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-
-            Spacer()
-
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text(globalDownloadStatusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 130, alignment: .trailing)
-            .opacity(preparationPreviewViewModel.isPreparing ? 1 : 0)
-            .accessibilityHidden(!preparationPreviewViewModel.isPreparing)
-            .animation(.easeInOut(duration: 0.15), value: preparationPreviewViewModel.isPreparing)
         }
     }
 

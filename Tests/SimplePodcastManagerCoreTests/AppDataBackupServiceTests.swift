@@ -24,6 +24,9 @@ struct AppDataBackupServiceTests {
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "downloaded-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "removed-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "automatic-downloads.json").path))
+        #expect(try JSONDownloadedEpisodeStore(
+            fileURL: backupURL.appending(path: "downloaded-episodes.json")
+        ).loadDownloadedEpisodes().map(\.episodeID) == ["episode-1"])
 
         let manifestData = try Data(contentsOf: backupURL.appending(path: "manifest.json"))
         let manifest = try JSONDecoder.iso8601Decoder.decode(AppDataBackupManifest.self, from: manifestData)
@@ -62,8 +65,9 @@ struct AppDataBackupServiceTests {
             fileURL: destinationSupportURL.appending(path: "config.json")
         ).loadConfiguration()
         #expect(restoredConfiguration.feedSubscriptions.map(\.title) == ["Example Podcast"])
-        let restoredDownloadHistory = try JSONDownloadedEpisodeStore(
-            fileURL: destinationSupportURL.appending(path: "downloaded-episodes.json")
+        let restoredDownloadHistory = try SQLiteEpisodeStore(
+            fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: destinationSupportURL
         ).loadDownloadedEpisodes()
         #expect(restoredDownloadHistory.map(\.episodeID) == ["episode-1"])
         let restoredAutomaticDownloadState = try JSONAutomaticDownloadStateStore(
@@ -96,6 +100,75 @@ struct AppDataBackupServiceTests {
         #expect(throws: AppDataBackupError.unknownFiles(["../secret.txt"])) {
             try service.importBackup(from: backupURL)
         }
+    }
+
+    @Test
+    func failedImportLeavesExistingDatabaseDataUntouched() throws {
+        let testRootURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let supportURL = testRootURL.appending(path: "Support", directoryHint: .isDirectory)
+        let backupURL = testRootURL.appending(path: "BadBackup.spmbackup", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: testRootURL) }
+
+        try writeSampleAppData(to: supportURL)
+        let episodeStore = SQLiteEpisodeStore(
+            fileURL: supportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: supportURL
+        )
+        #expect(try episodeStore.loadDownloadedEpisodes().map(\.episodeID) == ["episode-1"])
+
+        try FileManager.default.createDirectory(at: backupURL, withIntermediateDirectories: true)
+        let manifest = AppDataBackupManifest(
+            appName: AppIdentity.displayName,
+            formatVersion: 1,
+            exportedAt: Date(timeIntervalSince1970: 0),
+            files: ["downloaded-episodes.json"]
+        )
+        try JSONEncoder.iso8601Encoder.encode(manifest).write(to: backupURL.appending(path: "manifest.json"))
+        try Data("not json".utf8).write(to: backupURL.appending(path: "downloaded-episodes.json"))
+
+        let service = AppDataBackupService(
+            supportDirectoryURL: supportURL,
+            episodeStore: episodeStore
+        )
+        #expect(throws: (any Error).self) {
+            try service.importBackup(from: backupURL)
+        }
+        #expect(try episodeStore.loadDownloadedEpisodes().map(\.episodeID) == ["episode-1"])
+    }
+
+    @Test
+    func importingBackupWithoutEpisodeFilesClearsDatabaseHistory() throws {
+        let testRootURL = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let supportURL = testRootURL.appending(path: "Support", directoryHint: .isDirectory)
+        let backupURL = testRootURL.appending(path: "SettingsOnly.spmbackup", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: testRootURL) }
+
+        try writeSampleAppData(to: supportURL)
+        let episodeStore = SQLiteEpisodeStore(
+            fileURL: supportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: supportURL
+        )
+        #expect(try episodeStore.loadDownloadedEpisodes().count == 1)
+
+        try FileManager.default.createDirectory(at: backupURL, withIntermediateDirectories: true)
+        let configurationData = try Data(contentsOf: supportURL.appending(path: "config.json"))
+        try configurationData.write(to: backupURL.appending(path: "config.json"))
+        let manifest = AppDataBackupManifest(
+            appName: AppIdentity.displayName,
+            formatVersion: 1,
+            exportedAt: Date(timeIntervalSince1970: 0),
+            files: ["config.json"]
+        )
+        try JSONEncoder.iso8601Encoder.encode(manifest).write(to: backupURL.appending(path: "manifest.json"))
+
+        _ = try AppDataBackupService(
+            supportDirectoryURL: supportURL,
+            episodeStore: episodeStore
+        ).importBackup(from: backupURL)
+
+        #expect(try episodeStore.loadPreparedEpisodes().isEmpty)
+        #expect(try episodeStore.loadDownloadedEpisodes().isEmpty)
+        #expect(try episodeStore.loadRemovedEpisodes().isEmpty)
     }
 
     private func writeSampleAppData(to supportURL: URL) throws {

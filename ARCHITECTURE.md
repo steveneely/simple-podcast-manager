@@ -145,6 +145,20 @@ Refresh behavior:
 
 The feed cache is derived data. It should not be included in app data export/import, and deleting or retargeting a subscription should remove its stale cache file.
 
+## Local Persistence
+
+Small configuration data remains in `config.json`. Growing episode state is stored in `episodes.sqlite3` through GRDB and the SQLite library supplied by macOS:
+
+- prepared episodes
+- download history
+- removal history
+
+Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
+
+On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. The import marker is written only after every file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
+
+App data backups remain version-1 JSON directories. Export reads current database records into the established JSON files, so v1.8 backups remain readable by earlier releases. Restore validates the complete backup before changing live data, writes all episode collections in one database transaction, and restores the previous snapshot if applying the backup fails.
+
 ## Automatic Downloads
 
 Automatic downloads run after startup, full, targeted, and new-subscription refreshes. They prepare files on the Mac but do not start a device sync.

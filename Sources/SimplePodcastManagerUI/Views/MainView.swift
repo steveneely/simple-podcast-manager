@@ -128,13 +128,13 @@ public struct MainView: View {
                 appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
             }
             if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
-                preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+                await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
             }
             if !automaticDownloadViewModel.hasLoadedState {
                 automaticDownloadViewModel.load()
             }
             if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
-                removedEpisodeHistoryViewModel.load()
+                await removedEpisodeHistoryViewModel.load()
             }
             if selectedFeedID == nil {
                 selectedFeedID = viewModel.feedSubscriptions.first?.id
@@ -810,11 +810,15 @@ public struct MainView: View {
 
         guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
 
-        do {
-            let backupURL = try AppDataBackupService().exportBackup(to: destinationURL)
-            appDataMessage = "Exported app data to \(backupURL.lastPathComponent)."
-        } catch {
-            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        Task {
+            do {
+                let backupURL = try await Task.detached {
+                    try AppDataBackupService().exportBackup(to: destinationURL)
+                }.value
+                appDataMessage = "Exported app data to \(backupURL.lastPathComponent)."
+            } catch {
+                appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
         }
     }
 
@@ -894,32 +898,65 @@ public struct MainView: View {
         panel.allowsMultipleSelection = false
 
         guard panel.runModal() == .OK, let backupURL = panel.url else { return }
+        guard confirmsAppDataRestore(from: backupURL) else { return }
+        appDataMessage = nil
 
-        do {
-            let previousBackupURL = try AppDataBackupService().importBackup(from: backupURL)
-            reloadAppData()
-            if let previousBackupURL {
-                appDataMessage = "Imported app data. Previous data was backed up to \(previousBackupURL.lastPathComponent)."
-            } else {
-                appDataMessage = "Imported app data."
+        Task {
+            do {
+                let previousBackupURL = try await Task.detached {
+                    try AppDataBackupService().importBackup(from: backupURL)
+                }.value
+                await reloadAppData()
+                appDataMessage = nil
+                showAppDataRestoreSuccess(previousBackupURL: previousBackupURL)
+            } catch {
+                appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
-        } catch {
-            appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
-    private func reloadAppData() {
+    private func confirmsAppDataRestore(from backupURL: URL) -> Bool {
+        let confirmation = AppDataRestoreConfirmation(backupURL: backupURL)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = confirmation.title
+        alert.informativeText = confirmation.message
+        alert.addButton(withTitle: confirmation.cancelButtonTitle)
+        let restoreButton = alert.addButton(withTitle: confirmation.restoreButtonTitle)
+        restoreButton.hasDestructiveAction = true
+        return alert.runModal() == .alertSecondButtonReturn
+    }
+
+    private func showAppDataRestoreSuccess(previousBackupURL: URL?) {
+        let success = AppDataRestoreSuccess(previousBackupURL: previousBackupURL)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = success.title
+        alert.informativeText = success.message
+        alert.addButton(withTitle: success.doneButtonTitle)
+
+        if let previousBackupURL = success.previousBackupURL {
+            alert.addButton(withTitle: success.showBackupButtonTitle)
+            if alert.runModal() == .alertSecondButtonReturn {
+                NSWorkspace.shared.activateFileViewerSelecting([previousBackupURL])
+            }
+        } else {
+            alert.runModal()
+        }
+    }
+
+    private func reloadAppData() async {
         viewModel.load()
-        preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+        await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
         automaticDownloadViewModel.load()
-        removedEpisodeHistoryViewModel.load()
+        await removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
         visibleEpisodeCountsByFeedID = [:]
         expandedEpisodeIDs = []
         expandedDescriptionFeedIDs = []
-        Task { await refreshAllContent() }
+        await refreshAllContent()
     }
 
     private func deleteFeeds(at offsets: IndexSet) {

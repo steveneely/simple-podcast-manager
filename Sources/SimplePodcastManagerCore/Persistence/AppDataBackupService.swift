@@ -5,13 +5,20 @@ public struct AppDataBackupService {
 
     private let supportDirectoryURL: URL
     private let fileManager: FileManager
+    private let episodeStore: SQLiteEpisodeStore
 
     public init(
         supportDirectoryURL: URL = AppIdentity.applicationSupportDirectory(),
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        episodeStore: SQLiteEpisodeStore? = nil
     ) {
         self.supportDirectoryURL = supportDirectoryURL
         self.fileManager = fileManager
+        self.episodeStore = episodeStore ?? SQLiteEpisodeStore(
+            fileURL: supportDirectoryURL.appending(path: "episodes.sqlite3", directoryHint: .notDirectory),
+            supportDirectoryURL: supportDirectoryURL,
+            fileManager: fileManager
+        )
     }
 
     public func exportBackup(to destinationURL: URL, exportedAt: Date = Date()) throws -> URL {
@@ -19,32 +26,9 @@ public struct AppDataBackupService {
         if fileManager.fileExists(atPath: backupURL.path) {
             try fileManager.removeItem(at: backupURL)
         }
-        try fileManager.createDirectory(at: backupURL, withIntermediateDirectories: true)
 
-        var includedFiles: [String] = []
-        for fileName in Self.backedUpFileNames {
-            let sourceURL = supportDirectoryURL.appending(path: fileName, directoryHint: .notDirectory)
-            guard fileManager.fileExists(atPath: sourceURL.path) else { continue }
-            try validate(fileName: fileName, at: sourceURL)
-            try fileManager.copyItem(
-                at: sourceURL,
-                to: backupURL.appending(path: fileName, directoryHint: .notDirectory)
-            )
-            includedFiles.append(fileName)
-        }
-
-        let manifest = AppDataBackupManifest(
-            appName: AppIdentity.displayName,
-            formatVersion: 1,
-            exportedAt: exportedAt,
-            files: includedFiles.sorted()
-        )
-        let manifestData = try AppJSONCoding.makeEncoder().encode(manifest)
-        try manifestData.write(
-            to: backupURL.appending(path: Self.manifestFileName, directoryHint: .notDirectory),
-            options: .atomic
-        )
-
+        let snapshot = try currentSnapshot()
+        try write(snapshot, to: backupURL, exportedAt: exportedAt)
         return backupURL
     }
 
@@ -60,20 +44,15 @@ public struct AppDataBackupService {
             try validate(fileName: fileName, at: backupURL.appending(path: fileName, directoryHint: .notDirectory))
         }
 
-        let previousBackupURL = try backupExistingData(importedAt: importedAt)
-        try fileManager.createDirectory(at: supportDirectoryURL, withIntermediateDirectories: true)
+        let importedSnapshot = try snapshot(at: backupURL, includedFiles: files)
+        let existingSnapshot = try currentSnapshot()
+        let previousBackupURL = try backupExistingData(existingSnapshot, importedAt: importedAt)
 
-        for fileName in Self.backedUpFileNames {
-            let destinationURL = supportDirectoryURL.appending(path: fileName, directoryHint: .notDirectory)
-            if fileManager.fileExists(atPath: destinationURL.path) {
-                try fileManager.removeItem(at: destinationURL)
-            }
-
-            guard files.contains(fileName) else { continue }
-            try fileManager.copyItem(
-                at: backupURL.appending(path: fileName, directoryHint: .notDirectory),
-                to: destinationURL
-            )
+        do {
+            try apply(importedSnapshot)
+        } catch {
+            try? apply(existingSnapshot)
+            throw error
         }
 
         return previousBackupURL
@@ -81,6 +60,111 @@ public struct AppDataBackupService {
 
     public static func defaultBackupFileName(date: Date = Date()) -> String {
         "SimplePodcastManager-Backup-\(backupDateFormatter.string(from: date)).\(backupPathExtension)"
+    }
+
+    private func currentSnapshot() throws -> AppDataSnapshot {
+        let configurationURL = supportDirectoryURL.appending(path: "config.json", directoryHint: .notDirectory)
+        let configurationData = fileManager.fileExists(atPath: configurationURL.path)
+            ? try Data(contentsOf: configurationURL)
+            : nil
+        if configurationData != nil {
+            try validate(fileName: "config.json", at: configurationURL)
+        }
+
+        let episodeData = try episodeStore.loadAllEpisodeData()
+        return AppDataSnapshot(
+            configurationData: configurationData,
+            preparedEpisodes: episodeData.preparedEpisodes,
+            downloadedEpisodes: episodeData.downloadedEpisodes,
+            removedEpisodes: episodeData.removedEpisodes
+        )
+    }
+
+    private func snapshot(at directoryURL: URL, includedFiles: Set<String>) throws -> AppDataSnapshot {
+        func decode<Value: Decodable>(_ type: Value.Type, fileName: String, defaultValue: Value) throws -> Value {
+            guard includedFiles.contains(fileName) else { return defaultValue }
+            let data = try Data(contentsOf: directoryURL.appending(path: fileName, directoryHint: .notDirectory))
+            return try AppJSONCoding.makeDecoder().decode(type, from: data)
+        }
+
+        let configurationData = includedFiles.contains("config.json")
+            ? try Data(contentsOf: directoryURL.appending(path: "config.json", directoryHint: .notDirectory))
+            : nil
+        return try AppDataSnapshot(
+            configurationData: configurationData,
+            preparedEpisodes: decode([PreparedEpisode].self, fileName: "prepared-episodes.json", defaultValue: []),
+            downloadedEpisodes: decode([DownloadedEpisodeRecord].self, fileName: "downloaded-episodes.json", defaultValue: []),
+            removedEpisodes: decode([RemovedEpisodeRecord].self, fileName: "removed-episodes.json", defaultValue: [])
+        )
+    }
+
+    private func apply(_ snapshot: AppDataSnapshot) throws {
+        try fileManager.createDirectory(at: supportDirectoryURL, withIntermediateDirectories: true)
+        try episodeStore.replaceAllEpisodeData(
+            preparedEpisodes: snapshot.preparedEpisodes,
+            downloadedEpisodes: snapshot.downloadedEpisodes,
+            removedEpisodes: snapshot.removedEpisodes
+        )
+
+        let configurationURL = supportDirectoryURL.appending(path: "config.json", directoryHint: .notDirectory)
+        if let configurationData = snapshot.configurationData {
+            try configurationData.write(to: configurationURL, options: .atomic)
+        } else if fileManager.fileExists(atPath: configurationURL.path) {
+            try fileManager.removeItem(at: configurationURL)
+        }
+    }
+
+    private func write(_ snapshot: AppDataSnapshot, to directoryURL: URL, exportedAt: Date) throws {
+        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+        var includedFiles = Set<String>()
+        if let configurationData = snapshot.configurationData {
+            try configurationData.write(
+                to: directoryURL.appending(path: "config.json", directoryHint: .notDirectory),
+                options: .atomic
+            )
+            includedFiles.insert("config.json")
+        }
+
+        try write(snapshot.preparedEpisodes, fileName: "prepared-episodes.json", to: directoryURL)
+        try write(snapshot.downloadedEpisodes, fileName: "downloaded-episodes.json", to: directoryURL)
+        try write(snapshot.removedEpisodes, fileName: "removed-episodes.json", to: directoryURL)
+        includedFiles.formUnion(Self.episodeFileNames)
+
+        let manifest = AppDataBackupManifest(
+            appName: AppIdentity.displayName,
+            formatVersion: 1,
+            exportedAt: exportedAt,
+            files: includedFiles.sorted()
+        )
+        let manifestData = try AppJSONCoding.makeEncoder().encode(manifest)
+        try manifestData.write(
+            to: directoryURL.appending(path: Self.manifestFileName, directoryHint: .notDirectory),
+            options: .atomic
+        )
+    }
+
+    private func write<Value: Encodable>(_ value: Value, fileName: String, to directoryURL: URL) throws {
+        let data = try AppJSONCoding.makeEncoder().encode(value)
+        try data.write(
+            to: directoryURL.appending(path: fileName, directoryHint: .notDirectory),
+            options: .atomic
+        )
+    }
+
+    private func backupExistingData(_ snapshot: AppDataSnapshot, importedAt: Date) throws -> URL? {
+        guard snapshot.hasData else { return nil }
+
+        let backupDirectoryURL = supportDirectoryURL.appending(path: "ImportBackups", directoryHint: .isDirectory)
+        let backupURL = backupDirectoryURL.appending(
+            path: "BeforeImport-\(Self.backupDateFormatter.string(from: importedAt))",
+            directoryHint: .isDirectory
+        )
+        if fileManager.fileExists(atPath: backupURL.path) {
+            try fileManager.removeItem(at: backupURL)
+        }
+        try write(snapshot, to: backupURL, exportedAt: importedAt)
+        return backupURL
     }
 
     private func normalizedBackupURL(for destinationURL: URL) -> URL {
@@ -96,7 +180,10 @@ public struct AppDataBackupService {
             throw AppDataBackupError.missingManifest
         }
 
-        let manifest = try AppJSONCoding.makeDecoder().decode(AppDataBackupManifest.self, from: Data(contentsOf: manifestURL))
+        let manifest = try AppJSONCoding.makeDecoder().decode(
+            AppDataBackupManifest.self,
+            from: Data(contentsOf: manifestURL)
+        )
         guard manifest.appName == AppIdentity.displayName else {
             throw AppDataBackupError.invalidManifest
         }
@@ -134,36 +221,14 @@ public struct AppDataBackupService {
         }
     }
 
-    private func backupExistingData(importedAt: Date) throws -> URL? {
-        let existingFileNames = Self.backedUpFileNames.filter {
-            fileManager.fileExists(atPath: supportDirectoryURL.appending(path: $0, directoryHint: .notDirectory).path)
-        }
-        guard !existingFileNames.isEmpty else { return nil }
-
-        let backupDirectoryURL = supportDirectoryURL.appending(path: "ImportBackups", directoryHint: .isDirectory)
-        let backupURL = backupDirectoryURL.appending(
-            path: "BeforeImport-\(Self.backupDateFormatter.string(from: importedAt))",
-            directoryHint: .isDirectory
-        )
-        try fileManager.createDirectory(at: backupURL, withIntermediateDirectories: true)
-
-        for fileName in existingFileNames {
-            try fileManager.copyItem(
-                at: supportDirectoryURL.appending(path: fileName, directoryHint: .notDirectory),
-                to: backupURL.appending(path: fileName, directoryHint: .notDirectory)
-            )
-        }
-        return backupURL
-    }
-
     private static let manifestFileName = "manifest.json"
-    private static let backedUpFileNames: Set<String> = [
-        "config.json",
+    private static let episodeFileNames: Set<String> = [
         "prepared-episodes.json",
         "downloaded-episodes.json",
         "removed-episodes.json",
         "automatic-downloads.json",
     ]
+    private static let backedUpFileNames = episodeFileNames.union(["config.json"])
 
     private static let backupDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -173,6 +238,20 @@ public struct AppDataBackupService {
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         return formatter
     }()
+}
+
+private struct AppDataSnapshot {
+    var configurationData: Data?
+    var preparedEpisodes: [PreparedEpisode]
+    var downloadedEpisodes: [DownloadedEpisodeRecord]
+    var removedEpisodes: [RemovedEpisodeRecord]
+
+    var hasData: Bool {
+        configurationData != nil
+            || !preparedEpisodes.isEmpty
+            || !downloadedEpisodes.isEmpty
+            || !removedEpisodes.isEmpty
+    }
 }
 
 public struct AppDataBackupManifest: Codable, Equatable, Sendable {

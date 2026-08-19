@@ -96,7 +96,7 @@ struct RemovedEpisodeHistoryViewModelTests {
     }
 
     @Test
-    func removedRecordMatchesWhenFeedTitleChangesAfterDeletion() {
+    func removedRecordMatchesWhenFeedTitleChangesAfterDeletion() async {
         let subscriptionID = UUID(uuidString: "BECA0000-0000-0000-0000-000000000001")!
         let removedAt = Date(timeIntervalSince1970: 1_716_500_000)
         let deletedPublicationDate = makeDate(year: 2026, month: 5, day: 20, hour: 0, minute: 0)
@@ -114,7 +114,7 @@ struct RemovedEpisodeHistoryViewModelTests {
             )
         ]
         let viewModel = RemovedEpisodeHistoryViewModel(store: store)
-        viewModel.load()
+        await viewModel.load()
 
         let currentFeedEpisode = Episode(
             id: "f13f98bc-c872-459f-ad59-c8200210d878",

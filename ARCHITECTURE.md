@@ -25,14 +25,14 @@ The UI should not contain sync logic. It should call focused core services and r
 ### UI Layer
 
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
-- `MainView`: primary single-window interface
+- `MainView`: primary single-window interface; shows device status and the last completed sync
 - `FeedEditorView`: add or edit feeds
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: app preferences, device podcast folder, app data backup and restore
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `SyncPlanViewModel`: build the full-device plan shown before execution
-- `SyncExecutionViewModel`: execute the selected plan and expose progress/state
+- `SyncExecutionViewModel`: execute the selected plan and expose progress in the sync dialog
 - `DeviceViewModel`: monitor device availability and selected target
 - `DeviceLibraryViewModel`: inspect app-managed files already on the selected device
 - `AppUpdater`: app-target wrapper around Sparkle for installed-app updates; disabled for local `swift run` builds
@@ -93,6 +93,8 @@ If the secure attempt fails, the UI asks before downloading over HTTP. A one-tim
 ## RSS Subscription
 
 Subscriptions are RSS-first. The add/edit flow captures a feed URL, resolves title and artwork metadata from the feed, and stores the subscription.
+
+The app expects RSS and calls FeedKit's RSS-specific parser directly. It does not use FeedKit's universal format detection.
 
 The new-subscription flow should be:
 
@@ -158,14 +160,7 @@ Selection behavior:
 - if multiple valid devices are present, require user selection
 - if no valid device is present, disable sync
 
-Validation gates before mutation:
-
-- the device root must still be mounted
-- `.spmconfig` writes must resolve to exactly `[device root]/.spmconfig`
-- podcast media writes and deletes must resolve inside the configured podcast sync target
-- configured podcast paths must be relative paths inside the mounted device
-- no other device-root files or sibling folders may be written or deleted
-- any uncertain or malformed path must abort the destructive portion of the run
+Every mutation must pass the safety boundaries below. Uncertain or malformed paths stop the operation.
 
 The app does not require manufacturer-specific identification beyond these rules.
 
@@ -181,7 +176,8 @@ This layout makes ownership safer than a flat directory.
 
 Delete behavior:
 
-- only delete files automatically when the app can confidently associate them with a configured feed
+- never schedule a deletion unless the user selected that file
+- identify app-managed episodes from their podcast folder and filename metadata
 - only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation
 - never bulk-delete by loose pattern matching
 - prefer exact planned file URLs over directory-wide operations
@@ -194,6 +190,8 @@ All synced output on the device should be MP3.
 - otherwise convert it through `ffmpeg`
 - finalize every MP3 with a small, deterministic ID3v2.3 tag using the RSS episode and podcast titles, plus prepared cover art when available
 - Settings can prefix `TIT2` with the RSS publication date in fixed `MM.dd` format; this applies only to new downloads
+- keep Unicode in ID3 text, including characters such as `ö` and `ß`
+- use printable ASCII for device filenames, prefixed with `yyyy.MM.dd` when the publication date is available and suffixed with the podcast title
 - use `ffmpeg` only to convert audio; native Swift code handles MP3 metadata consistently afterward
 - conversion happens in the app's local media workspace on the Mac before copy-to-device
 
@@ -221,27 +219,12 @@ Update design:
 
 Do not keep a parallel GitHub-release update checker in the app UI. Sparkle owns installed-app update behavior.
 
-## Safety Model
+## Safety Boundaries
 
-These rules are non-negotiable:
+All device mutations pass through `SafetyValidator` and the scoped file services.
 
-- only modify files on the external device
-- only write `.spmconfig` at `[device root]/.spmconfig` for app-managed device configuration, including the podcast target folder
-- only write podcast media inside the configured podcast directory, defaulting to `[device root]/music`
-- only delete app-managed podcast files automatically inside the configured podcast directory
-- only delete other audio inside that directory after explicit per-file user selection and confirmation
-- never touch the Mac's local Trash
-- never modify other device-root files or other folders on the device
-- never delete outside the configured podcast directory
-- refuse mutation if the device path cannot be proven safe
-
-## Technology Choices
-
-- all Swift implementation
-- `SwiftUI` UI
-- single main window
-- JSON or plist-backed local config storage
-- direct RSS entry as the subscription path
-- feed title and artwork resolved from RSS metadata
-- per-podcast subfolders under the configured device podcast directory
-- optional `ffmpeg` invoked with `Process`
+- write `.spmconfig` only at `[device root]/.spmconfig`
+- write and delete podcast media only inside the configured podcast directory, which defaults to `[device root]/music`
+- delete files only after explicit selection; other audio also requires confirmation
+- never touch the Mac's Trash, sibling device folders, or other files at the device root
+- refuse the mutation when a path cannot be proven safe

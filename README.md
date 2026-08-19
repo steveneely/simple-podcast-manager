@@ -4,29 +4,25 @@
   <img src="Packaging/AppIcon.png" alt="Simple Podcast Manager icon" width="128">
 </p>
 
-Simple Podcast Manager is a native macOS app for a plain RSS-to-MP3-player workflow:
+Simple Podcast Manager is a native macOS app that downloads podcast episodes from RSS feeds and syncs them to a standalone MP3 player.
 
-plug in device -> click sync -> done
-
-It uses podcast RSS feeds directly, downloads episodes to your Mac, and syncs them to a standalone MP3 player.
+Plug in your player, click Sync, and you're done.
 
 ## Install
 
 Download the DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag `Simple Podcast Manager.app` to Applications.
 
-Current prerelease builds are not Developer ID signed or notarized yet, so macOS may ask you to approve opening the app manually.
+The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, allow it in System Settings > Privacy & Security.
 
 After the first install, enable automatic checks in Settings or use `Simple Podcast Manager > Check for Updates…` for an immediate check.
 
 ## What It Does
 
-- Subscribe to podcasts with RSS feed URLs.
-- Import or export podcast subscriptions with standard OPML files.
-- Download episodes, embed podcast artwork, and optionally convert non-MP3 audio with `ffmpeg`.
-- Review file sizes and confirm the complete sync will fit before changing your MP3 player.
-- Copy downloaded episodes to the player and remove episodes you select.
-- Remember downloaded and removed episodes.
-- Back up and restore your subscriptions, settings, and history.
+- Add podcasts with RSS feed URLs or import subscriptions from OPML.
+- Download episodes, add podcast artwork, and convert non-MP3 audio with `ffmpeg` when needed.
+- Review every copy and deletion before sync and confirm the complete plan will fit.
+- Remember download and removal history.
+- Export subscriptions or back up the app's settings and history.
 
 The app runs locally on your Mac and reads podcasts directly from their RSS feeds.
 
@@ -50,10 +46,10 @@ Run from source:
 swift run "Simple Podcast Manager"
 ```
 
-Build a local DMG:
+Build a local DMG without generating a Sparkle appcast:
 
 ```bash
-./scripts/build-release.sh
+SKIP_SPARKLE_APPCAST=1 ./scripts/build-release.sh
 ```
 
 ## License

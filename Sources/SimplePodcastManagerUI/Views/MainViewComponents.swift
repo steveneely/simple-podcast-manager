@@ -103,6 +103,7 @@ struct FeedSidebarView: View {
     let allowsInsecureArtwork: (FeedSubscription) -> Bool
     let onAdd: () -> Void
     let onRefresh: () -> Void
+    let onRefreshSubscription: (FeedSubscription) -> Void
     let onEdit: (FeedSubscription) -> Void
     let onDelete: (FeedSubscription) -> Void
     let onDeleteOffsets: (IndexSet) -> Void
@@ -167,7 +168,20 @@ struct FeedSidebarView: View {
                         Spacer(minLength: 8)
 
                         if selectedFeedID == subscription.id {
-                            HStack(spacing: 8) {
+                            HStack(spacing: 4) {
+                                if isRefreshing {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .frame(width: 28, height: 28)
+                                        .help("Refreshing")
+                                } else {
+                                    HoverIconButton(
+                                        systemName: "arrow.clockwise",
+                                        helpText: "Refresh"
+                                    ) {
+                                        onRefreshSubscription(subscription)
+                                    }
+                                }
                                 HoverIconButton(systemName: "pencil", helpText: "Edit") {
                                     onEdit(subscription)
                                 }

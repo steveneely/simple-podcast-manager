@@ -282,7 +282,7 @@ public struct MainView: View {
     private var librarySection: some View {
         HSplitView {
             feedSidebar
-                .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
+                .frame(minWidth: 250, idealWidth: 280, maxWidth: 320)
             episodeDetailSection
                 .frame(minWidth: 420)
         }
@@ -303,6 +303,9 @@ public struct MainView: View {
                 feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
             },
             onRefresh: { Task { await refreshAllContent() } },
+            onRefreshSubscription: { subscription in
+                Task { await refreshContent(for: subscription) }
+            },
             onEdit: { subscription in
                 feedEditorPresentation = FeedEditorPresentation(subscription: subscription)
             },
@@ -319,33 +322,23 @@ public struct MainView: View {
     private var episodeDetailSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let selectedSubscription {
-                HStack(alignment: .top) {
-                    HStack(alignment: .top, spacing: 12) {
-                        PodcastArtworkView(
-                            artworkURL: artworkURL(for: selectedSubscription),
-                            allowsInsecureHTTP: allowsInsecureArtwork(for: selectedSubscription),
-                            size: 72,
-                            cornerRadius: 16
-                        )
+                HStack(alignment: .top, spacing: 12) {
+                    PodcastArtworkView(
+                        artworkURL: artworkURL(for: selectedSubscription),
+                        allowsInsecureHTTP: allowsInsecureArtwork(for: selectedSubscription),
+                        size: 72,
+                        cornerRadius: 16
+                    )
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(selectedSubscription.title)
-                                .font(.title2)
-                                .fontWeight(.semibold)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(selectedSubscription.title)
+                            .font(.title2)
+                            .fontWeight(.semibold)
 
-                            podcastDescriptionSection(for: selectedSubscription)
-                        }
+                        podcastDescriptionSection(for: selectedSubscription)
                     }
 
                     Spacer()
-
-                    HoverIconButton(
-                        systemName: "arrow.clockwise",
-                        helpText: feedPreviewViewModel.isLoading ? "Refreshing" : "Refresh",
-                        isDisabled: feedPreviewViewModel.isLoading
-                    ) {
-                        Task { await refreshContent(for: selectedSubscription) }
-                    }
                 }
 
                 if !feedIssues(for: selectedSubscription).isEmpty {

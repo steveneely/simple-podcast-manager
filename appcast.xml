@@ -3,18 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.7.2</title>
-            <pubDate>Tue, 18 Aug 2026 20:06:16 -0600</pubDate>
-            <sparkle:version>59</sparkle:version>
-            <sparkle:shortVersionString>1.7.2</sparkle:shortVersionString>
+            <title>1.7.3</title>
+            <pubDate>Wed, 19 Aug 2026 10:03:44 -0600</pubDate>
+            <sparkle:version>60</sparkle:version>
+            <sparkle:shortVersionString>1.7.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.7.2
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.7.3
 
-- Shows sync progress only in the sync dialog instead of duplicating it in the background window.
-- Keeps the Device section focused on device status and the last completed sync.
+- Fixes valid RSS feeds failing to load when they include a long XML preamble.
+- Adds compatibility with podcast feeds from Deutschlandfunk Nova and SR Mediathek that use XML stylesheets.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.7.2/SimplePodcastManager-v1.7.2.dmg" length="5074081" type="application/octet-stream" sparkle:edSignature="IvkEm2/cGhUGOF4C5jZ/5CjnFS+eRhFpOce9/1M9Bjw224LZHdiCcHXzA93m833yrE8Bi4FNDhLeLtgsU+yiDg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.7.3/SimplePodcastManager-v1.7.3.dmg" length="5074217" type="application/octet-stream" sparkle:edSignature="xqh6IrWEDj8EtSDDLQsCYJAAY5NHfB0PtH/RJcqIBc2FVD/98i5c5rbcsl6i3KU0VivHhJDQTzztgTg5uEJ7Cg=="/>
         </item>
     </channel>
 </rss>

@@ -7,7 +7,7 @@ public struct SettingsView: View {
 
     @State private var ffmpegExecutablePath: String
     @State private var appearancePreference: AppearancePreference
-    @State private var allowsInsecureEpisodeDownloads: Bool
+    @State private var allowsInsecureDownloads: Bool
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -46,7 +46,7 @@ public struct SettingsView: View {
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
         self._appearancePreference = State(initialValue: settings.appearancePreference)
-        self._allowsInsecureEpisodeDownloads = State(initialValue: settings.allowsInsecureEpisodeDownloads)
+        self._allowsInsecureDownloads = State(initialValue: settings.allowsInsecureDownloads)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -99,11 +99,11 @@ public struct SettingsView: View {
 
                 LabeledField(
                     title: "Insecure Downloads",
-                    detail: "HTTPS is always tried first. HTTP downloads are unencrypted and could be intercepted or changed in transit."
+                    detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit."
                 ) {
                     Toggle(
-                        "Always allow HTTP episode downloads",
-                        isOn: $allowsInsecureEpisodeDownloads
+                        "Always allow HTTP podcast downloads",
+                        isOn: $allowsInsecureDownloads
                     )
                     .toggleStyle(.checkbox)
                 }
@@ -229,7 +229,7 @@ public struct SettingsView: View {
             settings: AppSettings(
                 ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
                 appearancePreference: appearancePreference,
-                allowsInsecureEpisodeDownloads: allowsInsecureEpisodeDownloads
+                allowsInsecureDownloads: allowsInsecureDownloads
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates

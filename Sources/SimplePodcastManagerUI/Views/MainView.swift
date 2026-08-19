@@ -33,6 +33,7 @@ public struct MainView: View {
     @State private var appDataMessage: String?
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
     @State private var insecureDownloadEpisode: Episode?
+    @State private var temporarilyAllowedInsecureArtworkURLs: Set<URL> = []
 
     public init(
         viewModel: MainViewModel,
@@ -210,7 +211,7 @@ public struct MainView: View {
                 retryInsecureDownload(episode, alwaysAllow: true)
             }
         } message: { episode in
-            Text("“\(episode.title)” is only available over unencrypted HTTP. The download could be intercepted or changed in transit. Simple Podcast Manager tried HTTPS first.")
+            Text("Some files for “\(episode.title)” are only available over unencrypted HTTP. The audio or artwork could be intercepted or changed in transit. Simple Podcast Manager tried HTTPS first.")
         }
     }
 
@@ -283,6 +284,7 @@ public struct MainView: View {
             isRefreshing: feedPreviewViewModel.isLoading,
             episodeCount: { allEpisodes(for: $0).count },
             artworkURL: { artworkURL(for: $0) },
+            allowsInsecureArtwork: { allowsInsecureArtwork(for: $0) },
             onAdd: {
                 editorDraft = FeedDraft()
                 feedEditorPresentationID = UUID()
@@ -311,6 +313,7 @@ public struct MainView: View {
                     HStack(alignment: .top, spacing: 12) {
                         PodcastArtworkView(
                             artworkURL: artworkURL(for: selectedSubscription),
+                            allowsInsecureHTTP: allowsInsecureArtwork(for: selectedSubscription),
                             size: 72,
                             cornerRadius: 16
                         )
@@ -500,16 +503,37 @@ public struct MainView: View {
     private func retryInsecureDownload(_ episode: Episode, alwaysAllow: Bool) {
         insecureDownloadEpisode = nil
         var downloadSettings = viewModel.settings
-        downloadSettings.allowsInsecureEpisodeDownloads = true
+        downloadSettings.allowsInsecureDownloads = true
 
         if alwaysAllow {
             viewModel.replaceSettings(downloadSettings)
+        } else {
+            allowArtworkOnce(for: episode)
         }
 
         Task {
             await preparationPreviewViewModel.prepare([episode], settings: downloadSettings)
             rebuildSyncPlan()
         }
+    }
+
+    private func allowArtworkOnce(for episode: Episode) {
+        if let artworkURL = episode.artworkURL {
+            temporarilyAllowedInsecureArtworkURLs.insert(artworkURL)
+        }
+
+        guard let subscriptionID = episode.subscriptionID,
+              let subscription = viewModel.feedSubscriptions.first(where: { $0.id == subscriptionID }),
+              let artworkURL = artworkURL(for: subscription) else {
+            return
+        }
+        temporarilyAllowedInsecureArtworkURLs.insert(artworkURL)
+    }
+
+    private func allowsInsecureArtwork(for subscription: FeedSubscription) -> Bool {
+        guard let artworkURL = artworkURL(for: subscription) else { return false }
+        return viewModel.settings.allowsInsecureDownloads
+            || temporarilyAllowedInsecureArtworkURLs.contains(artworkURL)
     }
 
     @ViewBuilder

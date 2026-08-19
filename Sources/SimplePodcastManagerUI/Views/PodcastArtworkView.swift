@@ -4,12 +4,19 @@ import SwiftUI
 
 struct PodcastArtworkView: View {
     let artworkURL: URL?
+    let allowsInsecureHTTP: Bool
     let size: CGFloat
     let cornerRadius: CGFloat
     @StateObject private var loader = ArtworkLoader()
 
-    init(artworkURL: URL?, size: CGFloat, cornerRadius: CGFloat = 10) {
+    init(
+        artworkURL: URL?,
+        allowsInsecureHTTP: Bool,
+        size: CGFloat,
+        cornerRadius: CGFloat = 10
+    ) {
         self.artworkURL = artworkURL
+        self.allowsInsecureHTTP = allowsInsecureHTTP
         self.size = size
         self.cornerRadius = cornerRadius
     }
@@ -30,8 +37,8 @@ struct PodcastArtworkView: View {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(Color(NSColor.separatorColor), lineWidth: 1)
         )
-        .task(id: artworkURL) {
-            await loader.load(from: artworkURL)
+        .task(id: ArtworkLoadRequest(url: artworkURL, allowsInsecureHTTP: allowsInsecureHTTP)) {
+            await loader.load(from: artworkURL, allowsInsecureHTTP: allowsInsecureHTTP)
         }
     }
 
@@ -57,8 +64,9 @@ private final class ArtworkLoader: ObservableObject {
     @Published var image: NSImage?
 
     private static let memoryCache = NSCache<NSURL, NSImage>()
+    private let dataLoader = HTTPSFirstDataLoader(session: CachedHTTPSession.shared)
 
-    func load(from url: URL?) async {
+    func load(from url: URL?, allowsInsecureHTTP: Bool) async {
         guard let url else {
             image = nil
             return
@@ -69,29 +77,25 @@ private final class ArtworkLoader: ObservableObject {
             return
         }
 
-        let request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy)
-        if let cachedResponse = CachedHTTPSession.shared.configuration.urlCache?.cachedResponse(for: request),
-           let cachedImage = NSImage(data: cachedResponse.data) {
-            Self.memoryCache.setObject(cachedImage, forKey: url as NSURL)
-            image = cachedImage
-            return
-        }
-
         do {
-            let (data, response) = try await CachedHTTPSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode),
-                  let fetchedImage = NSImage(data: data) else {
+            let data = try await dataLoader.data(
+                from: url,
+                allowsInsecureHTTP: allowsInsecureHTTP
+            )
+            guard let fetchedImage = NSImage(data: data) else {
                 image = nil
                 return
             }
 
             Self.memoryCache.setObject(fetchedImage, forKey: url as NSURL)
-            if let cache = CachedHTTPSession.shared.configuration.urlCache {
-                cache.storeCachedResponse(CachedURLResponse(response: response, data: data), for: request)
-            }
             image = fetchedImage
         } catch {
             image = nil
         }
     }
+}
+
+private struct ArtworkLoadRequest: Hashable {
+    var url: URL?
+    var allowsInsecureHTTP: Bool
 }

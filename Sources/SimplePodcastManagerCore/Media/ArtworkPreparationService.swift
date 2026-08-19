@@ -3,25 +3,39 @@ import ImageIO
 import UniformTypeIdentifiers
 
 public protocol ArtworkPreparationService: Sendable {
-    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL) async throws -> URL
+    func prepareArtwork(
+        from artworkURL: URL,
+        in workspaceURL: URL,
+        allowsInsecureHTTP: Bool
+    ) async throws -> URL
 }
 
 public struct PodcastArtworkPreparationService: ArtworkPreparationService {
     private static let maxCoverArtPixelSize = 400
     private static let coverArtCompressionQuality = 0.72
 
-    private let session: URLSession
+    private let dataLoader: any HTTPDataResourceLoading
 
-    public init(session: URLSession = .shared) {
-        self.session = session
+    public init(
+        session: URLSession = .shared,
+        commandRunner: any CommandRunning = ProcessCommandRunner()
+    ) {
+        self.dataLoader = HTTPSFirstDataLoader(session: session, commandRunner: commandRunner)
     }
 
-    public func prepareArtwork(from artworkURL: URL, in workspaceURL: URL) async throws -> URL {
-        let (data, response) = try await session.data(from: artworkURL)
+    public init(dataLoader: any HTTPDataResourceLoading) {
+        self.dataLoader = dataLoader
+    }
 
-        guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
-            throw ArtworkPreparationError.requestFailed
-        }
+    public func prepareArtwork(
+        from artworkURL: URL,
+        in workspaceURL: URL,
+        allowsInsecureHTTP: Bool
+    ) async throws -> URL {
+        let data = try await dataLoader.data(
+            from: artworkURL,
+            allowsInsecureHTTP: allowsInsecureHTTP
+        )
 
         let artworkDirectoryURL = workspaceURL.appending(path: "artwork", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: artworkDirectoryURL, withIntermediateDirectories: true)
@@ -68,6 +82,5 @@ public struct PodcastArtworkPreparationService: ArtworkPreparationService {
 }
 
 public enum ArtworkPreparationError: Error, Sendable {
-    case requestFailed
     case invalidImage
 }

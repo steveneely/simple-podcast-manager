@@ -100,6 +100,7 @@ struct FeedSidebarView: View {
     let isRefreshing: Bool
     let episodeCount: (FeedSubscription) -> Int
     let artworkURL: (FeedSubscription) -> URL?
+    let allowsInsecureArtwork: (FeedSubscription) -> Bool
     let onAdd: () -> Void
     let onRefresh: () -> Void
     let onEdit: (FeedSubscription) -> Void
@@ -135,6 +136,7 @@ struct FeedSidebarView: View {
                     HStack(alignment: .top, spacing: 10) {
                         PodcastArtworkView(
                             artworkURL: artworkURL(subscription),
+                            allowsInsecureHTTP: allowsInsecureArtwork(subscription),
                             size: 42,
                             cornerRadius: 9
                         )

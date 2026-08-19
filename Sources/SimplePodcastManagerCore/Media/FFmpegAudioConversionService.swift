@@ -38,7 +38,11 @@ public struct FFmpegAudioConversionService: AudioConversionService {
                 try? FileManager.default.removeItem(at: intermediateFileURL)
             }
         }
-        let artworkPreparation = await preparedArtwork(for: episode, in: workspaceURL)
+        let artworkPreparation = try await preparedArtwork(
+            for: episode,
+            in: workspaceURL,
+            allowsInsecureHTTP: settings.allowsInsecureDownloads
+        )
         let destinationURL = try preparedDestinationURL(for: episode, in: workspaceURL)
 
         do {
@@ -102,15 +106,25 @@ public struct FFmpegAudioConversionService: AudioConversionService {
         return bundledExecutableURL
     }
 
-    private func preparedArtwork(for episode: Episode, in workspaceURL: URL) async -> ArtworkPreparation {
+    private func preparedArtwork(
+        for episode: Episode,
+        in workspaceURL: URL,
+        allowsInsecureHTTP: Bool
+    ) async throws -> ArtworkPreparation {
         guard let artworkURL = episode.artworkURL else {
             return ArtworkPreparation()
         }
 
         do {
             return ArtworkPreparation(
-                fileURL: try await artworkPreparationService.prepareArtwork(from: artworkURL, in: workspaceURL)
+                fileURL: try await artworkPreparationService.prepareArtwork(
+                    from: artworkURL,
+                    in: workspaceURL,
+                    allowsInsecureHTTP: allowsInsecureHTTP
+                )
             )
+        } catch HTTPDataResourceLoadingError.insecureDownloadRequiresPermission {
+            throw HTTPDataResourceLoadingError.insecureDownloadRequiresPermission
         } catch {
             return ArtworkPreparation(warningMessage: Self.failedArtworkPreparationWarning)
         }

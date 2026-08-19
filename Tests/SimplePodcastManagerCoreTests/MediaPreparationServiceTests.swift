@@ -271,6 +271,48 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
+    func insecureDownloadChoiceAlsoAppliesToEpisodeArtwork() async throws {
+        let artworkURL = URL(string: "http://images.example.com/artwork.jpg")!
+        let episode = Episode(
+            id: "ep-http-art",
+            podcastTitle: "Example Podcast",
+            title: "Episode With HTTP Artwork",
+            artworkURL: artworkURL,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        let artworkFileURL = workspaceURL.appending(path: "cover.jpg")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        try Data("artwork".utf8).write(to: artworkFileURL)
+        let service = FFmpegAudioConversionService(
+            artworkPreparationService: PermissionSensitiveArtworkPreparationService(
+                artworkFileURL: artworkFileURL
+            ),
+            metadataTaggingService: CapturingMP3MetadataTaggingService(),
+            bundledExecutableURL: nil
+        )
+
+        await #expect(throws: HTTPDataResourceLoadingError.insecureDownloadRequiresPermission) {
+            try await service.prepareAudio(
+                for: episode,
+                sourceFileURL: sourceFileURL,
+                in: workspaceURL,
+                settings: AppSettings()
+            )
+        }
+
+        let preparedEpisode = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings(allowsInsecureDownloads: true)
+        )
+        #expect(preparedEpisode.preparationWarnings == nil)
+    }
+
+    @Test
     func convertsAudioThenWritesMetadataAndArtworkOnce() async throws {
         let artworkURL = URL(string: "https://cdn.example.com/artwork.png")!
         let episode = Episode(
@@ -411,7 +453,7 @@ struct MediaPreparationServiceTests {
         let blockedResult = try await service.prepareEpisodes([episode], settings: AppSettings())
         let allowedResult = try await service.prepareEpisodes(
             [episode],
-            settings: AppSettings(allowsInsecureEpisodeDownloads: true)
+            settings: AppSettings(allowsInsecureDownloads: true)
         )
 
         #expect(blockedResult.failures.first?.reason == .insecureDownloadRequiresPermission)
@@ -591,14 +633,25 @@ private struct FailingMP3MetadataTaggingService: MP3MetadataTaggingService {
 private struct StubArtworkPreparationService: ArtworkPreparationService {
     let artworkFileURL: URL
 
-    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL) async throws -> URL {
+    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         artworkFileURL
     }
 }
 
 private struct FailingArtworkPreparationService: ArtworkPreparationService {
-    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL) async throws -> URL {
+    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         throw ArtworkPreparationError.invalidImage
+    }
+}
+
+private struct PermissionSensitiveArtworkPreparationService: ArtworkPreparationService {
+    let artworkFileURL: URL
+
+    func prepareArtwork(from artworkURL: URL, in workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
+        guard allowsInsecureHTTP else {
+            throw HTTPDataResourceLoadingError.insecureDownloadRequiresPermission
+        }
+        return artworkFileURL
     }
 }
 

@@ -30,7 +30,7 @@ The show and its latest episodes will appear in the app.
 
 If an episode is not already an MP3, the app needs `ffmpeg` to convert it. Choose an `ffmpeg` executable in Settings if prompted.
 
-If an episode is available only over unencrypted HTTP, the app warns you before downloading it. You can allow that download once or always allow HTTP episode downloads in Settings.
+If episode audio or artwork is available only over unencrypted HTTP, the app warns you first. You can allow that episode once or always allow HTTP podcast downloads in Settings.
 
 ## Move Your Podcast Subscriptions
 

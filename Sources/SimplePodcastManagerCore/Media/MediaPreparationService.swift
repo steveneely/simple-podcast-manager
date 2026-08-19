@@ -102,7 +102,7 @@ public struct MediaPreparationService: Sendable {
             let sourceFileURL = try await downloadService.download(
                 episode,
                 into: workspaceURL,
-                allowsInsecureHTTP: settings.allowsInsecureEpisodeDownloads
+                allowsInsecureHTTP: settings.allowsInsecureDownloads
             )
             downloadedFileURL = sourceFileURL
             let preparedEpisode = try await audioConversionService.prepareAudio(
@@ -123,13 +123,18 @@ public struct MediaPreparationService: Sendable {
                     PreparationFailure(
                         episode: episode,
                         message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription,
-                        reason: error as? DownloadServiceError == .insecureDownloadRequiresPermission
+                        reason: requiresInsecureDownloadPermission(error)
                             ? .insecureDownloadRequiresPermission
                             : .other
                     )
                 )
             )
         }
+    }
+
+    private func requiresInsecureDownloadPermission(_ error: Error) -> Bool {
+        error as? DownloadServiceError == .insecureDownloadRequiresPermission
+            || error as? HTTPDataResourceLoadingError == .insecureDownloadRequiresPermission
     }
 }
 

@@ -28,7 +28,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
-- `SettingsView`: appearance, optional custom `ffmpeg` path, insecure episode download preference, device podcast folder, app data backup and restore, and automatic update preference
+- `SettingsView`: appearance, optional custom `ffmpeg` path, insecure podcast download preference, device podcast folder, app data backup and restore, and automatic update preference
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `SyncPlanViewModel`: build the full-device plan shown before execution
@@ -84,11 +84,11 @@ Expected runtime flow:
 
 The plan shown to the user is the plan executed by the app.
 
-## Episode Download Security
+## Podcast Download Security
 
-Episode downloads use HTTPS whenever possible. When a feed publishes an HTTP enclosure, `DownloadService` first tries the equivalent HTTPS URL. HTTPS URLs that redirect to HTTP are also treated as insecure.
+Episode audio and artwork use HTTPS whenever possible. When a feed publishes an HTTP URL, the app first tries the equivalent HTTPS URL. HTTPS URLs that redirect to HTTP are also treated as insecure.
 
-If the secure attempt fails, the UI asks before downloading that episode over HTTP. The user may approve one download or persist an app-wide preference in Settings. The main app keeps App Transport Security enabled; an approved HTTP fallback is isolated to that episode by invoking the system `curl` executable with only HTTP and HTTPS protocols permitted. Feed loading, artwork, updates, and unapproved episode downloads remain protected by ATS.
+If the secure attempt fails, the UI asks before downloading over HTTP. A one-time approval covers that episode's audio and artwork and allows its show icon to load for the current app session. The user may instead save an app-wide preference in Settings. The main app keeps App Transport Security enabled; approved HTTP fallbacks use the system `curl` executable with only HTTP and HTTPS protocols permitted. RSS feeds, Sparkle updates, and unapproved downloads remain protected by ATS.
 
 ## RSS Subscription
 

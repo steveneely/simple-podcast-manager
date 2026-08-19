@@ -23,15 +23,18 @@ public struct URLSessionDownloadService: DownloadService {
         var insecureFallbackURL = episode.enclosureURL
 
         do {
-            let secureEnclosureURL = secureVersion(of: episode.enclosureURL)
+            let secureEnclosureURL = HTTPSFirstDataLoader.secureVersion(of: episode.enclosureURL)
             let resolvedMediaURL = try await resolvedMediaURL(for: secureEnclosureURL)
             if resolvedMediaURL != secureEnclosureURL {
                 insecureFallbackURL = resolvedMediaURL
             }
-            let secureMediaURL = secureVersion(of: resolvedMediaURL)
+            let secureMediaURL = HTTPSFirstDataLoader.secureVersion(of: resolvedMediaURL)
             return try await downloadSecurely(episode, from: secureMediaURL, into: workspaceURL)
         } catch {
-            guard shouldOfferInsecureFallback(for: insecureFallbackURL, after: error) else {
+            guard HTTPSFirstDataLoader.shouldOfferInsecureFallback(
+                for: insecureFallbackURL,
+                after: error
+            ) else {
                 throw error
             }
 
@@ -119,24 +122,6 @@ public struct URLSessionDownloadService: DownloadService {
         } catch {
             throw DownloadServiceError.missingDownloadLocation
         }
-    }
-
-    private func secureVersion(of url: URL) -> URL {
-        guard url.scheme?.lowercased() == "http",
-              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        components.scheme = "https"
-        return components.url ?? url
-    }
-
-    private func shouldOfferInsecureFallback(for mediaURL: URL, after error: Error) -> Bool {
-        if mediaURL.scheme?.lowercased() == "http" {
-            return true
-        }
-
-        return (error as? URLError)?.code == .appTransportSecurityRequiresSecureConnection
     }
 
     private func fileName(for episode: Episode, mediaURL: URL) -> String {

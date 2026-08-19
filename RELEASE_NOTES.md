@@ -1,5 +1,4 @@
-# Simple Podcast Manager v1.8.0
+# Simple Podcast Manager v1.8.1
 
-- Keeps large download and removal histories responsive with SQLite storage.
-- Imports existing episode history automatically on first launch.
-- Keeps app data backups compatible with the existing JSON backup format.
+- Asks for confirmation before restoring an app data backup.
+- Clearly explains which data will be replaced and what will be preserved.

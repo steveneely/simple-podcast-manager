@@ -74,127 +74,129 @@ public struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            VStack(alignment: .leading, spacing: 20) {
-                SettingsSection(title: "General") {
-                    LabeledField(
-                        title: "Appearance",
-                        detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode.",
-                        emphasizesTitle: true
-                    ) {
-                        Picker("Appearance", selection: $appearancePreference) {
-                            Text("System").tag(AppearancePreference.system)
-                            Text("Light").tag(AppearancePreference.light)
-                            Text("Dark").tag(AppearancePreference.dark)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    SettingsSection(title: "General") {
+                        LabeledField(
+                            title: "Appearance",
+                            detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode.",
+                            emphasizesTitle: true
+                        ) {
+                            Picker("Appearance", selection: $appearancePreference) {
+                                Text("System").tag(AppearancePreference.system)
+                                Text("Light").tag(AppearancePreference.light)
+                                Text("Dark").tag(AppearancePreference.dark)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
                         }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
+
+                        if showsUpdateSettings {
+                            LabeledField(title: "Updates", emphasizesTitle: true) {
+                                Toggle(
+                                    "Check for updates on startup",
+                                    isOn: $automaticallyChecksForUpdates
+                                )
+                                .toggleStyle(.checkbox)
+                            }
+                        }
                     }
 
-                    if showsUpdateSettings {
-                        LabeledField(title: "Updates", emphasizesTitle: true) {
+                    SettingsSection(title: "Episode Preparation") {
+                        LabeledField(
+                            title: "Automatic Downloads",
+                            detail: "Runs after refresh. The first refresh sets a baseline.",
+                            emphasizesTitle: true
+                        ) {
+                            Picker("Automatic Downloads", selection: $automaticDownloadLimit) {
+                                Text("Off").tag(AutomaticDownloadLimit.off)
+                                Text("Latest 1").tag(AutomaticDownloadLimit.latest1)
+                                Text("Latest 2").tag(AutomaticDownloadLimit.latest2)
+                                Text("Latest 3").tag(AutomaticDownloadLimit.latest3)
+                                Text("All new").tag(AutomaticDownloadLimit.allNew)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                        }
+
+                        LabeledField(
+                            title: "ffmpeg Path",
+                            detail: "Optional. Needed only to convert non-MP3 podcast audio.",
+                            emphasizesTitle: true
+                        ) {
+                            chooserRow(
+                                value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
+                                buttonTitle: "Choose…",
+                                clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
+                            ) {
+                                chooseFFmpegExecutable()
+                            } onClear: {
+                                ffmpegExecutablePath = ""
+                            }
+                        }
+
+                        LabeledField(
+                            title: "Insecure Downloads",
+                            detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit.",
+                            emphasizesTitle: true
+                        ) {
                             Toggle(
-                                "Check for updates on startup",
-                                isOn: $automaticallyChecksForUpdates
+                                "Always allow HTTP podcast downloads",
+                                isOn: $allowsInsecureDownloads
+                            )
+                            .toggleStyle(.checkbox)
+                        }
+
+                        LabeledField(
+                            title: "MP3 Episode Titles",
+                            detail: "Adds the date in MM.dd format, such as 08.11 Original Title. Applies to new downloads only.",
+                            emphasizesTitle: true
+                        ) {
+                            Toggle(
+                                "Prefix with publication date",
+                                isOn: $prefixesPublicationDateInEpisodeTitles
                             )
                             .toggleStyle(.checkbox)
                         }
                     }
-                }
 
-                SettingsSection(title: "Episode Preparation") {
-                    LabeledField(
-                        title: "Automatic Downloads",
-                        detail: "Runs after refresh. The first refresh sets a baseline.",
-                        emphasizesTitle: true
-                    ) {
-                        Picker("Automatic Downloads", selection: $automaticDownloadLimit) {
-                            Text("Off").tag(AutomaticDownloadLimit.off)
-                            Text("Latest 1").tag(AutomaticDownloadLimit.latest1)
-                            Text("Latest 2").tag(AutomaticDownloadLimit.latest2)
-                            Text("Latest 3").tag(AutomaticDownloadLimit.latest3)
-                            Text("All new").tag(AutomaticDownloadLimit.allNew)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                    }
-
-                    LabeledField(
-                        title: "ffmpeg Path",
-                        detail: "Optional. Needed only to convert non-MP3 podcast audio.",
-                        emphasizesTitle: true
-                    ) {
-                        chooserRow(
-                            value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
-                            buttonTitle: "Choose…",
-                            clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
+                    SettingsSection(title: "MP3 Player") {
+                        LabeledField(
+                            title: "Device Podcast Folder",
+                            detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
+                                ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\".",
+                            emphasizesTitle: true
                         ) {
-                            chooseFFmpegExecutable()
-                        } onClear: {
-                            ffmpegExecutablePath = ""
+                            chooserRow(
+                                value: podcastDirectoryPath,
+                                buttonTitle: "Choose Folder…",
+                                clearTitle: nil
+                            ) {
+                                choosePodcastDirectory()
+                            } onClear: {}
+                            .disabled(selectedDeviceName == nil)
                         }
                     }
 
-                    LabeledField(
-                        title: "Insecure Downloads",
-                        detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit.",
-                        emphasizesTitle: true
-                    ) {
-                        Toggle(
-                            "Always allow HTTP podcast downloads",
-                            isOn: $allowsInsecureDownloads
-                        )
-                        .toggleStyle(.checkbox)
-                    }
+                    SettingsSection(title: "App Data") {
+                        HStack(spacing: 8) {
+                            Button("Back Up…", systemImage: "archivebox") {
+                                onBackUpAppData()
+                            }
 
-                    LabeledField(
-                        title: "MP3 Episode Titles",
-                        detail: "Adds the date in MM.dd format, such as 08.11 Original Title. Applies to new downloads only.",
-                        emphasizesTitle: true
-                    ) {
-                        Toggle(
-                            "Prefix with publication date",
-                            isOn: $prefixesPublicationDateInEpisodeTitles
-                        )
-                        .toggleStyle(.checkbox)
-                    }
-                }
-
-                SettingsSection(title: "MP3 Player") {
-                    LabeledField(
-                        title: "Device Podcast Folder",
-                        detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
-                            ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\".",
-                        emphasizesTitle: true
-                    ) {
-                        chooserRow(
-                            value: podcastDirectoryPath,
-                            buttonTitle: "Choose Folder…",
-                            clearTitle: nil
-                        ) {
-                            choosePodcastDirectory()
-                        } onClear: {}
-                        .disabled(selectedDeviceName == nil)
-                    }
-                }
-
-                SettingsSection(title: "App Data") {
-                    HStack(spacing: 8) {
-                        Button("Back Up…", systemImage: "archivebox") {
-                            onBackUpAppData()
-                        }
-
-                        Button("Restore…", systemImage: "arrow.counterclockwise") {
-                            onRestoreAppData()
+                            Button("Restore…", systemImage: "arrow.counterclockwise") {
+                                onRestoreAppData()
+                            }
                         }
                     }
-                }
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
-
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             HStack {
@@ -212,7 +214,7 @@ public struct SettingsView: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 480)
+        .frame(width: 520, height: 600)
         .alert("Create Podcast Folder?", isPresented: $isShowingCreateFolderConfirmation) {
             Button("Cancel", role: .cancel) {
                 pendingSave = nil

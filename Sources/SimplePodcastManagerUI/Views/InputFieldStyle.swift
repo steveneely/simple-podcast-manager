@@ -51,6 +51,9 @@ struct LabeledField<Content: View>: View {
                 Text(detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             content
         }

@@ -833,6 +833,7 @@ public struct MainView: View {
 
         guard panel.runModal() == .OK, let backupURL = panel.url else { return }
         guard confirmsAppDataRestore(from: backupURL) else { return }
+        appDataMessage = nil
 
         Task {
             do {
@@ -840,11 +841,8 @@ public struct MainView: View {
                     try AppDataBackupService().importBackup(from: backupURL)
                 }.value
                 await reloadAppData()
-                if let previousBackupURL {
-                    appDataMessage = "Imported app data. Previous data was backed up to \(previousBackupURL.lastPathComponent)."
-                } else {
-                    appDataMessage = "Imported app data."
-                }
+                appDataMessage = nil
+                showAppDataRestoreSuccess(previousBackupURL: previousBackupURL)
             } catch {
                 appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
@@ -861,6 +859,24 @@ public struct MainView: View {
         let restoreButton = alert.addButton(withTitle: confirmation.restoreButtonTitle)
         restoreButton.hasDestructiveAction = true
         return alert.runModal() == .alertSecondButtonReturn
+    }
+
+    private func showAppDataRestoreSuccess(previousBackupURL: URL?) {
+        let success = AppDataRestoreSuccess(previousBackupURL: previousBackupURL)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = success.title
+        alert.informativeText = success.message
+        alert.addButton(withTitle: success.doneButtonTitle)
+
+        if let previousBackupURL = success.previousBackupURL {
+            alert.addButton(withTitle: success.showBackupButtonTitle)
+            if alert.runModal() == .alertSecondButtonReturn {
+                NSWorkspace.shared.activateFileViewerSelecting([previousBackupURL])
+            }
+        } else {
+            alert.runModal()
+        }
     }
 
     private func reloadAppData() async {

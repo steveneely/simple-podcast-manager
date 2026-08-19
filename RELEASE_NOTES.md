@@ -1,4 +1,5 @@
-# Simple Podcast Manager v1.6.1
+# Simple Podcast Manager v1.7.0
 
-- Loads podcast artwork over HTTPS when feeds publish an HTTP image URL.
-- Applies one-time and saved HTTP download choices consistently to episode audio and artwork.
+- Adds an option to prefix MP3 titles with the publication date in `MM.dd` format.
+- Organizes Settings into clearer sections with stronger labels.
+- Applies the title prefix to new downloads without changing existing files.

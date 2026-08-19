@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.8.1
+# Simple Podcast Manager v1.8.2
 
-- Asks for confirmation before restoring an app data backup.
-- Clearly explains which data will be replaced and what will be preserved.
+- Confirms when an app data restore finishes successfully.
+- Shows where the pre-restore backup was saved and can reveal it in Finder.

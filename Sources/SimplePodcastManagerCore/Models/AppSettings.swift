@@ -10,15 +10,18 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var ffmpegExecutablePath: String?
     public var appearancePreference: AppearancePreference
     public var allowsInsecureDownloads: Bool
+    public var prefixesPublicationDateInEpisodeTitles: Bool
 
     public init(
         ffmpegExecutablePath: String? = nil,
         appearancePreference: AppearancePreference = .system,
-        allowsInsecureDownloads: Bool = false
+        allowsInsecureDownloads: Bool = false,
+        prefixesPublicationDateInEpisodeTitles: Bool = false
     ) {
         self.ffmpegExecutablePath = ffmpegExecutablePath
         self.appearancePreference = appearancePreference
         self.allowsInsecureDownloads = allowsInsecureDownloads
+        self.prefixesPublicationDateInEpisodeTitles = prefixesPublicationDateInEpisodeTitles
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -26,6 +29,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case appearancePreference
         case allowsInsecureDownloads
         case allowsInsecureEpisodeDownloads
+        case prefixesPublicationDateInEpisodeTitles
     }
 
     public init(from decoder: Decoder) throws {
@@ -35,6 +39,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         allowsInsecureDownloads = try container.decodeIfPresent(Bool.self, forKey: .allowsInsecureDownloads)
             ?? container.decodeIfPresent(Bool.self, forKey: .allowsInsecureEpisodeDownloads)
             ?? false
+        prefixesPublicationDateInEpisodeTitles = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .prefixesPublicationDateInEpisodeTitles
+        ) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -42,5 +50,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encodeIfPresent(ffmpegExecutablePath, forKey: .ffmpegExecutablePath)
         try container.encode(appearancePreference, forKey: .appearancePreference)
         try container.encode(allowsInsecureDownloads, forKey: .allowsInsecureDownloads)
+        try container.encode(prefixesPublicationDateInEpisodeTitles, forKey: .prefixesPublicationDateInEpisodeTitles)
     }
 }

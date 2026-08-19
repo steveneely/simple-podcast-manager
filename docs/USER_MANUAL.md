@@ -32,6 +32,8 @@ If an episode is not already an MP3, the app needs `ffmpeg` to convert it. Choos
 
 If episode audio or artwork is available only over unencrypted HTTP, the app warns you first. You can allow that episode once or always allow HTTP podcast downloads in Settings.
 
+To make episodes easier to scan on a small player display, Settings can add the publication date to the MP3 title in `MM.dd` format, such as `08.11 Original Title`. This preference applies only to episodes downloaded after it is enabled.
+
 ## Move Your Podcast Subscriptions
 
 To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it; feeds already in Simple Podcast Manager and duplicate entries are skipped.

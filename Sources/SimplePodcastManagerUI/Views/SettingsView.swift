@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @State private var ffmpegExecutablePath: String
     @State private var appearancePreference: AppearancePreference
     @State private var allowsInsecureDownloads: Bool
+    @State private var prefixesPublicationDateInEpisodeTitles: Bool
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -47,6 +48,9 @@ public struct SettingsView: View {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
         self._appearancePreference = State(initialValue: settings.appearancePreference)
         self._allowsInsecureDownloads = State(initialValue: settings.allowsInsecureDownloads)
+        self._prefixesPublicationDateInEpisodeTitles = State(
+            initialValue: settings.prefixesPublicationDateInEpisodeTitles
+        )
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -68,72 +72,94 @@ public struct SettingsView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            VStack(alignment: .leading, spacing: 14) {
-                LabeledField(
-                    title: "Appearance",
-                    detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode."
-                ) {
-                    Picker("Appearance", selection: $appearancePreference) {
-                        Text("System").tag(AppearancePreference.system)
-                        Text("Light").tag(AppearancePreference.light)
-                        Text("Dark").tag(AppearancePreference.dark)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                }
-
-                LabeledField(
-                    title: "ffmpeg Path",
-                    detail: "Optional. Needed only to convert non-MP3 podcast audio."
-                ) {
-                    chooserRow(
-                        value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
-                        buttonTitle: "Choose…",
-                        clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
+            VStack(alignment: .leading, spacing: 20) {
+                SettingsSection(title: "General") {
+                    LabeledField(
+                        title: "Appearance",
+                        detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode.",
+                        emphasizesTitle: true
                     ) {
-                        chooseFFmpegExecutable()
-                    } onClear: {
-                        ffmpegExecutablePath = ""
+                        Picker("Appearance", selection: $appearancePreference) {
+                            Text("System").tag(AppearancePreference.system)
+                            Text("Light").tag(AppearancePreference.light)
+                            Text("Dark").tag(AppearancePreference.dark)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                    }
+
+                    if showsUpdateSettings {
+                        LabeledField(title: "Updates", emphasizesTitle: true) {
+                            Toggle(
+                                "Check for updates on startup",
+                                isOn: $automaticallyChecksForUpdates
+                            )
+                            .toggleStyle(.checkbox)
+                        }
                     }
                 }
 
-                LabeledField(
-                    title: "Insecure Downloads",
-                    detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit."
-                ) {
-                    Toggle(
-                        "Always allow HTTP podcast downloads",
-                        isOn: $allowsInsecureDownloads
-                    )
-                    .toggleStyle(.checkbox)
-                }
-
-                LabeledField(
-                    title: "Device Podcast Folder",
-                    detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
-                        ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\"."
-                ) {
-                    chooserRow(
-                        value: podcastDirectoryPath,
-                        buttonTitle: "Choose Folder…",
-                        clearTitle: nil
+                SettingsSection(title: "Episode Preparation") {
+                    LabeledField(
+                        title: "ffmpeg Path",
+                        detail: "Optional. Needed only to convert non-MP3 podcast audio.",
+                        emphasizesTitle: true
                     ) {
-                        choosePodcastDirectory()
-                    } onClear: {}
-                    .disabled(selectedDeviceName == nil)
-                }
+                        chooserRow(
+                            value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
+                            buttonTitle: "Choose…",
+                            clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
+                        ) {
+                            chooseFFmpegExecutable()
+                        } onClear: {
+                            ffmpegExecutablePath = ""
+                        }
+                    }
 
-                if showsUpdateSettings {
-                    LabeledField(title: "Updates") {
+                    LabeledField(
+                        title: "Insecure Downloads",
+                        detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit.",
+                        emphasizesTitle: true
+                    ) {
                         Toggle(
-                            "Check for updates on startup",
-                            isOn: $automaticallyChecksForUpdates
+                            "Always allow HTTP podcast downloads",
+                            isOn: $allowsInsecureDownloads
+                        )
+                        .toggleStyle(.checkbox)
+                    }
+
+                    LabeledField(
+                        title: "MP3 Episode Titles",
+                        detail: "Adds the date in MM.dd format, such as 08.11 Original Title. Applies to new downloads only.",
+                        emphasizesTitle: true
+                    ) {
+                        Toggle(
+                            "Prefix with publication date",
+                            isOn: $prefixesPublicationDateInEpisodeTitles
                         )
                         .toggleStyle(.checkbox)
                     }
                 }
 
-                LabeledField(title: "App Data") {
+                SettingsSection(title: "MP3 Player") {
+                    LabeledField(
+                        title: "Device Podcast Folder",
+                        detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
+                            ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\".",
+                        emphasizesTitle: true
+                    ) {
+                        chooserRow(
+                            value: podcastDirectoryPath,
+                            buttonTitle: "Choose Folder…",
+                            clearTitle: nil
+                        ) {
+                            choosePodcastDirectory()
+                        } onClear: {}
+                        .disabled(selectedDeviceName == nil)
+                    }
+                }
+
+                SettingsSection(title: "App Data") {
                     HStack(spacing: 8) {
                         Button("Back Up…", systemImage: "archivebox") {
                             onBackUpAppData()
@@ -229,7 +255,8 @@ public struct SettingsView: View {
             settings: AppSettings(
                 ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
                 appearancePreference: appearancePreference,
-                allowsInsecureDownloads: allowsInsecureDownloads
+                allowsInsecureDownloads: allowsInsecureDownloads,
+                prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates
@@ -331,5 +358,30 @@ public struct SettingsView: View {
 
         let relativePath = String(selectedPath.dropFirst(rootPath.count + 1))
         return try DevicePodcastConfiguration.normalizedRelativeDirectoryPath(relativePath)
+    }
+}
+
+private struct SettingsSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    init(title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Divider()
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                content
+            }
+        }
     }
 }

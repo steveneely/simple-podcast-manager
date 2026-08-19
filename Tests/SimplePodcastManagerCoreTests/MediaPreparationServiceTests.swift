@@ -192,6 +192,37 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
+    func prefixesMetadataTitleWithPublicationDateWhenEnabled() async throws {
+        let publicationDate = try #require(ISO8601DateFormatter().date(from: "2026-08-11T12:00:00Z"))
+        let episode = Episode(
+            id: "ep-mp3-date-prefix",
+            podcastTitle: "Example Podcast",
+            title: "Original Title",
+            publicationDate: publicationDate,
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        let taggingService = CapturingMP3MetadataTaggingService()
+        let service = FFmpegAudioConversionService(
+            metadataTaggingService: taggingService,
+            bundledExecutableURL: nil
+        )
+
+        _ = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings(prefixesPublicationDateInEpisodeTitles: true)
+        )
+
+        #expect(taggingService.calls.first?.episodeTitle == "08.11 Original Title")
+        #expect(taggingService.calls.first?.podcastTitle == episode.podcastTitle)
+    }
+
+    @Test
     func failsPreparationWhenMetadataCannotBeWritten() async throws {
         let episode = Episode(
             id: "ep-mp3-art-tagging-fails",

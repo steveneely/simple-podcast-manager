@@ -27,19 +27,26 @@ extension View {
 struct LabeledField<Content: View>: View {
     let title: String
     let detail: String?
+    let emphasizesTitle: Bool
     @ViewBuilder let content: Content
 
-    init(title: String, detail: String? = nil, @ViewBuilder content: () -> Content) {
+    init(
+        title: String,
+        detail: String? = nil,
+        emphasizesTitle: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
         self.title = title
         self.detail = detail
+        self.emphasizesTitle = emphasizesTitle
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(emphasizesTitle ? .body : .subheadline)
+                .fontWeight(emphasizesTitle ? .semibold : .medium)
             if let detail, !detail.isEmpty {
                 Text(detail)
                     .font(.caption)

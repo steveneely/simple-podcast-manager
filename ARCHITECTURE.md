@@ -28,7 +28,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `MainView`: primary single-window interface
 - `FeedEditorView`: add or edit feeds
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
-- `SettingsView`: appearance, optional custom `ffmpeg` path, insecure podcast download preference, device podcast folder, app data backup and restore, and automatic update preference
+- `SettingsView`: appearance, optional custom `ffmpeg` path, insecure podcast download preference, optional publication-date prefixes for MP3 titles, device podcast folder, app data backup and restore, and automatic update preference
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `SyncPlanViewModel`: build the full-device plan shown before execution
@@ -193,6 +193,8 @@ All synced output on the device should be MP3.
 - if a downloaded enclosure is already acceptable MP3 output, keep it
 - otherwise convert it through `ffmpeg`
 - finalize every MP3 with a small, deterministic ID3v2.3 tag using the RSS episode and podcast titles, plus prepared cover art when available
+- when enabled in Settings, prefix the ID3 `TIT2` episode title with its RSS publication date in fixed `MM.dd` format, such as `08.11 Original Title`
+- apply title-format preferences only while preparing new local downloads; do not silently retag existing local or device files
 - use `ffmpeg` only to convert audio; native Swift code handles MP3 metadata consistently afterward
 - conversion happens in the app's local media workspace on the Mac before copy-to-device
 

@@ -105,13 +105,15 @@ struct MainViewModelTests {
             AppSettings(
                 ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
                 appearancePreference: .dark,
-                allowsInsecureDownloads: true
+                allowsInsecureDownloads: true,
+                prefixesPublicationDateInEpisodeTitles: true
             )
         )
 
         #expect(viewModel.settings.ffmpegExecutablePath == "/opt/homebrew/bin/ffmpeg")
         #expect(viewModel.settings.appearancePreference == .dark)
         #expect(viewModel.settings.allowsInsecureDownloads)
+        #expect(viewModel.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(store.configuration.settings == viewModel.settings)
     }
 

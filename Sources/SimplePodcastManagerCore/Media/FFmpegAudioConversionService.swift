@@ -48,7 +48,10 @@ public struct FFmpegAudioConversionService: AudioConversionService {
         do {
             try metadataTaggingService.writeMetadata(
                 sourceFileURL: audioPreparation.mp3FileURL,
-                episodeTitle: episode.title,
+                episodeTitle: EpisodeID3Title.title(
+                    for: episode,
+                    prefixesPublicationDate: settings.prefixesPublicationDateInEpisodeTitles
+                ),
                 podcastTitle: episode.podcastTitle,
                 artworkFileURL: artworkPreparation.fileURL,
                 destinationFileURL: destinationURL

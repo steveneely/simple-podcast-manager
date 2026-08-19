@@ -1,3 +1,3 @@
-# Simple Podcast Manager v1.9.2
+# Simple Podcast Manager v1.9.3
 
-- Adds File > Add Podcast Feed with the Command-N shortcut and removes the unused new-window command.
+- Removes the duplicate in-window app title and moves download progress into the window toolbar.

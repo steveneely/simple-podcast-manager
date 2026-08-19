@@ -3,21 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.6.0</title>
-            <pubDate>Tue, 18 Aug 2026 19:00:05 -0600</pubDate>
-            <sparkle:version>55</sparkle:version>
-            <sparkle:shortVersionString>1.6.0</sparkle:shortVersionString>
+            <title>1.6.1</title>
+            <pubDate>Tue, 18 Aug 2026 19:10:09 -0600</pubDate>
+            <sparkle:version>56</sparkle:version>
+            <sparkle:shortVersionString>1.6.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.6.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.6.1
 
-- Imports podcast subscriptions from standard OPML files with a review step that skips duplicates.
-- Exports subscriptions as OPML for moving them to another podcast app.
-- Shows newly added and imported podcasts immediately while their episodes load in the background.
-- Keeps subscription transfer in the File menu and moves app backup and restore into Settings.
-- Includes HTTPS-first episode downloads and explicit approval before using insecure HTTP for users upgrading from before v1.5.0.
+- Loads podcast artwork over HTTPS when feeds publish an HTTP image URL.
+- Applies one-time and saved HTTP download choices consistently to episode audio and artwork.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.6.0/SimplePodcastManager-v1.6.0.dmg" length="5053689" type="application/octet-stream" sparkle:edSignature="qCz05X8zFXAcx1uvzHIVGE1uLTkZpnQI347XUxtEkBn3OY5CH2mLzwJS3vKSYhD1V01oecTT0OwUxgIw5JZMDg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.6.1/SimplePodcastManager-v1.6.1.dmg" length="5065052" type="application/octet-stream" sparkle:edSignature="m+oeQ1oDdNnp1Byk2BHFdR7cQir8nXT9K8c2lw6UCpwXVJP67MByubpJQSi/hshuJn87yzHZ4fms7j+OUBcZCw=="/>
         </item>
     </channel>
 </rss>

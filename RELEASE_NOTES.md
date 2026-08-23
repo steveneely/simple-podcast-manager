@@ -1,3 +1,4 @@
-# Simple Podcast Manager v1.12.0
+# Simple Podcast Manager v1.12.1
 
-- Improves launch speed and responsiveness throughout the app.
+- Reorganizes Settings so common episode and MP3 player options are easier to find.
+- Moves technical download and conversion options into a separate Advanced section.

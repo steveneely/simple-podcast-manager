@@ -10,12 +10,16 @@ public final class RemovedEpisodeHistoryViewModel {
     public private(set) var hasLoadedRemovedEpisodes: Bool
 
     private let store: any RemovedEpisodeStore
+    private var recordsByEpisodeID: [RemovedEpisodeLookupKey: RemovedEpisodeRecord]
+    private var recordsByFileStem: [RemovedEpisodeLookupKey: RemovedEpisodeRecord]
 
     public init(store: any RemovedEpisodeStore = SQLiteEpisodeStore.shared) {
         self.store = store
         self.removedEpisodes = []
         self.lastErrorMessage = nil
         self.hasLoadedRemovedEpisodes = false
+        self.recordsByEpisodeID = [:]
+        self.recordsByFileStem = [:]
     }
 
     public func load() async {
@@ -30,6 +34,7 @@ public final class RemovedEpisodeHistoryViewModel {
                     }
                     return lhs.episodeTitle.localizedCaseInsensitiveCompare(rhs.episodeTitle) == .orderedAscending
                 }
+            rebuildIndexes()
             hasLoadedRemovedEpisodes = true
             lastErrorMessage = nil
         } catch {
@@ -37,17 +42,27 @@ public final class RemovedEpisodeHistoryViewModel {
         }
     }
 
+    public func applyPersistedState(_ removedEpisodes: [RemovedEpisodeRecord]) {
+        self.removedEpisodes = removedEpisodes.sorted { lhs, rhs in
+            if lhs.removedAt != rhs.removedAt { return lhs.removedAt > rhs.removedAt }
+            return lhs.episodeTitle.localizedCaseInsensitiveCompare(rhs.episodeTitle) == .orderedAscending
+        }
+        rebuildIndexes()
+        hasLoadedRemovedEpisodes = true
+        lastErrorMessage = nil
+    }
+
     public func removedRecord(for episode: Episode) -> RemovedEpisodeRecord? {
         guard let subscriptionID = episode.subscriptionID else { return nil }
         let fileStem = EpisodeFileName.fileStem(for: episode)
+        if let exactEpisode = recordsByEpisodeID[RemovedEpisodeLookupKey(subscriptionID, episode.id)] {
+            return exactEpisode
+        }
+        if let exactFile = recordsByFileStem[RemovedEpisodeLookupKey(subscriptionID, fileStem)] {
+            return exactFile
+        }
         return removedEpisodes.first(where: {
             guard $0.subscriptionID == subscriptionID else { return false }
-            if let episodeID = $0.episodeID, episodeID == episode.id {
-                return true
-            }
-            if $0.fileStem == fileStem {
-                return true
-            }
             return Self.record($0, likelyMatches: episode)
         })
     }
@@ -99,7 +114,21 @@ public final class RemovedEpisodeHistoryViewModel {
             }
             return lhs.episodeTitle.localizedCaseInsensitiveCompare(rhs.episodeTitle) == .orderedAscending
         }
+        rebuildIndexes()
         persist(newRecords)
+    }
+
+    private func rebuildIndexes() {
+        recordsByEpisodeID = [:]
+        recordsByFileStem = [:]
+        for record in removedEpisodes {
+            if let episodeID = record.episodeID {
+                let episodeKey = RemovedEpisodeLookupKey(record.subscriptionID, episodeID)
+                if recordsByEpisodeID[episodeKey] == nil { recordsByEpisodeID[episodeKey] = record }
+            }
+            let fileKey = RemovedEpisodeLookupKey(record.subscriptionID, record.fileStem)
+            if recordsByFileStem[fileKey] == nil { recordsByFileStem[fileKey] = record }
+        }
     }
 
     private func persist(_ records: [RemovedEpisodeRecord]) {
@@ -169,5 +198,15 @@ public final class RemovedEpisodeHistoryViewModel {
                 .map(String.init)
                 .filter { $0.count >= 3 && !stopWords.contains($0) }
         )
+    }
+}
+
+private struct RemovedEpisodeLookupKey: Hashable {
+    let subscriptionID: UUID
+    let value: String
+
+    init(_ subscriptionID: UUID, _ value: String) {
+        self.subscriptionID = subscriptionID
+        self.value = value
     }
 }

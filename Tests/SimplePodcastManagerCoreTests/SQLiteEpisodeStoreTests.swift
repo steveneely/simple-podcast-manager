@@ -33,6 +33,43 @@ struct SQLiteEpisodeStoreTests {
     }
 
     @Test
+    func startupSnapshotLoadsAllPersistedStateInOneRead() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let records = fixture.records(number: 1)
+        let automaticDownloadState = AutomaticDownloadState(feeds: [
+            AutomaticDownloadFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                observedEpisodeIDs: [records.downloaded.episodeID],
+                pendingEpisodeIDs: [records.downloaded.episodeID]
+            )
+        ])
+        let feedActivityState = FeedActivityState(feeds: [
+            FeedActivityFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                observedEpisodeIDs: [records.downloaded.episodeID],
+                newEpisodeIDs: [records.downloaded.episodeID],
+                newestPublicationDate: Date(timeIntervalSince1970: 1)
+            )
+        ])
+        try fixture.store.savePreparedEpisodes([records.prepared])
+        try fixture.store.saveDownloadedEpisodes([records.downloaded])
+        try fixture.store.saveRemovedEpisodes([records.removed])
+        try fixture.store.saveState(automaticDownloadState)
+        try fixture.store.saveFeedActivityState(feedActivityState)
+
+        let snapshot = try fixture.store.loadStartupSnapshot()
+
+        #expect(snapshot.preparedEpisodes == [records.prepared])
+        #expect(snapshot.downloadedEpisodes == [records.downloaded])
+        #expect(snapshot.removedEpisodes == [records.removed])
+        #expect(snapshot.automaticDownloadState == automaticDownloadState)
+        #expect(snapshot.feedActivityState == feedActivityState)
+    }
+
+    @Test
     func importsLegacyJSONOnceAndKeepsSourceFiles() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

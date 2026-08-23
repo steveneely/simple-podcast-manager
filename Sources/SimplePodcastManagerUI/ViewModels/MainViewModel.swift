@@ -32,9 +32,12 @@ public final class MainViewModel {
         !feedSubscriptions.isEmpty
     }
 
-    public func load() {
+    public func load() async {
         do {
-            let configuration = try store.loadConfiguration()
+            let store = self.store
+            let configuration = try await Task.detached(priority: .userInitiated) {
+                try store.loadConfiguration()
+            }.value
             self.feedSubscriptions = configuration.feedSubscriptions.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             self.settings = configuration.settings
             self.lastErrorMessage = nil

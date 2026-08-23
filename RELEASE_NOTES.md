@@ -1,3 +1,3 @@
-# Simple Podcast Manager v1.11.1
+# Simple Podcast Manager v1.12.0
 
-- Clarifies how Automatic Downloads and Device Cleanup work in Settings.
+- Improves launch speed and responsiveness throughout the app.

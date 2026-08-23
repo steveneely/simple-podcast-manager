@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, FeedActivityStateStore, @unchecked Sendable {
+public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, FeedActivityStateStore, EpisodeStateStartupLoading, @unchecked Sendable {
     public static let shared = SQLiteEpisodeStore()
 
     public let fileURL: URL
@@ -72,6 +72,19 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
     public func loadFeedActivityState() throws -> FeedActivityState {
         let queue = try databaseQueue()
         return try queue.read(Self.loadFeedActivityState)
+    }
+
+    public func loadStartupSnapshot() throws -> EpisodeStateStartupSnapshot {
+        let queue = try databaseQueue()
+        return try queue.read { database in
+            try EpisodeStateStartupSnapshot(
+                preparedEpisodes: Self.loadRecords(PreparedEpisode.self, from: .prepared, database: database),
+                downloadedEpisodes: Self.loadRecords(DownloadedEpisodeRecord.self, from: .downloaded, database: database),
+                removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database),
+                automaticDownloadState: Self.loadAutomaticDownloadState(database: database),
+                feedActivityState: Self.loadFeedActivityState(database: database)
+            )
+        }
     }
 
     public func saveFeedActivityState(_ state: FeedActivityState) throws {

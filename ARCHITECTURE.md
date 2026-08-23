@@ -72,7 +72,7 @@ The core domain models are:
 
 Expected runtime flow:
 
-1. The app loads persisted feeds and settings.
+1. The app loads persisted feeds and settings off the main actor, selects the first show, then concurrently loads cached feed previews, one SQLite startup snapshot, and mounted-device discovery. Cached episodes can render as soon as their cache read finishes. Network refresh and device inventory then proceed independently in the background.
 2. The user adds a podcast by entering an RSS feed URL.
 3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
@@ -161,6 +161,8 @@ Small configuration data remains in `config.json`. Growing episode state is stor
 - automatic-download baselines and pending episodes
 
 Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
+
+Startup reads prepared episodes, download history, removal history, automatic-download state, and feed activity in one consistent SQLite read transaction. The UI builds keyed indexes for feed episodes and per-episode status so SwiftUI rendering does not repeatedly scan growing history arrays.
 
 On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. Automatic-download state uses a separate one-time import so upgrades from development builds can retain `automatic-downloads.json`. Import markers are written only after every source file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
 

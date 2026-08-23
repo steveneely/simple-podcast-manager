@@ -44,12 +44,14 @@ struct FeedPreviewViewModelTests {
 
         #expect(viewModel.allEpisodes.count == 1)
         #expect(viewModel.failures.count == 1)
+        #expect(viewModel.episodes(for: subscriptionID).map(\.id) == ["ep-1"])
+        #expect(viewModel.failures(for: viewModel.failures[0].subscriptionID).count == 1)
         #expect(viewModel.artworkURL(for: subscriptionID) == URL(string: "https://cdn.example.com/artwork.jpg"))
         #expect(viewModel.lastErrorMessage == nil)
     }
 
     @Test
-    func loadCachedPreviewLoadsPersistedEpisodesAndSummary() throws {
+    func loadCachedPreviewLoadsPersistedEpisodesAndSummary() async throws {
         let subscriptionID = UUID()
         let rssURL = URL(string: "https://example.com/feed.xml")!
         let subscription = FeedSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
@@ -81,9 +83,10 @@ struct FeedPreviewViewModelTests {
         )
         let viewModel = FeedPreviewViewModel(service: MockFeedService(result: FeedFetchResult()), cacheStore: store)
 
-        viewModel.loadCachedPreview(for: [subscription])
+        await viewModel.loadCachedPreview(for: [subscription])
 
         #expect(viewModel.allEpisodes.map(\.title) == ["Cached Episode"])
+        #expect(viewModel.episodes(for: subscriptionID).map(\.title) == ["Cached Episode"])
         #expect(viewModel.artworkURL(for: subscriptionID) == URL(string: "https://cdn.example.com/artwork.jpg"))
         #expect(viewModel.description(for: subscriptionID) == "Cached description.")
     }
@@ -178,6 +181,63 @@ struct FeedPreviewViewModelTests {
         ])
         #expect(Set(viewModel.allEpisodes.map(\.title)) == ["Existing Episode", "First Episode", "Second Episode"])
         #expect(viewModel.feedSummaries[existingSubscription.id]?.title == "Existing")
+    }
+
+    @Test
+    func indexedEpisodeLookupPerformanceComparison() async throws {
+        guard ProcessInfo.processInfo.environment["SPM_RUN_PERFORMANCE_TESTS"] == "1" else { return }
+        let subscriptions = (0..<50).map { number in
+            FeedSubscription(
+                title: "Podcast \(number)",
+                rssURL: URL(string: "https://example.com/feed-\(number).xml")!
+            )
+        }
+        let cachedFeeds = Dictionary(uniqueKeysWithValues: subscriptions.map { subscription in
+            let episodes = (0..<100).map { episodeNumber in
+                makeEpisode(
+                    id: "\(subscription.id)-\(episodeNumber)",
+                    subscription: subscription,
+                    title: "Episode \(episodeNumber)"
+                )
+            }
+            return (
+                subscription.id,
+                CachedFeed(
+                    subscriptionID: subscription.id,
+                    rssURL: subscription.rssURL,
+                    fetchedAt: Date(timeIntervalSince1970: 1),
+                    summary: FeedSummary(subscriptionID: subscription.id, title: subscription.title),
+                    episodes: episodes
+                )
+            )
+        })
+        let viewModel = FeedPreviewViewModel(
+            service: MockFeedService(result: FeedFetchResult()),
+            cacheStore: InMemoryFeedCacheStore(cachedFeeds: cachedFeeds)
+        )
+        await viewModel.loadCachedPreview(for: subscriptions)
+
+        let clock = ContinuousClock()
+        var linearCount = 0
+        let linearDuration = clock.measure {
+            for _ in 0..<20 {
+                for subscription in subscriptions {
+                    linearCount += viewModel.allEpisodes.filter { $0.subscriptionID == subscription.id }.count
+                }
+            }
+        }
+        var indexedCount = 0
+        let indexedDuration = clock.measure {
+            for _ in 0..<20 {
+                for subscription in subscriptions {
+                    indexedCount += viewModel.episodes(for: subscription.id).count
+                }
+            }
+        }
+
+        print("Episode lookup benchmark — linear: \(linearDuration), indexed: \(indexedDuration)")
+        #expect(indexedCount == linearCount)
+        #expect(indexedDuration < linearDuration)
     }
 
     private func makeEpisode(id: String, subscription: FeedSubscription, title: String) -> Episode {

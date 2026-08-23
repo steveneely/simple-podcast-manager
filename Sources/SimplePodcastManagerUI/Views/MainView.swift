@@ -28,6 +28,8 @@ public struct MainView: View {
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     private let devicePodcastConfigurationService = DevicePodcastConfigurationService()
+    private let startupEpisodeStateStore: any EpisodeStateStartupLoading
+    private let startupPerformanceTracker = StartupPerformanceTracker()
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedFeedID: FeedSubscription.ID?
@@ -54,7 +56,8 @@ public struct MainView: View {
     public init(
         viewModel: MainViewModel,
         automaticallyChecksForUpdates: Binding<Bool>? = nil,
-        appearancePreference: Binding<AppearancePreference>? = nil
+        appearancePreference: Binding<AppearancePreference>? = nil,
+        startupEpisodeStateStore: any EpisodeStateStartupLoading = SQLiteEpisodeStore.shared
     ) {
         self._viewModel = State(initialValue: viewModel)
         self._deviceViewModel = State(initialValue: DeviceViewModel())
@@ -68,6 +71,7 @@ public struct MainView: View {
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
         self.automaticallyChecksForUpdates = automaticallyChecksForUpdates
         self.appearancePreference = appearancePreference
+        self.startupEpisodeStateStore = startupEpisodeStateStore
     }
 
     public var body: some View {
@@ -141,31 +145,24 @@ public struct MainView: View {
         }
         .task {
             if !viewModel.hasLoadedConfiguration {
-                viewModel.load()
+                await viewModel.load()
                 appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
-            }
-            if !preparationPreviewViewModel.hasLoadedPreparedEpisodes {
-                await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
-            }
-            if !automaticDownloadViewModel.hasLoadedState {
-                await automaticDownloadViewModel.load()
-            }
-            if !feedActivityViewModel.hasLoadedState {
-                await feedActivityViewModel.load()
-            }
-            if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
-                await removedEpisodeHistoryViewModel.load()
+                startupPerformanceTracker.mark("configuration loaded")
             }
             if selectedFeedID == nil {
                 selectedFeedID = viewModel.feedSubscriptions.first?.id
             }
-            if !deviceViewModel.hasLoadedDevices {
-                deviceViewModel.refresh()
-            }
-            if viewModel.hasFeeds && !feedPreviewViewModel.hasPreviewData {
-                await refreshFeedPreview()
-            }
-            await refreshDeviceLibrary()
+
+            async let cachedPreview: Void = loadCachedFeedPreviewForStartup()
+            async let persistedState: Void = loadPersistedEpisodeStateForStartup()
+            async let devices: Void = loadDevicesForStartup()
+            _ = await (cachedPreview, persistedState)
+
+            async let refreshedFeeds: Void = refreshFeedsForStartup()
+            await devices
+            async let deviceLibrary: Void = refreshDeviceLibrary()
+            _ = await (refreshedFeeds, deviceLibrary)
+            startupPerformanceTracker.mark("background startup work complete")
         }
         .sheet(item: $feedEditorPresentation) { presentation in
             FeedEditorView(
@@ -283,12 +280,16 @@ public struct MainView: View {
             libraryErrorMessage: deviceLibraryViewModel.lastErrorMessage,
             deviceSelection: deviceSelectionBinding,
             onDisconnect: {
-                deviceViewModel.disconnectSelectedDevice()
-                Task { await refreshDeviceLibrary() }
+                Task {
+                    await deviceViewModel.disconnectSelectedDevice()
+                    await refreshDeviceLibrary()
+                }
             },
             onRefresh: {
-                deviceViewModel.refresh()
-                Task { await refreshDeviceLibrary() }
+                Task {
+                    await deviceViewModel.refresh()
+                    await refreshDeviceLibrary()
+                }
             },
             syncControls: {
                 if viewModel.hasFeeds, deviceViewModel.selectedDevice != nil {
@@ -736,7 +737,7 @@ public struct MainView: View {
             subscriptions: viewModel.feedSubscriptions,
             limit: viewModel.settings.automaticDownloadLimit
         )
-        feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
+        await feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
         if let subscription = viewModel.feedSubscriptions.first(where: { $0.id == updatedDraft.id }),
            previousRSSURL != subscription.rssURL {
             await feedActivityViewModel.updateAfterRefresh(
@@ -756,6 +757,55 @@ public struct MainView: View {
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
         await updateFeedActivity(afterRefreshing: refreshedSubscriptions)
         await downloadNewEpisodes(afterRefreshing: refreshedSubscriptions)
+    }
+
+    private func loadCachedFeedPreviewForStartup() async {
+        guard viewModel.hasFeeds, !feedPreviewViewModel.hasPreviewData else { return }
+        await feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
+        startupPerformanceTracker.mark("cached episodes visible")
+    }
+
+    private func loadPersistedEpisodeStateForStartup(forceReload: Bool = false) async {
+        guard forceReload
+            || !preparationPreviewViewModel.hasLoadedPreparedEpisodes
+            || !automaticDownloadViewModel.hasLoadedState
+            || !feedActivityViewModel.hasLoadedState
+            || !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes
+        else { return }
+
+        do {
+            let store = startupEpisodeStateStore
+            let snapshot = try await Task.detached(priority: .userInitiated) {
+                try store.loadStartupSnapshot()
+            }.value
+            try await preparationPreviewViewModel.applyPersistedState(
+                preparedEpisodes: snapshot.preparedEpisodes,
+                downloadedEpisodes: snapshot.downloadedEpisodes
+            )
+            automaticDownloadViewModel.applyPersistedState(snapshot.automaticDownloadState)
+            feedActivityViewModel.applyPersistedState(snapshot.feedActivityState)
+            removedEpisodeHistoryViewModel.applyPersistedState(snapshot.removedEpisodes)
+            startupPerformanceTracker.mark("persisted episode state ready")
+        } catch {
+            // Preserve the existing per-view-model fallback behavior if a future custom
+            // startup store cannot provide a complete snapshot.
+            await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
+            await automaticDownloadViewModel.load()
+            await feedActivityViewModel.load()
+            await removedEpisodeHistoryViewModel.load()
+        }
+    }
+
+    private func loadDevicesForStartup() async {
+        guard !deviceViewModel.hasLoadedDevices else { return }
+        await deviceViewModel.refresh()
+        startupPerformanceTracker.mark("devices discovered")
+    }
+
+    private func refreshFeedsForStartup() async {
+        guard viewModel.hasFeeds else { return }
+        await refreshFeedPreview()
+        startupPerformanceTracker.mark("network feeds refreshed")
     }
 
     private func refreshFeedPreview(for subscription: FeedSubscription) async {
@@ -871,8 +921,10 @@ public struct MainView: View {
     }
 
     private func handleDeviceTopologyChange() {
-        deviceViewModel.refresh()
-        Task { await refreshDeviceLibrary() }
+        Task {
+            await deviceViewModel.refresh()
+            await refreshDeviceLibrary()
+        }
     }
 
     private func exportAppData() {
@@ -1020,11 +1072,8 @@ public struct MainView: View {
     }
 
     private func reloadAppData() async {
-        viewModel.load()
-        await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
-        await automaticDownloadViewModel.load()
-        await feedActivityViewModel.load()
-        await removedEpisodeHistoryViewModel.load()
+        await viewModel.load()
+        await loadPersistedEpisodeStateForStartup(forceReload: true)
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
@@ -1078,9 +1127,7 @@ public struct MainView: View {
     }
 
     private func allEpisodes(for subscription: FeedSubscription) -> [Episode] {
-        feedPreviewViewModel.allEpisodes
-            .filter { $0.subscriptionID == subscription.id }
-            .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+        feedPreviewViewModel.episodes(for: subscription.id)
     }
 
     private func displayedEpisodes(for subscription: FeedSubscription) -> [Episode] {
@@ -1182,7 +1229,7 @@ public struct MainView: View {
     }
 
     private func feedIssues(for subscription: FeedSubscription) -> [FeedFetchFailure] {
-        feedPreviewViewModel.failures.filter { $0.subscriptionID == subscription.id }
+        feedPreviewViewModel.failures(for: subscription.id)
     }
 
     private func artworkURL(for subscription: FeedSubscription) -> URL? {
@@ -1256,7 +1303,7 @@ public struct MainView: View {
         }
 
         if isEjectAfterSyncEnabled {
-            deviceViewModel.refresh()
+            await deviceViewModel.refresh()
         }
         await refreshDeviceLibrary()
     }
@@ -1389,8 +1436,10 @@ public struct MainView: View {
         appearancePreference?.wrappedValue = updatedSettings.appearancePreference
 
         if podcastDirectoryPath != nil {
-            deviceViewModel.refresh()
-            Task { await refreshDeviceLibrary() }
+            Task {
+                await deviceViewModel.refresh()
+                await refreshDeviceLibrary()
+            }
         }
     }
 

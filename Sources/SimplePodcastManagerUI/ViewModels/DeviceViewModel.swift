@@ -13,6 +13,7 @@ public final class DeviceViewModel {
 
     private let service: any DeviceService
     private let ejector: any DeviceEjecting
+    private var latestRefreshID: UUID?
 
     public init(
         service: any DeviceService = MountedVolumeDeviceService(),
@@ -48,14 +49,21 @@ public final class DeviceViewModel {
         return "Multiple compatible devices found. Choose one to continue."
     }
 
-    public func refresh() {
+    public func refresh() async {
+        let refreshID = UUID()
+        latestRefreshID = refreshID
         do {
-            let discoveredDevices = try service.discoverDevices()
+            let service = self.service
+            let discoveredDevices = try await Task.detached(priority: .userInitiated) {
+                try service.discoverDevices()
+            }.value
+            guard latestRefreshID == refreshID else { return }
             self.devices = discoveredDevices
             self.lastErrorMessage = nil
             self.hasLoadedDevices = true
             updateSelection(afterRefreshingWith: discoveredDevices)
         } catch {
+            guard latestRefreshID == refreshID else { return }
             self.devices = []
             self.selectedDeviceID = nil
             self.lastErrorMessage = error.localizedDescription
@@ -68,16 +76,19 @@ public final class DeviceViewModel {
         selectedDeviceID = devices.first(where: { $0.id == id })?.id
     }
 
-    public func disconnectSelectedDevice() {
+    public func disconnectSelectedDevice() async {
         guard let selectedDevice else { return }
 
         isDisconnecting = true
         defer { isDisconnecting = false }
 
         do {
-            try ejector.eject(device: selectedDevice)
+            let ejector = self.ejector
+            try await Task.detached(priority: .userInitiated) {
+                try ejector.eject(device: selectedDevice)
+            }.value
             lastErrorMessage = nil
-            refresh()
+            await refresh()
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

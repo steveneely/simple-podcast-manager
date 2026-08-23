@@ -31,6 +31,12 @@ public final class AutomaticDownloadViewModel {
         }
     }
 
+    public func applyPersistedState(_ state: AutomaticDownloadState) {
+        self.state = state
+        lastErrorMessage = nil
+        hasLoadedState = true
+    }
+
     public func episodesToDownload(
         afterRefreshing refreshedSubscriptionIDs: Set<UUID>,
         failedSubscriptionIDs: Set<UUID>,

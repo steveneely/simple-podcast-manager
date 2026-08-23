@@ -15,6 +15,9 @@ public final class PreparationPreviewViewModel {
     private var downloadedEpisodes: [DownloadedEpisodeRecord]
     private var failures: [PreparationFailure]
     private var preparingEpisodesByID: [EpisodePreparationID: Episode]
+    private var preparedEpisodesByID: [EpisodePreparationID: PreparedEpisode]
+    private var downloadedEpisodesByID: [EpisodePreparationID: DownloadedEpisodeRecord]
+    private var failuresByID: [EpisodePreparationID: PreparationFailure]
 
     public init(
         service: MediaPreparationService = MediaPreparationService(),
@@ -30,6 +33,9 @@ public final class PreparationPreviewViewModel {
         self.lastErrorMessage = nil
         self.hasLoadedPreparedEpisodes = false
         self.preparingEpisodesByID = [:]
+        self.preparedEpisodesByID = [:]
+        self.downloadedEpisodesByID = [:]
+        self.failuresByID = [:]
     }
 
     public var isPreparing: Bool {
@@ -82,46 +88,49 @@ public final class PreparationPreviewViewModel {
             let (persistedEpisodes, downloadedEpisodes) = try await Task.detached {
                 try (store.loadPreparedEpisodes(), downloadedEpisodeStore.loadDownloadedEpisodes())
             }.value
-            let existingPreparedEpisodes = persistedEpisodes.filter {
-                FileManager.default.fileExists(atPath: $0.preparedFileURL.path)
-            }
-            self.preparedEpisodes = existingPreparedEpisodes.sorted {
-                $0.episode.title.localizedCaseInsensitiveCompare($1.episode.title) == .orderedAscending
-            }
-            self.downloadedEpisodes = downloadedEpisodes.sorted {
-                if $0.downloadedAt != $1.downloadedAt {
-                    return $0.downloadedAt > $1.downloadedAt
-                }
-                return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
-            }
-            self.hasLoadedPreparedEpisodes = true
-            self.lastErrorMessage = nil
-
-            if existingPreparedEpisodes.count != persistedEpisodes.count {
-                try await Task.detached {
-                    try store.savePreparedEpisodes(existingPreparedEpisodes)
-                }.value
-            }
+            try await applyPersistedState(
+                preparedEpisodes: persistedEpisodes,
+                downloadedEpisodes: downloadedEpisodes
+            )
         } catch {
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
+    public func applyPersistedState(
+        preparedEpisodes persistedEpisodes: [PreparedEpisode],
+        downloadedEpisodes: [DownloadedEpisodeRecord]
+    ) async throws {
+        let existingPreparedEpisodes = await Task.detached(priority: .userInitiated) {
+            persistedEpisodes.filter { FileManager.default.fileExists(atPath: $0.preparedFileURL.path) }
+        }.value
+        self.preparedEpisodes = existingPreparedEpisodes.sorted {
+            $0.episode.title.localizedCaseInsensitiveCompare($1.episode.title) == .orderedAscending
+        }
+        self.downloadedEpisodes = downloadedEpisodes.sorted {
+            if $0.downloadedAt != $1.downloadedAt { return $0.downloadedAt > $1.downloadedAt }
+            return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
+        }
+        rebuildIndexes()
+        hasLoadedPreparedEpisodes = true
+        lastErrorMessage = nil
+
+        if existingPreparedEpisodes.count != persistedEpisodes.count {
+            let store = self.store
+            try await Task.detached { try store.savePreparedEpisodes(existingPreparedEpisodes) }.value
+        }
+    }
+
     public func preparedEpisode(for episode: Episode) -> PreparedEpisode? {
-        let episodeID = EpisodePreparationID(episode)
-        return preparedEpisodes.first(where: { EpisodePreparationID($0.episode) == episodeID })
+        preparedEpisodesByID[EpisodePreparationID(episode)]
     }
 
     public func downloadedRecord(for episode: Episode) -> DownloadedEpisodeRecord? {
-        guard let subscriptionID = episode.subscriptionID else { return nil }
-        return downloadedEpisodes.first(where: {
-            $0.subscriptionID == subscriptionID && $0.episodeID == episode.id
-        })
+        downloadedEpisodesByID[EpisodePreparationID(episode)]
     }
 
     public func failure(for episode: Episode) -> PreparationFailure? {
-        let episodeID = EpisodePreparationID(episode)
-        return failures.first(where: { EpisodePreparationID($0.episode) == episodeID })
+        failuresByID[EpisodePreparationID(episode)]
     }
 
     public func requiresInsecureDownloadPermission(for episode: Episode) -> Bool {
@@ -135,6 +144,7 @@ public final class PreparationPreviewViewModel {
         let episodeID = EpisodePreparationID(episode)
         preparedEpisodes.removeAll(where: { EpisodePreparationID($0.episode) == episodeID })
         failures.removeAll(where: { EpisodePreparationID($0.episode) == episodeID })
+        rebuildIndexes()
         persistPreparedEpisodes()
     }
 
@@ -144,6 +154,7 @@ public final class PreparationPreviewViewModel {
         }
         preparedEpisodes = []
         failures = []
+        rebuildIndexes()
         persistPreparedEpisodes()
     }
 
@@ -161,6 +172,7 @@ public final class PreparationPreviewViewModel {
             successfulEpisodeIDs.contains(EpisodePreparationID(failure.episode))
         }
         mergeFailures(result.failures)
+        rebuildIndexes()
     }
 
     private func mergeFailures(for episodes: [Episode], message: String) {
@@ -177,6 +189,7 @@ public final class PreparationPreviewViewModel {
         failures = failuresByEpisodeID.values.sorted {
             $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
         }
+        rebuildIndexes()
     }
 
     private func persistPreparedEpisodes() {
@@ -219,7 +232,20 @@ public final class PreparationPreviewViewModel {
             }
             return $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
         }
+        rebuildIndexes()
         return newRecords
+    }
+
+    private func rebuildIndexes() {
+        preparedEpisodesByID = Dictionary(uniqueKeysWithValues: preparedEpisodes.map {
+            (EpisodePreparationID($0.episode), $0)
+        })
+        downloadedEpisodesByID = Dictionary(uniqueKeysWithValues: downloadedEpisodes.map {
+            (EpisodePreparationID(subscriptionID: $0.subscriptionID, episodeID: $0.episodeID), $0)
+        })
+        failuresByID = Dictionary(uniqueKeysWithValues: failures.map {
+            (EpisodePreparationID($0.episode), $0)
+        })
     }
 
     private func persistNewDownloadedEpisodes(_ downloadedEpisodes: [DownloadedEpisodeRecord]) {
@@ -240,6 +266,7 @@ public final class PreparationPreviewViewModel {
     private func beginPreparing(_ episodes: [Episode]) {
         let episodeIDs = Set(episodes.map(EpisodePreparationID.init))
         failures.removeAll { episodeIDs.contains(EpisodePreparationID($0.episode)) }
+        rebuildIndexes()
         for episode in episodes {
             preparingEpisodesByID[EpisodePreparationID(episode)] = episode
         }
@@ -262,6 +289,10 @@ private enum EpisodePreparationID: Hashable {
         } else {
             self = .feed(episode.sourceFeedURL, episodeID: episode.id)
         }
+    }
+
+    init(subscriptionID: UUID, episodeID: String) {
+        self = .subscription(subscriptionID, episodeID: episodeID)
     }
 
 }

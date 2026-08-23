@@ -10,6 +10,7 @@ public final class FeedActivityViewModel {
 
     private let persistence: FeedActivityPersistence
     private var state = FeedActivityState()
+    private var feedsBySubscriptionID: [UUID: FeedActivityFeedState] = [:]
 
     public init(store: any FeedActivityStateStore = SQLiteEpisodeStore.shared) {
         self.persistence = FeedActivityPersistence(store: store)
@@ -18,12 +19,20 @@ public final class FeedActivityViewModel {
     public func load() async {
         do {
             state = try await persistence.load()
+            rebuildIndex()
             lastErrorMessage = nil
             hasLoadedState = true
         } catch {
             state = FeedActivityState()
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    public func applyPersistedState(_ state: FeedActivityState) {
+        self.state = state
+        rebuildIndex()
+        lastErrorMessage = nil
+        hasLoadedState = true
     }
 
     public func updateAfterRefresh(
@@ -41,25 +50,28 @@ public final class FeedActivityViewModel {
             failedSubscriptionIDs: failedSubscriptionIDs,
             openSubscriptionID: openSubscriptionID
         )
+        rebuildIndex()
         await persist()
     }
 
     public func markSeen(subscriptionID: UUID) async {
         state = FeedActivityPlanner.markingSeen(subscriptionID: subscriptionID, in: state)
+        rebuildIndex()
         await persist()
     }
 
     public func acknowledgeSynced(_ episodes: [Episode]) async {
         state = FeedActivityPlanner.acknowledging(episodes: episodes, in: state)
+        rebuildIndex()
         await persist()
     }
 
     public func newEpisodeCount(for subscriptionID: UUID) -> Int {
-        state.feeds.first(where: { $0.subscriptionID == subscriptionID })?.newEpisodeIDs.count ?? 0
+        feedsBySubscriptionID[subscriptionID]?.newEpisodeIDs.count ?? 0
     }
 
     public func newestPublicationDate(for subscriptionID: UUID) -> Date? {
-        state.feeds.first(where: { $0.subscriptionID == subscriptionID })?.newestPublicationDate
+        feedsBySubscriptionID[subscriptionID]?.newestPublicationDate
     }
 
     public func isInactive(
@@ -67,8 +79,12 @@ public final class FeedActivityViewModel {
         threshold: InactivePodcastThreshold,
         currentDate: Date = Date()
     ) -> Bool {
-        let feed = state.feeds.first(where: { $0.subscriptionID == subscriptionID })
+        let feed = feedsBySubscriptionID[subscriptionID]
         return FeedActivityPlanner.isInactive(feed, threshold: threshold, currentDate: currentDate)
+    }
+
+    private func rebuildIndex() {
+        feedsBySubscriptionID = Dictionary(uniqueKeysWithValues: state.feeds.map { ($0.subscriptionID, $0) })
     }
 
     private func persist() async {

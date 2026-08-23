@@ -13,6 +13,8 @@ public final class FeedPreviewViewModel {
 
     private let service: any FeedService
     private let cacheStore: any FeedCacheStore
+    private var episodesBySubscriptionID: [UUID: [Episode]]
+    private var failuresBySubscriptionID: [UUID: [FeedFetchFailure]]
 
     public init(
         service: any FeedService = RSSFeedService(),
@@ -25,32 +27,29 @@ public final class FeedPreviewViewModel {
         self.feedSummaries = [:]
         self.isLoading = false
         self.lastErrorMessage = nil
+        self.episodesBySubscriptionID = [:]
+        self.failuresBySubscriptionID = [:]
     }
 
     public var hasPreviewData: Bool {
         !allEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
     }
 
-    public func loadCachedPreview(for subscriptions: [FeedSubscription]) {
-        var cachedEpisodes: [Episode] = []
-        var cachedSummaries: [FeedSummary] = []
+    public func loadCachedPreview(for subscriptions: [FeedSubscription]) async {
+        let cacheStore = self.cacheStore
+        let enabledSubscriptions = subscriptions.filter(\.isEnabled)
+        let cachedFeeds = await Task.detached(priority: .userInitiated) {
+            enabledSubscriptions.compactMap { try? cacheStore.loadCachedFeed(for: $0) }
+        }.value
 
-        for subscription in subscriptions where subscription.isEnabled {
-            guard let cachedFeed = try? cacheStore.loadCachedFeed(for: subscription) else {
-                continue
-            }
-
-            cachedEpisodes.append(contentsOf: cachedFeed.episodes)
-            cachedSummaries.append(cachedFeed.summary)
-        }
-
-        self.allEpisodes = cachedEpisodes.sorted(by: EpisodeSelector.isHigherPriority(_:than:))
-        self.feedSummaries = Dictionary(uniqueKeysWithValues: cachedSummaries.map { ($0.subscriptionID, $0) })
+        self.allEpisodes = cachedFeeds.flatMap(\.episodes).sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+        self.feedSummaries = Dictionary(uniqueKeysWithValues: cachedFeeds.map { ($0.summary.subscriptionID, $0.summary) })
         self.failures = []
+        rebuildIndexes()
     }
 
     public func refreshPreview(for subscriptions: [FeedSubscription]) async {
-        loadCachedPreview(for: subscriptions)
+        await loadCachedPreview(for: subscriptions)
         isLoading = true
         defer { isLoading = false }
 
@@ -60,11 +59,13 @@ public final class FeedPreviewViewModel {
             self.failures = result.failures
             self.feedSummaries = Dictionary(uniqueKeysWithValues: result.feedSummaries.map { ($0.subscriptionID, $0) })
             self.lastErrorMessage = nil
+            rebuildIndexes()
         } catch {
             self.allEpisodes = []
             self.failures = []
             self.feedSummaries = [:]
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            rebuildIndexes()
         }
     }
 
@@ -94,6 +95,14 @@ public final class FeedPreviewViewModel {
         feedSummaries[subscriptionID]?.description
     }
 
+    public func episodes(for subscriptionID: UUID) -> [Episode] {
+        episodesBySubscriptionID[subscriptionID] ?? []
+    }
+
+    public func failures(for subscriptionID: UUID) -> [FeedFetchFailure] {
+        failuresBySubscriptionID[subscriptionID] ?? []
+    }
+
     private func replacePreviewData(for subscriptionIDs: Set<UUID>, with result: FeedFetchResult) {
         allEpisodes.removeAll { episode in
             episode.subscriptionID.map(subscriptionIDs.contains) ?? false
@@ -107,5 +116,13 @@ public final class FeedPreviewViewModel {
         for summary in result.feedSummaries {
             feedSummaries[summary.subscriptionID] = summary
         }
+        rebuildIndexes()
+    }
+
+    private func rebuildIndexes() {
+        episodesBySubscriptionID = Dictionary(grouping: allEpisodes.compactMap { episode in
+            episode.subscriptionID.map { ($0, episode) }
+        }, by: \.0).mapValues { $0.map(\.1) }
+        failuresBySubscriptionID = Dictionary(grouping: failures, by: \.subscriptionID)
     }
 }

@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct MainViewModelTests {
     @Test
-    func loadReflectsStoredConfiguration() throws {
+    func loadReflectsStoredConfiguration() async throws {
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
                 settings: AppSettings(
@@ -19,11 +19,21 @@ struct MainViewModelTests {
         )
         let viewModel = MainViewModel(store: store)
 
-        viewModel.load()
+        await viewModel.load()
 
         #expect(viewModel.hasLoadedConfiguration)
         #expect(viewModel.feedSubscriptions.count == 1)
         #expect(viewModel.settings.ffmpegExecutablePath == "/usr/local/bin/ffmpeg")
+    }
+
+    @Test
+    func loadReadsConfigurationOutsideMainThread() async {
+        let store = ThreadRecordingConfigurationStore()
+        let viewModel = MainViewModel(store: store)
+
+        await viewModel.load()
+
+        #expect(store.loadMainThreadValues == [false])
     }
 
     @Test
@@ -91,7 +101,7 @@ struct MainViewModelTests {
             store: store,
             feedResolver: MockFeedResolver(summariesByURL: [:])
         )
-        viewModel.load()
+        await viewModel.load()
         var draft = FeedDraft(subscription: subscription)
         draft.includesInAutomaticDownloads = false
 
@@ -152,7 +162,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func importSubscriptionsPersistsNewSubscriptionsAndLeavesConflictingImportAtomic() throws {
+    func importSubscriptionsPersistsNewSubscriptionsAndLeavesConflictingImportAtomic() async throws {
         let existingURL = URL(string: "https://example.com/existing.xml")!
         let newURL = URL(string: "https://example.com/new.xml")!
         let store = InMemoryConfigurationStore(
@@ -163,7 +173,7 @@ struct MainViewModelTests {
             )
         )
         let viewModel = MainViewModel(store: store)
-        viewModel.load()
+        await viewModel.load()
 
         let addedSubscriptionIDs = try viewModel.importSubscriptions([
             OPMLSubscription(title: "New", rssURL: newURL)
@@ -183,7 +193,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func applyFeedSummariesUpdatesStoredMetadata() throws {
+    func applyFeedSummariesUpdatesStoredMetadata() async throws {
         let subscriptionID = UUID(uuidString: "7B9FEA54-E516-4B39-8156-5B83D0B96768")!
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
@@ -198,7 +208,7 @@ struct MainViewModelTests {
         )
         let viewModel = MainViewModel(store: store)
 
-        viewModel.load()
+        await viewModel.load()
         viewModel.applyFeedSummaries([
             FeedSummary(
                 subscriptionID: subscriptionID,
@@ -214,7 +224,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func removeFeedDeletesCachedFeed() throws {
+    func removeFeedDeletesCachedFeed() async throws {
         let subscriptionID = UUID()
         let cacheStore = InMemoryFeedCacheStore()
         let store = InMemoryConfigurationStore(
@@ -229,7 +239,7 @@ struct MainViewModelTests {
             )
         )
         let viewModel = MainViewModel(store: store, feedCacheStore: cacheStore)
-        viewModel.load()
+        await viewModel.load()
 
         viewModel.removeFeeds(at: IndexSet(integer: 0))
 
@@ -237,7 +247,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func removeFeedRemovesSelectedSubscriptionEvenWhenStoredOrderDiffers() throws {
+    func removeFeedRemovesSelectedSubscriptionEvenWhenStoredOrderDiffers() async throws {
         let alphaID = UUID()
         let zuluID = UUID()
         let cacheStore = InMemoryFeedCacheStore()
@@ -258,7 +268,7 @@ struct MainViewModelTests {
             )
         )
         let viewModel = MainViewModel(store: store, feedCacheStore: cacheStore)
-        viewModel.load()
+        await viewModel.load()
 
         #expect(viewModel.feedSubscriptions.map(\.id) == [alphaID, zuluID])
 
@@ -295,7 +305,7 @@ struct MainViewModelTests {
             ),
             feedCacheStore: cacheStore
         )
-        viewModel.load()
+        await viewModel.load()
 
         try await viewModel.updateFeed(
             from: FeedDraft(
@@ -341,6 +351,22 @@ private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable 
     func deleteCachedFeed(for subscriptionID: UUID) throws {
         deletedSubscriptionIDs.append(subscriptionID)
     }
+}
+
+private final class ThreadRecordingConfigurationStore: ConfigurationStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [Bool] = []
+
+    var loadMainThreadValues: [Bool] {
+        lock.withLock { values }
+    }
+
+    func loadConfiguration() throws -> AppConfiguration {
+        lock.withLock { values.append(Thread.isMainThread) }
+        return AppConfiguration()
+    }
+
+    func saveConfiguration(_ configuration: AppConfiguration) throws {}
 }
 
 private struct MockFeedResolver: FeedResolving {

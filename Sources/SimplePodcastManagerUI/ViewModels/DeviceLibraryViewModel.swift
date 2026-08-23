@@ -13,6 +13,7 @@ public final class DeviceLibraryViewModel {
     private let deletionService: DeviceFileDeletionService
     private let safetyValidator: SafetyValidator
     private var filesBySubscriptionID: [UUID: [URL]]
+    private var filesByEpisodeStemBySubscriptionID: [UUID: [String: URL]]
     private var latestRefreshID: UUID?
 
     public init(
@@ -28,6 +29,7 @@ public final class DeviceLibraryViewModel {
         )
         self.safetyValidator = safetyValidator
         self.filesBySubscriptionID = [:]
+        self.filesByEpisodeStemBySubscriptionID = [:]
         self.otherAudioFiles = []
         self.lastErrorMessage = nil
     }
@@ -38,6 +40,7 @@ public final class DeviceLibraryViewModel {
 
         guard let device else {
             filesBySubscriptionID = [:]
+            filesByEpisodeStemBySubscriptionID = [:]
             otherAudioFiles = []
             lastErrorMessage = nil
             return
@@ -58,11 +61,13 @@ public final class DeviceLibraryViewModel {
             guard latestRefreshID == refreshID else { return }
 
             filesBySubscriptionID = inventory.filesBySubscriptionID
+            rebuildFileIndex()
             otherAudioFiles = inventory.otherAudioFiles
             lastErrorMessage = nil
         } catch {
             guard latestRefreshID == refreshID else { return }
             filesBySubscriptionID = [:]
+            filesByEpisodeStemBySubscriptionID = [:]
             otherAudioFiles = []
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -78,8 +83,16 @@ public final class DeviceLibraryViewModel {
         }
 
         let expectedFileStem = EpisodeFileName.fileStem(for: episode)
-        return filesBySubscriptionID[subscriptionID]?.first {
-            $0.deletingPathExtension().lastPathComponent == expectedFileStem
+        return filesByEpisodeStemBySubscriptionID[subscriptionID]?[expectedFileStem]
+    }
+
+    private func rebuildFileIndex() {
+        filesByEpisodeStemBySubscriptionID = filesBySubscriptionID.mapValues { files in
+            var filesByStem: [String: URL] = [:]
+            for file in files where filesByStem[file.deletingPathExtension().lastPathComponent] == nil {
+                filesByStem[file.deletingPathExtension().lastPathComponent] = file
+            }
+            return filesByStem
         }
     }
 

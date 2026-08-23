@@ -20,14 +20,17 @@ struct SimplePodcastManagerDesktopApp: App {
                     get: { appUpdater.automaticallyChecksForUpdates },
                     set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
                 ),
-                appearancePreference: $appearancePreference
+                appearancePreference: Binding(
+                    get: { appearancePreference },
+                    set: { preference in
+                        // AppKit semantic colors must see the new appearance before SwiftUI rebuilds the panels.
+                        applyAppearance(preference)
+                        appearancePreference = preference
+                    }
+                )
             )
-            .preferredColorScheme(colorScheme(for: appearancePreference))
             .onAppear {
                 applyAppearance(appearancePreference)
-            }
-            .onChange(of: appearancePreference) { _, preference in
-                applyAppearance(preference)
             }
         }
         .defaultSize(width: 900, height: 720)
@@ -86,26 +89,8 @@ struct SimplePodcastManagerDesktopApp: App {
         return options
     }
 
-    private func colorScheme(for preference: AppearancePreference) -> ColorScheme? {
-        switch preference {
-        case .system:
-            nil
-        case .light:
-            .light
-        case .dark:
-            .dark
-        }
-    }
-
     private func applyAppearance(_ preference: AppearancePreference) {
-        switch preference {
-        case .system:
-            NSApplication.shared.appearance = nil
-        case .light:
-            NSApplication.shared.appearance = NSAppearance(named: .aqua)
-        case .dark:
-            NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
-        }
+        NSApplication.shared.appearance = ApplicationAppearance.appearance(for: preference)
     }
 
     private func aboutApplicationVersion() -> String {

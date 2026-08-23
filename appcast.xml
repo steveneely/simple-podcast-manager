@@ -3,18 +3,17 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.13.0</title>
-            <pubDate>Sun, 23 Aug 2026 15:29:46 -0600</pubDate>
-            <sparkle:version>75</sparkle:version>
-            <sparkle:shortVersionString>1.13.0</sparkle:shortVersionString>
+            <title>1.13.1</title>
+            <pubDate>Sun, 23 Aug 2026 16:44:57 -0600</pubDate>
+            <sparkle:version>76</sparkle:version>
+            <sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.13.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.13.1
 
-- Starts with no show selected so new-episode badges remain visible for every show until you open it.
-- Keeps another show's badge intact when the currently selected show is removed or app data is restored.
+- Correctly restores every panel to the macOS appearance when switching from Light back to System.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.13.0/SimplePodcastManager-v1.13.0.dmg" length="7126195" type="application/octet-stream" sparkle:edSignature="IXFV1shbSrTQmo7J7lpTV/ID7LHmo2XxhH2Blgu8fBF5kw9EEcAnSxyU5iToYQCfWs3H+MV6MBmelDk73efPBA=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.13.1/SimplePodcastManager-v1.13.1.dmg" length="7128342" type="application/octet-stream" sparkle:edSignature="Df4q6SHnxioCaf8Fo0qzFa5CMlKdOj6SSnwFMvVzCiUEJQ3ZF5jezBxHCycx1G53tahH6YM9csLAHCLLwoauBw=="/>
         </item>
     </channel>
 </rss>

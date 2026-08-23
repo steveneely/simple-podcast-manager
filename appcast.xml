@@ -3,18 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.9.4</title>
-            <pubDate>Wed, 19 Aug 2026 16:37:57 -0600</pubDate>
-            <sparkle:version>69</sparkle:version>
-            <sparkle:shortVersionString>1.9.4</sparkle:shortVersionString>
+            <title>1.10.0</title>
+            <pubDate>Sun, 23 Aug 2026 10:28:14 -0600</pubDate>
+            <sparkle:version>70</sparkle:version>
+            <sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.9.4
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.10.0
 
-- Keeps Settings fully on-screen with a scrollable layout that no longer shifts the main window.
-- Shows complete Settings descriptions instead of truncating them with an ellipsis.
+- Adds optional device cleanup that suggests synced episodes older than a chosen number of days.
+- Lets you review and keep individual cleanup candidates before every sync while leaving unrelated audio untouched.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.9.4/SimplePodcastManager-v1.9.4.dmg" length="6952661" type="application/octet-stream" sparkle:edSignature="1KmgVvNZ06gcflISPCYncGNALm3vjHGBAbyEIaENmswL7HZxr1G0EQlQ+9TdBgi3makSSAbO280tz0jLcOJaAQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.10.0/SimplePodcastManager-v1.10.0.dmg" length="6997044" type="application/octet-stream" sparkle:edSignature="jukaUrMi5Qodd8EYk8/Ar1uoviomWrxvsSS/bPuJoM12UOSdBZEzT7ZhIbzWjD1m4M0ieUwBmOoSeC91TTwIAQ=="/>
         </item>
     </channel>
 </rss>

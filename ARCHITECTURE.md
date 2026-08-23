@@ -33,6 +33,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
+- `FeedActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
 - `SyncPlanViewModel`: build the full-device plan shown before execution
 - `SyncExecutionViewModel`: execute the selected plan and expose progress in the sync dialog
 - `DeviceViewModel`: monitor device availability and selected target
@@ -46,6 +47,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
 - `AutomaticDownloadPlanner`: identify newly observed episodes and apply the per-feed download limit
 - `AutomaticDownloadStateStore`: persist observed and pending episode IDs per subscription
+- `FeedActivityPlanner` and `FeedActivityStateStore`: detect new feed prefixes, preserve conservative baselines, and persist activity in indexed SQLite rows
 - `OPMLSubscriptionService`: parse, validate, de-duplicate, and export standard OPML subscription lists
 - `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
@@ -74,7 +76,7 @@ Expected runtime flow:
 2. The user adds a podcast by entering an RSS feed URL.
 3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
-5. The user downloads episodes manually, or a successful refresh prepares new episodes allowed by the automatic-download settings.
+5. A successful refresh updates independent show-activity state; failed feeds do not advance their baselines. The user downloads episodes manually, or automatic-download settings prepare new episodes.
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
@@ -87,6 +89,8 @@ Expected runtime flow:
    - delete selected app-managed device files
    - optionally eject after success
 9. Progress and result state are rendered in the UI.
+
+Feed activity is separate from automatic downloads. Existing feeds establish a no-badge baseline, only episodes ahead of a previously observed episode are normally considered new, opening a show marks its current episodes seen, and a fully successful sync acknowledges prepared episodes copied or already present. Feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
 
 The plan shown to the user is the plan executed by the app.
 

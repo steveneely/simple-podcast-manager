@@ -29,7 +29,8 @@ struct JSONConfigurationStoreTests {
                 allowsInsecureDownloads: true,
                 prefixesPublicationDateInEpisodeTitles: true,
                 automaticDownloadLimit: .latest3,
-                deviceCleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 45)
+                deviceCleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 45),
+                inactivePodcastThreshold: .oneYear
             ),
             feedSubscriptions: [
                 FeedSubscription(
@@ -77,6 +78,7 @@ struct JSONConfigurationStoreTests {
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(configuration.settings.automaticDownloadLimit == .off)
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
+        #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
         #expect(configuration.feedSubscriptions.isEmpty)
     }
 
@@ -104,6 +106,7 @@ struct JSONConfigurationStoreTests {
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(configuration.settings.automaticDownloadLimit == .off)
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
+        #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
     }
 
     @Test

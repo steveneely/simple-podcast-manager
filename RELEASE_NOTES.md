@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.10.0
+# Simple Podcast Manager v1.11.0
 
-- Adds optional device cleanup that suggests synced episodes older than a chosen number of days.
-- Lets you review and keep individual cleanup candidates before every sync while leaving unrelated audio untouched.
+- Shows a blue count when podcasts have new episodes and clears it when you open the show or successfully sync those episodes.
+- Adds an optional inactive-show clock with configurable timing, plus simpler `Off` and `After…` menus for inactive shows and Device Cleanup.

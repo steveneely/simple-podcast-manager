@@ -23,6 +23,7 @@ public struct MainView: View {
     @State private var feedPreviewViewModel: FeedPreviewViewModel
     @State private var preparationPreviewViewModel: PreparationPreviewViewModel
     @State private var automaticDownloadViewModel: AutomaticDownloadViewModel
+    @State private var feedActivityViewModel: FeedActivityViewModel
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
@@ -61,6 +62,7 @@ public struct MainView: View {
         self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
         self._preparationPreviewViewModel = State(initialValue: PreparationPreviewViewModel())
         self._automaticDownloadViewModel = State(initialValue: AutomaticDownloadViewModel())
+        self._feedActivityViewModel = State(initialValue: FeedActivityViewModel())
         self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
@@ -148,6 +150,9 @@ public struct MainView: View {
             if !automaticDownloadViewModel.hasLoadedState {
                 await automaticDownloadViewModel.load()
             }
+            if !feedActivityViewModel.hasLoadedState {
+                await feedActivityViewModel.load()
+            }
             if !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes {
                 await removedEpisodeHistoryViewModel.load()
             }
@@ -169,6 +174,10 @@ public struct MainView: View {
             ) { updatedDraft in
                 try await saveFeed(updatedDraft)
             }
+        }
+        .onChange(of: selectedFeedID) { _, selectedFeedID in
+            guard let selectedFeedID else { return }
+            Task { await feedActivityViewModel.markSeen(subscriptionID: selectedFeedID) }
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
@@ -308,6 +317,19 @@ public struct MainView: View {
             selectedFeedID: $selectedFeedID,
             isRefreshing: feedPreviewViewModel.isLoading,
             episodeCount: { allEpisodes(for: $0).count },
+            newEpisodeCount: { subscription in
+                subscription.isEnabled ? feedActivityViewModel.newEpisodeCount(for: subscription.id) : 0
+            },
+            isInactive: { subscription in
+                subscription.isEnabled
+                    && viewModel.settings.inactivePodcastThreshold != .off
+                    && feedActivityViewModel.isInactive(
+                    subscriptionID: subscription.id,
+                    threshold: viewModel.settings.inactivePodcastThreshold
+                )
+            },
+            newestPublicationDate: { feedActivityViewModel.newestPublicationDate(for: $0.id) },
+            hasFeedIssue: { !feedIssues(for: $0).isEmpty },
             artworkURL: { artworkURL(for: $0) },
             allowsInsecureArtwork: { allowsInsecureArtwork(for: $0) },
             onAdd: {
@@ -706,12 +728,25 @@ public struct MainView: View {
             return
         }
 
+        let previousRSSURL = updatedDraft.id.flatMap { subscriptionID in
+            viewModel.feedSubscriptions.first(where: { $0.id == subscriptionID })?.rssURL
+        }
         try await viewModel.updateFeed(from: updatedDraft)
         await automaticDownloadViewModel.applyPreferences(
             subscriptions: viewModel.feedSubscriptions,
             limit: viewModel.settings.automaticDownloadLimit
         )
         feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
+        if let subscription = viewModel.feedSubscriptions.first(where: { $0.id == updatedDraft.id }),
+           previousRSSURL != subscription.rssURL {
+            await feedActivityViewModel.updateAfterRefresh(
+                subscriptions: viewModel.feedSubscriptions,
+                episodes: feedPreviewViewModel.allEpisodes,
+                refreshedSubscriptionIDs: [subscription.id],
+                failedSubscriptionIDs: [],
+                openSubscriptionID: selectedFeedID
+            )
+        }
         await refreshDeviceLibrary()
     }
 
@@ -719,19 +754,41 @@ public struct MainView: View {
         let refreshedSubscriptions = viewModel.feedSubscriptions.filter(\.isEnabled)
         await feedPreviewViewModel.refreshPreview(for: refreshedSubscriptions)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        await updateFeedActivity(afterRefreshing: refreshedSubscriptions)
         await downloadNewEpisodes(afterRefreshing: refreshedSubscriptions)
     }
 
     private func refreshFeedPreview(for subscription: FeedSubscription) async {
         await feedPreviewViewModel.refreshPreview(for: subscription)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        await updateFeedActivity(afterRefreshing: [subscription])
         await downloadNewEpisodes(afterRefreshing: [subscription])
     }
 
     private func refreshFeedPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
         await feedPreviewViewModel.refreshPreview(forNewSubscriptions: subscriptions)
         viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
+        await updateFeedActivity(afterRefreshing: subscriptions)
         await downloadNewEpisodes(afterRefreshing: subscriptions)
+    }
+
+    private func updateFeedActivity(afterRefreshing subscriptions: [FeedSubscription]) async {
+        let refreshedIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
+        let failedIDs: Set<UUID>
+        if feedPreviewViewModel.lastErrorMessage != nil {
+            failedIDs = refreshedIDs
+        } else {
+            failedIDs = Set(feedPreviewViewModel.failures.compactMap {
+                refreshedIDs.contains($0.subscriptionID) ? $0.subscriptionID : nil
+            })
+        }
+        await feedActivityViewModel.updateAfterRefresh(
+            subscriptions: viewModel.feedSubscriptions,
+            episodes: feedPreviewViewModel.allEpisodes,
+            refreshedSubscriptionIDs: refreshedIDs,
+            failedSubscriptionIDs: failedIDs,
+            openSubscriptionID: selectedFeedID
+        )
     }
 
     private func downloadNewEpisodes(afterRefreshing subscriptions: [FeedSubscription]) async {
@@ -966,6 +1023,7 @@ public struct MainView: View {
         viewModel.load()
         await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
         await automaticDownloadViewModel.load()
+        await feedActivityViewModel.load()
         await removedEpisodeHistoryViewModel.load()
         selectedFeedID = viewModel.feedSubscriptions.first?.id
         manuallySelectedDeletionTargets = []
@@ -1004,6 +1062,13 @@ public struct MainView: View {
             self.selectedFeedID = viewModel.feedSubscriptions.first?.id
         }
         Task {
+            await feedActivityViewModel.updateAfterRefresh(
+                subscriptions: viewModel.feedSubscriptions,
+                episodes: feedPreviewViewModel.allEpisodes,
+                refreshedSubscriptionIDs: [],
+                failedSubscriptionIDs: [],
+                openSubscriptionID: selectedFeedID
+            )
             await automaticDownloadViewModel.applyPreferences(
                 subscriptions: viewModel.feedSubscriptions,
                 limit: viewModel.settings.automaticDownloadLimit
@@ -1132,10 +1197,18 @@ public struct MainView: View {
         viewModel.lastErrorMessage
             ?? preparationPreviewViewModel.lastErrorMessage
             ?? automaticDownloadViewModel.lastErrorMessage
+            ?? feedActivityViewModel.lastErrorMessage
             ?? removedEpisodeHistoryViewModel.lastErrorMessage
     }
 
     private func runSync() async {
+        let preparedEpisodesBeforeSync = preparationPreviewViewModel.preparedEpisodes
+        let alreadyOnDeviceFilesByEpisodeKey = Dictionary(uniqueKeysWithValues: preparedEpisodesBeforeSync.compactMap { prepared -> (FeedActivityEpisodeKey, URL)? in
+            guard let deviceFileURL = deviceLibraryViewModel.file(for: prepared.episode),
+                  let episodeKey = FeedActivityEpisodeKey(episode: prepared.episode)
+            else { return nil }
+            return (episodeKey, deviceFileURL.standardizedFileURL)
+        })
         let filesBySubscriptionID = Dictionary(uniqueKeysWithValues: viewModel.feedSubscriptions.map {
             ($0.id, deviceLibraryViewModel.files(for: $0))
         })
@@ -1145,6 +1218,17 @@ public struct MainView: View {
         }, by: \.0).mapValues { $0.map(\.1) }
 
         await syncExecutionViewModel.sync(plan: syncPlanViewModel.plan)
+
+        if syncExecutionViewModel.lastErrorMessage == nil,
+           let completedPlan = syncExecutionViewModel.lastPlan,
+           syncExecutionViewModel.lastResult != nil {
+            let acknowledgedEpisodes = FeedActivitySyncAcknowledgement.episodesAcknowledged(
+                preparedEpisodes: preparedEpisodesBeforeSync,
+                existingDeviceFiles: alreadyOnDeviceFilesByEpisodeKey,
+                completedPlan: completedPlan
+            )
+            await feedActivityViewModel.acknowledgeSynced(acknowledgedEpisodes)
+        }
 
         if
             let result = syncExecutionViewModel.lastResult,

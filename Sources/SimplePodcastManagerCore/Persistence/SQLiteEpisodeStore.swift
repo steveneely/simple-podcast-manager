@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, @unchecked Sendable {
+public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, FeedActivityStateStore, @unchecked Sendable {
     public static let shared = SQLiteEpisodeStore()
 
     public let fileURL: URL
@@ -69,6 +69,18 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         }
     }
 
+    public func loadFeedActivityState() throws -> FeedActivityState {
+        let queue = try databaseQueue()
+        return try queue.read(Self.loadFeedActivityState)
+    }
+
+    public func saveFeedActivityState(_ state: FeedActivityState) throws {
+        let queue = try databaseQueue()
+        try queue.write { database in
+            try Self.saveFeedActivityState(state, database: database)
+        }
+    }
+
     func loadAllAppData() throws -> SQLiteAppData {
         let queue = try databaseQueue()
         return try queue.read { database in
@@ -76,7 +88,8 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                 preparedEpisodes: Self.loadRecords(PreparedEpisode.self, from: .prepared, database: database),
                 downloadedEpisodes: Self.loadRecords(DownloadedEpisodeRecord.self, from: .downloaded, database: database),
                 removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database),
-                automaticDownloadState: Self.loadAutomaticDownloadState(database: database)
+                automaticDownloadState: Self.loadAutomaticDownloadState(database: database),
+                feedActivityState: Self.loadFeedActivityState(database: database)
             )
         }
     }
@@ -85,7 +98,8 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         preparedEpisodes: [PreparedEpisode],
         downloadedEpisodes: [DownloadedEpisodeRecord],
         removedEpisodes: [RemovedEpisodeRecord],
-        automaticDownloadState: AutomaticDownloadState
+        automaticDownloadState: AutomaticDownloadState,
+        feedActivityState: FeedActivityState
     ) throws {
         let queue = try databaseQueue()
         try queue.write { database in
@@ -93,6 +107,7 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
             try Self.replaceRows(try downloadedEpisodes.map(Self.downloadedRow), in: .downloaded, database: database)
             try Self.replaceRows(try removedEpisodes.map(Self.removedRow), in: .removed, database: database)
             try Self.saveAutomaticDownloadState(automaticDownloadState, database: database)
+            try Self.saveFeedActivityState(feedActivityState, database: database)
         }
     }
 
@@ -173,6 +188,30 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                     ON automaticDownloadObservedEpisodes(subscriptionID, position);
 
                 CREATE TABLE automaticDownloadPendingEpisodes (
+                    subscriptionID TEXT NOT NULL,
+                    episodeID TEXT NOT NULL,
+                    PRIMARY KEY (subscriptionID, episodeID)
+                );
+                """)
+        }
+        migrator.registerMigration("feed-activity-state-v1") { database in
+            try database.execute(sql: """
+                CREATE TABLE feedActivityFeeds (
+                    subscriptionID TEXT PRIMARY KEY NOT NULL,
+                    rssURL TEXT NOT NULL,
+                    newestPublicationDate DOUBLE
+                );
+
+                CREATE TABLE feedActivityObservedEpisodes (
+                    subscriptionID TEXT NOT NULL,
+                    episodeID TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    PRIMARY KEY (subscriptionID, episodeID)
+                );
+                CREATE INDEX feedActivityObservedEpisodes_order
+                    ON feedActivityObservedEpisodes(subscriptionID, position);
+
+                CREATE TABLE feedActivityNewEpisodes (
                     subscriptionID TEXT NOT NULL,
                     episodeID TEXT NOT NULL,
                     PRIMARY KEY (subscriptionID, episodeID)
@@ -382,6 +421,62 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         return normalizedFeed
     }
 
+    private static func loadFeedActivityState(database: Database) throws -> FeedActivityState {
+        let feedRows = try Row.fetchAll(database, sql: "SELECT subscriptionID, rssURL, newestPublicationDate FROM feedActivityFeeds ORDER BY subscriptionID")
+        let observedRows = try Row.fetchAll(database, sql: "SELECT subscriptionID, episodeID FROM feedActivityObservedEpisodes ORDER BY subscriptionID, position")
+        let newRows = try Row.fetchAll(database, sql: "SELECT subscriptionID, episodeID FROM feedActivityNewEpisodes ORDER BY subscriptionID, episodeID")
+        var observedBySubscription: [String: [String]] = [:]
+        var newBySubscription: [String: Set<String>] = [:]
+        for row in observedRows {
+            observedBySubscription[row["subscriptionID"], default: []].append(row["episodeID"])
+        }
+        for row in newRows {
+            newBySubscription[row["subscriptionID"], default: []].insert(row["episodeID"])
+        }
+        let feeds = try feedRows.map { row -> FeedActivityFeedState in
+            let storedID: String = row["subscriptionID"]
+            let storedURL: String = row["rssURL"]
+            guard let subscriptionID = UUID(uuidString: storedID), let rssURL = URL(string: storedURL) else {
+                throw SQLiteFeedActivityStateError.invalidFeed(storedID, storedURL)
+            }
+            let timestamp: Double? = row["newestPublicationDate"]
+            return FeedActivityFeedState(
+                subscriptionID: subscriptionID,
+                rssURL: rssURL,
+                observedEpisodeIDs: observedBySubscription[storedID] ?? [],
+                newEpisodeIDs: newBySubscription[storedID] ?? [],
+                newestPublicationDate: timestamp.map(Date.init(timeIntervalSince1970:))
+            )
+        }
+        return FeedActivityState(feeds: feeds)
+    }
+
+    private static func saveFeedActivityState(_ state: FeedActivityState, database: Database) throws {
+        try database.execute(sql: "DELETE FROM feedActivityObservedEpisodes")
+        try database.execute(sql: "DELETE FROM feedActivityNewEpisodes")
+        try database.execute(sql: "DELETE FROM feedActivityFeeds")
+        for feed in state.feeds {
+            let subscriptionID = feed.subscriptionID.uuidString.lowercased()
+            try database.execute(
+                sql: "INSERT INTO feedActivityFeeds (subscriptionID, rssURL, newestPublicationDate) VALUES (?, ?, ?)",
+                arguments: [subscriptionID, feed.rssURL.absoluteString, feed.newestPublicationDate?.timeIntervalSince1970]
+            )
+            var seen: Set<String> = []
+            for (position, episodeID) in feed.observedEpisodeIDs.filter({ seen.insert($0).inserted }).enumerated() {
+                try database.execute(
+                    sql: "INSERT INTO feedActivityObservedEpisodes (subscriptionID, episodeID, position) VALUES (?, ?, ?)",
+                    arguments: [subscriptionID, episodeID, position]
+                )
+            }
+            for episodeID in feed.newEpisodeIDs.sorted() {
+                try database.execute(
+                    sql: "INSERT INTO feedActivityNewEpisodes (subscriptionID, episodeID) VALUES (?, ?)",
+                    arguments: [subscriptionID, episodeID]
+                )
+            }
+        }
+    }
+
     private func loadRecords<Record: Decodable>(_ type: Record.Type, from table: Table) throws -> [Record] {
         let queue = try databaseQueue()
         return try queue.read { database in
@@ -523,18 +618,25 @@ struct SQLiteAppData: Equatable, Sendable {
     var downloadedEpisodes: [DownloadedEpisodeRecord]
     var removedEpisodes: [RemovedEpisodeRecord]
     var automaticDownloadState: AutomaticDownloadState
+    var feedActivityState: FeedActivityState
 
     init(
         preparedEpisodes: [PreparedEpisode],
         downloadedEpisodes: [DownloadedEpisodeRecord],
         removedEpisodes: [RemovedEpisodeRecord],
-        automaticDownloadState: AutomaticDownloadState
+        automaticDownloadState: AutomaticDownloadState,
+        feedActivityState: FeedActivityState
     ) {
         self.preparedEpisodes = preparedEpisodes
         self.downloadedEpisodes = downloadedEpisodes
         self.removedEpisodes = removedEpisodes
         self.automaticDownloadState = automaticDownloadState
+        self.feedActivityState = feedActivityState
     }
+}
+
+private enum SQLiteFeedActivityStateError: Error {
+    case invalidFeed(String, String)
 }
 
 private enum SQLiteAutomaticDownloadStateError: LocalizedError {

@@ -22,6 +22,10 @@ By default, the player needs a `music` folder at its top level. To use a differe
 
 The show and its latest episodes will appear in the app.
 
+After that first baseline, a blue count beside a show means its feed has new episodes. Opening the show clears its count. A successful Sync also clears individual new episodes that were copied to the player or confirmed as already there.
+
+By default, a quiet clock marks a show whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > Inactive Shows` to use three months, six months, one year, or turn this indicator off. Disabled shows, feeds without trustworthy dates, and feeds with a current refresh error are not marked inactive.
+
 Select a show to reveal its Refresh, Edit, and Remove controls. Select it again to clear the selection.
 
 To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
@@ -49,8 +53,8 @@ Edit a show to change `Include in automatic downloads`. Turn off `Feed enabled` 
 Device cleanup is optional and is off by default.
 
 1. Open Settings.
-2. Under `MP3 Player > Device Cleanup`, turn on `Remove old synced episodes`.
-3. Choose how many days to keep episodes on the player, then save the setting.
+2. Under `MP3 Player > Device Cleanup`, choose an `After…` age instead of `Off`.
+3. Save the setting.
 
 When you next click `Sync`, the app suggests eligible episodes older than that limit. Every suggested episode appears in the Sync window with its own checkbox. Uncheck anything you want to keep.
 

@@ -99,6 +99,10 @@ struct FeedSidebarView: View {
     @Binding var selectedFeedID: FeedSubscription.ID?
     let isRefreshing: Bool
     let episodeCount: (FeedSubscription) -> Int
+    let newEpisodeCount: (FeedSubscription) -> Int
+    let isInactive: (FeedSubscription) -> Bool
+    let newestPublicationDate: (FeedSubscription) -> Date?
+    let hasFeedIssue: (FeedSubscription) -> Bool
     let artworkURL: (FeedSubscription) -> URL?
     let allowsInsecureArtwork: (FeedSubscription) -> Bool
     let onAdd: () -> Void
@@ -143,7 +147,7 @@ struct FeedSidebarView: View {
                                 currentSelection: selectedFeedID
                             )
                         } label: {
-                            HStack(alignment: .top, spacing: 10) {
+                            HStack(alignment: .center, spacing: 10) {
                                 PodcastArtworkView(
                                     artworkURL: artworkURL(subscription),
                                     allowsInsecureHTTP: allowsInsecureArtwork(subscription),
@@ -173,6 +177,29 @@ struct FeedSidebarView: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                                if subscription.isEnabled {
+                                    let newCount = newEpisodeCount(subscription)
+                                    if hasFeedIssue(subscription) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                            .help("This feed had a refresh problem")
+                                    } else if newCount > 0 {
+                                        Text(newCount > 99 ? "99+" : "\(newCount)")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.accentColor, in: Capsule())
+                                            .help("\(newCount) new episode\(newCount == 1 ? "" : "s")")
+                                    } else if isInactive(subscription) {
+                                        Image(systemName: "clock")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(.secondary)
+                                            .help(inactiveHelpText(for: subscription))
+                                    }
+                                }
                             }
                             .contentShape(Rectangle())
                         }
@@ -223,6 +250,11 @@ struct FeedSidebarView: View {
         currentSelection: FeedSubscription.ID?
     ) -> FeedSubscription.ID? {
         currentSelection == subscriptionID ? nil : subscriptionID
+    }
+
+    private func inactiveHelpText(for subscription: FeedSubscription) -> String {
+        guard let date = newestPublicationDate(subscription) else { return "No recent episodes" }
+        return "Latest episode published \(date.formatted(date: .long, time: .omitted))"
     }
 }
 

@@ -29,6 +29,22 @@ public enum AutomaticDownloadLimit: String, Codable, Equatable, Sendable, CaseIt
     }
 }
 
+public enum InactivePodcastThreshold: String, Codable, Equatable, Sendable, CaseIterable {
+    case off
+    case threeMonths
+    case sixMonths
+    case oneYear
+
+    public var monthCount: Int? {
+        switch self {
+        case .off: nil
+        case .threeMonths: 3
+        case .sixMonths: 6
+        case .oneYear: 12
+        }
+    }
+}
+
 public struct DeviceCleanupPolicy: Codable, Equatable, Sendable {
     public static let defaultEpisodeAgeDays = 30
     public static let allowedEpisodeAgeDays = 1...3_650
@@ -52,6 +68,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var prefixesPublicationDateInEpisodeTitles: Bool
     public var automaticDownloadLimit: AutomaticDownloadLimit
     public var deviceCleanupPolicy: DeviceCleanupPolicy
+    public var inactivePodcastThreshold: InactivePodcastThreshold
 
     public init(
         ffmpegExecutablePath: String? = nil,
@@ -59,7 +76,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         allowsInsecureDownloads: Bool = false,
         prefixesPublicationDateInEpisodeTitles: Bool = false,
         automaticDownloadLimit: AutomaticDownloadLimit = .off,
-        deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy()
+        deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
+        inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths
     ) {
         self.ffmpegExecutablePath = ffmpegExecutablePath
         self.appearancePreference = appearancePreference
@@ -67,6 +85,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.prefixesPublicationDateInEpisodeTitles = prefixesPublicationDateInEpisodeTitles
         self.automaticDownloadLimit = automaticDownloadLimit
         self.deviceCleanupPolicy = deviceCleanupPolicy
+        self.inactivePodcastThreshold = inactivePodcastThreshold
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -77,6 +96,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case prefixesPublicationDateInEpisodeTitles
         case automaticDownloadLimit
         case deviceCleanupPolicy
+        case inactivePodcastThreshold
     }
 
     public init(from decoder: Decoder) throws {
@@ -98,6 +118,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
             DeviceCleanupPolicy.self,
             forKey: .deviceCleanupPolicy
         ) ?? DeviceCleanupPolicy()
+        inactivePodcastThreshold = try container.decodeIfPresent(
+            InactivePodcastThreshold.self,
+            forKey: .inactivePodcastThreshold
+        ) ?? .sixMonths
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -108,5 +132,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(prefixesPublicationDateInEpisodeTitles, forKey: .prefixesPublicationDateInEpisodeTitles)
         try container.encode(automaticDownloadLimit, forKey: .automaticDownloadLimit)
         try container.encode(deviceCleanupPolicy, forKey: .deviceCleanupPolicy)
+        try container.encode(inactivePodcastThreshold, forKey: .inactivePodcastThreshold)
     }
 }

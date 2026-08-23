@@ -24,6 +24,7 @@ struct AppDataBackupServiceTests {
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "downloaded-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "removed-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "automatic-downloads.json").path))
+        #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "feed-activity.json").path))
         #expect(try JSONDownloadedEpisodeStore(
             fileURL: backupURL.appending(path: "downloaded-episodes.json")
         ).loadDownloadedEpisodes().map(\.episodeID) == ["episode-1"])
@@ -36,6 +37,7 @@ struct AppDataBackupServiceTests {
             "automatic-downloads.json",
             "config.json",
             "downloaded-episodes.json",
+            "feed-activity.json",
             "prepared-episodes.json",
             "removed-episodes.json",
         ])
@@ -75,6 +77,11 @@ struct AppDataBackupServiceTests {
             supportDirectoryURL: destinationSupportURL
         ).loadState()
         #expect(restoredAutomaticDownloadState.feeds.first?.observedEpisodeIDs == ["episode-1"])
+        let restoredActivityState = try SQLiteEpisodeStore(
+            fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: destinationSupportURL
+        ).loadFeedActivityState()
+        #expect(restoredActivityState.feeds.first?.newEpisodeIDs == ["episode-1"])
         #expect(previousBackupURL != nil)
         #expect(FileManager.default.fileExists(atPath: previousBackupURL!.appending(path: "config.json").path))
     }
@@ -232,6 +239,20 @@ struct AppDataBackupServiceTests {
                     subscriptionID: subscriptionID,
                     rssURL: URL(string: "https://example.com/feed.xml")!,
                     observedEpisodeIDs: ["episode-1"]
+                )
+            ])
+        )
+        try SQLiteEpisodeStore(
+            fileURL: supportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: supportURL
+        ).saveFeedActivityState(
+            FeedActivityState(feeds: [
+                FeedActivityFeedState(
+                    subscriptionID: subscriptionID,
+                    rssURL: URL(string: "https://example.com/feed.xml")!,
+                    observedEpisodeIDs: ["episode-1"],
+                    newEpisodeIDs: ["episode-1"],
+                    newestPublicationDate: Date(timeIntervalSince1970: 0)
                 )
             ])
         )

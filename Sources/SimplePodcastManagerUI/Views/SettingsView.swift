@@ -11,6 +11,7 @@ public struct SettingsView: View {
     @State private var prefixesPublicationDateInEpisodeTitles: Bool
     @State private var automaticDownloadLimit: AutomaticDownloadLimit
     @State private var deviceCleanupPolicy: DeviceCleanupPolicy
+    @State private var inactivePodcastThreshold: InactivePodcastThreshold
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -55,6 +56,7 @@ public struct SettingsView: View {
         )
         self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
         self._deviceCleanupPolicy = State(initialValue: settings.deviceCleanupPolicy)
+        self._inactivePodcastThreshold = State(initialValue: settings.inactivePodcastThreshold)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -101,6 +103,21 @@ public struct SettingsView: View {
                                 )
                                 .toggleStyle(.checkbox)
                             }
+                        }
+
+                        LabeledField(
+                            title: "Inactive Shows",
+                            detail: "Shows a quiet clock beside podcasts that have not published recently.",
+                            emphasizesTitle: true
+                        ) {
+                            Picker("Inactive Shows", selection: $inactivePodcastThreshold) {
+                                Text("Off").tag(InactivePodcastThreshold.off)
+                                Text("After 3 months").tag(InactivePodcastThreshold.threeMonths)
+                                Text("After 6 months").tag(InactivePodcastThreshold.sixMonths)
+                                Text("After 1 year").tag(InactivePodcastThreshold.oneYear)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
                         }
                     }
 
@@ -168,18 +185,14 @@ public struct SettingsView: View {
                             detail: "Suggests old synced episodes during Sync. You review and approve every deletion.",
                             emphasizesTitle: true
                         ) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Toggle("Remove old synced episodes", isOn: $deviceCleanupPolicy.isEnabled)
-                                    .toggleStyle(.checkbox)
-
-                                if deviceCleanupPolicy.isEnabled {
-                                    Stepper(
-                                        "Older than \(deviceCleanupPolicy.episodeAgeDays) day\(deviceCleanupPolicy.episodeAgeDays == 1 ? "" : "s")",
-                                        value: $deviceCleanupPolicy.episodeAgeDays,
-                                        in: DeviceCleanupPolicy.allowedEpisodeAgeDays
-                                    )
+                            Picker("Device Cleanup", selection: cleanupAgeSelection) {
+                                Text("Off").tag(Int?.none)
+                                ForEach(cleanupAgeOptions, id: \.self) { days in
+                                    Text(cleanupAgeLabel(days)).tag(Int?.some(days))
                                 }
                             }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
                         }
 
                         LabeledField(
@@ -299,7 +312,8 @@ public struct SettingsView: View {
                 allowsInsecureDownloads: allowsInsecureDownloads,
                 prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles,
                 automaticDownloadLimit: automaticDownloadLimit,
-                deviceCleanupPolicy: deviceCleanupPolicy
+                deviceCleanupPolicy: deviceCleanupPolicy,
+                inactivePodcastThreshold: inactivePodcastThreshold
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates
@@ -315,6 +329,34 @@ public struct SettingsView: View {
             performSave(pendingSave)
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private var cleanupAgeOptions: [Int] {
+        let standard = [7, 14, 30, 60, 90, 180, 365]
+        guard !standard.contains(deviceCleanupPolicy.episodeAgeDays) else { return standard }
+        return [deviceCleanupPolicy.episodeAgeDays] + standard
+    }
+
+    private var cleanupAgeSelection: Binding<Int?> {
+        Binding(
+            get: { deviceCleanupPolicy.isEnabled ? deviceCleanupPolicy.episodeAgeDays : nil },
+            set: { days in
+                if let days {
+                    deviceCleanupPolicy.episodeAgeDays = days
+                    deviceCleanupPolicy.isEnabled = true
+                } else {
+                    deviceCleanupPolicy.isEnabled = false
+                }
+            }
+        )
+    }
+
+    private func cleanupAgeLabel(_ days: Int) -> String {
+        switch days {
+        case 180: "After 6 months"
+        case 365: "After 1 year"
+        default: "After \(days) day\(days == 1 ? "" : "s")"
         }
     }
 

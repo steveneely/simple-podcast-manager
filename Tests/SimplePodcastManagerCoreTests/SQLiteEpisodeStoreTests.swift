@@ -140,6 +140,27 @@ struct SQLiteEpisodeStoreTests {
     }
 
     @Test
+    func savesLoadsAndReplacesFeedActivityState() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let state = FeedActivityState(feeds: [
+            FeedActivityFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                observedEpisodeIDs: ["newest", "older"],
+                newEpisodeIDs: ["newest"],
+                newestPublicationDate: Date(timeIntervalSince1970: 100)
+            )
+        ])
+
+        try fixture.store.saveFeedActivityState(state)
+        #expect(try fixture.store.loadFeedActivityState() == state)
+
+        try fixture.store.saveFeedActivityState(FeedActivityState())
+        #expect(try fixture.store.loadFeedActivityState().feeds.isEmpty)
+    }
+
+    @Test
     func importsLegacyAutomaticDownloadStateOnceAndKeepsSourceFile() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

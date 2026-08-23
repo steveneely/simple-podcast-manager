@@ -124,7 +124,7 @@ public struct SettingsView: View {
                     SettingsSection(title: "Episode Preparation") {
                         LabeledField(
                             title: "Automatic Downloads",
-                            detail: "Runs after refresh. The first refresh sets a baseline.",
+                            detail: "Downloads new episodes automatically after feeds refresh. The selected limit applies separately to each included show.",
                             emphasizesTitle: true
                         ) {
                             Picker("Automatic Downloads", selection: $automaticDownloadLimit) {
@@ -182,7 +182,7 @@ public struct SettingsView: View {
                     SettingsSection(title: "MP3 Player") {
                         LabeledField(
                             title: "Device Cleanup",
-                            detail: "Suggests old synced episodes during Sync. You review and approve every deletion.",
+                            detail: "Suggests deleting old synced episodes during Sync. You can review and keep any episode before syncing.",
                             emphasizesTitle: true
                         ) {
                             Picker("Device Cleanup", selection: cleanupAgeSelection) {

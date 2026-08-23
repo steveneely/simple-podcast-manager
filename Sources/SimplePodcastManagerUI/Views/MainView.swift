@@ -32,7 +32,7 @@ public struct MainView: View {
     private let startupPerformanceTracker = StartupPerformanceTracker()
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
-    @State private var selectedFeedID: FeedSubscription.ID?
+    @State private var selectedFeedID = FeedSelectionPolicy.initialSelection
     @State private var feedEditorPresentation: FeedEditorPresentation?
     @State private var pendingFeedDeletionConfirmation: FeedDeletionConfirmation?
     @State private var isShowingSettings = false
@@ -149,10 +149,6 @@ public struct MainView: View {
                 appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
                 startupPerformanceTracker.mark("configuration loaded")
             }
-            if selectedFeedID == nil {
-                selectedFeedID = viewModel.feedSubscriptions.first?.id
-            }
-
             async let cachedPreview: Void = loadCachedFeedPreviewForStartup()
             async let persistedState: Void = loadPersistedEpisodeStateForStartup()
             async let devices: Void = loadDevicesForStartup()
@@ -1074,7 +1070,7 @@ public struct MainView: View {
     private func reloadAppData() async {
         await viewModel.load()
         await loadPersistedEpisodeStateForStartup(forceReload: true)
-        selectedFeedID = viewModel.feedSubscriptions.first?.id
+        selectedFeedID = FeedSelectionPolicy.initialSelection
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
         visibleEpisodeCountsByFeedID = [:]
@@ -1107,9 +1103,10 @@ public struct MainView: View {
 
     private func deleteFeeds(at offsets: IndexSet) {
         viewModel.removeFeeds(at: offsets)
-        if let selectedFeedID, !viewModel.feedSubscriptions.contains(where: { $0.id == selectedFeedID }) {
-            self.selectedFeedID = viewModel.feedSubscriptions.first?.id
-        }
+        selectedFeedID = FeedSelectionPolicy.selectionAfterRemovingFeeds(
+            currentSelection: selectedFeedID,
+            remainingSubscriptions: viewModel.feedSubscriptions
+        )
         Task {
             await feedActivityViewModel.updateAfterRefresh(
                 subscriptions: viewModel.feedSubscriptions,

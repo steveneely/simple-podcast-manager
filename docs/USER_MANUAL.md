@@ -22,7 +22,7 @@ By default, the player needs a `music` folder at its top level. To use a differe
 
 The show and its latest episodes will appear in the app.
 
-After that first baseline, a blue count beside a show means its feed has new episodes. Opening the show clears its count. A successful Sync also clears individual new episodes that were copied to the player or confirmed as already there.
+After that first baseline, a blue count beside a show means its feed has new episodes. The app starts without opening a show, so every show can display its new-episode count. Opening a show clears its count. A successful Sync also clears individual new episodes that were copied to the player or confirmed as already there.
 
 By default, a quiet clock marks a show whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > Inactive Shows` to use three months, six months, one year, or turn this indicator off. Disabled shows, feeds without trustworthy dates, and feeds with a current refresh error are not marked inactive.
 

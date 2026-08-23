@@ -2,6 +2,20 @@ import AppKit
 import SwiftUI
 import SimplePodcastManagerCore
 
+enum FeedSelectionPolicy {
+    static let initialSelection: FeedSubscription.ID? = nil
+
+    static func selectionAfterRemovingFeeds(
+        currentSelection: FeedSubscription.ID?,
+        remainingSubscriptions: [FeedSubscription]
+    ) -> FeedSubscription.ID? {
+        guard let currentSelection else { return nil }
+        return remainingSubscriptions.contains(where: { $0.id == currentSelection })
+            ? currentSelection
+            : nil
+    }
+}
+
 struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     @Bindable var viewModel: DeviceViewModel
     @Binding var isShowingDetails: Bool

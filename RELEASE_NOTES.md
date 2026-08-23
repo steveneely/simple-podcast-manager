@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.12.1
+# Simple Podcast Manager v1.13.0
 
-- Reorganizes Settings so common episode and MP3 player options are easier to find.
-- Moves technical download and conversion options into a separate Advanced section.
+- Starts with no show selected so new-episode badges remain visible for every show until you open it.
+- Keeps another show's badge intact when the currently selected show is removed or app data is restored.

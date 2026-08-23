@@ -80,48 +80,7 @@ public struct SettingsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    SettingsSection(title: "General") {
-                        LabeledField(
-                            title: "Appearance",
-                            detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode.",
-                            emphasizesTitle: true
-                        ) {
-                            Picker("Appearance", selection: $appearancePreference) {
-                                Text("System").tag(AppearancePreference.system)
-                                Text("Light").tag(AppearancePreference.light)
-                                Text("Dark").tag(AppearancePreference.dark)
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.segmented)
-                        }
-
-                        if showsUpdateSettings {
-                            LabeledField(title: "Updates", emphasizesTitle: true) {
-                                Toggle(
-                                    "Check for updates on startup",
-                                    isOn: $automaticallyChecksForUpdates
-                                )
-                                .toggleStyle(.checkbox)
-                            }
-                        }
-
-                        LabeledField(
-                            title: "Inactive Shows",
-                            detail: "Shows a quiet clock beside podcasts that have not published recently.",
-                            emphasizesTitle: true
-                        ) {
-                            Picker("Inactive Shows", selection: $inactivePodcastThreshold) {
-                                Text("Off").tag(InactivePodcastThreshold.off)
-                                Text("After 3 months").tag(InactivePodcastThreshold.threeMonths)
-                                Text("After 6 months").tag(InactivePodcastThreshold.sixMonths)
-                                Text("After 1 year").tag(InactivePodcastThreshold.oneYear)
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                        }
-                    }
-
-                    SettingsSection(title: "Episode Preparation") {
+                    SettingsSection(title: "Episodes") {
                         LabeledField(
                             title: "Automatic Downloads",
                             detail: "Downloads new episodes automatically after feeds refresh. The selected limit applies separately to each included show.",
@@ -139,34 +98,6 @@ public struct SettingsView: View {
                         }
 
                         LabeledField(
-                            title: "ffmpeg Path",
-                            detail: "Optional. Needed only to convert non-MP3 podcast audio.",
-                            emphasizesTitle: true
-                        ) {
-                            chooserRow(
-                                value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
-                                buttonTitle: "Choose…",
-                                clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
-                            ) {
-                                chooseFFmpegExecutable()
-                            } onClear: {
-                                ffmpegExecutablePath = ""
-                            }
-                        }
-
-                        LabeledField(
-                            title: "Insecure Downloads",
-                            detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit.",
-                            emphasizesTitle: true
-                        ) {
-                            Toggle(
-                                "Always allow HTTP podcast downloads",
-                                isOn: $allowsInsecureDownloads
-                            )
-                            .toggleStyle(.checkbox)
-                        }
-
-                        LabeledField(
                             title: "MP3 Episode Titles",
                             detail: "Adds the date in MM.dd format, such as 08.11 Original Title. Applies to new downloads only.",
                             emphasizesTitle: true
@@ -176,6 +107,21 @@ public struct SettingsView: View {
                                 isOn: $prefixesPublicationDateInEpisodeTitles
                             )
                             .toggleStyle(.checkbox)
+                        }
+
+                        LabeledField(
+                            title: "Inactive Shows",
+                            detail: "Shows a quiet clock beside podcasts that have not published recently.",
+                            emphasizesTitle: true
+                        ) {
+                            Picker("Inactive Shows", selection: $inactivePodcastThreshold) {
+                                Text("Off").tag(InactivePodcastThreshold.off)
+                                Text("After 3 months").tag(InactivePodcastThreshold.threeMonths)
+                                Text("After 6 months").tag(InactivePodcastThreshold.sixMonths)
+                                Text("After 1 year").tag(InactivePodcastThreshold.oneYear)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
                         }
                     }
 
@@ -209,6 +155,62 @@ public struct SettingsView: View {
                                 choosePodcastDirectory()
                             } onClear: {}
                             .disabled(selectedDeviceName == nil)
+                        }
+                    }
+
+                    SettingsSection(title: "General") {
+                        LabeledField(
+                            title: "Appearance",
+                            detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode.",
+                            emphasizesTitle: true
+                        ) {
+                            Picker("Appearance", selection: $appearancePreference) {
+                                Text("System").tag(AppearancePreference.system)
+                                Text("Light").tag(AppearancePreference.light)
+                                Text("Dark").tag(AppearancePreference.dark)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                        }
+
+                        if showsUpdateSettings {
+                            LabeledField(title: "Updates", emphasizesTitle: true) {
+                                Toggle(
+                                    "Check for updates on startup",
+                                    isOn: $automaticallyChecksForUpdates
+                                )
+                                .toggleStyle(.checkbox)
+                            }
+                        }
+                    }
+
+                    SettingsSection(title: "Advanced") {
+                        LabeledField(
+                            title: "ffmpeg Path",
+                            detail: "Optional. Needed only to convert non-MP3 podcast audio.",
+                            emphasizesTitle: true
+                        ) {
+                            chooserRow(
+                                value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
+                                buttonTitle: "Choose…",
+                                clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
+                            ) {
+                                chooseFFmpegExecutable()
+                            } onClear: {
+                                ffmpegExecutablePath = ""
+                            }
+                        }
+
+                        LabeledField(
+                            title: "Insecure Downloads",
+                            detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit.",
+                            emphasizesTitle: true
+                        ) {
+                            Toggle(
+                                "Always allow HTTP podcast downloads",
+                                isOn: $allowsInsecureDownloads
+                            )
+                            .toggleStyle(.checkbox)
                         }
                     }
 

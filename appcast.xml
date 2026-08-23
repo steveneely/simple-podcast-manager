@@ -3,18 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.10.0</title>
-            <pubDate>Sun, 23 Aug 2026 10:28:14 -0600</pubDate>
-            <sparkle:version>70</sparkle:version>
-            <sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
+            <title>1.11.0</title>
+            <pubDate>Sun, 23 Aug 2026 14:49:02 -0600</pubDate>
+            <sparkle:version>71</sparkle:version>
+            <sparkle:shortVersionString>1.11.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.10.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.11.0
 
-- Adds optional device cleanup that suggests synced episodes older than a chosen number of days.
-- Lets you review and keep individual cleanup candidates before every sync while leaving unrelated audio untouched.
+- Shows a blue count when podcasts have new episodes and clears it when you open the show or successfully sync those episodes.
+- Adds an optional inactive-show clock with configurable timing, plus simpler `Off` and `After…` menus for inactive shows and Device Cleanup.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.10.0/SimplePodcastManager-v1.10.0.dmg" length="6997044" type="application/octet-stream" sparkle:edSignature="jukaUrMi5Qodd8EYk8/Ar1uoviomWrxvsSS/bPuJoM12UOSdBZEzT7ZhIbzWjD1m4M0ieUwBmOoSeC91TTwIAQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.11.0/SimplePodcastManager-v1.11.0.dmg" length="7107772" type="application/octet-stream" sparkle:edSignature="AOMa+tSxaru+QrFRDfanEczWZfihIf7GU8FqMJwd474sz+IOKTSuIEmWCFZFQRuNjNCbFBjowryp3T43koL7BA=="/>
         </item>
     </channel>
 </rss>

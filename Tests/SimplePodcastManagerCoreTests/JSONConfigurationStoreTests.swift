@@ -28,7 +28,8 @@ struct JSONConfigurationStoreTests {
                 ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
                 allowsInsecureDownloads: true,
                 prefixesPublicationDateInEpisodeTitles: true,
-                automaticDownloadLimit: .latest3
+                automaticDownloadLimit: .latest3,
+                deviceCleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 45)
             ),
             feedSubscriptions: [
                 FeedSubscription(
@@ -75,6 +76,7 @@ struct JSONConfigurationStoreTests {
         #expect(!configuration.settings.allowsInsecureDownloads)
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(configuration.settings.automaticDownloadLimit == .off)
+        #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
         #expect(configuration.feedSubscriptions.isEmpty)
     }
 
@@ -101,6 +103,7 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.allowsInsecureDownloads)
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(configuration.settings.automaticDownloadLimit == .off)
+        #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
     }
 
     @Test

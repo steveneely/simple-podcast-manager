@@ -24,6 +24,9 @@ public final class SyncPlanViewModel {
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
         manualDeleteTargets: Set<URL> = [],
+        cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
+        excludedCleanupTargets: Set<URL> = [],
+        currentDate: Date = Date(),
         ejectAfterSync: Bool
     ) async {
         let planningID = UUID()
@@ -48,6 +51,9 @@ public final class SyncPlanViewModel {
                     preparedEpisodes: preparedEpisodes,
                     subscriptions: subscriptions,
                     manualDeleteTargets: manualDeleteTargets,
+                    cleanupPolicy: cleanupPolicy,
+                    excludedCleanupTargets: excludedCleanupTargets,
+                    currentDate: currentDate,
                     ejectAfterSync: ejectAfterSync
                 )
             }.value

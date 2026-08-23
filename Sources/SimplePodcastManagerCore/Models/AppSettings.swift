@@ -29,25 +29,44 @@ public enum AutomaticDownloadLimit: String, Codable, Equatable, Sendable, CaseIt
     }
 }
 
+public struct DeviceCleanupPolicy: Codable, Equatable, Sendable {
+    public static let defaultEpisodeAgeDays = 30
+    public static let allowedEpisodeAgeDays = 1...3_650
+
+    public var isEnabled: Bool
+    public var episodeAgeDays: Int
+
+    public init(
+        isEnabled: Bool = false,
+        episodeAgeDays: Int = Self.defaultEpisodeAgeDays
+    ) {
+        self.isEnabled = isEnabled
+        self.episodeAgeDays = episodeAgeDays
+    }
+}
+
 public struct AppSettings: Codable, Equatable, Sendable {
     public var ffmpegExecutablePath: String?
     public var appearancePreference: AppearancePreference
     public var allowsInsecureDownloads: Bool
     public var prefixesPublicationDateInEpisodeTitles: Bool
     public var automaticDownloadLimit: AutomaticDownloadLimit
+    public var deviceCleanupPolicy: DeviceCleanupPolicy
 
     public init(
         ffmpegExecutablePath: String? = nil,
         appearancePreference: AppearancePreference = .system,
         allowsInsecureDownloads: Bool = false,
         prefixesPublicationDateInEpisodeTitles: Bool = false,
-        automaticDownloadLimit: AutomaticDownloadLimit = .off
+        automaticDownloadLimit: AutomaticDownloadLimit = .off,
+        deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy()
     ) {
         self.ffmpegExecutablePath = ffmpegExecutablePath
         self.appearancePreference = appearancePreference
         self.allowsInsecureDownloads = allowsInsecureDownloads
         self.prefixesPublicationDateInEpisodeTitles = prefixesPublicationDateInEpisodeTitles
         self.automaticDownloadLimit = automaticDownloadLimit
+        self.deviceCleanupPolicy = deviceCleanupPolicy
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -57,6 +76,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case allowsInsecureEpisodeDownloads
         case prefixesPublicationDateInEpisodeTitles
         case automaticDownloadLimit
+        case deviceCleanupPolicy
     }
 
     public init(from decoder: Decoder) throws {
@@ -74,6 +94,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
             AutomaticDownloadLimit.self,
             forKey: .automaticDownloadLimit
         ) ?? .off
+        deviceCleanupPolicy = try container.decodeIfPresent(
+            DeviceCleanupPolicy.self,
+            forKey: .deviceCleanupPolicy
+        ) ?? DeviceCleanupPolicy()
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -83,5 +107,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(allowsInsecureDownloads, forKey: .allowsInsecureDownloads)
         try container.encode(prefixesPublicationDateInEpisodeTitles, forKey: .prefixesPublicationDateInEpisodeTitles)
         try container.encode(automaticDownloadLimit, forKey: .automaticDownloadLimit)
+        try container.encode(deviceCleanupPolicy, forKey: .deviceCleanupPolicy)
     }
 }

@@ -41,6 +41,7 @@ public struct MainView: View {
     @State private var expandedEpisodeIDs: Set<String> = []
     @State private var expandedDescriptionFeedIDs: Set<UUID> = []
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
+    @State private var excludedCleanupDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var appDataMessage: String?
@@ -455,10 +456,14 @@ public struct MainView: View {
             lastErrorMessage: syncExecutionViewModel.lastErrorMessage,
             preparedEpisodeCount: preparationPreviewViewModel.preparedEpisodes.count,
             enabledSubscriptionCount: enabledSubscriptionCount,
+            cleanupEpisodeAgeDays: viewModel.settings.deviceCleanupPolicy.isEnabled
+                ? viewModel.settings.deviceCleanupPolicy.episodeAgeDays
+                : nil,
             isPresented: $isShowingSyncDialog,
             ejectAfterSync: $isEjectAfterSyncEnabled,
             deleteDownloadsAfterSync: $isDeleteDownloadedAfterSyncEnabled,
             onEjectAfterSyncChange: rebuildSyncPlan,
+            onToggleCleanupDeletion: toggleCleanupDeletionSelection,
             onSync: { Task { await runSync() } }
         )
     }
@@ -791,6 +796,8 @@ public struct MainView: View {
                 preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
                 subscriptions: viewModel.feedSubscriptions,
                 manualDeleteTargets: manuallySelectedDeletionTargets,
+                cleanupPolicy: viewModel.settings.deviceCleanupPolicy,
+                excludedCleanupTargets: excludedCleanupDeletionTargets,
                 ejectAfterSync: isEjectAfterSyncEnabled
             )
         }
@@ -1174,6 +1181,7 @@ public struct MainView: View {
         syncExecutionViewModel.clearLastResult()
         isEjectAfterSyncEnabled = true
         isDeleteDownloadedAfterSyncEnabled = true
+        excludedCleanupDeletionTargets = []
         rebuildSyncPlan()
         isShowingSyncDialog = true
     }
@@ -1219,6 +1227,22 @@ public struct MainView: View {
             manuallySelectedDeletionTargets.remove(fileURL)
         } else {
             manuallySelectedDeletionTargets.insert(fileURL)
+        }
+        rebuildSyncPlan()
+    }
+
+    private func toggleCleanupDeletionSelection(for fileURL: URL) {
+        let fileURL = fileURL.standardizedFileURL
+        let isCurrentlySelected = syncPlanViewModel.plan?.actions.contains(where: { action in
+            guard case .deleteFromDevice(let targetURL, _) = action else { return false }
+            return targetURL.standardizedFileURL == fileURL
+        }) == true
+
+        if isCurrentlySelected {
+            excludedCleanupDeletionTargets.insert(fileURL)
+            manuallySelectedDeletionTargets.remove(fileURL)
+        } else {
+            excludedCleanupDeletionTargets.remove(fileURL)
         }
         rebuildSyncPlan()
     }

@@ -174,6 +174,134 @@ struct SyncPlannerTests {
     }
 
     @Test
+    func suggestsAndSelectsOnlyManagedEpisodesStrictlyOlderThanCleanupThreshold() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let oldEpisodeURL = managedDirectory.appendingPathComponent("2026.07.23-Old Episode-(Example Podcast).mp3")
+        let boundaryEpisodeURL = managedDirectory.appendingPathComponent("2026.07.24-Boundary Episode-(Example Podcast).mp3")
+        let newerEpisodeURL = managedDirectory.appendingPathComponent("2026.08.01-New Episode-(Example Podcast).mp3")
+        let missingDateURL = managedDirectory.appendingPathComponent("Undated Episode-(Example Podcast).mp3")
+        let unrelatedAudioURL = managedDirectory.appendingPathComponent("2026.01.01-Favorite Song.mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    managedDirectory.path: [
+                        oldEpisodeURL,
+                        boundaryEpisodeURL,
+                        newerEpisodeURL,
+                        missingDateURL,
+                        unrelatedAudioURL,
+                    ]
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 30),
+            currentDate: utcDate(year: 2026, month: 8, day: 23, hour: 18),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.cleanupCandidates.map(\.targetURL) == [oldEpisodeURL])
+        #expect(plan.actions == [.deleteFromDevice(targetURL: oldEpisodeURL, fileSizeBytes: 1)])
+    }
+
+    @Test
+    func disabledCleanupDoesNotSuggestARecognizedOldEpisode() throws {
+        let device = makeDevice()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let oldEpisodeURL = managedDirectory.appendingPathComponent("2020.01.01-Old Episode-(Example Podcast).mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [oldEpisodeURL]])
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [makeSubscription()],
+            cleanupPolicy: DeviceCleanupPolicy(isEnabled: false, episodeAgeDays: 30),
+            currentDate: utcDate(year: 2026, month: 8, day: 23),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.cleanupCandidates.isEmpty)
+        #expect(plan.actions.isEmpty)
+    }
+
+    @Test
+    func excludedCleanupCandidateRemainsVisibleButIsNotDeleted() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let oldEpisodeURL = managedDirectory.appendingPathComponent("2026.01.01-Old Episode-(Example Podcast).mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [oldEpisodeURL]])
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 30),
+            excludedCleanupTargets: [oldEpisodeURL],
+            currentDate: utcDate(year: 2026, month: 8, day: 23),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.cleanupCandidates.map(\.targetURL) == [oldEpisodeURL])
+        #expect(plan.actions.isEmpty)
+    }
+
+    @Test
+    func selectedCleanupWinsWhenTheSameEpisodeIsStillPreparedLocally() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let fileName = "2026.01.01-Old Episode-(Example Podcast).mp3"
+        let preparedEpisode = makePreparedEpisode(
+            id: "old",
+            title: "Old Episode",
+            preparedFileName: fileName
+        )
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let oldEpisodeURL = managedDirectory.appendingPathComponent(fileName)
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [oldEpisodeURL]])
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 30),
+            currentDate: utcDate(year: 2026, month: 8, day: 23),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions.contains(.deleteFromDevice(targetURL: oldEpisodeURL, fileSizeBytes: 1)))
+        #expect(plan.actions.contains(.skip(reason: "Selected for removal from device: Old Episode")))
+        #expect(!plan.actions.contains(.skip(reason: "Already on device: Old Episode")))
+    }
+
+    @Test
+    func invalidEnabledCleanupPolicyFailsClosed() throws {
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
+
+        #expect(throws: DeviceCleanupPolicyError.invalidEpisodeAgeDays(0)) {
+            try planner.makePlan(
+                device: makeDevice(),
+                preparedEpisodes: [],
+                subscriptions: [makeSubscription()],
+                cleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 0),
+                ejectAfterSync: false
+            )
+        }
+    }
+
+    @Test
     func doesNotDeleteFilesOutsideManagedPodcastFolders() throws {
         let device = makeDevice()
         let preparedEpisode = makePreparedEpisode(
@@ -581,6 +709,22 @@ struct SyncPlannerTests {
             preparedFileURL: URL(fileURLWithPath: "/tmp/\(preparedFileName)", isDirectory: false),
             preparationAction: .passthroughMP3
         )
+    }
+
+    private func utcDate(
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int = 0
+    ) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "GMT")!
+        return calendar.date(from: DateComponents(
+            year: year,
+            month: month,
+            day: day,
+            hour: hour
+        ))!
     }
 }
 

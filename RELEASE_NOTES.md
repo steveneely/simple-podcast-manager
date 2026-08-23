@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.9.4
+# Simple Podcast Manager v1.10.0
 
-- Keeps Settings fully on-screen with a scrollable layout that no longer shifts the main window.
-- Shows complete Settings descriptions instead of truncating them with an ellipsis.
+- Adds optional device cleanup that suggests synced episodes older than a chosen number of days.
+- Lets you review and keep individual cleanup candidates before every sync while leaving unrelated audio untouched.

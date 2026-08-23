@@ -10,6 +10,7 @@ public struct SettingsView: View {
     @State private var allowsInsecureDownloads: Bool
     @State private var prefixesPublicationDateInEpisodeTitles: Bool
     @State private var automaticDownloadLimit: AutomaticDownloadLimit
+    @State private var deviceCleanupPolicy: DeviceCleanupPolicy
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -53,6 +54,7 @@ public struct SettingsView: View {
             initialValue: settings.prefixesPublicationDateInEpisodeTitles
         )
         self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
+        self._deviceCleanupPolicy = State(initialValue: settings.deviceCleanupPolicy)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -161,6 +163,25 @@ public struct SettingsView: View {
                     }
 
                     SettingsSection(title: "MP3 Player") {
+                        LabeledField(
+                            title: "Device Cleanup",
+                            detail: "Suggests old synced episodes during Sync. You review and approve every deletion.",
+                            emphasizesTitle: true
+                        ) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Toggle("Remove old synced episodes", isOn: $deviceCleanupPolicy.isEnabled)
+                                    .toggleStyle(.checkbox)
+
+                                if deviceCleanupPolicy.isEnabled {
+                                    Stepper(
+                                        "Older than \(deviceCleanupPolicy.episodeAgeDays) day\(deviceCleanupPolicy.episodeAgeDays == 1 ? "" : "s")",
+                                        value: $deviceCleanupPolicy.episodeAgeDays,
+                                        in: DeviceCleanupPolicy.allowedEpisodeAgeDays
+                                    )
+                                }
+                            }
+                        }
+
                         LabeledField(
                             title: "Device Podcast Folder",
                             detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
@@ -277,7 +298,8 @@ public struct SettingsView: View {
                 appearancePreference: appearancePreference,
                 allowsInsecureDownloads: allowsInsecureDownloads,
                 prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles,
-                automaticDownloadLimit: automaticDownloadLimit
+                automaticDownloadLimit: automaticDownloadLimit,
+                deviceCleanupPolicy: deviceCleanupPolicy
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates

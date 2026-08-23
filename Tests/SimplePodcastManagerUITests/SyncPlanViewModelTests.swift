@@ -116,6 +116,44 @@ struct SyncPlanViewModelTests {
     }
 
     @Test
+    func buildPlanKeepsExcludedCleanupCandidateVisibleWithoutDeletingIt() async throws {
+        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let device = DeviceInfo(
+            name: "SPM Test Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+        )
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let oldEpisodeURL = managedDirectory.appendingPathComponent("2026.01.01-Old Episode-(Example Podcast).mp3")
+        let planner = makeTestPlanner(
+            deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [device.podcastDirectoryURL.path: [oldEpisodeURL]])
+        )
+        let viewModel = SyncPlanViewModel(planner: planner)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "GMT")!
+        let currentDate = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 23)))
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [
+                FeedSubscription(
+                    id: subscriptionID,
+                    title: "Example Podcast",
+                    rssURL: URL(string: "https://example.com/feed.xml")!
+                )
+            ],
+            cleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 30),
+            excludedCleanupTargets: [oldEpisodeURL],
+            currentDate: currentDate,
+            ejectAfterSync: false
+        )
+
+        #expect(viewModel.plan?.cleanupCandidates.map(\.targetURL) == [oldEpisodeURL])
+        #expect(viewModel.plan?.actions.isEmpty == true)
+    }
+
+    @Test
     func buildPlanInspectsDeviceOutsideMainThread() async {
         let device = DeviceInfo(
             name: "SPM Test Walkman",

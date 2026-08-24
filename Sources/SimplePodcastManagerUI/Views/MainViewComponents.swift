@@ -16,6 +16,11 @@ enum FeedSelectionPolicy {
     }
 }
 
+enum FeedSidebarActivityStatus: Equatable {
+    case newEpisodes(Int)
+    case inactive
+}
+
 struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     @Bindable var viewModel: DeviceViewModel
     @Binding var isShowingDetails: Bool
@@ -153,6 +158,13 @@ struct FeedSidebarView: View {
                 ForEach(subscriptions) { subscription in
                     let count = episodeCount(subscription)
                     let isSelected = selectedFeedID == subscription.id
+                    let hasIssue = hasFeedIssue(subscription)
+                    let activityStatus = Self.activityStatus(
+                        newEpisodeCount: newEpisodeCount(subscription),
+                        isInactive: isInactive(subscription),
+                        hasFeedIssue: hasIssue,
+                        isEnabled: subscription.isEnabled
+                    )
 
                     VStack(alignment: .leading, spacing: 4) {
                         Button {
@@ -185,34 +197,36 @@ struct FeedSidebarView: View {
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     } else {
-                                        Text("\(count) episode\(count == 1 ? "" : "s")")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                        HStack(spacing: 4) {
+                                            Text("\(count) episode\(count == 1 ? "" : "s")")
+
+                                            switch activityStatus {
+                                            case let .newEpisodes(newCount):
+                                                Text("·")
+                                                Text(Self.newEpisodeLabel(for: newCount))
+                                                    .fontWeight(.semibold)
+                                                    .foregroundStyle(Color.accentColor)
+                                                    .help("\(newCount) new episode\(newCount == 1 ? "" : "s")")
+                                            case .inactive:
+                                                Text("·")
+                                                Text("Inactive")
+                                                    .foregroundStyle(Color.orange)
+                                                    .help(inactiveHelpText(for: subscription))
+                                            case nil:
+                                                EmptyView()
+                                            }
+                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                                if subscription.isEnabled {
-                                    let newCount = newEpisodeCount(subscription)
-                                    if hasFeedIssue(subscription) {
-                                        Image(systemName: "exclamationmark.triangle.fill")
-                                            .font(.caption)
-                                            .foregroundStyle(.orange)
-                                            .help("This feed had a refresh problem")
-                                    } else if newCount > 0 {
-                                        Text(newCount > 99 ? "99+" : "\(newCount)")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Color.accentColor, in: Capsule())
-                                            .help("\(newCount) new episode\(newCount == 1 ? "" : "s")")
-                                    } else if isInactive(subscription) {
-                                        Image(systemName: "clock")
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(.secondary)
-                                            .help(inactiveHelpText(for: subscription))
-                                    }
+                                if subscription.isEnabled && hasIssue {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                        .help("This feed had a refresh problem")
                                 }
                             }
                             .contentShape(Rectangle())
@@ -264,6 +278,23 @@ struct FeedSidebarView: View {
         currentSelection: FeedSubscription.ID?
     ) -> FeedSubscription.ID? {
         currentSelection == subscriptionID ? nil : subscriptionID
+    }
+
+    static func activityStatus(
+        newEpisodeCount: Int,
+        isInactive: Bool,
+        hasFeedIssue: Bool,
+        isEnabled: Bool
+    ) -> FeedSidebarActivityStatus? {
+        guard isEnabled, !hasFeedIssue else { return nil }
+        if newEpisodeCount > 0 {
+            return .newEpisodes(newEpisodeCount)
+        }
+        return isInactive ? .inactive : nil
+    }
+
+    static func newEpisodeLabel(for count: Int) -> String {
+        count > 99 ? "99+ new" : "\(count) new"
     }
 
     private func inactiveHelpText(for subscription: FeedSubscription) -> String {

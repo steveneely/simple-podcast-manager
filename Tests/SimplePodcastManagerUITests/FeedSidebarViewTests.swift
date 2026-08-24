@@ -36,6 +36,52 @@ struct FeedSidebarViewTests {
     }
 
     @Test
+    func newEpisodeStatusTakesPrecedenceOverInactiveStatus() {
+        let status = FeedSidebarView.activityStatus(
+            newEpisodeCount: 4,
+            isInactive: true,
+            hasFeedIssue: false,
+            isEnabled: true
+        )
+
+        #expect(status == .newEpisodes(4))
+    }
+
+    @Test
+    func refreshIssueAndDisabledFeedHideActivityStatus() {
+        #expect(FeedSidebarView.activityStatus(
+            newEpisodeCount: 4,
+            isInactive: false,
+            hasFeedIssue: true,
+            isEnabled: true
+        ) == nil)
+        #expect(FeedSidebarView.activityStatus(
+            newEpisodeCount: 4,
+            isInactive: false,
+            hasFeedIssue: false,
+            isEnabled: false
+        ) == nil)
+    }
+
+    @Test
+    func inactiveStatusAppearsWithoutNewEpisodes() {
+        let status = FeedSidebarView.activityStatus(
+            newEpisodeCount: 0,
+            isInactive: true,
+            hasFeedIssue: false,
+            isEnabled: true
+        )
+
+        #expect(status == .inactive)
+    }
+
+    @Test
+    func newEpisodeLabelCapsLargeCounts() {
+        #expect(FeedSidebarView.newEpisodeLabel(for: 4) == "4 new")
+        #expect(FeedSidebarView.newEpisodeLabel(for: 100) == "99+ new")
+    }
+
+    @Test
     func removingSelectedFeedDoesNotOpenAnotherFeed() {
         let selectedFeed = makeSubscription(title: "Selected")
         let remainingFeed = makeSubscription(title: "Remaining")

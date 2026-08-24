@@ -90,7 +90,7 @@ Expected runtime flow:
    - optionally eject after success
 9. Progress and result state are rendered in the UI.
 
-Feed activity is separate from automatic downloads. Existing feeds establish a no-badge baseline, only episodes ahead of a previously observed episode are normally considered new, explicitly opening a show marks its current episodes seen, and a fully successful sync acknowledges prepared episodes copied or already present. No show is implicitly opened at startup, after app-data restore, or when the selected show is removed. Feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
+Feed activity is separate from automatic downloads. Existing feeds establish a no-badge baseline, only episodes ahead of a previously observed episode are normally considered new, explicitly opening a show marks its current episodes seen, and a fully successful sync acknowledges prepared episodes copied or already present. The sidebar appends blue new-episode text or an orange inactive label to each show's episode count; refresh errors take precedence. No show is implicitly opened at startup, after app-data restore, or when the selected show is removed. Feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
 
 The plan shown to the user is the plan executed by the app.
 

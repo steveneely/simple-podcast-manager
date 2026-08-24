@@ -3,17 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.13.1</title>
-            <pubDate>Sun, 23 Aug 2026 16:44:57 -0600</pubDate>
-            <sparkle:version>76</sparkle:version>
-            <sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
+            <title>1.13.2</title>
+            <pubDate>Sun, 23 Aug 2026 21:08:36 -0600</pubDate>
+            <sparkle:version>77</sparkle:version>
+            <sparkle:shortVersionString>1.13.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.13.1
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.13.2
 
-- Correctly restores every panel to the macOS appearance when switching from Light back to System.
+- Replaces separate activity icons with compact status text beside each show's episode count.
+- Shows new episodes in blue and inactive shows in orange for easier scanning.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.13.1/SimplePodcastManager-v1.13.1.dmg" length="7128342" type="application/octet-stream" sparkle:edSignature="Df4q6SHnxioCaf8Fo0qzFa5CMlKdOj6SSnwFMvVzCiUEJQ3ZF5jezBxHCycx1G53tahH6YM9csLAHCLLwoauBw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.13.2/SimplePodcastManager-v1.13.2.dmg" length="7126563" type="application/octet-stream" sparkle:edSignature="vSRBwyE1fUBn4ULtdDPgeo9HkNotMbBbGmi8lw9WgDiTzSyqogG02daJ9AxKIw9yKWlWBekC3yAqEuNRrp+9Bw=="/>
         </item>
     </channel>
 </rss>

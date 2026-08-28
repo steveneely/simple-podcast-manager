@@ -48,30 +48,32 @@ Leave `Settings > Episode Preparation > Automatic Downloads` set to `Off` for ma
 
 Edit a show to change `Include in automatic downloads`. Turn off `Feed enabled` to stop refreshing that show. Automatic downloads prepare episodes on the Mac; syncing starts only when you click `Sync`.
 
-## Clean up old episodes during Sync
+## Limit episodes kept per show during Sync
 
 Device cleanup is optional and is off by default.
 
 1. Open Settings.
-2. Under `MP3 Player > Device Cleanup`, choose an `After…` age instead of `Off`.
+2. Under `MP3 Player > Device Cleanup`, choose `Keep 3 episodes`, `Keep 5 episodes`, `Keep 10 episodes`, or `Keep 20 episodes` instead of `Off`.
 3. Save the setting.
 
-When you next click `Sync`, the app suggests eligible episodes older than that limit. Every suggested episode appears in the Sync window with its own checkbox. Uncheck anything you want to keep.
+When you next click `Sync`, the app considers both episodes already on the player and dated episodes being copied during that sync. It suggests existing episodes beyond the selected number for each show. Every suggested episode appears in the Sync window with its own checkbox. Uncheck anything you want to keep.
 
-Age is based on the episode publication date in the filename. An episode exactly as old as the selected limit is kept; only episodes strictly older than the limit are suggested.
+For example, if a show has five episodes on the player and two newer episodes are being copied, `Keep 5 episodes` suggests deleting the two oldest existing episodes. An older episode being copied is never silently blocked or deleted; the player can temporarily exceed the limit and the episode can be reviewed during a later sync.
 
-Automatic cleanup is deliberately conservative. It considers only MP3 files that Simple Podcast Manager can associate with a current podcast subscription inside the configured device podcast folder. Files without a trustworthy publication date, unrelated audio, and files from unrecognized podcast folders are never selected automatically. You can still select recognized episodes manually from their show.
+Automatic cleanup is deliberately conservative. It considers only MP3 files with trustworthy publication dates that Simple Podcast Manager can associate with a current podcast subscription inside the configured device podcast folder. Undated files do not count toward the limit. If multiple episodes share the date at the keep-limit boundary, all episodes from that date are kept. Unrelated audio and files from unrecognized podcast folders are never selected automatically. You can still select recognized episodes manually from their show.
+
+Age-based cleanup settings from earlier versions are ignored, so Device Cleanup starts Off. Choose a per-show limit in Settings if you want to use cleanup.
 
 ## Sync
 
 1. Connect the MP3 player and wait for it to appear in the Device section.
 2. Click `Sync`.
 3. Review the files that will be copied or deleted and their sizes.
-4. If cleanup suggested old episodes, uncheck any episode you want to keep.
+4. If cleanup suggested episodes beyond the per-show limit, uncheck any episode you want to keep.
 5. Choose whether to eject the player or delete local downloads when finished.
 6. Click `Sync`.
 
-When cleanup is selected, the Sync window shows how many episodes are older than the configured limit and reminds you that Device Cleanup is configured in Settings. The app checks that the complete, currently selected sync plan will fit before changing the player. Unchecking a deletion can change the space calculation. Deleted files are removed directly from the player rather than moved to Trash.
+When cleanup is selected, the Sync window names the configured per-show limit and shows how many older episodes are selected. The app checks that the complete, currently selected sync plan will fit before changing the player. Unchecking a deletion can change the space calculation. Deleted files are removed directly from the player rather than moved to Trash.
 
 ## Remove episodes from the player
 
@@ -103,9 +105,9 @@ Backups include subscriptions, settings, and history, but not downloaded audio f
 
 Download fewer episodes, or select old episodes for deletion and open the sync plan again.
 
-### An old episode was not suggested for cleanup
+### An episode beyond the limit was not suggested for cleanup
 
-Cleanup requires a publication date in a recognized Simple Podcast Manager filename and a matching current podcast subscription. Undated files, unrelated audio, and files in unrecognized folders must be reviewed manually.
+Cleanup requires a publication date in a recognized Simple Podcast Manager filename and a matching current podcast subscription. Undated files do not count toward the limit. Unrelated audio and files in unrecognized folders must be reviewed manually.
 
 ### A non-MP3 episode does not download
 

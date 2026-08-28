@@ -46,19 +46,18 @@ public enum InactivePodcastThreshold: String, Codable, Equatable, Sendable, Case
 }
 
 public struct DeviceCleanupPolicy: Codable, Equatable, Sendable {
-    public static let defaultEpisodeAgeDays = 30
-    public static let allowedEpisodeAgeDays = 1...3_650
+    public static let allowedMaximumEpisodesPerShow = [3, 5, 10, 20]
 
-    public var isEnabled: Bool
-    public var episodeAgeDays: Int
+    public var maximumEpisodesPerShow: Int?
 
-    public init(
-        isEnabled: Bool = false,
-        episodeAgeDays: Int = Self.defaultEpisodeAgeDays
-    ) {
-        self.isEnabled = isEnabled
-        self.episodeAgeDays = episodeAgeDays
+    public init(maximumEpisodesPerShow: Int? = nil) {
+        self.maximumEpisodesPerShow = maximumEpisodesPerShow
     }
+
+    public var isEnabled: Bool {
+        maximumEpisodesPerShow != nil
+    }
+
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {

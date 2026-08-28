@@ -128,13 +128,13 @@ public struct SettingsView: View {
                     SettingsSection(title: "MP3 Player") {
                         LabeledField(
                             title: "Device Cleanup",
-                            detail: "Suggests deleting old synced episodes during Sync. You can review and keep any episode before syncing.",
+                            detail: "Suggests deleting episodes beyond the selected number per show. You can review and keep any episode before syncing.",
                             emphasizesTitle: true
                         ) {
-                            Picker("Device Cleanup", selection: cleanupAgeSelection) {
+                            Picker("Device Cleanup", selection: cleanupEpisodeLimitSelection) {
                                 Text("Off").tag(Int?.none)
-                                ForEach(cleanupAgeOptions, id: \.self) { days in
-                                    Text(cleanupAgeLabel(days)).tag(Int?.some(days))
+                                ForEach(DeviceCleanupPolicy.allowedMaximumEpisodesPerShow, id: \.self) { count in
+                                    Text("Keep \(count) episodes").tag(Int?.some(count))
                                 }
                             }
                             .labelsHidden()
@@ -334,32 +334,15 @@ public struct SettingsView: View {
         }
     }
 
-    private var cleanupAgeOptions: [Int] {
-        let standard = [7, 14, 30, 60, 90, 180, 365]
-        guard !standard.contains(deviceCleanupPolicy.episodeAgeDays) else { return standard }
-        return [deviceCleanupPolicy.episodeAgeDays] + standard
-    }
-
-    private var cleanupAgeSelection: Binding<Int?> {
+    private var cleanupEpisodeLimitSelection: Binding<Int?> {
         Binding(
-            get: { deviceCleanupPolicy.isEnabled ? deviceCleanupPolicy.episodeAgeDays : nil },
-            set: { days in
-                if let days {
-                    deviceCleanupPolicy.episodeAgeDays = days
-                    deviceCleanupPolicy.isEnabled = true
-                } else {
-                    deviceCleanupPolicy.isEnabled = false
-                }
+            get: { deviceCleanupPolicy.maximumEpisodesPerShow },
+            set: { maximumEpisodesPerShow in
+                deviceCleanupPolicy = DeviceCleanupPolicy(
+                    maximumEpisodesPerShow: maximumEpisodesPerShow
+                )
             }
         )
-    }
-
-    private func cleanupAgeLabel(_ days: Int) -> String {
-        switch days {
-        case 180: "After 6 months"
-        case 365: "After 1 year"
-        default: "After \(days) day\(days == 1 ? "" : "s")"
-        }
     }
 
     private func performSave(_ pendingSave: PendingSave) {

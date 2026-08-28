@@ -24,15 +24,11 @@ public struct SyncPlanner: Sendable {
         manualDeleteTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
-        currentDate: Date = Date(),
         ejectAfterSync: Bool
     ) throws -> SyncPlan {
         try safetyValidator.validateDevice(device)
 
-        let cleanupCutoffDate = try cleanupCutoffDate(
-            for: cleanupPolicy,
-            currentDate: currentDate
-        )
+        let maximumEpisodesPerShow = try validatedMaximumEpisodesPerShow(for: cleanupPolicy)
 
         var actions: [SyncAction] = []
         var cleanupCandidates: [DeviceCleanupCandidate] = []
@@ -60,28 +56,19 @@ public struct SyncPlanner: Sendable {
                 .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
 
             var cleanupCandidateSizesByURL: [URL: Int64] = [:]
-            if let cleanupCutoffDate {
-                for fileURL in existingFiles {
-                    guard let metadata = EpisodeFileName.parsedMetadata(from: fileURL),
-                          let publicationDate = metadata.publicationDate,
-                          publicationDate < cleanupCutoffDate else {
-                        continue
-                    }
-
-                    try safetyValidator.validateDeleteTarget(fileURL, on: device)
-                    let standardizedURL = fileURL.standardizedFileURL
-                    let fileSizeBytes = try storageInspector.fileSize(at: fileURL)
-                    cleanupCandidateSizesByURL[standardizedURL] = fileSizeBytes
-                    cleanupCandidates.append(
-                        DeviceCleanupCandidate(
-                            targetURL: fileURL,
-                            subscriptionID: subscription.id,
-                            podcastTitle: subscription.title,
-                            episodeTitle: metadata.episodeTitle,
-                            publicationDate: publicationDate,
-                            fileSizeBytes: fileSizeBytes
-                        )
-                    )
+            if let maximumEpisodesPerShow {
+                let subscriptionCleanupCandidates = try makeCleanupCandidates(
+                    existingFiles: existingFiles,
+                    preparedEpisodes: preparedEpisodes,
+                    managedDirectory: managedDirectory,
+                    subscription: subscription,
+                    manualDeleteTargets: manualDeleteTargets,
+                    maximumEpisodesPerShow: maximumEpisodesPerShow,
+                    device: device
+                )
+                for candidate in subscriptionCleanupCandidates {
+                    cleanupCandidateSizesByURL[candidate.targetURL.standardizedFileURL] = candidate.fileSizeBytes
+                    cleanupCandidates.append(candidate)
                 }
             }
 
@@ -145,19 +132,97 @@ public struct SyncPlanner: Sendable {
         )
     }
 
-    private func cleanupCutoffDate(
-        for policy: DeviceCleanupPolicy,
-        currentDate: Date
-    ) throws -> Date? {
-        guard policy.isEnabled else { return nil }
-        guard DeviceCleanupPolicy.allowedEpisodeAgeDays.contains(policy.episodeAgeDays) else {
-            throw DeviceCleanupPolicyError.invalidEpisodeAgeDays(policy.episodeAgeDays)
+    private func validatedMaximumEpisodesPerShow(
+        for policy: DeviceCleanupPolicy
+    ) throws -> Int? {
+        guard let maximumEpisodesPerShow = policy.maximumEpisodesPerShow else { return nil }
+        guard DeviceCleanupPolicy.allowedMaximumEpisodesPerShow.contains(maximumEpisodesPerShow) else {
+            throw DeviceCleanupPolicyError.invalidMaximumEpisodesPerShow(maximumEpisodesPerShow)
+        }
+        return maximumEpisodesPerShow
+    }
+
+    private func makeCleanupCandidates(
+        existingFiles: [URL],
+        preparedEpisodes: [PreparedEpisode],
+        managedDirectory: URL,
+        subscription: FeedSubscription,
+        manualDeleteTargets: Set<URL>,
+        maximumEpisodesPerShow: Int,
+        device: DeviceInfo
+    ) throws -> [DeviceCleanupCandidate] {
+        var retentionEntriesByURL: [URL: CleanupRetentionEntry] = [:]
+
+        for fileURL in existingFiles {
+            let standardizedURL = fileURL.standardizedFileURL
+            guard !manualDeleteTargets.contains(standardizedURL),
+                  let metadata = EpisodeFileName.parsedMetadata(from: fileURL),
+                  let publicationDate = metadata.publicationDate else {
+                continue
+            }
+            retentionEntriesByURL[standardizedURL] = CleanupRetentionEntry(
+                targetURL: fileURL,
+                episodeTitle: metadata.episodeTitle,
+                publicationDate: publicationDate,
+                existsOnDevice: true
+            )
         }
 
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "GMT")!
-        let currentDay = calendar.startOfDay(for: currentDate)
-        return calendar.date(byAdding: .day, value: -policy.episodeAgeDays, to: currentDay)
+        for preparedEpisode in preparedEpisodes {
+            let destinationURL = managedDirectory.appendingPathComponent(
+                preparedEpisode.preparedFileURL.lastPathComponent,
+                isDirectory: false
+            )
+            let standardizedURL = destinationURL.standardizedFileURL
+            guard !manualDeleteTargets.contains(standardizedURL),
+                  retentionEntriesByURL[standardizedURL] == nil,
+                  let publicationDate = EpisodeFileName.parsedMetadata(from: destinationURL)?.publicationDate else {
+                continue
+            }
+            retentionEntriesByURL[standardizedURL] = CleanupRetentionEntry(
+                targetURL: destinationURL,
+                episodeTitle: preparedEpisode.episode.title,
+                publicationDate: publicationDate,
+                existsOnDevice: false
+            )
+        }
+
+        let orderedEntries = retentionEntriesByURL.values.sorted(by: CleanupRetentionEntry.isNewer)
+        guard orderedEntries.count > maximumEpisodesPerShow else { return [] }
+        let oldestRetainedDate = orderedEntries[maximumEpisodesPerShow - 1].publicationDate
+        let excessExistingEpisodes = orderedEntries
+            .dropFirst(maximumEpisodesPerShow)
+            .filter { entry in
+                entry.existsOnDevice && entry.publicationDate < oldestRetainedDate
+            }
+
+        return try excessExistingEpisodes.map { entry in
+            try safetyValidator.validateDeleteTarget(entry.targetURL, on: device)
+            return DeviceCleanupCandidate(
+                targetURL: entry.targetURL,
+                subscriptionID: subscription.id,
+                podcastTitle: subscription.title,
+                episodeTitle: entry.episodeTitle,
+                publicationDate: entry.publicationDate,
+                fileSizeBytes: try storageInspector.fileSize(at: entry.targetURL)
+            )
+        }
+    }
+
+    private struct CleanupRetentionEntry {
+        var targetURL: URL
+        var episodeTitle: String
+        var publicationDate: Date
+        var existsOnDevice: Bool
+
+        static func isNewer(_ lhs: Self, _ rhs: Self) -> Bool {
+            if lhs.publicationDate != rhs.publicationDate {
+                return lhs.publicationDate > rhs.publicationDate
+            }
+            return lhs.targetURL.lastPathComponent.localizedCaseInsensitiveCompare(
+                rhs.targetURL.lastPathComponent
+            ) == .orderedDescending
+        }
     }
 
     private func cleanupCandidateSort(

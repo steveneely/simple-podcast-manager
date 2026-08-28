@@ -475,9 +475,7 @@ public struct MainView: View {
             lastErrorMessage: syncExecutionViewModel.lastErrorMessage,
             preparedEpisodeCount: preparationPreviewViewModel.preparedEpisodes.count,
             enabledSubscriptionCount: enabledSubscriptionCount,
-            cleanupEpisodeAgeDays: viewModel.settings.deviceCleanupPolicy.isEnabled
-                ? viewModel.settings.deviceCleanupPolicy.episodeAgeDays
-                : nil,
+            cleanupMaximumEpisodesPerShow: viewModel.settings.deviceCleanupPolicy.maximumEpisodesPerShow,
             isPresented: $isShowingSyncDialog,
             ejectAfterSync: $isEjectAfterSyncEnabled,
             deleteDownloadsAfterSync: $isDeleteDownloadedAfterSyncEnabled,

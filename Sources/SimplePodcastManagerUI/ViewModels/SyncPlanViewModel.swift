@@ -26,7 +26,6 @@ public final class SyncPlanViewModel {
         manualDeleteTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
-        currentDate: Date = Date(),
         ejectAfterSync: Bool
     ) async {
         let planningID = UUID()
@@ -53,7 +52,6 @@ public final class SyncPlanViewModel {
                     manualDeleteTargets: manualDeleteTargets,
                     cleanupPolicy: cleanupPolicy,
                     excludedCleanupTargets: excludedCleanupTargets,
-                    currentDate: currentDate,
                     ejectAfterSync: ejectAfterSync
                 )
             }.value

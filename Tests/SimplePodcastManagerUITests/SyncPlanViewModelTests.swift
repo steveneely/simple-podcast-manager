@@ -125,13 +125,15 @@ struct SyncPlanViewModelTests {
         )
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let oldEpisodeURL = managedDirectory.appendingPathComponent("2026.01.01-Old Episode-(Example Podcast).mp3")
+        let newerEpisodeURLs = (2...4).map { day in
+            managedDirectory.appendingPathComponent("2026.01.0\(day)-Episode \(day)-(Example Podcast).mp3")
+        }
         let planner = makeTestPlanner(
-            deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [device.podcastDirectoryURL.path: [oldEpisodeURL]])
+            deviceLibrary: StubPlanDeviceLibrary(
+                filesByDirectory: [device.podcastDirectoryURL.path: [oldEpisodeURL] + newerEpisodeURLs]
+            )
         )
         let viewModel = SyncPlanViewModel(planner: planner)
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "GMT")!
-        let currentDate = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 23)))
 
         await viewModel.buildPlan(
             device: device,
@@ -143,9 +145,8 @@ struct SyncPlanViewModelTests {
                     rssURL: URL(string: "https://example.com/feed.xml")!
                 )
             ],
-            cleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 30),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
             excludedCleanupTargets: [oldEpisodeURL],
-            currentDate: currentDate,
             ejectAfterSync: false
         )
 

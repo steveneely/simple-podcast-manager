@@ -29,7 +29,7 @@ struct JSONConfigurationStoreTests {
                 allowsInsecureDownloads: true,
                 prefixesPublicationDateInEpisodeTitles: true,
                 automaticDownloadLimit: .latest3,
-                deviceCleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 45),
+                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10),
                 inactivePodcastThreshold: .oneYear
             ),
             feedSubscriptions: [
@@ -80,6 +80,30 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
         #expect(configuration.feedSubscriptions.isEmpty)
+    }
+
+    @Test
+    func ignoresLegacyAgeBasedCleanupAndDefaultsToOff() throws {
+        let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fileURL = temporaryDirectoryURL.appendingPathComponent("config.json")
+        defer { try? FileManager.default.removeItem(at: temporaryDirectoryURL) }
+
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+        try #"""
+        {
+          "settings" : {
+            "deviceCleanupPolicy" : {
+              "isEnabled" : true,
+              "episodeAgeDays" : 30
+            }
+          },
+          "feedSubscriptions" : []
+        }
+        """#.data(using: .utf8)!.write(to: fileURL)
+
+        let configuration = try JSONConfigurationStore(fileURL: fileURL).loadConfiguration()
+
+        #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
     }
 
     @Test

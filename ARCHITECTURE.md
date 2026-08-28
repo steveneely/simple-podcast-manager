@@ -52,7 +52,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
-- `SyncPlanner`: calculate copy, skip, selected age-cleanup, manual delete, and eject actions; verify the complete plan fits; and order selected deletions before copies
+- `SyncPlanner`: calculate copy, skip, selected per-show retention cleanup, manual delete, and eject actions; verify the complete plan fits; and order selected deletions before copies
 - `SyncExecutor`: perform scoped copies and deletes on the device
 - `SafetyValidator`: verify all device paths before any mutation
 
@@ -80,7 +80,7 @@ Expected runtime flow:
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
-   - identify app-managed episodes older than the configured cleanup threshold
+   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-show retention limit
    - exclude any cleanup candidates the user unchecked in the current review
    - build a `SyncPlan`
    - show planned copies, skips, deletions, and optional eject
@@ -213,11 +213,11 @@ Delete behavior:
 
 - never schedule a deletion unless the user selected that file
 - optional device cleanup starts disabled and only preselects eligible files for the current Sync review
-- define cleanup age from the publication date encoded in an app-managed filename, using UTC calendar-day boundaries
-- consider a file old only when its publication day is strictly earlier than the configured cutoff; a file exactly at the cutoff is retained
+- rank dated app-managed device episodes and dated planned copies newest-first within each subscription
+- preselect only existing device episodes beyond the configured per-show limit; keep every episode tied on the retention-boundary publication day
 - never automatically select an undated file, unrelated audio, or a file that cannot be associated with a current subscription
 - show every proposed cleanup deletion with its own checkbox and rebuild the executable plan after selection changes
-- show a clear cleanup or removal notice before starting any plan that contains deletions; age-cleanup copy names the configured threshold and points back to Settings
+- show a clear cleanup or removal notice before starting any plan that contains deletions; retention-cleanup copy names the configured per-show limit and points back to Settings
 - identify app-managed episodes from their podcast folder and filename metadata
 - only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation
 - never bulk-delete by loose pattern matching
@@ -266,7 +266,7 @@ All device mutations pass through `SafetyValidator` and the scoped file services
 
 - write `.spmconfig` only at `[device root]/.spmconfig`
 - write and delete podcast media only inside the configured podcast directory, which defaults to `[device root]/music`
-- delete files only after explicit selection in the current plan review; age cleanup may preselect only proven app-managed files and must allow per-file opt-out
+- delete files only after explicit selection in the current plan review; retention cleanup may preselect only proven app-managed files and must allow per-file opt-out
 - keep the plan shown to the user identical to the plan passed to the executor
 - validate every action again immediately before execution
 - other audio also requires a separate explicit selection and confirmation

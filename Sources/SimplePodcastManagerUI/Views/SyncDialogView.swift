@@ -12,7 +12,7 @@ struct SyncDialogView: View {
     let lastErrorMessage: String?
     let preparedEpisodeCount: Int
     let enabledSubscriptionCount: Int
-    let cleanupEpisodeAgeDays: Int?
+    let cleanupMaximumEpisodesPerShow: Int?
     @Binding var isPresented: Bool
     @Binding var ejectAfterSync: Bool
     @Binding var deleteDownloadsAfterSync: Bool
@@ -117,14 +117,14 @@ struct SyncDialogView: View {
                 SyncPresentation.deletionNoticeTitle(
                     selectedCleanupDeletionCount: selectedCleanupDeletionCount
                 ),
-                systemImage: selectedCleanupDeletionCount > 0 ? "clock.arrow.circlepath" : "trash"
+                systemImage: selectedCleanupDeletionCount > 0 ? "list.number" : "trash"
             )
                 .font(.headline)
             Text(
                 SyncPresentation.deletionNotice(
                     deletionCount: plannedDeletionCount,
                     selectedCleanupDeletionCount: selectedCleanupDeletionCount,
-                    cleanupEpisodeAgeDays: cleanupEpisodeAgeDays
+                    cleanupMaximumEpisodesPerShow: cleanupMaximumEpisodesPerShow
                 )
             )
                 .font(.caption)
@@ -138,7 +138,7 @@ struct SyncDialogView: View {
 
     private var cleanupReview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Old Episodes Suggested for Cleanup")
+            Text("Episodes Suggested for Cleanup")
                 .font(.headline)
             Text("Uncheck any episode you want to keep on the MP3 player.")
                 .font(.caption)
@@ -299,22 +299,22 @@ struct SyncProgressView: View {
 enum SyncPresentation {
     static func deletionNoticeTitle(selectedCleanupDeletionCount: Int) -> String {
         selectedCleanupDeletionCount > 0
-            ? "Old Episodes Selected for Cleanup"
+            ? "Episodes Selected for Cleanup"
             : "Episodes Selected for Removal"
     }
 
     static func deletionNotice(
         deletionCount: Int,
         selectedCleanupDeletionCount: Int,
-        cleanupEpisodeAgeDays: Int?
+        cleanupMaximumEpisodesPerShow: Int?
     ) -> String {
-        if selectedCleanupDeletionCount > 0, let cleanupEpisodeAgeDays {
-            let cleanupEpisodeText = "\(selectedCleanupDeletionCount) episode\(selectedCleanupDeletionCount == 1 ? "" : "s") older than \(cleanupEpisodeAgeDays) day\(cleanupEpisodeAgeDays == 1 ? "" : "s")"
+        if selectedCleanupDeletionCount > 0, let cleanupMaximumEpisodesPerShow {
+            let cleanupEpisodeText = "Device Cleanup is set to keep the latest \(cleanupMaximumEpisodesPerShow) episodes per show. \(selectedCleanupDeletionCount) older episode\(selectedCleanupDeletionCount == 1 ? "" : "s")"
             let otherRemovalCount = deletionCount - selectedCleanupDeletionCount
             let otherRemovalText = otherRemovalCount > 0
                 ? " Another \(otherRemovalCount) episode\(otherRemovalCount == 1 ? " is" : "s are") selected for removal."
                 : ""
-            return "\(cleanupEpisodeText) \(selectedCleanupDeletionCount == 1 ? "is" : "are") selected for cleanup during this sync. Device Cleanup is configured in Settings.\(otherRemovalText) Review the selections below before syncing."
+            return "\(cleanupEpisodeText) \(selectedCleanupDeletionCount == 1 ? "is" : "are") selected for cleanup during this sync.\(otherRemovalText) Review the selections below before syncing."
         }
 
         return "\(deletionCount) episode\(deletionCount == 1 ? " is" : "s are") selected for removal during this sync. Review the planned actions before syncing."

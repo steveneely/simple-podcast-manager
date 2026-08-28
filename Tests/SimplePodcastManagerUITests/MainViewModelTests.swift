@@ -148,7 +148,7 @@ struct MainViewModelTests {
                 allowsInsecureDownloads: true,
                 prefixesPublicationDateInEpisodeTitles: true,
                 automaticDownloadLimit: .latest3,
-                deviceCleanupPolicy: DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 45)
+                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10)
             )
         )
 
@@ -157,7 +157,7 @@ struct MainViewModelTests {
         #expect(viewModel.settings.allowsInsecureDownloads)
         #expect(viewModel.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(viewModel.settings.automaticDownloadLimit == .latest3)
-        #expect(viewModel.settings.deviceCleanupPolicy == DeviceCleanupPolicy(isEnabled: true, episodeAgeDays: 45))
+        #expect(viewModel.settings.deviceCleanupPolicy == DeviceCleanupPolicy(maximumEpisodesPerShow: 10))
         #expect(store.configuration.settings == viewModel.settings)
     }
 

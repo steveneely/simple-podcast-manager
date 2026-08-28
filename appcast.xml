@@ -3,18 +3,19 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.13.2</title>
-            <pubDate>Sun, 23 Aug 2026 21:08:36 -0600</pubDate>
-            <sparkle:version>77</sparkle:version>
-            <sparkle:shortVersionString>1.13.2</sparkle:shortVersionString>
+            <title>1.14.0</title>
+            <pubDate>Fri, 28 Aug 2026 12:54:04 -0600</pubDate>
+            <sparkle:version>78</sparkle:version>
+            <sparkle:shortVersionString>1.14.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.13.2
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.14.0
 
-- Replaces separate activity icons with compact status text beside each show's episode count.
-- Shows new episodes in blue and inactive shows in orange for easier scanning.
+- Replaces age-based Device Cleanup with an optional per-show limit of 3, 5, 10, or 20 episodes.
+- Shows every suggested cleanup in the Sync review so you can keep individual episodes before syncing.
+- Existing age-based cleanup settings are ignored and cleanup starts Off; choose a new episode limit in Settings to use it.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.13.2/SimplePodcastManager-v1.13.2.dmg" length="7126563" type="application/octet-stream" sparkle:edSignature="vSRBwyE1fUBn4ULtdDPgeo9HkNotMbBbGmi8lw9WgDiTzSyqogG02daJ9AxKIw9yKWlWBekC3yAqEuNRrp+9Bw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.14.0/SimplePodcastManager-v1.14.0.dmg" length="7130998" type="application/octet-stream" sparkle:edSignature="F6gDyAR6cMPl84Bayb4xFel/bc/U/Q+Q85+0u2WioCtoRWu3vWruczxFR6tVnVwpbwdsoCfEzjRvjarzmEmGCg=="/>
         </item>
     </channel>
 </rss>

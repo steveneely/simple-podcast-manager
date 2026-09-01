@@ -28,6 +28,7 @@ public struct MainView: View {
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     private let devicePodcastConfigurationService = DevicePodcastConfigurationService()
+    private let devicePodcastDirectoryMigrationService = DevicePodcastDirectoryMigrationService()
     private let startupEpisodeStateStore: any EpisodeStateStartupLoading
     private let startupPerformanceTracker = StartupPerformanceTracker()
     private let automaticallyChecksForUpdates: Binding<Bool>?
@@ -182,8 +183,15 @@ public struct MainView: View {
                 shouldConfirmPodcastDirectoryCreation: { updatedPodcastDirectoryPath in
                     try shouldConfirmPodcastDirectoryCreation(updatedPodcastDirectoryPath)
                 },
-                onSave: { updatedSettings, updatedPodcastDirectoryPath in
-                    try saveSettings(updatedSettings, podcastDirectoryPath: updatedPodcastDirectoryPath)
+                makePodcastDirectoryMigrationPlan: { updatedPodcastDirectoryPath in
+                    try makePodcastDirectoryMigrationPlan(updatedPodcastDirectoryPath)
+                },
+                onSave: { updatedSettings, updatedPodcastDirectoryPath, migrationPlan in
+                    try saveSettings(
+                        updatedSettings,
+                        podcastDirectoryPath: updatedPodcastDirectoryPath,
+                        migrationPlan: migrationPlan
+                    )
                 },
                 onAppearancePreferencePreview: { preference in
                     appearancePreference?.wrappedValue = preference
@@ -1415,10 +1423,30 @@ public struct MainView: View {
         return devicePodcastConfigurationService.relativePodcastDirectoryPath(on: selectedDevice)
     }
 
-    private func saveSettings(_ updatedSettings: AppSettings, podcastDirectoryPath: String?) throws {
+    private func saveSettings(
+        _ updatedSettings: AppSettings,
+        podcastDirectoryPath: String?,
+        migrationPlan: DevicePodcastDirectoryMigrationPlan?
+    ) throws {
+        var updatedDevice: DeviceInfo?
         if let podcastDirectoryPath,
            let selectedDevice = deviceViewModel.selectedDevice {
-            _ = try devicePodcastConfigurationService.savePodcastDirectoryPath(podcastDirectoryPath, on: selectedDevice)
+            if let migrationPlan {
+                updatedDevice = try devicePodcastDirectoryMigrationService.execute(
+                    migrationPlan,
+                    subscriptions: viewModel.feedSubscriptions
+                )
+            } else {
+                updatedDevice = try devicePodcastConfigurationService.savePodcastDirectoryPath(
+                    podcastDirectoryPath,
+                    on: selectedDevice
+                )
+            }
+        }
+
+        if let updatedDevice {
+            deviceViewModel.replaceDevice(updatedDevice)
+            rebuildSyncPlan()
         }
 
         viewModel.replaceSettings(updatedSettings)
@@ -1436,6 +1464,25 @@ public struct MainView: View {
                 await refreshDeviceLibrary()
             }
         }
+    }
+
+    private func makePodcastDirectoryMigrationPlan(
+        _ podcastDirectoryPath: String?
+    ) throws -> DevicePodcastDirectoryMigrationPlan? {
+        guard let podcastDirectoryPath,
+              let selectedDevice = deviceViewModel.selectedDevice else {
+            return nil
+        }
+
+        let managedFileURLs = viewModel.feedSubscriptions.flatMap {
+            deviceLibraryViewModel.files(for: $0)
+        }
+        return try devicePodcastDirectoryMigrationService.makePlan(
+            podcastDirectoryPath: podcastDirectoryPath,
+            on: selectedDevice,
+            managedFileURLs: managedFileURLs,
+            subscriptions: viewModel.feedSubscriptions
+        )
     }
 
     private func shouldConfirmPodcastDirectoryCreation(_ podcastDirectoryPath: String?) throws -> Bool {

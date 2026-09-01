@@ -26,6 +26,7 @@ These rules override convenience or speed:
 
 - Only write `.spmconfig` at `[device root]/.spmconfig` for app-managed device configuration such as the podcast target folder
 - Only write podcast media under the configured device podcast directory, defaulting to `[device root]/music` when no target is configured
+- A user-confirmed podcast-folder migration may move only the exact app-managed podcast files shown to the user from the current configured podcast directory to the selected replacement directory on the same device; validate both directories, reject collisions or uncertain ownership, roll completed moves back if the migration or config write fails, and remove only source podcast subdirectories proven empty plus their matching macOS metadata sidecars
 - Only delete app-managed podcast files selected by the user under the configured device podcast directory
 - The app may delete other audio under the configured device podcast directory only when the user explicitly selects and confirms those exact files
 - Never touch the Mac's local Trash

@@ -65,6 +65,26 @@ struct DeviceViewModelTests {
     }
 
     @Test
+    func replacesSelectedDeviceDetailsWithoutWaitingForRediscovery() async throws {
+        let initialDevice = DeviceInfo(
+            name: "WALKMAN",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let updatedDevice = DeviceInfo(
+            name: "WALKMAN",
+            rootURL: initialDevice.rootURL,
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/Podcast", isDirectory: true)
+        )
+        let viewModel = DeviceViewModel(service: MockDeviceService(devices: [initialDevice]))
+        await viewModel.refresh()
+
+        viewModel.replaceDevice(updatedDevice)
+
+        #expect(viewModel.selectedDevice == updatedDevice)
+    }
+
+    @Test
     func disconnectSelectedDeviceEjectsAndRefreshesDevices() async throws {
         let initialDevice = DeviceInfo(
             name: "WALKMAN",

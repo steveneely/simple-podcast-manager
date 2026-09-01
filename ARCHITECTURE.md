@@ -201,6 +201,8 @@ The app does not require manufacturer-specific identification beyond these rules
 
 Device library refresh should inventory the configured podcast directory once and derive per-subscription and other-audio views from that snapshot. External players can have slow storage, so avoid repeatedly walking the same directory for every subscription. Device inventory and sync planning perform filesystem reads outside the main actor so a slow device does not freeze the UI.
 
+When the user changes the configured podcast directory, Settings previews every app-managed episode that is currently known in the old directory. The user may move those exact files, leave them in place, or cancel. A confirmed migration preserves the relative per-podcast layout, rejects destination collisions and files without clear app ownership, rolls completed moves back if a later move or the config write fails, then updates `[device root]/.spmconfig`. After success, it removes only source podcast subdirectories proven empty and their matching macOS metadata sidecars; it never removes either podcast-directory root. Other audio is never included in a folder migration.
+
 ## Sync Layout And Deletion
 
 Managed files live under per-podcast folders:
@@ -267,6 +269,7 @@ All device mutations pass through `SafetyValidator` and the scoped file services
 
 - write `.spmconfig` only at `[device root]/.spmconfig`
 - write and delete podcast media only inside the configured podcast directory, which defaults to `[device root]/music`
+- as the sole cross-directory exception, a user-confirmed podcast-folder migration may move only the exact displayed app-managed files between the old and replacement podcast directories on the same validated device; revalidate the complete plan immediately before execution, roll back on failure, and remove only source podcast subdirectories proven empty plus their matching metadata sidecars
 - delete files only after explicit selection in the current plan review; retention cleanup may preselect only proven app-managed files and must allow per-file opt-out
 - keep the plan shown to the user identical to the plan passed to the executor
 - validate every action again immediately before execution

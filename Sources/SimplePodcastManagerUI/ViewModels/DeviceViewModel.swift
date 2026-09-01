@@ -76,6 +76,14 @@ public final class DeviceViewModel {
         selectedDeviceID = devices.first(where: { $0.id == id })?.id
     }
 
+    public func replaceDevice(_ updatedDevice: DeviceInfo) {
+        guard let index = devices.firstIndex(where: { $0.id == updatedDevice.id }) else { return }
+        devices[index] = updatedDevice
+        if selectedDeviceID == updatedDevice.id {
+            selectedDeviceID = updatedDevice.id
+        }
+    }
+
     public func disconnectSelectedDevice() async {
         guard let selectedDevice else { return }
 

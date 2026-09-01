@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.15.0
+# Simple Podcast Manager v1.16.0
 
-- Writes `Podcast` to the MP3 ID3 genre field by default, with a new setting for choosing a custom genre for future downloads.
-- Clarifies how the inactive-show indicator works in Settings.
+- When changing the device podcast folder, offers to move existing app-managed podcasts, leave them in place, or cancel after reviewing the exact files.
+- Safely preserves unrelated files and cleans up empty podcast folders left by a completed move.

@@ -111,7 +111,7 @@ public struct SettingsView: View {
 
                         LabeledField(
                             title: "Inactive Shows",
-                            detail: "Shows a quiet clock beside podcasts that have not published recently.",
+                            detail: "Shows an orange Inactive label beside podcasts that have not published recently.",
                             emphasizesTitle: true
                         ) {
                             Picker("Inactive Shows", selection: $inactivePodcastThreshold) {

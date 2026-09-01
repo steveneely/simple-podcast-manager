@@ -51,6 +51,15 @@ When adding files, use the existing package layout:
 - `Tests/SimplePodcastManagerCoreTests/`: core behavior tests
 - `Tests/SimplePodcastManagerUITests/`: UI-facing state tests
 
+## Commit Messages
+
+Write commit messages that make the change understandable without opening the diff.
+
+- Use a concise, descriptive subject that states the outcome
+- For anything beyond a trivial change, include a short body explaining what changed and why
+- Mention important user-visible behavior, compatibility, migration, or safety implications
+- Avoid vague or overly compressed messages
+
 ## Release Workflow
 
 ### Versioning

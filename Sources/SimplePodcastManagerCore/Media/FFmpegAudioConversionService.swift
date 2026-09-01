@@ -53,6 +53,7 @@ public struct FFmpegAudioConversionService: AudioConversionService {
                     prefixesPublicationDate: settings.prefixesPublicationDateInEpisodeTitles
                 ),
                 podcastTitle: episode.podcastTitle,
+                genre: settings.mp3Genre,
                 artworkFileURL: artworkPreparation.fileURL,
                 destinationFileURL: destinationURL
             )

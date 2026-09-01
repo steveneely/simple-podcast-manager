@@ -5,6 +5,7 @@ public protocol MP3MetadataTaggingService: Sendable {
         sourceFileURL: URL,
         episodeTitle: String,
         podcastTitle: String,
+        genre: String,
         artworkFileURL: URL?,
         destinationFileURL: URL
     ) throws
@@ -19,6 +20,7 @@ public struct ID3MP3MetadataTaggingService: MP3MetadataTaggingService {
         sourceFileURL: URL,
         episodeTitle: String,
         podcastTitle: String,
+        genre: String,
         artworkFileURL: URL?,
         destinationFileURL: URL
     ) throws {
@@ -28,6 +30,7 @@ public struct ID3MP3MetadataTaggingService: MP3MetadataTaggingService {
             sourceData: sourceData,
             episodeTitle: episodeTitle,
             podcastTitle: podcastTitle,
+            genre: genre,
             artworkData: artworkData
         )
 
@@ -42,6 +45,7 @@ public struct ID3MP3MetadataTaggingService: MP3MetadataTaggingService {
         sourceData: Data,
         episodeTitle: String,
         podcastTitle: String,
+        genre: String,
         artworkData: Data?
     ) -> Data {
         var frames = Data()
@@ -53,6 +57,7 @@ public struct ID3MP3MetadataTaggingService: MP3MetadataTaggingService {
         frames.append(makeTextFrame(id: "TIT2", text: episodeTitle))
         frames.append(makeTextFrame(id: "TALB", text: podcastTitle))
         frames.append(makeTextFrame(id: "TPE1", text: podcastTitle))
+        frames.append(makeTextFrame(id: "TCON", text: genre))
 
         var taggedData = makeID3v23Tag(frames: frames)
         taggedData.append(sourceData.audioDataWithoutMetadataTags())

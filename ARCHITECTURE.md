@@ -229,8 +229,9 @@ All synced output on the device should be MP3.
 
 - if a downloaded enclosure is already acceptable MP3 output, keep it
 - otherwise convert it through `ffmpeg`
-- finalize every MP3 with a small, deterministic ID3v2.3 tag using the RSS episode and podcast titles, plus prepared cover art when available
+- finalize every MP3 with a small, deterministic ID3v2.3 tag using the RSS episode and podcast titles, the configured genre (defaulting to `Podcast`), plus prepared cover art when available
 - Settings can prefix `TIT2` with the RSS publication date in fixed `MM.dd` format; this applies only to new downloads
+- Settings can customize the `TCON` genre written to new downloads
 - keep Unicode in ID3 text, including characters such as `ö` and `ß`
 - use printable ASCII for device filenames, prefixed with `yyyy.MM.dd` when the publication date is available and suffixed with the podcast title
 - use `ffmpeg` only to convert audio; native Swift code handles MP3 metadata consistently afterward

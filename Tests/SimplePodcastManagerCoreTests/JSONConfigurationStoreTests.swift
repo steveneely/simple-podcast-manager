@@ -28,6 +28,7 @@ struct JSONConfigurationStoreTests {
                 ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg",
                 allowsInsecureDownloads: true,
                 prefixesPublicationDateInEpisodeTitles: true,
+                mp3Genre: "Spoken Word",
                 automaticDownloadLimit: .latest3,
                 deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10),
                 inactivePodcastThreshold: .oneYear
@@ -76,6 +77,7 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.appearancePreference == .system)
         #expect(!configuration.settings.allowsInsecureDownloads)
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
+        #expect(configuration.settings.mp3Genre == AppSettings.defaultMP3Genre)
         #expect(configuration.settings.automaticDownloadLimit == .off)
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
@@ -128,6 +130,7 @@ struct JSONConfigurationStoreTests {
 
         #expect(configuration.settings.allowsInsecureDownloads)
         #expect(!configuration.settings.prefixesPublicationDateInEpisodeTitles)
+        #expect(configuration.settings.mp3Genre == AppSettings.defaultMP3Genre)
         #expect(configuration.settings.automaticDownloadLimit == .off)
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)

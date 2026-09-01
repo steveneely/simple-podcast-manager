@@ -153,6 +153,7 @@ struct MediaPreparationServiceTests {
                 sourceFileURL: sourceFileURL,
                 episodeTitle: episode.title,
                 podcastTitle: episode.podcastTitle,
+                genre: AppSettings.defaultMP3Genre,
                 artworkFileURL: artworkFileURL,
                 destinationFileURL: preparedEpisode.preparedFileURL
             ),
@@ -188,6 +189,7 @@ struct MediaPreparationServiceTests {
         #expect(preparedEpisode.preparationWarnings == nil)
         #expect(taggingService.calls.first?.episodeTitle == episode.title)
         #expect(taggingService.calls.first?.podcastTitle == episode.podcastTitle)
+        #expect(taggingService.calls.first?.genre == AppSettings.defaultMP3Genre)
         #expect(taggingService.calls.first?.artworkFileURL == nil)
     }
 
@@ -220,6 +222,34 @@ struct MediaPreparationServiceTests {
 
         #expect(taggingService.calls.first?.episodeTitle == "08.11 Original Title")
         #expect(taggingService.calls.first?.podcastTitle == episode.podcastTitle)
+    }
+
+    @Test
+    func writesConfiguredGenreToMetadata() async throws {
+        let episode = Episode(
+            id: "ep-mp3-genre",
+            podcastTitle: "Example Podcast",
+            title: "Original Title",
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let workspaceURL = try StubWorkspaceProvider().makeWorkspace()
+        let sourceFileURL = workspaceURL.appending(path: "episode.mp3")
+        try Data("audio".utf8).write(to: sourceFileURL)
+        let taggingService = CapturingMP3MetadataTaggingService()
+        let service = FFmpegAudioConversionService(
+            metadataTaggingService: taggingService,
+            bundledExecutableURL: nil
+        )
+
+        _ = try await service.prepareAudio(
+            for: episode,
+            sourceFileURL: sourceFileURL,
+            in: workspaceURL,
+            settings: AppSettings(mp3Genre: "Spoken Word")
+        )
+
+        #expect(taggingService.calls.first?.genre == "Spoken Word")
     }
 
     @Test
@@ -618,6 +648,7 @@ private struct MP3MetadataTaggingCall: Equatable {
     var sourceFileURL: URL
     var episodeTitle: String
     var podcastTitle: String
+    var genre: String
     var artworkFileURL: URL?
     var destinationFileURL: URL
 }
@@ -629,6 +660,7 @@ private final class CapturingMP3MetadataTaggingService: MP3MetadataTaggingServic
         sourceFileURL: URL,
         episodeTitle: String,
         podcastTitle: String,
+        genre: String,
         artworkFileURL: URL?,
         destinationFileURL: URL
     ) throws {
@@ -637,6 +669,7 @@ private final class CapturingMP3MetadataTaggingService: MP3MetadataTaggingServic
                 sourceFileURL: sourceFileURL,
                 episodeTitle: episodeTitle,
                 podcastTitle: podcastTitle,
+                genre: genre,
                 artworkFileURL: artworkFileURL,
                 destinationFileURL: destinationFileURL
             )
@@ -654,6 +687,7 @@ private struct FailingMP3MetadataTaggingService: MP3MetadataTaggingService {
         sourceFileURL: URL,
         episodeTitle: String,
         podcastTitle: String,
+        genre: String,
         artworkFileURL: URL?,
         destinationFileURL: URL
     ) throws {

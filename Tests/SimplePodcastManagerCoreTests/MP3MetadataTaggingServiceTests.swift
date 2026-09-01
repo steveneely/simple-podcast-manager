@@ -12,6 +12,7 @@ struct MP3MetadataTaggingServiceTests {
             sourceData: audioData,
             episodeTitle: "Correct Episode Title",
             podcastTitle: "Example Podcast",
+            genre: "Podcast",
             artworkData: artworkData
         )
 
@@ -21,8 +22,10 @@ struct MP3MetadataTaggingServiceTests {
         #expect(taggedData.range(of: Data("TIT2".utf8)) != nil)
         #expect(taggedData.range(of: Data("TALB".utf8)) != nil)
         #expect(taggedData.range(of: Data("TPE1".utf8)) != nil)
+        #expect(taggedData.range(of: Data("TCON".utf8)) != nil)
         #expect(taggedData.contains(utf16Text("Correct Episode Title")))
         #expect(taggedData.contains(utf16Text("Example Podcast")))
+        #expect(taggedData.contains(utf16Text("Podcast")))
         #expect(taggedData.contains(artworkData))
         #expect(taggedData.suffix(audioData.count) == audioData)
     }
@@ -36,11 +39,13 @@ struct MP3MetadataTaggingServiceTests {
             sourceData: Data([0xFF, 0xFB, 0x90, 0x64, 0x00]),
             episodeTitle: episodeTitle,
             podcastTitle: podcastTitle,
+            genre: "Hörspiel",
             artworkData: nil
         )
 
         #expect(taggedData.contains(utf16Text(episodeTitle)))
         #expect(taggedData.contains(utf16Text(podcastTitle)))
+        #expect(taggedData.contains(utf16Text("Hörspiel")))
     }
 
     @Test
@@ -55,6 +60,7 @@ struct MP3MetadataTaggingServiceTests {
             sourceData: sourceData,
             episodeTitle: "Why a Nation Can't Outsource Its Frontier AI",
             podcastTitle: "Machine Learning Street Talk (MLST)",
+            genre: "Podcast",
             artworkData: nil
         )
 
@@ -71,6 +77,7 @@ struct MP3MetadataTaggingServiceTests {
             sourceData: audioData,
             episodeTitle: "Episode Without Artwork",
             podcastTitle: "Example Podcast",
+            genre: "Podcast",
             artworkData: nil
         )
 
@@ -89,6 +96,7 @@ struct MP3MetadataTaggingServiceTests {
             sourceData: audioData + id3v1Tag,
             episodeTitle: "Correct Title",
             podcastTitle: "Example Podcast",
+            genre: "Podcast",
             artworkData: nil
         )
 

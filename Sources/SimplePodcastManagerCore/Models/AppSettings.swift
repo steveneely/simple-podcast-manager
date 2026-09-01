@@ -61,10 +61,13 @@ public struct DeviceCleanupPolicy: Codable, Equatable, Sendable {
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {
+    public static let defaultMP3Genre = "Podcast"
+
     public var ffmpegExecutablePath: String?
     public var appearancePreference: AppearancePreference
     public var allowsInsecureDownloads: Bool
     public var prefixesPublicationDateInEpisodeTitles: Bool
+    public var mp3Genre: String
     public var automaticDownloadLimit: AutomaticDownloadLimit
     public var deviceCleanupPolicy: DeviceCleanupPolicy
     public var inactivePodcastThreshold: InactivePodcastThreshold
@@ -74,6 +77,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         appearancePreference: AppearancePreference = .system,
         allowsInsecureDownloads: Bool = false,
         prefixesPublicationDateInEpisodeTitles: Bool = false,
+        mp3Genre: String = AppSettings.defaultMP3Genre,
         automaticDownloadLimit: AutomaticDownloadLimit = .off,
         deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths
@@ -82,6 +86,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.appearancePreference = appearancePreference
         self.allowsInsecureDownloads = allowsInsecureDownloads
         self.prefixesPublicationDateInEpisodeTitles = prefixesPublicationDateInEpisodeTitles
+        self.mp3Genre = mp3Genre
         self.automaticDownloadLimit = automaticDownloadLimit
         self.deviceCleanupPolicy = deviceCleanupPolicy
         self.inactivePodcastThreshold = inactivePodcastThreshold
@@ -93,6 +98,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case allowsInsecureDownloads
         case allowsInsecureEpisodeDownloads
         case prefixesPublicationDateInEpisodeTitles
+        case mp3Genre
         case automaticDownloadLimit
         case deviceCleanupPolicy
         case inactivePodcastThreshold
@@ -109,6 +115,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .prefixesPublicationDateInEpisodeTitles
         ) ?? false
+        mp3Genre = try container.decodeIfPresent(String.self, forKey: .mp3Genre) ?? Self.defaultMP3Genre
         automaticDownloadLimit = try container.decodeIfPresent(
             AutomaticDownloadLimit.self,
             forKey: .automaticDownloadLimit
@@ -129,6 +136,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(appearancePreference, forKey: .appearancePreference)
         try container.encode(allowsInsecureDownloads, forKey: .allowsInsecureDownloads)
         try container.encode(prefixesPublicationDateInEpisodeTitles, forKey: .prefixesPublicationDateInEpisodeTitles)
+        try container.encode(mp3Genre, forKey: .mp3Genre)
         try container.encode(automaticDownloadLimit, forKey: .automaticDownloadLimit)
         try container.encode(deviceCleanupPolicy, forKey: .deviceCleanupPolicy)
         try container.encode(inactivePodcastThreshold, forKey: .inactivePodcastThreshold)

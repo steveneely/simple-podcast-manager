@@ -147,6 +147,7 @@ struct MainViewModelTests {
                 appearancePreference: .dark,
                 allowsInsecureDownloads: true,
                 prefixesPublicationDateInEpisodeTitles: true,
+                mp3Genre: "Spoken Word",
                 automaticDownloadLimit: .latest3,
                 deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10)
             )
@@ -156,6 +157,7 @@ struct MainViewModelTests {
         #expect(viewModel.settings.appearancePreference == .dark)
         #expect(viewModel.settings.allowsInsecureDownloads)
         #expect(viewModel.settings.prefixesPublicationDateInEpisodeTitles)
+        #expect(viewModel.settings.mp3Genre == "Spoken Word")
         #expect(viewModel.settings.automaticDownloadLimit == .latest3)
         #expect(viewModel.settings.deviceCleanupPolicy == DeviceCleanupPolicy(maximumEpisodesPerShow: 10))
         #expect(store.configuration.settings == viewModel.settings)

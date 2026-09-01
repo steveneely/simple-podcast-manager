@@ -9,6 +9,7 @@ public struct SettingsView: View {
     @State private var appearancePreference: AppearancePreference
     @State private var allowsInsecureDownloads: Bool
     @State private var prefixesPublicationDateInEpisodeTitles: Bool
+    @State private var mp3Genre: String
     @State private var automaticDownloadLimit: AutomaticDownloadLimit
     @State private var deviceCleanupPolicy: DeviceCleanupPolicy
     @State private var inactivePodcastThreshold: InactivePodcastThreshold
@@ -54,6 +55,7 @@ public struct SettingsView: View {
         self._prefixesPublicationDateInEpisodeTitles = State(
             initialValue: settings.prefixesPublicationDateInEpisodeTitles
         )
+        self._mp3Genre = State(initialValue: settings.mp3Genre)
         self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
         self._deviceCleanupPolicy = State(initialValue: settings.deviceCleanupPolicy)
         self._inactivePodcastThreshold = State(initialValue: settings.inactivePodcastThreshold)
@@ -107,6 +109,16 @@ public struct SettingsView: View {
                                 isOn: $prefixesPublicationDateInEpisodeTitles
                             )
                             .toggleStyle(.checkbox)
+                        }
+
+                        LabeledField(
+                            title: "MP3 Genre",
+                            detail: "Writes this value to the MP3’s ID3 genre field. Applies to new downloads only.",
+                            emphasizesTitle: true
+                        ) {
+                            TextField("Podcast", text: $mp3Genre)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 180)
                         }
 
                         LabeledField(
@@ -313,6 +325,7 @@ public struct SettingsView: View {
                 appearancePreference: appearancePreference,
                 allowsInsecureDownloads: allowsInsecureDownloads,
                 prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles,
+                mp3Genre: normalizedMP3Genre,
                 automaticDownloadLimit: automaticDownloadLimit,
                 deviceCleanupPolicy: deviceCleanupPolicy,
                 inactivePodcastThreshold: inactivePodcastThreshold
@@ -332,6 +345,11 @@ public struct SettingsView: View {
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    private var normalizedMP3Genre: String {
+        let genre = mp3Genre.trimmingCharacters(in: .whitespacesAndNewlines)
+        return genre.isEmpty ? AppSettings.defaultMP3Genre : genre
     }
 
     private var cleanupEpisodeLimitSelection: Binding<Int?> {

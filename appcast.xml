@@ -3,17 +3,17 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.16.2</title>
-            <pubDate>Tue, 01 Sep 2026 12:03:52 -0600</pubDate>
-            <sparkle:version>82</sparkle:version>
-            <sparkle:shortVersionString>1.16.2</sparkle:shortVersionString>
+            <title>1.16.3</title>
+            <pubDate>Tue, 01 Sep 2026 16:54:04 -0600</pubDate>
+            <sparkle:version>83</sparkle:version>
+            <sparkle:shortVersionString>1.16.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.2
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.3
 
-- Fixes exported subscription filenames sometimes ending with a duplicate `.opml` extension.
+- Lets you leave MP3 Genre blank to omit the ID3 genre field from future downloads.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.2/SimplePodcastManager-v1.16.2.dmg" length="7186496" type="application/octet-stream" sparkle:edSignature="a6YWjWvnvxoFK3WnCaLqjlMh2jyUdPTDJZccPYzahOo4JEpmDBuEHSXA4oL2IsT30jQH9HwufdgtYHSvnFXzCg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.3/SimplePodcastManager-v1.16.3.dmg" length="7183282" type="application/octet-stream" sparkle:edSignature="qyvbMY4mfNJURW7uDQ4AVk1rj31tF/l0Bgac+kNV+P9L0mnh0Nhb1VlGZkTnhHWzwDP0GN+okk014C+ArgV9CQ=="/>
         </item>
     </channel>
 </rss>

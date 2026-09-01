@@ -953,7 +953,7 @@ public struct MainView: View {
     private func exportOPMLSubscriptions() {
         let panel = NSSavePanel()
         panel.title = "Export Podcast Subscriptions"
-        panel.nameFieldStringValue = "Simple Podcast Manager Subscriptions.opml"
+        panel.nameFieldStringValue = "Simple Podcast Manager Subscriptions"
         panel.allowedContentTypes = [opmlContentType]
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false

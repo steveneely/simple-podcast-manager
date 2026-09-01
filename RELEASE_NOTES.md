@@ -1,3 +1,3 @@
-# Simple Podcast Manager v1.16.1
+# Simple Podcast Manager v1.16.2
 
-- Fixes device podcast folder settings reverting to `Music` on players whose mounted volume names contain spaces or other special characters.
+- Fixes exported subscription filenames sometimes ending with a duplicate `.opml` extension.

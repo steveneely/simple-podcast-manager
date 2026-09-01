@@ -151,13 +151,54 @@ struct PreparationPreviewViewModelTests {
         )
         await viewModel.loadPersistedPreparedEpisodes()
 
-        viewModel.removeAllPreparedEpisodes()
+        await viewModel.removeAllPreparedEpisodes()
 
         #expect(viewModel.preparedEpisodes.isEmpty)
         #expect(!downloadedStore.downloadedEpisodes.isEmpty)
         #expect(store.preparedEpisodes.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: sourceURL.path))
         #expect(!FileManager.default.fileExists(atPath: preparedURL.path))
+    }
+
+    @Test
+    func failedLocalFileDeletionRetainsPreparedEpisodeAndReportsError() async throws {
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp3")
+        try Data("audio".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let episode = Episode(
+            id: "ep-1",
+            podcastTitle: "Example Podcast",
+            title: "Episode 1",
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let preparedEpisode = PreparedEpisode(
+            episode: episode,
+            sourceFileURL: fileURL,
+            preparedFileURL: fileURL,
+            preparationAction: .passthroughMP3
+        )
+        let store = InMemoryPreparedEpisodeStore(preparedEpisodes: [preparedEpisode])
+        let viewModel = PreparationPreviewViewModel(
+            service: MediaPreparationService(
+                downloadService: StubPreparationDownloadService(),
+                audioConversionService: StubPreparationAudioConversionService(),
+                workspaceProvider: StubPreparationWorkspaceProvider(
+                    workspaceURL: FileManager.default.temporaryDirectory
+                )
+            ),
+            store: store,
+            downloadedEpisodeStore: InMemoryDownloadedEpisodeStore(),
+            fileDeleter: FailingPreparedMediaFileDeleter()
+        )
+        await viewModel.loadPersistedPreparedEpisodes()
+
+        await viewModel.removeAllPreparedEpisodes()
+
+        #expect(viewModel.preparedEpisodes == [preparedEpisode])
+        #expect(store.preparedEpisodes == [preparedEpisode])
+        #expect(viewModel.lastErrorMessage?.contains("Could not delete the downloaded files for \"Episode 1\"") == true)
     }
 
     @Test
@@ -319,6 +360,16 @@ private enum TestPreparationError: LocalizedError {
 
     var errorDescription: String? {
         "Download failed."
+    }
+}
+
+private struct FailingPreparedMediaFileDeleter: PreparedMediaFileDeleting {
+    func fileExists(at url: URL) -> Bool {
+        true
+    }
+
+    func removeItem(at url: URL) throws {
+        throw TestPreparationError.downloadFailed
     }
 }
 

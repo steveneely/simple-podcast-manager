@@ -12,6 +12,7 @@ public final class PreparationPreviewViewModel {
     private let service: MediaPreparationService
     private let store: any PreparedEpisodeStore
     private let downloadedEpisodeStore: any DownloadedEpisodeStore
+    private let fileDeleter: any PreparedMediaFileDeleting
     private var downloadedEpisodes: [DownloadedEpisodeRecord]
     private var failures: [PreparationFailure]
     private var preparingEpisodesByID: [EpisodePreparationID: Episode]
@@ -19,14 +20,29 @@ public final class PreparationPreviewViewModel {
     private var downloadedEpisodesByID: [EpisodePreparationID: DownloadedEpisodeRecord]
     private var failuresByID: [EpisodePreparationID: PreparationFailure]
 
-    public init(
+    public convenience init(
         service: MediaPreparationService = MediaPreparationService(),
         store: any PreparedEpisodeStore = SQLiteEpisodeStore.shared,
         downloadedEpisodeStore: any DownloadedEpisodeStore = SQLiteEpisodeStore.shared
     ) {
+        self.init(
+            service: service,
+            store: store,
+            downloadedEpisodeStore: downloadedEpisodeStore,
+            fileDeleter: LocalPreparedMediaFileDeleter()
+        )
+    }
+
+    init(
+        service: MediaPreparationService,
+        store: any PreparedEpisodeStore,
+        downloadedEpisodeStore: any DownloadedEpisodeStore,
+        fileDeleter: any PreparedMediaFileDeleting
+    ) {
         self.service = service
         self.store = store
         self.downloadedEpisodeStore = downloadedEpisodeStore
+        self.fileDeleter = fileDeleter
         self.preparedEpisodes = []
         self.downloadedEpisodes = []
         self.failures = []
@@ -137,25 +153,47 @@ public final class PreparationPreviewViewModel {
         failure(for: episode)?.reason == .insecureDownloadRequiresPermission
     }
 
-    public func removePreparedEpisode(for episode: Episode) {
+    public func removePreparedEpisode(for episode: Episode) async {
         guard let existingPreparedEpisode = preparedEpisode(for: episode) else { return }
 
-        removeFiles(for: existingPreparedEpisode)
+        do {
+            try await removeFiles(for: existingPreparedEpisode)
+        } catch {
+            lastErrorMessage = deletionErrorMessage(for: existingPreparedEpisode, error: error)
+            return
+        }
+
         let episodeID = EpisodePreparationID(episode)
         preparedEpisodes.removeAll(where: { EpisodePreparationID($0.episode) == episodeID })
         failures.removeAll(where: { EpisodePreparationID($0.episode) == episodeID })
         rebuildIndexes()
-        persistPreparedEpisodes()
+        lastErrorMessage = await persistPreparedEpisodes()
     }
 
-    public func removeAllPreparedEpisodes() {
+    public func removeAllPreparedEpisodes() async {
+        var removedEpisodeIDs: Set<EpisodePreparationID> = []
+        var deletionErrors: [String] = []
+
         for preparedEpisode in preparedEpisodes {
-            removeFiles(for: preparedEpisode)
+            do {
+                try await removeFiles(for: preparedEpisode)
+                removedEpisodeIDs.insert(EpisodePreparationID(preparedEpisode.episode))
+            } catch {
+                deletionErrors.append(deletionErrorMessage(for: preparedEpisode, error: error))
+            }
         }
-        preparedEpisodes = []
-        failures = []
+
+        preparedEpisodes.removeAll {
+            removedEpisodeIDs.contains(EpisodePreparationID($0.episode))
+        }
+        failures.removeAll {
+            removedEpisodeIDs.contains(EpisodePreparationID($0.episode))
+        }
         rebuildIndexes()
-        persistPreparedEpisodes()
+        if let persistenceError = await persistPreparedEpisodes() {
+            deletionErrors.append(persistenceError)
+        }
+        lastErrorMessage = deletionErrors.isEmpty ? nil : deletionErrors.joined(separator: "\n")
     }
 
     private func merge(_ result: MediaPreparationResult) {
@@ -192,11 +230,16 @@ public final class PreparationPreviewViewModel {
         rebuildIndexes()
     }
 
-    private func persistPreparedEpisodes() {
+    private func persistPreparedEpisodes() async -> String? {
+        let store = self.store
+        let preparedEpisodes = self.preparedEpisodes
         do {
-            try store.savePreparedEpisodes(preparedEpisodes)
+            try await Task.detached(priority: .userInitiated) {
+                try store.savePreparedEpisodes(preparedEpisodes)
+            }.value
+            return nil
         } catch {
-            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
@@ -256,11 +299,24 @@ public final class PreparationPreviewViewModel {
         }
     }
 
-    private func removeFiles(for preparedEpisode: PreparedEpisode) {
-        try? FileManager.default.removeItem(at: preparedEpisode.preparedFileURL)
-        if preparedEpisode.preparedFileURL != preparedEpisode.sourceFileURL {
-            try? FileManager.default.removeItem(at: preparedEpisode.sourceFileURL)
-        }
+    private func removeFiles(for preparedEpisode: PreparedEpisode) async throws {
+        let fileDeleter = self.fileDeleter
+        try await Task.detached(priority: .userInitiated) {
+            let preparedFileURL = preparedEpisode.preparedFileURL.standardizedFileURL
+            let sourceFileURL = preparedEpisode.sourceFileURL.standardizedFileURL
+            let fileURLs = preparedFileURL == sourceFileURL
+                ? [preparedFileURL]
+                : [preparedFileURL, sourceFileURL]
+
+            for fileURL in fileURLs where fileDeleter.fileExists(at: fileURL) {
+                try fileDeleter.removeItem(at: fileURL)
+            }
+        }.value
+    }
+
+    private func deletionErrorMessage(for preparedEpisode: PreparedEpisode, error: any Error) -> String {
+        let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        return "Could not delete the downloaded files for \"\(preparedEpisode.episode.title)\": \(detail)"
     }
 
     private func beginPreparing(_ episodes: [Episode]) {
@@ -276,6 +332,21 @@ public final class PreparationPreviewViewModel {
         for episode in episodes {
             preparingEpisodesByID.removeValue(forKey: EpisodePreparationID(episode))
         }
+    }
+}
+
+protocol PreparedMediaFileDeleting: Sendable {
+    func fileExists(at url: URL) -> Bool
+    func removeItem(at url: URL) throws
+}
+
+private struct LocalPreparedMediaFileDeleter: PreparedMediaFileDeleting {
+    func fileExists(at url: URL) -> Bool {
+        FileManager.default.fileExists(atPath: url.path)
+    }
+
+    func removeItem(at url: URL) throws {
+        try FileManager.default.removeItem(at: url)
     }
 }
 

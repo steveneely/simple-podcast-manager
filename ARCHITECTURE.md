@@ -159,6 +159,7 @@ Small configuration data remains in `config.json`. Growing episode state is stor
 - download history
 - removal history
 - automatic-download baselines and pending episodes
+- feed activity, including observed and new episode IDs
 
 Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
 
@@ -166,7 +167,7 @@ Startup reads prepared episodes, download history, removal history, automatic-do
 
 On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. Automatic-download state uses a separate one-time import so upgrades from development builds can retain `automatic-downloads.json`. Import markers are written only after every source file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
 
-App data backups remain version-1 JSON directories. v1.9 can restore v1.8 backups; new backups also include `automatic-downloads.json`. Restore validates the complete backup before changing live data, writes all episode state in one database transaction, and restores the previous snapshot if applying the backup fails.
+App data backups remain format-version-1 JSON directories. They include configuration, prepared/download/removal records, automatic-download state, and feed activity. Restore accepts older format-version-1 backups where newer state files are absent, validates the complete backup before changing live data, and writes all episode state in one database transaction.
 
 ## Automatic Downloads
 

@@ -521,8 +521,10 @@ public struct MainView: View {
                 }
             },
             onRemoveDownload: {
-                preparationPreviewViewModel.removePreparedEpisode(for: episode)
-                rebuildSyncPlan()
+                Task {
+                    await preparationPreviewViewModel.removePreparedEpisode(for: episode)
+                    rebuildSyncPlan()
+                }
             },
             onDownload: {
                 Task {
@@ -826,36 +828,20 @@ public struct MainView: View {
 
     private func updateFeedActivity(afterRefreshing subscriptions: [FeedSubscription]) async {
         let refreshedIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
-        let failedIDs: Set<UUID>
-        if feedPreviewViewModel.lastErrorMessage != nil {
-            failedIDs = refreshedIDs
-        } else {
-            failedIDs = Set(feedPreviewViewModel.failures.compactMap {
-                refreshedIDs.contains($0.subscriptionID) ? $0.subscriptionID : nil
-            })
-        }
         await feedActivityViewModel.updateAfterRefresh(
             subscriptions: viewModel.feedSubscriptions,
             episodes: feedPreviewViewModel.allEpisodes,
             refreshedSubscriptionIDs: refreshedIDs,
-            failedSubscriptionIDs: failedIDs,
+            failedSubscriptionIDs: failedSubscriptionIDs(in: refreshedIDs),
             openSubscriptionID: selectedFeedID
         )
     }
 
     private func downloadNewEpisodes(afterRefreshing subscriptions: [FeedSubscription]) async {
         let refreshedSubscriptionIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
-        let failedSubscriptionIDs: Set<UUID>
-        if feedPreviewViewModel.lastErrorMessage != nil {
-            failedSubscriptionIDs = refreshedSubscriptionIDs
-        } else {
-            failedSubscriptionIDs = Set(feedPreviewViewModel.failures.compactMap { failure in
-                refreshedSubscriptionIDs.contains(failure.subscriptionID) ? failure.subscriptionID : nil
-            })
-        }
         let episodes = await automaticDownloadViewModel.episodesToDownload(
             afterRefreshing: refreshedSubscriptionIDs,
-            failedSubscriptionIDs: failedSubscriptionIDs,
+            failedSubscriptionIDs: failedSubscriptionIDs(in: refreshedSubscriptionIDs),
             subscriptions: viewModel.feedSubscriptions,
             episodes: feedPreviewViewModel.allEpisodes,
             downloadedEpisodeIDs: preparationPreviewViewModel.downloadedEpisodeIDs,
@@ -872,6 +858,16 @@ public struct MainView: View {
             preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
         })
         rebuildSyncPlan()
+    }
+
+    private func failedSubscriptionIDs(in refreshedSubscriptionIDs: Set<UUID>) -> Set<UUID> {
+        if feedPreviewViewModel.lastErrorMessage != nil {
+            return refreshedSubscriptionIDs
+        }
+
+        return Set(feedPreviewViewModel.failures.compactMap { failure in
+            refreshedSubscriptionIDs.contains(failure.subscriptionID) ? failure.subscriptionID : nil
+        })
     }
 
     private func refreshAllContent() async {
@@ -1302,7 +1298,7 @@ public struct MainView: View {
             syncExecutionViewModel.lastErrorMessage == nil,
             syncExecutionViewModel.lastResult != nil
         {
-            preparationPreviewViewModel.removeAllPreparedEpisodes()
+            await preparationPreviewViewModel.removeAllPreparedEpisodes()
         }
 
         if isEjectAfterSyncEnabled {

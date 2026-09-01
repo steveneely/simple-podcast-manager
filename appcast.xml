@@ -3,18 +3,17 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.16.0</title>
-            <pubDate>Tue, 01 Sep 2026 09:58:05 -0600</pubDate>
-            <sparkle:version>80</sparkle:version>
-            <sparkle:shortVersionString>1.16.0</sparkle:shortVersionString>
+            <title>1.16.1</title>
+            <pubDate>Tue, 01 Sep 2026 10:12:00 -0600</pubDate>
+            <sparkle:version>81</sparkle:version>
+            <sparkle:shortVersionString>1.16.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.1
 
-- When changing the device podcast folder, offers to move existing app-managed podcasts, leave them in place, or cancel after reviewing the exact files.
-- Safely preserves unrelated files and cleans up empty podcast folders left by a completed move.
+- Fixes device podcast folder settings reverting to `Music` on players whose mounted volume names contain spaces or other special characters.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.0/SimplePodcastManager-v1.16.0.dmg" length="7186053" type="application/octet-stream" sparkle:edSignature="ZSIFhKennMXeFAZst266vL81+MhxOxzwIsrL5+E7B6rVTIE2KPLL2vo4fReI9x8e9S5s9Ri1SkP8bS9KZ+0wAQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.1/SimplePodcastManager-v1.16.1.dmg" length="7182137" type="application/octet-stream" sparkle:edSignature="c8+cVXaXStdOv8oFRCV1cMLgvkmIPgsQh0XMSFAYnRLvt2CbmEfLk1f7CA/2HJEhZT6CWcac7uE7EEvDVRRXAQ=="/>
         </item>
     </channel>
 </rss>

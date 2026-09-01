@@ -3,19 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.14.0</title>
-            <pubDate>Fri, 28 Aug 2026 12:54:04 -0600</pubDate>
-            <sparkle:version>78</sparkle:version>
-            <sparkle:shortVersionString>1.14.0</sparkle:shortVersionString>
+            <title>1.15.0</title>
+            <pubDate>Tue, 01 Sep 2026 09:19:58 -0600</pubDate>
+            <sparkle:version>79</sparkle:version>
+            <sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.14.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.15.0
 
-- Replaces age-based Device Cleanup with an optional per-show limit of 3, 5, 10, or 20 episodes.
-- Shows every suggested cleanup in the Sync review so you can keep individual episodes before syncing.
-- Existing age-based cleanup settings are ignored and cleanup starts Off; choose a new episode limit in Settings to use it.
+- Writes `Podcast` to the MP3 ID3 genre field by default, with a new setting for choosing a custom genre for future downloads.
+- Clarifies how the inactive-show indicator works in Settings.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.14.0/SimplePodcastManager-v1.14.0.dmg" length="7130998" type="application/octet-stream" sparkle:edSignature="F6gDyAR6cMPl84Bayb4xFel/bc/U/Q+Q85+0u2WioCtoRWu3vWruczxFR6tVnVwpbwdsoCfEzjRvjarzmEmGCg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.15.0/SimplePodcastManager-v1.15.0.dmg" length="7138114" type="application/octet-stream" sparkle:edSignature="WBMxCflVyJkBY/bO/blJ/1L7dgvegUHitSmywD248ZMAw/1Z3cwWIJI82RZDlWHRDXmRIhU05EIGY0yOadJ3Dw=="/>
         </item>
     </channel>
 </rss>

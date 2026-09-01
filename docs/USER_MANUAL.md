@@ -44,7 +44,7 @@ If episode audio or artwork is available only over unencrypted HTTP, the app war
 
 When the feed provides a publication date, files copied to the player start with it in `yyyy.MM.dd` format so they sort reliably. Their embedded MP3 titles keep the original feed text, including special characters. Settings can add a shorter `MM.dd` date to new MP3 titles, such as `08.11 Original Title`.
 
-New downloads use `Podcast` in the MP3's ID3 genre field by default. Change `Settings > Episodes > MP3 Genre` to use a different genre on your player. Genre and title settings apply only to new downloads; existing downloads are unchanged.
+New downloads use `Podcast` in the MP3's ID3 genre field by default. Change `Settings > Episodes > MP3 Genre` to use a different genre on your player, or leave it blank to omit the genre field. Genre and title settings apply only to new downloads; existing downloads are unchanged.
 
 Leave `Settings > Episodes > Automatic Downloads` set to `Off` for manual downloads, or choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new`. The limit applies separately to each included show after feed refreshes. The first successful refresh records existing episodes without downloading them, so subscriptions do not create a backlog.
 

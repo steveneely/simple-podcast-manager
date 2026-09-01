@@ -57,7 +57,10 @@ public struct ID3MP3MetadataTaggingService: MP3MetadataTaggingService {
         frames.append(makeTextFrame(id: "TIT2", text: episodeTitle))
         frames.append(makeTextFrame(id: "TALB", text: podcastTitle))
         frames.append(makeTextFrame(id: "TPE1", text: podcastTitle))
-        frames.append(makeTextFrame(id: "TCON", text: genre))
+        let normalizedGenre = genre.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !normalizedGenre.isEmpty {
+            frames.append(makeTextFrame(id: "TCON", text: normalizedGenre))
+        }
 
         var taggedData = makeID3v23Tag(frames: frames)
         taggedData.append(sourceData.audioDataWithoutMetadataTags())

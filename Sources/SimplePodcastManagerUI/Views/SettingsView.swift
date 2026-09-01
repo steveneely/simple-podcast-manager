@@ -118,12 +118,13 @@ public struct SettingsView: View {
 
                         LabeledField(
                             title: "MP3 Genre",
-                            detail: "Writes this value to the MP3’s ID3 genre field. Applies to new downloads only.",
+                            detail: "Writes this value to the MP3’s ID3 genre field. Leave blank to omit it. Applies to new downloads only.",
                             emphasizesTitle: true
                         ) {
-                            TextField("Podcast", text: $mp3Genre)
+                            TextField("", text: $mp3Genre)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 180)
+                                .accessibilityLabel("MP3 Genre")
                         }
 
                         LabeledField(
@@ -393,8 +394,7 @@ public struct SettingsView: View {
     }
 
     private var normalizedMP3Genre: String {
-        let genre = mp3Genre.trimmingCharacters(in: .whitespacesAndNewlines)
-        return genre.isEmpty ? AppSettings.defaultMP3Genre : genre
+        mp3Genre.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var cleanupEpisodeLimitSelection: Binding<Int?> {

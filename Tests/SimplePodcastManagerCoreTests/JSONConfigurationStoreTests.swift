@@ -52,6 +52,19 @@ struct JSONConfigurationStoreTests {
     }
 
     @Test
+    func preservesBlankMP3GenreAsExplicitOptOut() throws {
+        let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fileURL = temporaryDirectoryURL.appendingPathComponent("config.json")
+        defer { try? FileManager.default.removeItem(at: temporaryDirectoryURL) }
+        let store = JSONConfigurationStore(fileURL: fileURL)
+        let configuration = AppConfiguration(settings: AppSettings(mp3Genre: ""))
+
+        try store.saveConfiguration(configuration)
+
+        #expect(try store.loadConfiguration().settings.mp3Genre.isEmpty)
+    }
+
+    @Test
     func loadsLegacySettingsWithoutAppearancePreference() throws {
         let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let fileURL = temporaryDirectoryURL.appendingPathComponent("config.json")

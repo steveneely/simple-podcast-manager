@@ -49,6 +49,19 @@ struct MP3MetadataTaggingServiceTests {
     }
 
     @Test
+    func omitsGenreFrameWhenGenreIsBlank() {
+        let taggedData = ID3MP3MetadataTaggingService.taggedMP3Data(
+            sourceData: Data([0xFF, 0xFB, 0x90, 0x64, 0x00]),
+            episodeTitle: "Episode Without Genre",
+            podcastTitle: "Example Podcast",
+            genre: " \n ",
+            artworkData: nil
+        )
+
+        #expect(taggedData.range(of: Data("TCON".utf8)) == nil)
+    }
+
+    @Test
     func replacesPublisherMetadataWithRSSMetadata() throws {
         let placeholder = "Title Placeholder Episode ID: 122792502"
         let publisherTitleFrame = makeTextFrame(id: "TIT2", text: placeholder)

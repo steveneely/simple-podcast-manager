@@ -3,18 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.15.0</title>
-            <pubDate>Tue, 01 Sep 2026 09:19:58 -0600</pubDate>
-            <sparkle:version>79</sparkle:version>
-            <sparkle:shortVersionString>1.15.0</sparkle:shortVersionString>
+            <title>1.16.0</title>
+            <pubDate>Tue, 01 Sep 2026 09:58:05 -0600</pubDate>
+            <sparkle:version>80</sparkle:version>
+            <sparkle:shortVersionString>1.16.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.15.0
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.0
 
-- Writes `Podcast` to the MP3 ID3 genre field by default, with a new setting for choosing a custom genre for future downloads.
-- Clarifies how the inactive-show indicator works in Settings.
+- When changing the device podcast folder, offers to move existing app-managed podcasts, leave them in place, or cancel after reviewing the exact files.
+- Safely preserves unrelated files and cleans up empty podcast folders left by a completed move.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.15.0/SimplePodcastManager-v1.15.0.dmg" length="7138114" type="application/octet-stream" sparkle:edSignature="WBMxCflVyJkBY/bO/blJ/1L7dgvegUHitSmywD248ZMAw/1Z3cwWIJI82RZDlWHRDXmRIhU05EIGY0yOadJ3Dw=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.0/SimplePodcastManager-v1.16.0.dmg" length="7186053" type="application/octet-stream" sparkle:edSignature="ZSIFhKennMXeFAZst266vL81+MhxOxzwIsrL5+E7B6rVTIE2KPLL2vo4fReI9x8e9S5s9Ri1SkP8bS9KZ+0wAQ=="/>
         </item>
     </channel>
 </rss>

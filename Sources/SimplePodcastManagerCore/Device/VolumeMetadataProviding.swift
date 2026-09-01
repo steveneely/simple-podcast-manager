@@ -29,7 +29,7 @@ public struct FileSystemVolumeMetadataProvider: VolumeMetadataProviding {
 
     public func directoryExists(at url: URL) -> Bool {
         var isDirectory: ObjCBool = false
-        let exists = FileManager.default.fileExists(atPath: url.path(), isDirectory: &isDirectory)
+        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         return exists && isDirectory.boolValue
     }
 
@@ -44,7 +44,7 @@ public struct FileSystemVolumeMetadataProvider: VolumeMetadataProviding {
 
     public func fileExists(at url: URL) -> Bool {
         var isDirectory: ObjCBool = false
-        let exists = FileManager.default.fileExists(atPath: url.path(), isDirectory: &isDirectory)
+        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         return exists && !isDirectory.boolValue
     }
 

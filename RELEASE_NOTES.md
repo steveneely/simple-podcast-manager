@@ -1,4 +1,3 @@
-# Simple Podcast Manager v1.16.0
+# Simple Podcast Manager v1.16.1
 
-- When changing the device podcast folder, offers to move existing app-managed podcasts, leave them in place, or cancel after reviewing the exact files.
-- Safely preserves unrelated files and cleans up empty podcast folders left by a completed move.
+- Fixes device podcast folder settings reverting to `Music` on players whose mounted volume names contain spaces or other special characters.

@@ -24,6 +24,7 @@ public struct MainView: View {
     @State private var preparationPreviewViewModel: PreparationPreviewViewModel
     @State private var automaticDownloadViewModel: AutomaticDownloadViewModel
     @State private var feedActivityViewModel: FeedActivityViewModel
+    private let feedRefreshCoordinator: FeedRefreshCoordinator
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
@@ -60,13 +61,24 @@ public struct MainView: View {
         appearancePreference: Binding<AppearancePreference>? = nil,
         startupEpisodeStateStore: any EpisodeStateStartupLoading = SQLiteEpisodeStore.shared
     ) {
+        let feedPreviewViewModel = FeedPreviewViewModel()
+        let preparationPreviewViewModel = PreparationPreviewViewModel()
+        let automaticDownloadViewModel = AutomaticDownloadViewModel()
+        let feedActivityViewModel = FeedActivityViewModel()
         self._viewModel = State(initialValue: viewModel)
         self._deviceViewModel = State(initialValue: DeviceViewModel())
         self._deviceLibraryViewModel = State(initialValue: DeviceLibraryViewModel())
-        self._feedPreviewViewModel = State(initialValue: FeedPreviewViewModel())
-        self._preparationPreviewViewModel = State(initialValue: PreparationPreviewViewModel())
-        self._automaticDownloadViewModel = State(initialValue: AutomaticDownloadViewModel())
-        self._feedActivityViewModel = State(initialValue: FeedActivityViewModel())
+        self._feedPreviewViewModel = State(initialValue: feedPreviewViewModel)
+        self._preparationPreviewViewModel = State(initialValue: preparationPreviewViewModel)
+        self._automaticDownloadViewModel = State(initialValue: automaticDownloadViewModel)
+        self._feedActivityViewModel = State(initialValue: feedActivityViewModel)
+        self.feedRefreshCoordinator = FeedRefreshCoordinator(
+            feedPreview: feedPreviewViewModel,
+            subscriptionLibrary: viewModel,
+            feedActivity: feedActivityViewModel,
+            automaticDownloads: automaticDownloadViewModel,
+            episodePreparation: preparationPreviewViewModel
+        )
         self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
         self._syncExecutionViewModel = State(initialValue: SyncExecutionViewModel())
@@ -757,10 +769,7 @@ public struct MainView: View {
 
     private func refreshFeedPreview() async {
         let refreshedSubscriptions = viewModel.feedSubscriptions.filter(\.isEnabled)
-        await feedPreviewViewModel.refreshPreview(for: refreshedSubscriptions)
-        viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
-        await updateFeedActivity(afterRefreshing: refreshedSubscriptions)
-        await downloadNewEpisodes(afterRefreshing: refreshedSubscriptions)
+        await coordinateFeedRefresh(.allEnabledSubscriptions(refreshedSubscriptions))
     }
 
     private func loadCachedFeedPreviewForStartup() async {
@@ -813,61 +822,22 @@ public struct MainView: View {
     }
 
     private func refreshFeedPreview(for subscription: FeedSubscription) async {
-        await feedPreviewViewModel.refreshPreview(for: subscription)
-        viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
-        await updateFeedActivity(afterRefreshing: [subscription])
-        await downloadNewEpisodes(afterRefreshing: [subscription])
+        await coordinateFeedRefresh(.subscription(subscription))
     }
 
     private func refreshFeedPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
-        await feedPreviewViewModel.refreshPreview(forNewSubscriptions: subscriptions)
-        viewModel.applyFeedSummaries(Array(feedPreviewViewModel.feedSummaries.values))
-        await updateFeedActivity(afterRefreshing: subscriptions)
-        await downloadNewEpisodes(afterRefreshing: subscriptions)
+        await coordinateFeedRefresh(.newSubscriptions(subscriptions))
     }
 
-    private func updateFeedActivity(afterRefreshing subscriptions: [FeedSubscription]) async {
-        let refreshedIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
-        await feedActivityViewModel.updateAfterRefresh(
-            subscriptions: viewModel.feedSubscriptions,
-            episodes: feedPreviewViewModel.allEpisodes,
-            refreshedSubscriptionIDs: refreshedIDs,
-            failedSubscriptionIDs: failedSubscriptionIDs(in: refreshedIDs),
+    private func coordinateFeedRefresh(_ scope: FeedRefreshScope) async {
+        let outcome = await feedRefreshCoordinator.refresh(
+            scope,
             openSubscriptionID: selectedFeedID
         )
-    }
-
-    private func downloadNewEpisodes(afterRefreshing subscriptions: [FeedSubscription]) async {
-        let refreshedSubscriptionIDs = Set(subscriptions.filter(\.isEnabled).map(\.id))
-        let episodes = await automaticDownloadViewModel.episodesToDownload(
-            afterRefreshing: refreshedSubscriptionIDs,
-            failedSubscriptionIDs: failedSubscriptionIDs(in: refreshedSubscriptionIDs),
-            subscriptions: viewModel.feedSubscriptions,
-            episodes: feedPreviewViewModel.allEpisodes,
-            downloadedEpisodeIDs: preparationPreviewViewModel.downloadedEpisodeIDs,
-            limit: viewModel.settings.automaticDownloadLimit
-        )
-        guard !episodes.isEmpty else { return }
-
-        await preparationPreviewViewModel.prepare(episodes, settings: viewModel.settings)
-        let downloadedEpisodes = episodes.filter {
-            preparationPreviewViewModel.downloadedRecord(for: $0) != nil
+        enqueueInsecureDownloadPermissions(for: outcome.episodesRequiringInsecureDownloadPermission)
+        if outcome.attemptedAutomaticDownloads {
+            rebuildSyncPlan()
         }
-        await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
-        enqueueInsecureDownloadPermissions(for: episodes.filter {
-            preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
-        })
-        rebuildSyncPlan()
-    }
-
-    private func failedSubscriptionIDs(in refreshedSubscriptionIDs: Set<UUID>) -> Set<UUID> {
-        if feedPreviewViewModel.lastErrorMessage != nil {
-            return refreshedSubscriptionIDs
-        }
-
-        return Set(feedPreviewViewModel.failures.compactMap { failure in
-            refreshedSubscriptionIDs.contains(failure.subscriptionID) ? failure.subscriptionID : nil
-        })
     }
 
     private func refreshAllContent() async {

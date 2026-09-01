@@ -75,23 +75,27 @@ struct SQLiteEpisodeStoreTests {
         defer { fixture.remove() }
         let original = fixture.records(number: 1)
 
-        try JSONPreparedEpisodeStore(
-            fileURL: fixture.supportURL.appending(path: "prepared-episodes.json")
-        ).savePreparedEpisodes([original.prepared])
-        try JSONDownloadedEpisodeStore(
-            fileURL: fixture.supportURL.appending(path: "downloaded-episodes.json")
-        ).saveDownloadedEpisodes([original.downloaded])
-        try JSONRemovedEpisodeStore(
-            fileURL: fixture.supportURL.appending(path: "removed-episodes.json")
-        ).saveRemovedEpisodes([original.removed])
+        try AppJSONFile.save(
+            [original.prepared],
+            to: fixture.supportURL.appending(path: "prepared-episodes.json")
+        )
+        try AppJSONFile.save(
+            [original.downloaded],
+            to: fixture.supportURL.appending(path: "downloaded-episodes.json")
+        )
+        try AppJSONFile.save(
+            [original.removed],
+            to: fixture.supportURL.appending(path: "removed-episodes.json")
+        )
 
         #expect(try fixture.store.loadDownloadedEpisodes() == [original.downloaded])
         #expect(FileManager.default.fileExists(atPath: fixture.supportURL.appending(path: "downloaded-episodes.json").path))
 
         let stale = fixture.records(number: 2)
-        try JSONDownloadedEpisodeStore(
-            fileURL: fixture.supportURL.appending(path: "downloaded-episodes.json")
-        ).saveDownloadedEpisodes([stale.downloaded])
+        try AppJSONFile.save(
+            [stale.downloaded],
+            to: fixture.supportURL.appending(path: "downloaded-episodes.json")
+        )
         let reopenedStore = SQLiteEpisodeStore(
             fileURL: fixture.databaseURL,
             supportDirectoryURL: fixture.supportURL
@@ -105,9 +109,10 @@ struct SQLiteEpisodeStoreTests {
         defer { fixture.remove() }
         let records = fixture.records(number: 1)
 
-        try JSONPreparedEpisodeStore(
-            fileURL: fixture.supportURL.appending(path: "prepared-episodes.json")
-        ).savePreparedEpisodes([records.prepared])
+        try AppJSONFile.save(
+            [records.prepared],
+            to: fixture.supportURL.appending(path: "prepared-episodes.json")
+        )
         try Data("invalid".utf8).write(
             to: fixture.supportURL.appending(path: "downloaded-episodes.json"),
             options: .atomic
@@ -117,9 +122,10 @@ struct SQLiteEpisodeStoreTests {
             try fixture.store.loadPreparedEpisodes()
         }
 
-        try JSONDownloadedEpisodeStore(
-            fileURL: fixture.supportURL.appending(path: "downloaded-episodes.json")
-        ).saveDownloadedEpisodes([records.downloaded])
+        try AppJSONFile.save(
+            [records.downloaded],
+            to: fixture.supportURL.appending(path: "downloaded-episodes.json")
+        )
         let retryingStore = SQLiteEpisodeStore(
             fileURL: fixture.databaseURL,
             supportDirectoryURL: fixture.supportURL
@@ -135,14 +141,18 @@ struct SQLiteEpisodeStoreTests {
         let records = fixture.records(number: 1)
         let legacyURL = fixture.supportURL.appending(path: "downloaded-episodes.json")
         try FileManager.default.createDirectory(at: fixture.supportURL, withIntermediateDirectories: true)
-        try JSONDownloadedEpisodeStore(fileURL: legacyURL).saveDownloadedEpisodes([records.downloaded])
+        try AppJSONFile.save([records.downloaded], to: legacyURL)
         try Data("not a sqlite database".utf8).write(to: fixture.databaseURL, options: .atomic)
 
         #expect(throws: (any Error).self) {
             try fixture.store.loadDownloadedEpisodes()
         }
         #expect(FileManager.default.fileExists(atPath: legacyURL.path))
-        #expect(try JSONDownloadedEpisodeStore(fileURL: legacyURL).loadDownloadedEpisodes() == [records.downloaded])
+        #expect(try AppJSONFile.load(
+            [DownloadedEpisodeRecord].self,
+            from: legacyURL,
+            defaultValue: []
+        ) == [records.downloaded])
     }
 
     @Test
@@ -210,12 +220,12 @@ struct SQLiteEpisodeStoreTests {
                 pendingEpisodeIDs: ["episode-2"]
             )
         ])
-        try JSONAutomaticDownloadStateStore(fileURL: legacyURL).saveState(original)
+        try AppJSONFile.save(original, to: legacyURL)
 
         #expect(try fixture.store.loadState() == original)
         #expect(FileManager.default.fileExists(atPath: legacyURL.path))
 
-        try JSONAutomaticDownloadStateStore(fileURL: legacyURL).saveState(AutomaticDownloadState())
+        try AppJSONFile.save(AutomaticDownloadState(), to: legacyURL)
         let reopenedStore = SQLiteEpisodeStore(
             fileURL: fixture.databaseURL,
             supportDirectoryURL: fixture.supportURL

@@ -31,6 +31,7 @@ The UI should not contain sync logic. It should call focused core services and r
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: app preferences, optional review-first device cleanup, device podcast folder, app data backup and restore
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
+- `FeedRefreshCoordinator`: coordinate refresh results, feed activity, and automatic episode preparation behind testable dependency boundaries
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
 - `FeedActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
@@ -76,7 +77,7 @@ Expected runtime flow:
 2. The user adds a podcast by entering an RSS feed URL.
 3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
-5. A successful refresh updates independent show-activity state; failed feeds do not advance their baselines. The user downloads episodes manually, or automatic-download settings prepare new episodes.
+5. `FeedRefreshCoordinator` applies each refresh consistently to show activity and automatic-download planning; failed feeds do not advance either baseline. The user downloads episodes manually, or automatic-download settings prepare new episodes.
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device

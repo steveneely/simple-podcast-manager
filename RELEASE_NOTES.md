@@ -1,3 +1,3 @@
-# Simple Podcast Manager v1.16.2
+# Simple Podcast Manager v1.16.3
 
-- Fixes exported subscription filenames sometimes ending with a duplicate `.opml` extension.
+- Lets you leave MP3 Genre blank to omit the ID3 genre field from future downloads.

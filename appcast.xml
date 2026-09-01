@@ -3,17 +3,17 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.16.1</title>
-            <pubDate>Tue, 01 Sep 2026 10:12:00 -0600</pubDate>
-            <sparkle:version>81</sparkle:version>
-            <sparkle:shortVersionString>1.16.1</sparkle:shortVersionString>
+            <title>1.16.2</title>
+            <pubDate>Tue, 01 Sep 2026 12:03:52 -0600</pubDate>
+            <sparkle:version>82</sparkle:version>
+            <sparkle:shortVersionString>1.16.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.1
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.2
 
-- Fixes device podcast folder settings reverting to `Music` on players whose mounted volume names contain spaces or other special characters.
+- Fixes exported subscription filenames sometimes ending with a duplicate `.opml` extension.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.1/SimplePodcastManager-v1.16.1.dmg" length="7182137" type="application/octet-stream" sparkle:edSignature="c8+cVXaXStdOv8oFRCV1cMLgvkmIPgsQh0XMSFAYnRLvt2CbmEfLk1f7CA/2HJEhZT6CWcac7uE7EEvDVRRXAQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.2/SimplePodcastManager-v1.16.2.dmg" length="7186496" type="application/octet-stream" sparkle:edSignature="a6YWjWvnvxoFK3WnCaLqjlMh2jyUdPTDJZccPYzahOo4JEpmDBuEHSXA4oL2IsT30jQH9HwufdgtYHSvnFXzCg=="/>
         </item>
     </channel>
 </rss>

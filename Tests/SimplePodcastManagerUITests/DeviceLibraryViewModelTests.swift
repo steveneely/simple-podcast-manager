@@ -278,6 +278,10 @@ struct DeviceLibraryViewModelTests {
         await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription) == [managedFile])
+        #expect(viewModel.otherAudioFiles.isEmpty)
+
+        await viewModel.reviewOtherAudio(on: device)
+
         #expect(viewModel.otherAudioFiles == [musicFile, otherPodcastFile])
     }
 
@@ -301,6 +305,10 @@ struct DeviceLibraryViewModelTests {
         await viewModel.refresh(device: device, subscriptions: [subscription])
 
         #expect(viewModel.files(for: subscription).isEmpty)
+        #expect(viewModel.otherAudioFiles.isEmpty)
+
+        await viewModel.reviewOtherAudio(on: device)
+
         #expect(viewModel.otherAudioFiles == [unrelatedFile])
     }
 
@@ -335,6 +343,7 @@ struct DeviceLibraryViewModelTests {
             fileSystem: fileSystem
         )
         await viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.reviewOtherAudio(on: device)
 
         viewModel.deleteOtherAudioFiles([otherFile.standardizedFileURL, unknownFile.standardizedFileURL], on: device)
 
@@ -360,16 +369,121 @@ struct DeviceLibraryViewModelTests {
         let files = zip(subscriptions, directories).map { subscription, directory in
             directory.appendingPathComponent("2026.04.21-Episode-(\(subscription.title)).mp3")
         }
-        let deviceLibrary = CountingDeviceLibrary(directories: directories, recursiveFiles: files)
+        let deviceLibrary = CountingDeviceLibrary(
+            directories: directories,
+            filesByDirectory: Dictionary(uniqueKeysWithValues: zip(directories, files.map { [$0] }))
+        )
         let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
 
         await viewModel.refresh(device: device, subscriptions: subscriptions)
 
         #expect(deviceLibrary.directoryRequestCount == 1)
-        #expect(deviceLibrary.recursiveFileRequestCount == 1)
-        #expect(deviceLibrary.directFileRequestCount == 0)
+        #expect(deviceLibrary.recursiveFileRequestCount == 0)
+        #expect(deviceLibrary.directFileRequestCount == 2)
         #expect(viewModel.files(for: subscriptions[0]) == [files[0]])
         #expect(viewModel.files(for: subscriptions[1]) == [files[1]])
+    }
+
+    @Test
+    func normalRefreshDoesNotRecursivelyEnumerateVirtualLargeLibrary() async {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let deviceLibrary = VirtualLargeDeviceLibrary(unrelatedFileCount: 12_000)
+        let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
+
+        await viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(deviceLibrary.unrelatedFileCount == 12_000)
+        #expect(deviceLibrary.directoryRequestCount == 1)
+        #expect(deviceLibrary.directFileRequestCount == 1)
+        #expect(deviceLibrary.recursiveFileRequestCount == 0)
+        #expect(viewModel.otherAudioFiles.isEmpty)
+        #expect(!viewModel.hasOtherAudio)
+    }
+
+    @Test
+    func otherAudioReviewKeepsSectionEmptyWhenDeviceContainsOnlyManagedFiles() async {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true)
+        let managedFile = managedDirectory.appendingPathComponent("2026.04.21-Episode-(ATP).mp3")
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory: [managedFile]])
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription])
+        await viewModel.reviewOtherAudio(on: device)
+
+        #expect(viewModel.otherAudioFiles.isEmpty)
+        #expect(!viewModel.hasOtherAudio)
+        #expect(viewModel.otherAudioReviewMessage == "No other audio found.")
+    }
+
+    @Test
+    func dismissingOtherAudioResultsHidesTheCompletedReview() async {
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let otherFile = device.podcastDirectoryURL.appendingPathComponent("Album/song.mp3")
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [
+                    device.podcastDirectoryURL.appendingPathComponent("Album", isDirectory: true): [otherFile]
+                ]
+            )
+        )
+        await viewModel.refresh(device: device, subscriptions: [])
+        await viewModel.reviewOtherAudio(on: device)
+        #expect(viewModel.hasOtherAudio)
+
+        viewModel.dismissOtherAudioResults()
+
+        #expect(!viewModel.hasOtherAudio)
+        #expect(viewModel.otherAudioFiles.isEmpty)
+        #expect(viewModel.otherAudioReviewMessage == nil)
+    }
+
+    @Test
+    func cancellingOtherAudioReviewStopsTheRecursiveScan() async {
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let deviceLibrary = CancellationAwareDeviceLibrary()
+        let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
+        await viewModel.refresh(device: device, subscriptions: [])
+
+        let reviewTask = Task {
+            await viewModel.reviewOtherAudio(on: device)
+        }
+        for _ in 0..<1_000 where !deviceLibrary.hasStartedRecursiveScan {
+            await Task.yield()
+        }
+        #expect(deviceLibrary.hasStartedRecursiveScan)
+
+        viewModel.cancelOtherAudioReview()
+        await reviewTask.value
+
+        #expect(deviceLibrary.observedCancellation)
+        #expect(!viewModel.isReviewingOtherAudio)
+        #expect(viewModel.otherAudioFiles.isEmpty)
     }
 
     @Test
@@ -413,19 +527,19 @@ private struct StubDeviceLibrary: DeviceLibraryInspecting {
 
 private final class CountingDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
     let directoryURLs: [URL]
-    let recursiveFileURLs: [URL]
+    let filesByDirectory: [URL: [URL]]
     private(set) var directoryRequestCount = 0
     private(set) var recursiveFileRequestCount = 0
     private(set) var directFileRequestCount = 0
 
-    init(directories: [URL], recursiveFiles: [URL]) {
+    init(directories: [URL], filesByDirectory: [URL: [URL]]) {
         self.directoryURLs = directories
-        self.recursiveFileURLs = recursiveFiles
+        self.filesByDirectory = filesByDirectory
     }
 
     func files(in directoryURL: URL) throws -> [URL] {
         directFileRequestCount += 1
-        return []
+        return filesByDirectory[directoryURL] ?? []
     }
 
     func directories(in directoryURL: URL) throws -> [URL] {
@@ -435,7 +549,67 @@ private final class CountingDeviceLibrary: DeviceLibraryInspecting, @unchecked S
 
     func recursiveFiles(in directoryURL: URL) throws -> [URL] {
         recursiveFileRequestCount += 1
-        return recursiveFileURLs
+        return filesByDirectory.values.flatMap { $0 }
+    }
+}
+
+private final class VirtualLargeDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    let unrelatedFileCount: Int
+    private(set) var directoryRequestCount = 0
+    private(set) var recursiveFileRequestCount = 0
+    private(set) var directFileRequestCount = 0
+
+    init(unrelatedFileCount: Int) {
+        self.unrelatedFileCount = unrelatedFileCount
+    }
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        directFileRequestCount += 1
+        return []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        directoryRequestCount += 1
+        return []
+    }
+
+    func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        recursiveFileRequestCount += 1
+        return []
+    }
+}
+
+private final class CancellationAwareDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var startedRecursiveScan = false
+    private var cancellationWasObserved = false
+
+    var hasStartedRecursiveScan: Bool {
+        lock.withLock { startedRecursiveScan }
+    }
+
+    var observedCancellation: Bool {
+        lock.withLock { cancellationWasObserved }
+    }
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        []
+    }
+
+    func recursiveFiles(
+        in directoryURL: URL,
+        progress: @escaping @Sendable (Int) -> Void
+    ) throws -> [URL] {
+        lock.withLock { startedRecursiveScan = true }
+        while !Task.isCancelled {
+            Thread.sleep(forTimeInterval: 0.000_1)
+        }
+        lock.withLock { cancellationWasObserved = true }
+        throw CancellationError()
     }
 }
 

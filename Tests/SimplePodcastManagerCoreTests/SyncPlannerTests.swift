@@ -605,8 +605,8 @@ struct SyncPlannerTests {
         )
 
         #expect(deviceLibrary.directoryRequestCount == 1)
-        #expect(deviceLibrary.recursiveFileRequestCount == 1)
-        #expect(deviceLibrary.directFileRequestCount == 0)
+        #expect(deviceLibrary.recursiveFileRequestCount == 0)
+        #expect(deviceLibrary.directFileRequestCount == 2)
     }
 
     @Test

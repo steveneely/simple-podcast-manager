@@ -11,6 +11,7 @@ public final class SyncPlanViewModel {
 
     private let planner: SyncPlanner
     private var latestPlanningID: UUID?
+    private var planningTask: Task<SyncPlan, Error>?
 
     public init(planner: SyncPlanner = SyncPlanner()) {
         self.planner = planner
@@ -26,8 +27,10 @@ public final class SyncPlanViewModel {
         manualDeleteTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
+        managedInventory: ManagedDeviceLibraryInventory? = nil,
         ejectAfterSync: Bool
     ) async {
+        planningTask?.cancel()
         let planningID = UUID()
         latestPlanningID = planningID
 
@@ -44,7 +47,7 @@ public final class SyncPlanViewModel {
 
         do {
             let planner = planner
-            let updatedPlan = try await Task.detached(priority: .userInitiated) {
+            let task = Task.detached(priority: .userInitiated) {
                 try planner.makePlan(
                     device: device,
                     preparedEpisodes: preparedEpisodes,
@@ -52,17 +55,24 @@ public final class SyncPlanViewModel {
                     manualDeleteTargets: manualDeleteTargets,
                     cleanupPolicy: cleanupPolicy,
                     excludedCleanupTargets: excludedCleanupTargets,
+                    managedInventory: managedInventory,
                     ejectAfterSync: ejectAfterSync
                 )
-            }.value
+            }
+            planningTask = task
+            let updatedPlan = try await task.value
             guard latestPlanningID == planningID else { return }
 
             plan = updatedPlan
             lastErrorMessage = nil
+            planningTask = nil
+        } catch is CancellationError {
+            return
         } catch {
             guard latestPlanningID == planningID else { return }
             plan = nil
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            planningTask = nil
         }
         if latestPlanningID == planningID {
             isPlanning = false
@@ -71,9 +81,18 @@ public final class SyncPlanViewModel {
 
     /// Immediately prevents an older plan from being started while a replacement is queued.
     public func prepareForPlanRebuild() {
+        planningTask?.cancel()
+        planningTask = nil
         latestPlanningID = nil
         plan = nil
         isPlanning = true
         lastErrorMessage = nil
+    }
+
+    public func cancelPlanning() {
+        planningTask?.cancel()
+        planningTask = nil
+        latestPlanningID = nil
+        isPlanning = false
     }
 }

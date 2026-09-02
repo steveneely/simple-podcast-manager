@@ -1,20 +1,18 @@
 import Foundation
 
 public struct SyncPlanner: Sendable {
-    private let deviceLibrary: any DeviceLibraryInspecting
+    private let inventoryBuilder: ManagedDeviceLibraryInventoryBuilder
     private let storageInspector: any SyncStorageInspecting
     private let safetyValidator: SafetyValidator
-    private let managedDirectoryResolver: ManagedDirectoryResolver
 
     public init(
         deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
         storageInspector: any SyncStorageInspecting = LocalSyncStorageInspector(),
         safetyValidator: SafetyValidator = SafetyValidator()
     ) {
-        self.deviceLibrary = deviceLibrary
+        self.inventoryBuilder = ManagedDeviceLibraryInventoryBuilder(deviceLibrary: deviceLibrary)
         self.storageInspector = storageInspector
         self.safetyValidator = safetyValidator
-        self.managedDirectoryResolver = ManagedDirectoryResolver()
     }
 
     public func makePlan(
@@ -24,8 +22,10 @@ public struct SyncPlanner: Sendable {
         manualDeleteTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
+        managedInventory: ManagedDeviceLibraryInventory? = nil,
         ejectAfterSync: Bool
     ) throws -> SyncPlan {
+        try Task.checkCancellation()
         try safetyValidator.validateDevice(device)
 
         let maximumEpisodesPerShow = try validatedMaximumEpisodesPerShow(for: cleanupPolicy)
@@ -40,20 +40,25 @@ public struct SyncPlanner: Sendable {
         }, by: { $0.0 })
         let manualDeleteTargets = Set(manualDeleteTargets.map(\.standardizedFileURL))
         let excludedCleanupTargets = Set(excludedCleanupTargets.map(\.standardizedFileURL))
-        let deviceSnapshot = try DeviceLibrarySnapshot(
-            deviceLibrary: deviceLibrary,
-            directoryURL: device.podcastDirectoryURL
-        )
+        let deviceInventory: ManagedDeviceLibraryInventory
+        if let managedInventory,
+           managedInventory.canBeUsed(on: device, subscriptions: subscriptions) {
+            deviceInventory = managedInventory
+        } else {
+            deviceInventory = try inventoryBuilder.makeInventory(
+                device: device,
+                subscriptions: subscriptions
+            )
+        }
 
         for subscription in subscriptions {
+            try Task.checkCancellation()
             let preparedEpisodes = preparedBySubscription[subscription.id]?.map(\.1) ?? []
-            let managedDirectory = managedDirectoryResolver.managedDirectoryURL(
-                for: subscription,
-                on: device,
-                candidateDirectories: deviceSnapshot.directories
-            )
-            let existingFiles = deviceSnapshot.directFiles(in: managedDirectory)
-                .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
+            let managedDirectory = deviceInventory.managedDirectoryURL(for: subscription, on: device)
+            let existingFiles = deviceInventory.files(for: subscription).filter {
+                $0.deletingLastPathComponent().standardizedFileURL == managedDirectory.standardizedFileURL
+                    && EpisodeFileName.isManagedEpisodeFile($0, for: subscription)
+            }
 
             var cleanupCandidateSizesByURL: [URL: Int64] = [:]
             if let maximumEpisodesPerShow {
@@ -84,6 +89,7 @@ public struct SyncPlanner: Sendable {
             let selectedFileURLs = Set(selectedFiles.map(\.standardizedFileURL))
 
             for preparedEpisode in preparedEpisodes {
+                try Task.checkCancellation()
                 let destinationURL = managedDirectory.appendingPathComponent(preparedEpisode.preparedFileURL.lastPathComponent, isDirectory: false)
 
                 if let existingFileURL = existingFiles.first(where: {
@@ -107,6 +113,7 @@ public struct SyncPlanner: Sendable {
             }
 
             for fileURL in selectedFiles where !plannedDeletionTargets.contains(fileURL.standardizedFileURL) {
+                try Task.checkCancellation()
                 try safetyValidator.validateDeleteTarget(fileURL, on: device)
                 let fileSizeBytes: Int64
                 if let cleanupCandidateSize = cleanupCandidateSizesByURL[fileURL.standardizedFileURL] {

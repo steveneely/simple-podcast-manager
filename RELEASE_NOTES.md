@@ -1,3 +1,4 @@
-# Simple Podcast Manager v1.16.4
+# Simple Podcast Manager v1.16.5
 
-- Keeps downloaded episodes listed and shows an error when their local files cannot be deleted, so cleanup can be retried safely.
+- Keeps the app responsive when devices contain large music libraries by limiting automatic inventory to app-managed podcast folders.
+- Makes unrelated-audio review explicit and cancellable, and displays its results only when files are found.

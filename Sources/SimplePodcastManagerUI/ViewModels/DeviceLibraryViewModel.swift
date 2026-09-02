@@ -6,15 +6,23 @@ import SimplePodcastManagerCore
 @Observable
 public final class DeviceLibraryViewModel {
     public private(set) var otherAudioFiles: [URL]
+    public private(set) var isReviewingOtherAudio: Bool
+    public private(set) var otherAudioReviewInspectedFileCount: Int
+    public private(set) var otherAudioReviewMessage: String?
+    public private(set) var isRefreshingManagedInventory: Bool
     public private(set) var lastErrorMessage: String?
+    public private(set) var managedInventory: ManagedDeviceLibraryInventory?
 
     private let deviceLibrary: any DeviceLibraryInspecting
-    private let managedDirectoryResolver: ManagedDirectoryResolver
+    private let inventoryBuilder: ManagedDeviceLibraryInventoryBuilder
     private let deletionService: DeviceFileDeletionService
     private let safetyValidator: SafetyValidator
     private var filesBySubscriptionID: [UUID: [URL]]
     private var filesByEpisodeStemBySubscriptionID: [UUID: [String: URL]]
     private var latestRefreshID: UUID?
+    private var latestOtherAudioReviewID: UUID?
+    private var inventoryTask: Task<ManagedDeviceLibraryInventory, Error>?
+    private var otherAudioReviewTask: Task<[URL], Error>?
 
     public init(
         deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
@@ -22,7 +30,7 @@ public final class DeviceLibraryViewModel {
         safetyValidator: SafetyValidator = SafetyValidator()
     ) {
         self.deviceLibrary = deviceLibrary
-        self.managedDirectoryResolver = ManagedDirectoryResolver()
+        self.inventoryBuilder = ManagedDeviceLibraryInventoryBuilder(deviceLibrary: deviceLibrary)
         self.deletionService = DeviceFileDeletionService(
             fileSystem: fileSystem,
             safetyValidator: safetyValidator
@@ -31,46 +39,134 @@ public final class DeviceLibraryViewModel {
         self.filesBySubscriptionID = [:]
         self.filesByEpisodeStemBySubscriptionID = [:]
         self.otherAudioFiles = []
+        self.isReviewingOtherAudio = false
+        self.otherAudioReviewInspectedFileCount = 0
+        self.otherAudioReviewMessage = nil
+        self.isRefreshingManagedInventory = false
         self.lastErrorMessage = nil
+        self.managedInventory = nil
     }
 
     public func refresh(device: DeviceInfo?, subscriptions: [FeedSubscription]) async {
+        inventoryTask?.cancel()
+        cancelOtherAudioReview(clearResults: true)
         let refreshID = UUID()
         latestRefreshID = refreshID
 
         guard let device else {
             filesBySubscriptionID = [:]
             filesByEpisodeStemBySubscriptionID = [:]
-            otherAudioFiles = []
+            managedInventory = nil
+            isRefreshingManagedInventory = false
             lastErrorMessage = nil
             return
         }
 
+        isRefreshingManagedInventory = true
+
         do {
             try safetyValidator.validateDevice(device)
-            let deviceLibrary = deviceLibrary
-            let managedDirectoryResolver = managedDirectoryResolver
-            let inventory = try await Task.detached(priority: .userInitiated) {
-                try Self.makeInventory(
-                    deviceLibrary: deviceLibrary,
-                    managedDirectoryResolver: managedDirectoryResolver,
-                    device: device,
-                    subscriptions: subscriptions
-                )
-            }.value
+            let inventoryBuilder = inventoryBuilder
+            let task = Task.detached(priority: .userInitiated) {
+                try inventoryBuilder.makeInventory(device: device, subscriptions: subscriptions)
+            }
+            inventoryTask = task
+            let inventory = try await task.value
             guard latestRefreshID == refreshID else { return }
 
-            filesBySubscriptionID = inventory.filesBySubscriptionID
+            managedInventory = inventory
+            filesBySubscriptionID = Dictionary(uniqueKeysWithValues: subscriptions.map {
+                ($0.id, inventory.files(for: $0))
+            })
             rebuildFileIndex()
-            otherAudioFiles = inventory.otherAudioFiles
+            isRefreshingManagedInventory = false
             lastErrorMessage = nil
+            inventoryTask = nil
+        } catch is CancellationError {
+            return
         } catch {
             guard latestRefreshID == refreshID else { return }
             filesBySubscriptionID = [:]
             filesByEpisodeStemBySubscriptionID = [:]
-            otherAudioFiles = []
+            managedInventory = nil
+            isRefreshingManagedInventory = false
+            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            inventoryTask = nil
+        }
+    }
+
+    public func reviewOtherAudio(on device: DeviceInfo?) async {
+        cancelOtherAudioReview(clearResults: true)
+        guard let device else { return }
+        guard managedInventory?.deviceID == device.id,
+              managedInventory?.podcastDirectoryURL == device.podcastDirectoryURL.standardizedFileURL else {
+            lastErrorMessage = "Wait for the device podcast inventory to finish before reviewing other audio."
+            return
+        }
+
+        let reviewID = UUID()
+        latestOtherAudioReviewID = reviewID
+        isReviewingOtherAudio = true
+        otherAudioReviewInspectedFileCount = 0
+        otherAudioReviewMessage = nil
+        lastErrorMessage = nil
+
+        do {
+            try safetyValidator.validateDevice(device)
+            let deviceLibrary = deviceLibrary
+            let managedFileURLs = managedInventory?.allManagedFileURLs ?? []
+            let reportProgress: @Sendable (Int) -> Void = { [weak self] count in
+                Task { @MainActor [weak self] in
+                    guard self?.latestOtherAudioReviewID == reviewID else { return }
+                    self?.otherAudioReviewInspectedFileCount = count
+                }
+            }
+            let task = Task.detached(priority: .userInitiated) {
+                let files = try deviceLibrary.recursiveFiles(
+                    in: device.podcastDirectoryURL,
+                    progress: reportProgress
+                )
+                try Task.checkCancellation()
+                return Self.otherAudioFiles(in: files, excluding: managedFileURLs)
+            }
+            otherAudioReviewTask = task
+            let reviewedFiles = try await task.value
+            guard latestOtherAudioReviewID == reviewID else { return }
+
+            otherAudioFiles = reviewedFiles
+            otherAudioReviewMessage = reviewedFiles.isEmpty ? "No other audio found." : nil
+            lastErrorMessage = nil
+            isReviewingOtherAudio = false
+            otherAudioReviewTask = nil
+            latestOtherAudioReviewID = nil
+        } catch is CancellationError {
+            guard latestOtherAudioReviewID == reviewID else { return }
+            isReviewingOtherAudio = false
+            otherAudioReviewTask = nil
+            latestOtherAudioReviewID = nil
+        } catch {
+            guard latestOtherAudioReviewID == reviewID else { return }
+            isReviewingOtherAudio = false
+            otherAudioReviewTask = nil
+            latestOtherAudioReviewID = nil
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    public func cancelOtherAudioReview() {
+        cancelOtherAudioReview(clearResults: false)
+    }
+
+    public func dismissOtherAudioResults() {
+        cancelOtherAudioReview(clearResults: true)
+    }
+
+    public func cancelAllWork() {
+        latestRefreshID = nil
+        inventoryTask?.cancel()
+        inventoryTask = nil
+        isRefreshingManagedInventory = false
+        cancelOtherAudioReview(clearResults: false)
     }
 
     public func files(for subscription: FeedSubscription) -> [URL] {
@@ -84,6 +180,10 @@ public final class DeviceLibraryViewModel {
 
         let expectedFileStem = EpisodeFileName.fileStem(for: episode)
         return filesByEpisodeStemBySubscriptionID[subscriptionID]?[expectedFileStem]
+    }
+
+    public var hasOtherAudio: Bool {
+        !otherAudioFiles.isEmpty
     }
 
     private func rebuildFileIndex() {
@@ -123,58 +223,12 @@ public final class DeviceLibraryViewModel {
             }
 
             otherAudioFiles.removeAll { deletedURLs.contains($0.standardizedFileURL) }
+            if otherAudioFiles.isEmpty {
+                otherAudioReviewMessage = "No other audio found."
+            }
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
-    nonisolated private static func makeInventory(
-        deviceLibrary: any DeviceLibraryInspecting,
-        managedDirectoryResolver: ManagedDirectoryResolver,
-        device: DeviceInfo,
-        subscriptions: [FeedSubscription]
-    ) throws -> DeviceLibraryInventory {
-        let deviceSnapshot = try DeviceLibrarySnapshot(
-            deviceLibrary: deviceLibrary,
-            directoryURL: device.podcastDirectoryURL
-        )
-        var filesBySubscriptionID: [UUID: [URL]] = [:]
-        var managedFileURLs: Set<URL> = []
-        for subscription in subscriptions {
-            let managedDirectoryURL = managedDirectoryResolver.managedDirectoryURL(
-                for: subscription,
-                on: device,
-                candidateDirectories: deviceSnapshot.directories
-            )
-            let files = deviceSnapshot.directFiles(in: managedDirectoryURL)
-                .filter { EpisodeFileName.isManagedEpisodeFile($0, for: subscription) }
-            filesBySubscriptionID[subscription.id] = sortFiles(files)
-            managedFileURLs.formUnion(files.map(\.standardizedFileURL))
-        }
-
-        return DeviceLibraryInventory(
-            filesBySubscriptionID: filesBySubscriptionID,
-            otherAudioFiles: otherAudioFiles(in: deviceSnapshot.files, excluding: managedFileURLs)
-        )
-    }
-
-    nonisolated private static func sortFiles(_ files: [URL]) -> [URL] {
-        files.sorted { lhs, rhs in
-            switch (EpisodeFileName.publicationDate(from: lhs), EpisodeFileName.publicationDate(from: rhs)) {
-            case let (lhsDate?, rhsDate?):
-                if lhsDate != rhsDate {
-                    return lhsDate > rhsDate
-                }
-            case (.some, .none):
-                return true
-            case (.none, .some):
-                return false
-            case (.none, .none):
-                break
-            }
-
-            return lhs.lastPathComponent.localizedCaseInsensitiveCompare(rhs.lastPathComponent) == .orderedAscending
         }
     }
 
@@ -199,9 +253,16 @@ public final class DeviceLibraryViewModel {
     nonisolated private static func isAppleDoubleSidecar(_ fileURL: URL) -> Bool {
         fileURL.lastPathComponent.hasPrefix("._")
     }
-}
 
-private struct DeviceLibraryInventory: Sendable {
-    let filesBySubscriptionID: [UUID: [URL]]
-    let otherAudioFiles: [URL]
+    private func cancelOtherAudioReview(clearResults: Bool) {
+        latestOtherAudioReviewID = nil
+        otherAudioReviewTask?.cancel()
+        otherAudioReviewTask = nil
+        isReviewingOtherAudio = false
+        otherAudioReviewInspectedFileCount = 0
+        otherAudioReviewMessage = nil
+        if clearResults {
+            otherAudioFiles = []
+        }
+    }
 }

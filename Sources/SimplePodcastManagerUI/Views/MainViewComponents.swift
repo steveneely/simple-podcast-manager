@@ -309,6 +309,7 @@ struct OtherAudioSectionView: View {
     let relativePath: (URL) -> String
     let onToggleSelection: (URL) -> Void
     let onDeleteSelected: () -> Void
+    let onClose: () -> Void
 
     private var fileListHeight: CGFloat {
         let rowHeight: CGFloat = 22
@@ -331,6 +332,12 @@ struct OtherAudioSectionView: View {
 
                 Button("Delete Selected", action: onDeleteSelected)
                     .disabled(selectedFiles.isEmpty)
+
+                HoverIconButton(
+                    systemName: "xmark",
+                    helpText: "Close other audio",
+                    action: onClose
+                )
             }
 
             Text("These files are under the device podcast folder but are not associated with a podcast subscription. They are never deleted by Sync.")
@@ -338,7 +345,7 @@ struct OtherAudioSectionView: View {
                 .foregroundStyle(.secondary)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
+                LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(files, id: \.path) { fileURL in
                         let standardizedURL = fileURL.standardizedFileURL
                         Button {

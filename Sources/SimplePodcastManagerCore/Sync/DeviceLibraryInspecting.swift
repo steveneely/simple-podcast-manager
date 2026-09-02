@@ -4,6 +4,10 @@ public protocol DeviceLibraryInspecting: Sendable {
     func files(in directoryURL: URL) throws -> [URL]
     func directories(in directoryURL: URL) throws -> [URL]
     func recursiveFiles(in directoryURL: URL) throws -> [URL]
+    func recursiveFiles(
+        in directoryURL: URL,
+        progress: @escaping @Sendable (Int) -> Void
+    ) throws -> [URL]
 }
 
 public extension DeviceLibraryInspecting {
@@ -12,9 +16,23 @@ public extension DeviceLibraryInspecting {
     }
 
     func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        try Task.checkCancellation()
         let directFiles = try files(in: directoryURL).filter { !$0.hasDirectoryPath }
-        let nestedFiles = try directories(in: directoryURL).flatMap { try recursiveFiles(in: $0) }
-        return directFiles + nestedFiles
+        var discoveredFiles = directFiles
+        for directory in try directories(in: directoryURL) {
+            try Task.checkCancellation()
+            discoveredFiles.append(contentsOf: try recursiveFiles(in: directory))
+        }
+        return discoveredFiles
+    }
+
+    func recursiveFiles(
+        in directoryURL: URL,
+        progress: @escaping @Sendable (Int) -> Void
+    ) throws -> [URL] {
+        let discoveredFiles = try recursiveFiles(in: directoryURL)
+        progress(discoveredFiles.count)
+        return discoveredFiles
     }
 }
 
@@ -38,17 +56,32 @@ public struct FileSystemDeviceLibrary: DeviceLibraryInspecting {
             return []
         }
 
-        let children = try FileManager.default.contentsOfDirectory(
+        guard let enumerator = FileManager.default.enumerator(
             at: directoryURL,
             includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )
-        return try children.filter {
-            try $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+        ) else {
+            return []
         }
+
+        var directories: [URL] = []
+        for case let childURL as URL in enumerator {
+            try Task.checkCancellation()
+            if try childURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
+                directories.append(childURL)
+            }
+        }
+        return directories
     }
 
     public func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        try recursiveFiles(in: directoryURL) { _ in }
+    }
+
+    public func recursiveFiles(
+        in directoryURL: URL,
+        progress: @escaping @Sendable (Int) -> Void
+    ) throws -> [URL] {
         guard FileManager.default.fileExists(atPath: directoryURL.path) else {
             return []
         }
@@ -63,11 +96,16 @@ public struct FileSystemDeviceLibrary: DeviceLibraryInspecting {
 
         var fileURLs: [URL] = []
         for case let fileURL as URL in enumerator {
+            try Task.checkCancellation()
             let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
             if resourceValues.isRegularFile == true {
                 fileURLs.append(fileURL)
+                if fileURLs.count.isMultiple(of: 100) {
+                    progress(fileURLs.count)
+                }
             }
         }
+        progress(fileURLs.count)
         return fileURLs
     }
 }

@@ -130,7 +130,7 @@ struct SyncPlanViewModelTests {
         }
         let planner = makeTestPlanner(
             deviceLibrary: StubPlanDeviceLibrary(
-                filesByDirectory: [device.podcastDirectoryURL.path: [oldEpisodeURL] + newerEpisodeURLs]
+                filesByDirectory: [managedDirectory.path: [oldEpisodeURL] + newerEpisodeURLs]
             )
         )
         let viewModel = SyncPlanViewModel(planner: planner)
@@ -173,6 +173,44 @@ struct SyncPlanViewModelTests {
 
         #expect(deviceLibrary.allRequestsWereOffMainThread)
     }
+
+    @Test
+    func buildPlanReusesManagedInventoryWithoutReadingTheDeviceAgain() async {
+        let subscription = FeedSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "SPM Test Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+        )
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(subscription.title, isDirectory: true)
+        let managedFile = managedDirectory.appendingPathComponent(
+            "2026.04.21-Episode-(Example Podcast).mp3",
+            isDirectory: false
+        )
+        let inventory = ManagedDeviceLibraryInventory(
+            device: device,
+            subscriptions: [subscription],
+            managedDirectoryURLsBySubscriptionID: [subscription.id: managedDirectory],
+            filesBySubscriptionID: [subscription.id: [managedFile]]
+        )
+        let deviceLibrary = CountingPlanDeviceLibrary()
+        let viewModel = SyncPlanViewModel(planner: makeTestPlanner(deviceLibrary: deviceLibrary))
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            managedInventory: inventory,
+            ejectAfterSync: false
+        )
+
+        #expect(viewModel.plan != nil)
+        #expect(deviceLibrary.requestCount == 0)
+    }
 }
 
 private struct StubPlanDeviceLibrary: DeviceLibraryInspecting {
@@ -212,5 +250,33 @@ private final class ThreadCapturingPlanDeviceLibrary: DeviceLibraryInspecting, @
         lock.withLock {
             requestMainThreadValues.append(Thread.isMainThread)
         }
+    }
+}
+
+private final class CountingPlanDeviceLibrary: DeviceLibraryInspecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var requests = 0
+
+    var requestCount: Int {
+        lock.withLock { requests }
+    }
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    func recursiveFiles(in directoryURL: URL) throws -> [URL] {
+        recordRequest()
+        return []
+    }
+
+    private func recordRequest() {
+        lock.withLock { requests += 1 }
     }
 }

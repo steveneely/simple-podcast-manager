@@ -54,6 +54,7 @@ public struct MainView: View {
     @State private var insecureDownloadEpisode: Episode?
     @State private var insecureDownloadQueue: [Episode] = []
     @State private var temporarilyAllowedInsecureArtworkURLs: Set<URL> = []
+    @State private var deviceTopologyRefreshTask: Task<Void, Never>?
 
     public init(
         viewModel: MainViewModel,
@@ -238,6 +239,11 @@ public struct MainView: View {
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didRenameVolumeNotification)) { _ in
             handleDeviceTopologyChange()
+        }
+        .onDisappear {
+            deviceTopologyRefreshTask?.cancel()
+            deviceLibraryViewModel.cancelAllWork()
+            syncPlanViewModel.cancelPlanning()
         }
         .alert(
             pendingFeedDeletionConfirmation?.title ?? "Delete Podcast Feed?",
@@ -472,14 +478,54 @@ public struct MainView: View {
 
     @ViewBuilder
     private var otherAudioSection: some View {
-        if deviceViewModel.selectedDevice != nil, !deviceLibraryViewModel.otherAudioFiles.isEmpty {
+        if deviceViewModel.selectedDevice != nil, deviceLibraryViewModel.isRefreshingManagedInventory {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Reading podcasts on device…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if deviceViewModel.selectedDevice != nil, deviceLibraryViewModel.isReviewingOtherAudio {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Reviewing files… \(deviceLibraryViewModel.otherAudioReviewInspectedFileCount) checked")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel") {
+                    deviceLibraryViewModel.cancelOtherAudioReview()
+                }
+            }
+        } else if deviceViewModel.selectedDevice != nil, deviceLibraryViewModel.hasOtherAudio {
             OtherAudioSectionView(
                 files: deviceLibraryViewModel.otherAudioFiles,
                 selectedFiles: selectedOtherAudioDeletionTargets,
                 relativePath: relativeDevicePodcastPath,
                 onToggleSelection: toggleOtherAudioDeletionSelection,
-                onDeleteSelected: { isShowingOtherAudioDeletionConfirmation = true }
+                onDeleteSelected: { isShowingOtherAudioDeletionConfirmation = true },
+                onClose: {
+                    selectedOtherAudioDeletionTargets = []
+                    deviceLibraryViewModel.dismissOtherAudioResults()
+                }
             )
+        } else if deviceViewModel.selectedDevice != nil {
+            HStack {
+                Button("Review Files in Podcast Folder…") {
+                    Task {
+                        await deviceLibraryViewModel.reviewOtherAudio(on: deviceViewModel.selectedDevice)
+                        pruneOtherAudioDeletionTargets()
+                    }
+                }
+                .buttonStyle(.link)
+
+                if let message = deviceLibraryViewModel.otherAudioReviewMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -865,6 +911,14 @@ public struct MainView: View {
 
     private func rebuildSyncPlan() {
         syncPlanViewModel.prepareForPlanRebuild()
+        if let selectedDevice = deviceViewModel.selectedDevice,
+           deviceLibraryViewModel.managedInventory?.canBeUsed(
+               on: selectedDevice,
+               subscriptions: viewModel.feedSubscriptions
+           ) != true {
+            syncPlanViewModel.cancelPlanning()
+            return
+        }
         Task {
             await syncPlanViewModel.buildPlan(
                 device: deviceViewModel.selectedDevice,
@@ -873,6 +927,7 @@ public struct MainView: View {
                 manualDeleteTargets: manuallySelectedDeletionTargets,
                 cleanupPolicy: viewModel.settings.deviceCleanupPolicy,
                 excludedCleanupTargets: excludedCleanupDeletionTargets,
+                managedInventory: deviceLibraryViewModel.managedInventory,
                 ejectAfterSync: isEjectAfterSyncEnabled
             )
         }
@@ -889,8 +944,12 @@ public struct MainView: View {
     }
 
     private func handleDeviceTopologyChange() {
-        Task {
+        deviceTopologyRefreshTask?.cancel()
+        deviceTopologyRefreshTask = Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
             await deviceViewModel.refresh()
+            guard !Task.isCancelled else { return }
             await refreshDeviceLibrary()
         }
     }
@@ -1362,7 +1421,6 @@ public struct MainView: View {
             on: deviceViewModel.selectedDevice
         )
         selectedOtherAudioDeletionTargets = []
-        Task { await refreshDeviceLibrary() }
     }
 
     private func pruneManualDeletionTargets() {

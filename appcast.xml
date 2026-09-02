@@ -3,17 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.16.4</title>
-            <pubDate>Tue, 01 Sep 2026 17:41:58 -0600</pubDate>
-            <sparkle:version>84</sparkle:version>
-            <sparkle:shortVersionString>1.16.4</sparkle:shortVersionString>
+            <title>1.16.5</title>
+            <pubDate>Wed, 02 Sep 2026 16:15:22 -0600</pubDate>
+            <sparkle:version>85</sparkle:version>
+            <sparkle:shortVersionString>1.16.5</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.4
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.5
 
-- Keeps downloaded episodes listed and shows an error when their local files cannot be deleted, so cleanup can be retried safely.
+- Keeps the app responsive when devices contain large music libraries by limiting automatic inventory to app-managed podcast folders.
+- Makes unrelated-audio review explicit and cancellable, and displays its results only when files are found.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.4/SimplePodcastManager-v1.16.4.dmg" length="7192216" type="application/octet-stream" sparkle:edSignature="0m7vYLvNA/6a2Cwd3Rt0HUCEJQj27JB6q7PrE0MabQeTK70/GB2kMfhEDJxh4OvtAO4Na64m9NYMrHvtiAtvBg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.5/SimplePodcastManager-v1.16.5.dmg" length="7243286" type="application/octet-stream" sparkle:edSignature="pmO2xc240zndBSvnW6OrAeRn10sH6J1/LnlF63CNoGNRrwfDA3LHGKrQgaSUwcRIOjFlUYkmgxzjhfoV+9fGCA=="/>
         </item>
     </channel>
 </rss>

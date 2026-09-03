@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.17.0</title>
-            <pubDate>Thu, 03 Sep 2026 11:02:13 -0600</pubDate>
-            <sparkle:version>89</sparkle:version>
-            <sparkle:shortVersionString>1.17.0</sparkle:shortVersionString>
+            <title>1.17.1</title>
+            <pubDate>Thu, 03 Sep 2026 11:10:28 -0600</pubDate>
+            <sparkle:version>90</sparkle:version>
+            <sparkle:shortVersionString>1.17.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,13 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="90" data-release-tag="v1.17.1">
+            <h2>v1.17.1</h2>
+            <ul>
+                <li>Correctly recognizes recent episodes in RSS feeds that use two-digit publication years, preventing shows from being mislabeled inactive.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="89" data-release-tag="v1.17.0">
             <h2>v1.17.0</h2>
             <ul>
@@ -564,7 +571,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.17.0/SimplePodcastManager-v1.17.0.dmg" length="7301964" type="application/octet-stream" sparkle:edSignature="nVxQ8Tnuu2MZrCYapyOP2Whzh+RSQokl9yg89k2VOoS3lU1YQFKCQI8kg9W1vOaP9gDSdxNwKAp8aTIV8OGADA=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.17.1/SimplePodcastManager-v1.17.1.dmg" length="7307863" type="application/octet-stream" sparkle:edSignature="2zIhtusogS4tHTKXf3cHPXsjKKn7g0GZzraq6eCJgshqsLX5sqZkLKcO3+vL7HKsmrqzJ/3UWVkvyQ9idJVWDA=="/>
         </item>
     </channel>
 </rss>

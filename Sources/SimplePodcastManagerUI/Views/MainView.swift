@@ -124,7 +124,9 @@ public struct MainView: View {
             }
 
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .padding(.top, 8)
         .frame(minWidth: 720, minHeight: 460)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

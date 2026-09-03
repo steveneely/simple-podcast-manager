@@ -33,6 +33,7 @@ struct SimplePodcastManagerDesktopApp: App {
                 applyAppearance(appearancePreference)
             }
         }
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 720)
         .commands {
             CommandGroup(replacing: .newItem) {

@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.18.0</title>
-            <pubDate>Thu, 03 Sep 2026 12:57:22 -0600</pubDate>
-            <sparkle:version>91</sparkle:version>
-            <sparkle:shortVersionString>1.18.0</sparkle:shortVersionString>
+            <title>1.18.1</title>
+            <pubDate>Thu, 03 Sep 2026 15:38:32 -0600</pubDate>
+            <sparkle:version>92</sparkle:version>
+            <sparkle:shortVersionString>1.18.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,13 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="92" data-release-tag="v1.18.1">
+            <h2>v1.18.1</h2>
+            <ul>
+                <li>Removes the redundant app name from the main window title bar and tightens the spacing above the device panel.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="91" data-release-tag="v1.18.0">
             <h2>v1.18.0</h2>
             <ul>
@@ -580,7 +587,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.18.0/SimplePodcastManager-v1.18.0.dmg" length="7397622" type="application/octet-stream" sparkle:edSignature="+0GvCR+jLcfroXzZgJtIhVgoWKSos7Xt8ctctwzCcnI/qpm8mFnw+ZmhiA+f4WRS/RLGsAqSqSX+3j8oZnVTBg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.18.1/SimplePodcastManager-v1.18.1.dmg" length="7403552" type="application/octet-stream" sparkle:edSignature="ovP5MqkHCszIPkXYdPw3wRvWAiK6p6IAX7+bO8jkQ0q7XIgVj96hTk2yOqmgsZz1S3qUXdwdmr5rvZxtDXEqAg=="/>
         </item>
     </channel>
 </rss>

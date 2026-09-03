@@ -6,6 +6,7 @@ import SimplePodcastManagerCore
 @Observable
 public final class DeviceLibraryViewModel {
     public private(set) var otherAudioFiles: [URL]
+    public private(set) var hasOtherAudioAvailable: Bool
     public private(set) var isReviewingOtherAudio: Bool
     public private(set) var otherAudioReviewInspectedFileCount: Int
     public private(set) var otherAudioReviewMessage: String?
@@ -21,7 +22,7 @@ public final class DeviceLibraryViewModel {
     private var filesByEpisodeStemBySubscriptionID: [UUID: [String: URL]]
     private var latestRefreshID: UUID?
     private var latestOtherAudioReviewID: UUID?
-    private var inventoryTask: Task<ManagedDeviceLibraryInventory, Error>?
+    private var inventoryTask: Task<(ManagedDeviceLibraryInventory, Bool), Error>?
     private var otherAudioReviewTask: Task<[URL], Error>?
 
     public init(
@@ -39,6 +40,7 @@ public final class DeviceLibraryViewModel {
         self.filesBySubscriptionID = [:]
         self.filesByEpisodeStemBySubscriptionID = [:]
         self.otherAudioFiles = []
+        self.hasOtherAudioAvailable = false
         self.isReviewingOtherAudio = false
         self.otherAudioReviewInspectedFileCount = 0
         self.otherAudioReviewMessage = nil
@@ -50,6 +52,7 @@ public final class DeviceLibraryViewModel {
     public func refresh(device: DeviceInfo?, subscriptions: [FeedSubscription]) async {
         inventoryTask?.cancel()
         cancelOtherAudioReview(clearResults: true)
+        hasOtherAudioAvailable = false
         let refreshID = UUID()
         latestRefreshID = refreshID
 
@@ -67,14 +70,32 @@ public final class DeviceLibraryViewModel {
         do {
             try safetyValidator.validateDevice(device)
             let inventoryBuilder = inventoryBuilder
+            let deviceLibrary = deviceLibrary
             let task = Task.detached(priority: .userInitiated) {
-                try inventoryBuilder.makeInventory(device: device, subscriptions: subscriptions)
+                let inventory = try inventoryBuilder.makeInventory(
+                    device: device,
+                    subscriptions: subscriptions
+                )
+                let hasOtherAudio: Bool
+                do {
+                    hasOtherAudio = try deviceLibrary.containsSupportedAudioFile(
+                        in: device.podcastDirectoryURL,
+                        excluding: inventory.allManagedFileURLs
+                    )
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    // This optional hint must never prevent normal device inventory or sync.
+                    hasOtherAudio = false
+                }
+                return (inventory, hasOtherAudio)
             }
             inventoryTask = task
-            let inventory = try await task.value
+            let (inventory, hasOtherAudio) = try await task.value
             guard latestRefreshID == refreshID else { return }
 
             managedInventory = inventory
+            hasOtherAudioAvailable = hasOtherAudio
             filesBySubscriptionID = Dictionary(uniqueKeysWithValues: subscriptions.map {
                 ($0.id, inventory.files(for: $0))
             })
@@ -89,6 +110,7 @@ public final class DeviceLibraryViewModel {
             filesBySubscriptionID = [:]
             filesByEpisodeStemBySubscriptionID = [:]
             managedInventory = nil
+            hasOtherAudioAvailable = false
             isRefreshingManagedInventory = false
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             inventoryTask = nil
@@ -134,6 +156,7 @@ public final class DeviceLibraryViewModel {
             guard latestOtherAudioReviewID == reviewID else { return }
 
             otherAudioFiles = reviewedFiles
+            hasOtherAudioAvailable = !reviewedFiles.isEmpty
             otherAudioReviewMessage = reviewedFiles.isEmpty ? "No other audio found." : nil
             lastErrorMessage = nil
             isReviewingOtherAudio = false
@@ -224,6 +247,7 @@ public final class DeviceLibraryViewModel {
 
             otherAudioFiles.removeAll { deletedURLs.contains($0.standardizedFileURL) }
             if otherAudioFiles.isEmpty {
+                hasOtherAudioAvailable = false
                 otherAudioReviewMessage = "No other audio found."
             }
             lastErrorMessage = nil
@@ -237,21 +261,11 @@ public final class DeviceLibraryViewModel {
         excluding managedFileURLs: Set<URL>
     ) -> [URL] {
         deviceFiles
-            .filter { isAudioFile($0) }
-            .filter { !isAppleDoubleSidecar($0) }
+            .filter(DeviceAudioFile.isSupported)
             .filter { !managedFileURLs.contains($0.standardizedFileURL) }
             .sorted {
                 $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
             }
-    }
-
-    nonisolated private static func isAudioFile(_ fileURL: URL) -> Bool {
-        let audioExtensions = Set(["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma"])
-        return audioExtensions.contains(fileURL.pathExtension.lowercased())
-    }
-
-    nonisolated private static func isAppleDoubleSidecar(_ fileURL: URL) -> Bool {
-        fileURL.lastPathComponent.hasPrefix("._")
     }
 
     private func cancelOtherAudioReview(clearResults: Bool) {

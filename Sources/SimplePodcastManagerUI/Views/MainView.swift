@@ -499,7 +499,8 @@ public struct MainView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        } else if deviceViewModel.selectedDevice != nil {
+        } else if deviceViewModel.selectedDevice != nil,
+                  deviceLibraryViewModel.hasOtherAudioAvailable {
             HStack(spacing: 8) {
                 if deviceLibraryViewModel.hasOtherAudio {
                     Label(

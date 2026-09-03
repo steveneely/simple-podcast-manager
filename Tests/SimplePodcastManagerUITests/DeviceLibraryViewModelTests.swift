@@ -279,6 +279,7 @@ struct DeviceLibraryViewModelTests {
 
         #expect(viewModel.files(for: subscription) == [managedFile])
         #expect(viewModel.otherAudioFiles.isEmpty)
+        #expect(viewModel.hasOtherAudioAvailable)
 
         await viewModel.reviewOtherAudio(on: device)
 
@@ -379,6 +380,7 @@ struct DeviceLibraryViewModelTests {
 
         #expect(deviceLibrary.directoryRequestCount == 1)
         #expect(deviceLibrary.recursiveFileRequestCount == 0)
+        #expect(deviceLibrary.audioPresenceRequestCount == 1)
         #expect(deviceLibrary.directFileRequestCount == 2)
         #expect(viewModel.files(for: subscriptions[0]) == [files[0]])
         #expect(viewModel.files(for: subscriptions[1]) == [files[1]])
@@ -404,8 +406,10 @@ struct DeviceLibraryViewModelTests {
         #expect(deviceLibrary.directoryRequestCount == 1)
         #expect(deviceLibrary.directFileRequestCount == 1)
         #expect(deviceLibrary.recursiveFileRequestCount == 0)
+        #expect(deviceLibrary.audioPresenceRequestCount == 1)
         #expect(viewModel.otherAudioFiles.isEmpty)
         #expect(!viewModel.hasOtherAudio)
+        #expect(viewModel.hasOtherAudioAvailable)
     }
 
     @Test
@@ -426,11 +430,39 @@ struct DeviceLibraryViewModelTests {
         )
 
         await viewModel.refresh(device: device, subscriptions: [subscription])
+        #expect(!viewModel.hasOtherAudioAvailable)
         await viewModel.reviewOtherAudio(on: device)
 
         #expect(viewModel.otherAudioFiles.isEmpty)
         #expect(!viewModel.hasOtherAudio)
         #expect(viewModel.otherAudioReviewMessage == "No other audio found.")
+    }
+
+    @Test
+    func failedOptionalAudioPresenceProbeDoesNotBlockManagedInventory() async {
+        let subscription = FeedSubscription(
+            title: "ATP",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        )
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true)
+        let managedFile = managedDirectory.appendingPathComponent("2026.04.21-Episode-(ATP).mp3")
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: AudioPresenceFailingDeviceLibrary(
+                managedDirectory: managedDirectory,
+                managedFile: managedFile
+            )
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription])
+
+        #expect(viewModel.files(for: subscription) == [managedFile])
+        #expect(!viewModel.hasOtherAudioAvailable)
+        #expect(viewModel.lastErrorMessage == nil)
     }
 
     @Test
@@ -531,6 +563,7 @@ private final class CountingDeviceLibrary: DeviceLibraryInspecting, @unchecked S
     private(set) var directoryRequestCount = 0
     private(set) var recursiveFileRequestCount = 0
     private(set) var directFileRequestCount = 0
+    private(set) var audioPresenceRequestCount = 0
 
     init(directories: [URL], filesByDirectory: [URL: [URL]]) {
         self.directoryURLs = directories
@@ -547,6 +580,15 @@ private final class CountingDeviceLibrary: DeviceLibraryInspecting, @unchecked S
         return directoryURLs
     }
 
+    func containsSupportedAudioFile(in directoryURL: URL, excluding fileURLs: Set<URL>) throws -> Bool {
+        audioPresenceRequestCount += 1
+        let excludedFileURLs = Set(fileURLs.map(\.standardizedFileURL))
+        return filesByDirectory.values.joined().contains {
+            DeviceAudioFile.isSupported($0)
+                && !excludedFileURLs.contains($0.standardizedFileURL)
+        }
+    }
+
     func recursiveFiles(in directoryURL: URL) throws -> [URL] {
         recursiveFileRequestCount += 1
         return filesByDirectory.values.flatMap { $0 }
@@ -558,6 +600,7 @@ private final class VirtualLargeDeviceLibrary: DeviceLibraryInspecting, @uncheck
     private(set) var directoryRequestCount = 0
     private(set) var recursiveFileRequestCount = 0
     private(set) var directFileRequestCount = 0
+    private(set) var audioPresenceRequestCount = 0
 
     init(unrelatedFileCount: Int) {
         self.unrelatedFileCount = unrelatedFileCount
@@ -571,6 +614,11 @@ private final class VirtualLargeDeviceLibrary: DeviceLibraryInspecting, @uncheck
     func directories(in directoryURL: URL) throws -> [URL] {
         directoryRequestCount += 1
         return []
+    }
+
+    func containsSupportedAudioFile(in directoryURL: URL, excluding fileURLs: Set<URL>) throws -> Bool {
+        audioPresenceRequestCount += 1
+        return unrelatedFileCount > 0
     }
 
     func recursiveFiles(in directoryURL: URL) throws -> [URL] {
@@ -610,6 +658,23 @@ private final class CancellationAwareDeviceLibrary: DeviceLibraryInspecting, @un
         }
         lock.withLock { cancellationWasObserved = true }
         throw CancellationError()
+    }
+}
+
+private struct AudioPresenceFailingDeviceLibrary: DeviceLibraryInspecting {
+    let managedDirectory: URL
+    let managedFile: URL
+
+    func files(in directoryURL: URL) throws -> [URL] {
+        directoryURL.standardizedFileURL == managedDirectory.standardizedFileURL ? [managedFile] : []
+    }
+
+    func directories(in directoryURL: URL) throws -> [URL] {
+        [managedDirectory]
+    }
+
+    func containsSupportedAudioFile(in directoryURL: URL, excluding fileURLs: Set<URL>) throws -> Bool {
+        throw CocoaError(.fileReadNoPermission)
     }
 }
 

@@ -85,7 +85,7 @@ Connect the player, then open a show:
 - Clear the box to mark the episode `Remove on next sync`. Select it again to keep the episode.
 - Use `Older episodes on MP3 player` at the bottom of the list for files no longer included in the current feed. The same checkbox is available there.
 
-To inspect unrelated audio inside the configured podcast folder, click `Review Files in Podcast Folder…` in the device section. The scan runs in the background and can be cancelled. The `Other Audio` section appears only when files are found. Other audio is deleted only when you select and confirm those exact files; the cleanup setting never selects it.
+When Simple Podcast Manager detects unrelated audio inside the configured podcast folder, the device section shows `Scan for Other Audio…`. Click it to open the review window and enumerate those files. The scan runs in the background and can be cancelled. Other audio is deleted only when you select and confirm those exact files; the cleanup setting never selects it.
 
 ## Back up, restore, and update
 

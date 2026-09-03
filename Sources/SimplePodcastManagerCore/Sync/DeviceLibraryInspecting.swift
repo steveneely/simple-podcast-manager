@@ -3,6 +3,7 @@ import Foundation
 public protocol DeviceLibraryInspecting: Sendable {
     func files(in directoryURL: URL) throws -> [URL]
     func directories(in directoryURL: URL) throws -> [URL]
+    func containsSupportedAudioFile(in directoryURL: URL, excluding fileURLs: Set<URL>) throws -> Bool
     func recursiveFiles(in directoryURL: URL) throws -> [URL]
     func recursiveFiles(
         in directoryURL: URL,
@@ -24,6 +25,14 @@ public extension DeviceLibraryInspecting {
             discoveredFiles.append(contentsOf: try recursiveFiles(in: directory))
         }
         return discoveredFiles
+    }
+
+    func containsSupportedAudioFile(in directoryURL: URL, excluding fileURLs: Set<URL>) throws -> Bool {
+        let excludedFileURLs = Set(fileURLs.map(\.standardizedFileURL))
+        return try recursiveFiles(in: directoryURL).contains {
+            DeviceAudioFile.isSupported($0)
+                && !excludedFileURLs.contains($0.standardizedFileURL)
+        }
     }
 
     func recursiveFiles(
@@ -72,6 +81,35 @@ public struct FileSystemDeviceLibrary: DeviceLibraryInspecting {
             }
         }
         return directories
+    }
+
+    public func containsSupportedAudioFile(
+        in directoryURL: URL,
+        excluding fileURLs: Set<URL>
+    ) throws -> Bool {
+        guard FileManager.default.fileExists(atPath: directoryURL.path) else {
+            return false
+        }
+
+        guard let enumerator = FileManager.default.enumerator(
+            at: directoryURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return false
+        }
+
+        let excludedFileURLs = Set(fileURLs.map(\.standardizedFileURL))
+        for case let fileURL as URL in enumerator {
+            try Task.checkCancellation()
+            guard DeviceAudioFile.isSupported(fileURL) else { continue }
+            let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
+            if resourceValues.isRegularFile == true,
+               !excludedFileURLs.contains(fileURL.standardizedFileURL) {
+                return true
+            }
+        }
+        return false
     }
 
     public func recursiveFiles(in directoryURL: URL) throws -> [URL] {

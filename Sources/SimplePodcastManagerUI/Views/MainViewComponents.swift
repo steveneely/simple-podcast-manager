@@ -303,76 +303,210 @@ struct FeedSidebarView: View {
     }
 }
 
-struct OtherAudioSectionView: View {
+struct OtherAudioReviewView: View {
+    let deviceName: String
+    let podcastDirectoryPath: String
     let files: [URL]
     let selectedFiles: Set<URL>
+    let isReviewing: Bool
+    let inspectedFileCount: Int
+    let reviewMessage: String?
+    let errorMessage: String?
     let relativePath: (URL) -> String
     let onToggleSelection: (URL) -> Void
+    let onReview: () -> Void
+    let onCancelReview: () -> Void
     let onDeleteSelected: () -> Void
     let onClose: () -> Void
 
-    private var fileListHeight: CGFloat {
-        let rowHeight: CGFloat = 22
-        let maximumListHeight: CGFloat = 96
-        return min(CGFloat(files.count) * rowHeight, maximumListHeight)
+    private var selectionDescription: String {
+        let count = selectedFiles.count
+        return "\(count) file\(count == 1 ? "" : "s") selected"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Other Audio on Device")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+        VStack(spacing: 0) {
+            header
+            Divider()
 
-                Text("\(files.count) file\(files.count == 1 ? "" : "s")")
+            Group {
+                if isReviewing {
+                    reviewingContent
+                } else if !files.isEmpty {
+                    resultsContent
+                } else if let errorMessage {
+                    errorContent(errorMessage)
+                } else {
+                    emptyContent
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Divider()
+            footer
+        }
+        .frame(minWidth: 620, minHeight: 460)
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "waveform.badge.magnifyingglass")
+                .font(.title2)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 40, height: 40)
+                .background(Color.accentColor.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Review Device Audio")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                Text("\(deviceName)  ·  \(podcastDirectoryPath)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("Delete Selected", action: onDeleteSelected)
-                    .disabled(selectedFiles.isEmpty)
-
-                HoverIconButton(
-                    systemName: "xmark",
-                    helpText: "Close other audio",
-                    action: onClose
-                )
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
-            Text("These files are under the device podcast folder but are not associated with a podcast subscription. They are never deleted by Sync.")
+            Spacer()
+
+            HoverIconButton(systemName: "xmark", helpText: "Close review", action: onClose)
+        }
+        .padding(20)
+    }
+
+    private var reviewingContent: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+                .controlSize(.large)
+            Text("Checking the podcast folder…")
+                .font(.headline)
+            Text("\(inspectedFileCount.formatted()) files checked")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Text("Large libraries may take a moment. You can cancel without changing anything on the device.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+        }
+        .padding(32)
+    }
+
+    private var resultsContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(.blue)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(files.count.formatted()) other audio file\(files.count == 1 ? "" : "s") found")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("These files are not associated with a podcast in Simple Podcast Manager. Sync always leaves them untouched.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.blue.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(files, id: \.path) { fileURL in
-                        let standardizedURL = fileURL.standardizedFileURL
-                        Button {
-                            onToggleSelection(fileURL)
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: selectedFiles.contains(standardizedURL) ? "checkmark.square.fill" : "square")
-                                    .foregroundStyle(selectedFiles.contains(standardizedURL) ? Color.red : Color.secondary)
-                                Text(relativePath(fileURL))
-                                    .font(.caption)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
+                        fileRow(fileURL)
+                        if fileURL != files.last {
+                            Divider()
+                                .padding(.leading, 34)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
-            .frame(height: fileListHeight)
+            .background(Color(NSColor.controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.windowBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(20)
+    }
+
+    private func fileRow(_ fileURL: URL) -> some View {
+        let standardizedURL = fileURL.standardizedFileURL
+        let isSelected = selectedFiles.contains(standardizedURL)
+
+        return Button {
+            onToggleSelection(fileURL)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.body)
+                    .foregroundStyle(isSelected ? Color.red : Color.secondary)
+                Text(relativePath(fileURL))
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background(isSelected ? Color.red.opacity(0.06) : Color.clear)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(relativePath(fileURL))
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    private var emptyContent: some View {
+        ContentUnavailableView(
+            "No Other Audio Found",
+            systemImage: "checkmark.circle",
+            description: Text(reviewMessage ?? "The podcast folder contains only audio managed by Simple Podcast Manager.")
+        )
+    }
+
+    private func errorContent(_ message: String) -> some View {
+        ContentUnavailableView(
+            "Couldn’t Review Device Audio",
+            systemImage: "exclamationmark.triangle",
+            description: Text(message)
+        )
+    }
+
+    @ViewBuilder
+    private var footer: some View {
+        HStack {
+            if !files.isEmpty {
+                Text(selectionDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if isReviewing {
+                Button("Cancel", action: onCancelReview)
+            } else {
+                Button("Check Again", systemImage: "arrow.clockwise", action: onReview)
+                    .disabled(!files.isEmpty && !selectedFiles.isEmpty)
+
+                Button("Close", action: onClose)
+
+                if !files.isEmpty {
+                    Button("Delete Selected…", role: .destructive, action: onDeleteSelected)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .disabled(selectedFiles.isEmpty)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
     }
 }
 

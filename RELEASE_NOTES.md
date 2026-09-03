@@ -1,3 +1,4 @@
-# Simple Podcast Manager v1.16.6
+# Simple Podcast Manager v1.16.7
 
-- Lets you replace an incomplete episode copy directly from the Sync dialog, with clear confirmation when the replacement plan is ready and a specific explanation if it cannot be prepared.
+- Moves other-audio scanning and file selection into a focused review window with clearer progress, results, and deletion controls.
+- Keeps the device card compact with a subtle Scan for Other Audio button and only shows other-audio status when files are found.

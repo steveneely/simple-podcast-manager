@@ -50,6 +50,7 @@ public struct MainView: View {
     @State private var excludedCleanupDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
+    @State private var isShowingOtherAudioReview = false
     @State private var appDataMessage: String?
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
     @State private var insecureDownloadEpisode: Episode?
@@ -220,6 +221,12 @@ public struct MainView: View {
         .sheet(isPresented: $isShowingSyncDialog) {
             syncDialog
         }
+        .sheet(
+            isPresented: $isShowingOtherAudioReview,
+            onDismiss: finishOtherAudioReviewPresentation
+        ) {
+            otherAudioReviewSheet
+        }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPodcastFeed)) { _ in
             feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
         }
@@ -240,6 +247,11 @@ public struct MainView: View {
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didRenameVolumeNotification)) { _ in
             handleDeviceTopologyChange()
+        }
+        .onChange(of: deviceViewModel.selectedDevice?.id) { previousDeviceID, selectedDeviceID in
+            if previousDeviceID != selectedDeviceID {
+                isShowingOtherAudioReview = false
+            }
         }
         .onDisappear {
             deviceTopologyRefreshTask?.cancel()
@@ -487,46 +499,55 @@ public struct MainView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        } else if deviceViewModel.selectedDevice != nil, deviceLibraryViewModel.isReviewingOtherAudio {
+        } else if deviceViewModel.selectedDevice != nil {
             HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Reviewing files… \(deviceLibraryViewModel.otherAudioReviewInspectedFileCount) checked")
+                if deviceLibraryViewModel.hasOtherAudio {
+                    Label(
+                        "\(deviceLibraryViewModel.otherAudioFiles.count.formatted()) other audio file\(deviceLibraryViewModel.otherAudioFiles.count == 1 ? "" : "s")",
+                        systemImage: "waveform"
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Spacer()
-                Button("Cancel") {
-                    deviceLibraryViewModel.cancelOtherAudioReview()
+
+                    Spacer()
+
+                    Button("Review…") {
+                        presentOtherAudioReview()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                } else {
+                    Button {
+                        presentOtherAudioReview()
+                    } label: {
+                        Label("Scan for Other Audio…", systemImage: "waveform.badge.magnifyingglass")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
-        } else if deviceViewModel.selectedDevice != nil, deviceLibraryViewModel.hasOtherAudio {
-            OtherAudioSectionView(
+        }
+    }
+
+    @ViewBuilder
+    private var otherAudioReviewSheet: some View {
+        if let selectedDevice = deviceViewModel.selectedDevice {
+            OtherAudioReviewView(
+                deviceName: selectedDevice.name,
+                podcastDirectoryPath: selectedDevice.podcastDirectoryURL.path,
                 files: deviceLibraryViewModel.otherAudioFiles,
                 selectedFiles: selectedOtherAudioDeletionTargets,
+                isReviewing: deviceLibraryViewModel.isReviewingOtherAudio,
+                inspectedFileCount: deviceLibraryViewModel.otherAudioReviewInspectedFileCount,
+                reviewMessage: deviceLibraryViewModel.otherAudioReviewMessage,
+                errorMessage: deviceLibraryViewModel.lastErrorMessage,
                 relativePath: relativeDevicePodcastPath,
                 onToggleSelection: toggleOtherAudioDeletionSelection,
+                onReview: startOtherAudioReview,
+                onCancelReview: deviceLibraryViewModel.cancelOtherAudioReview,
                 onDeleteSelected: { isShowingOtherAudioDeletionConfirmation = true },
-                onClose: {
-                    selectedOtherAudioDeletionTargets = []
-                    deviceLibraryViewModel.dismissOtherAudioResults()
-                }
+                onClose: { isShowingOtherAudioReview = false }
             )
-        } else if deviceViewModel.selectedDevice != nil {
-            HStack {
-                Button("Review Files in Podcast Folder…") {
-                    Task {
-                        await deviceLibraryViewModel.reviewOtherAudio(on: deviceViewModel.selectedDevice)
-                        pruneOtherAudioDeletionTargets()
-                    }
-                }
-                .buttonStyle(.link)
-
-                if let message = deviceLibraryViewModel.otherAudioReviewMessage {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
     }
 
@@ -1420,6 +1441,30 @@ public struct MainView: View {
             excludedCleanupDeletionTargets.remove(fileURL)
         }
         rebuildSyncPlan()
+    }
+
+    private func presentOtherAudioReview() {
+        guard deviceViewModel.selectedDevice != nil else { return }
+        isShowingOtherAudioReview = true
+
+        if !deviceLibraryViewModel.hasOtherAudio {
+            startOtherAudioReview()
+        }
+    }
+
+    private func startOtherAudioReview() {
+        selectedOtherAudioDeletionTargets = []
+        Task {
+            await deviceLibraryViewModel.reviewOtherAudio(on: deviceViewModel.selectedDevice)
+            pruneOtherAudioDeletionTargets()
+        }
+    }
+
+    private func finishOtherAudioReviewPresentation() {
+        if deviceLibraryViewModel.isReviewingOtherAudio {
+            deviceLibraryViewModel.cancelOtherAudioReview()
+        }
+        selectedOtherAudioDeletionTargets = []
     }
 
     private func toggleOtherAudioDeletionSelection(for fileURL: URL) {

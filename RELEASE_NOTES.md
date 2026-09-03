@@ -1,3 +1,5 @@
-# Simple Podcast Manager v1.17.1
+# Simple Podcast Manager v1.18.0
 
-- Correctly recognizes recent episodes in RSS feeds that use two-digit publication years, preventing shows from being mislabeled inactive.
+- Find podcasts by title or creator and add them directly from search, with feed URL entry still available.
+- Add a podcast from the empty show panel and avoid adding shows already in your library.
+- Retry failed searches without re-entering the search term.

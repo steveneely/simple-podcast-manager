@@ -172,9 +172,9 @@ public final class MainViewModel {
         in existingSubscriptions: [FeedSubscription],
         excluding excludedID: FeedSubscription.ID? = nil
     ) throws {
-        let normalizedURL = subscription.rssURL.absoluteString.lowercased()
+        let normalizedURL = FeedURLIdentity.normalized(subscription.rssURL)
         if existingSubscriptions.contains(where: {
-            $0.id != excludedID && $0.rssURL.absoluteString.lowercased() == normalizedURL
+            $0.id != excludedID && FeedURLIdentity.normalized($0.rssURL) == normalizedURL
         }) {
             throw MainViewModelError.duplicateSubscription
         }

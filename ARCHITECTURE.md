@@ -27,11 +27,12 @@ The UI should not contain sync logic. It should call focused core services and r
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface; shows device status and the last completed sync
 - `FeedSidebarView`: show selection and grouped refresh, edit, and remove actions for the selected feed
-- `FeedEditorView`: add or edit feeds
+- `FeedEditorView`: search for and add podcasts, or add and edit feeds by URL
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: app preferences, optional review-first device cleanup, device podcast folder, app data backup and restore
 - `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `FeedRefreshCoordinator`: coordinate refresh results, feed activity, and automatic episode preparation behind testable dependency boundaries
+- `PodcastSearchViewModel`: manage an explicit Podcast Index search without persisting directory results
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
 - `FeedActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
@@ -44,6 +45,7 @@ The UI should not contain sync logic. It should call focused core services and r
 ### Core Layer
 
 - `FeedResolving`: validate an edited RSS feed before replacing a working subscription and return its parsed cache entry
+- `PodcastSearching` and `PodcastIndexSearchService`: discover RSS feed URLs through Podcast Index's keyless search endpoint
 - `FeedService`: refresh, cache, and parse saved RSS subscriptions
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
 - `AutomaticDownloadPlanner`: identify newly observed episodes and apply the per-feed download limit
@@ -74,7 +76,7 @@ The core domain models are:
 Expected runtime flow:
 
 1. The app loads persisted feeds and settings off the main actor without selecting a show, then concurrently loads cached feed previews, one SQLite startup snapshot, and mounted-device discovery. Cached episodes can render as soon as their cache read finishes. Network refresh and device inventory then proceed independently in the background.
-2. The user adds a podcast by entering an RSS feed URL.
+2. The user adds a podcast by searching Podcast Index and selecting a result, or by entering an RSS feed URL directly.
 3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
 5. `FeedRefreshCoordinator` applies each refresh consistently to show activity and automatic-download planning; failed feeds do not advance either baseline. The user downloads episodes manually, or automatic-download settings prepare new episodes.
@@ -105,6 +107,8 @@ If the secure attempt fails, the UI asks before downloading over HTTP. A one-tim
 ## RSS Subscription
 
 Subscriptions are RSS-first. The add/edit flow captures a feed URL, resolves title and artwork metadata from the feed, and stores the subscription.
+
+New subscriptions default to a Podcast Index search. Search requests use the documented keyless HTTPS endpoint, are made only when the user submits a query, and use an ephemeral URL session without a response cache. Each request has a 15-second timeout and failures require an explicit user retry. Search results are discovery hints only: selecting a result supplies its RSS feed URL to the normal new-subscription flow, and the feed itself remains authoritative for stored title, artwork, description, and episodes. Results matching a subscription's normalized feed URL or title are marked as already added and cannot be selected. The persistence boundary also rejects common aliases of an existing web feed URL, including HTTP/HTTPS, default-port, trailing-slash, and fragment differences. HTTP search-result artwork is not loaded. Manual feed URL entry remains available when search is unavailable or a feed is absent from the index.
 
 The app expects RSS and calls FeedKit's RSS-specific parser directly. It does not use FeedKit's universal format detection.
 

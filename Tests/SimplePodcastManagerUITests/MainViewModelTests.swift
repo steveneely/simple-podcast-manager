@@ -195,6 +195,27 @@ struct MainViewModelTests {
     }
 
     @Test
+    func rejectsDuplicateFeedAcrossCommonURLAliases() async throws {
+        let existingURL = URL(string: "https://feeds.example.com/show/")!
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(
+                feedSubscriptions: [
+                    FeedSubscription(title: "Existing", rssURL: existingURL)
+                ]
+            )
+        )
+        let viewModel = MainViewModel(store: store)
+        await viewModel.load()
+
+        #expect(throws: MainViewModelError.duplicateSubscription) {
+            try viewModel.addFeed(
+                from: FeedDraft(rssURLString: "http://feeds.example.com:80/show#episodes")
+            )
+        }
+        #expect(store.configuration.feedSubscriptions.map(\.rssURL) == [existingURL])
+    }
+
+    @Test
     func applyFeedSummariesUpdatesStoredMetadata() async throws {
         let subscriptionID = UUID(uuidString: "7B9FEA54-E516-4B39-8156-5B83D0B96768")!
         let store = InMemoryConfigurationStore(

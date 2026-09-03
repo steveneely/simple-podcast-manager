@@ -105,7 +105,7 @@ public struct MainView: View {
                     )
 
                     Button("Add Podcast", systemImage: "plus") {
-                        feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
+                        presentNewFeedEditor()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -179,7 +179,8 @@ public struct MainView: View {
         .sheet(item: $feedEditorPresentation) { presentation in
             FeedEditorView(
                 title: presentation.draft.id == nil ? "Add Feed" : "Edit Feed",
-                draft: presentation.draft
+                draft: presentation.draft,
+                existingSubscriptions: viewModel.feedSubscriptions
             ) { updatedDraft in
                 try await saveFeed(updatedDraft)
             }
@@ -228,7 +229,7 @@ public struct MainView: View {
             otherAudioReviewSheet
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPodcastFeed)) { _ in
-            feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
+            presentNewFeedEditor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
             isShowingSettings = true
@@ -369,7 +370,7 @@ public struct MainView: View {
             artworkURL: { artworkURL(for: $0) },
             allowsInsecureArtwork: { allowsInsecureArtwork(for: $0) },
             onAdd: {
-                feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
+                presentNewFeedEditor()
             },
             onRefresh: { Task { await refreshAllContent() } },
             onRefreshSubscription: { subscription in
@@ -461,15 +462,25 @@ public struct MainView: View {
                     .listStyle(.plain)
                 }
             } else {
-                ContentUnavailableView(
-                    "Choose a Show",
-                    systemImage: "music.note.list",
-                    description: Text("Select a feed to browse its current episodes.")
-                )
+                VStack(spacing: 16) {
+                    ContentUnavailableView(
+                        "Choose a Show",
+                        systemImage: "music.note.list",
+                        description: Text("Select a feed to browse its current episodes, or add another show.")
+                    )
+
+                    Button("Add Podcast", systemImage: "plus") {
+                        presentNewFeedEditor()
+                    }
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .padding(14)
+    }
+
+    private func presentNewFeedEditor() {
+        feedEditorPresentation = FeedEditorPresentation(draft: FeedDraft())
     }
 
     @ViewBuilder

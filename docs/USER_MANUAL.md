@@ -16,11 +16,13 @@ By default, the player needs a `music` folder at its top level. To use a differe
 
 ## Add podcasts
 
-1. Click `Add Podcast`, or use the plus button in the Shows list.
-2. Paste the podcast's RSS feed URL.
-3. Click `Save`.
+1. Click `Add Podcast` from the empty show panel, or use the plus button in the Shows list.
+2. Search by podcast title or creator, or select `Feed URL` to paste an RSS feed address.
+3. Choose the podcast you want and click `Add Podcast`.
 
 The show and its latest episodes will appear in the app.
+
+Shows already in your library are marked `Added`. If a search fails, click `Try Again` or add the show using its feed URL.
 
 After that first baseline, blue `new` text beside a show's episode count means its feed has new episodes. The app starts without opening a show, so every show can display its new-episode count. Opening a show clears its count. A successful Sync also clears individual new episodes that were copied to the player or confirmed as already there.
 

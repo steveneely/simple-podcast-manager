@@ -1,4 +1,3 @@
-# Simple Podcast Manager v1.17.0
+# Simple Podcast Manager v1.17.1
 
-- Shows the complete set of relevant release notes when updating across multiple versions.
-- Clearly marks the currently installed version and hides changes the user has already received.
+- Correctly recognizes recent episodes in RSS feeds that use two-digit publication years, preventing shows from being mislabeled inactive.

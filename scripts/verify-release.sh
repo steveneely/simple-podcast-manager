@@ -35,6 +35,7 @@ feed_url=$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$info_plist")
 public_key=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$info_plist")
 allows_automatic_updates=$(/usr/libexec/PlistBuddy -c "Print :SUAllowsAutomaticUpdates" "$info_plist")
 update_dmg_path="${repo_root}/dist/updates/SimplePodcastManager-${release_tag}.dmg"
+update_notes_path="${repo_root}/dist/updates/SimplePodcastManager-${release_tag}.html"
 
 if [[ ! "$bundle_version" =~ '^[0-9]+$' ]]; then
   echo "CFBundleVersion must be an incrementing integer for Sparkle: $bundle_version" >&2
@@ -76,6 +77,11 @@ if [[ ! -f "$update_dmg_path" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$update_notes_path" ]]; then
+  echo "Missing cumulative Sparkle release notes for ${release_tag}: ${update_notes_path}" >&2
+  exit 1
+fi
+
 if ! otool -l "${app_path}/Contents/MacOS/${app_name}" | grep -q "@executable_path/../Frameworks"; then
   echo "App executable is missing @executable_path/../Frameworks rpath for bundled frameworks." >&2
   exit 1
@@ -103,6 +109,87 @@ fi
 
 if ! grep -q "$release_tag" "$appcast_path"; then
   echo "Appcast release notes should mention ${release_tag}." >&2
+  exit 1
+fi
+
+if ! /usr/bin/python3 - "$appcast_path" "$bundle_version" "$release_tag" <<'PY'
+from html.parser import HTMLParser
+import sys
+import xml.etree.ElementTree as ET
+
+
+class SparkleChangelogParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.releases = []
+
+    def handle_starttag(self, tag, attributes):
+        if tag != "section":
+            return
+
+        values = dict(attributes)
+        classes = values.get("class", "").split()
+        if "release" not in classes:
+            return
+
+        self.releases.append(
+            (values.get("data-sparkle-version"), values.get("data-release-tag"))
+        )
+
+
+appcast_path, bundle_version, release_tag = sys.argv[1:4]
+root = ET.parse(appcast_path).getroot()
+descriptions = root.findall(".//description")
+if len(descriptions) != 1:
+    print("Appcast must contain exactly one release-note description.", file=sys.stderr)
+    sys.exit(1)
+
+description = descriptions[0]
+sparkle_format = description.attrib.get(
+    "{http://www.andymatuschak.org/xml-namespaces/sparkle}format"
+)
+if sparkle_format is not None:
+    print(
+        f"Appcast release notes must be HTML, not {sparkle_format}.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+release_notes_html = description.text or ""
+required_css = ".release.sparkle-installed-version ~ .release"
+if required_css not in release_notes_html or "Currently installed" not in release_notes_html:
+    print("Appcast release notes are missing installed-version filtering.", file=sys.stderr)
+    sys.exit(1)
+
+parser = SparkleChangelogParser()
+parser.feed(release_notes_html)
+if not parser.releases:
+    print("Appcast release notes do not contain any versioned sections.", file=sys.stderr)
+    sys.exit(1)
+
+try:
+    versions = [int(version) for version, _ in parser.releases]
+except (TypeError, ValueError):
+    print("Every release-note section must have a numeric data-sparkle-version.", file=sys.stderr)
+    sys.exit(1)
+
+if len(versions) != len(set(versions)):
+    print("Release-note build numbers must be unique.", file=sys.stderr)
+    sys.exit(1)
+
+if versions != sorted(versions, reverse=True):
+    print("Release-note build numbers must be ordered newest first.", file=sys.stderr)
+    sys.exit(1)
+
+if parser.releases[0] != (bundle_version, release_tag):
+    print(
+        "The first release-note section does not match the packaged release: "
+        f"expected build {bundle_version} tag {release_tag}, got {parser.releases[0]}.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+PY
+then
   exit 1
 fi
 

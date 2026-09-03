@@ -22,6 +22,7 @@ background_path="${background_dir}/installer-background.png"
 background_generator="${build_dir}/generate-dmg-background.swift"
 sparkle_framework="${repo_root}/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
 sparkle_generate_appcast="${repo_root}/.build/artifacts/sparkle/Sparkle/bin/generate_appcast"
+sparkle_changelog_generator="${repo_root}/scripts/generate-sparkle-changelog.py"
 updates_dir="${dist_dir}/updates"
 require_bundled_ffmpeg="${REQUIRE_BUNDLED_FFMPEG:-0}"
 
@@ -230,8 +231,9 @@ if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
   bundle_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "${contents_dir}/Info.plist")
   update_dmg_name="SimplePodcastManager-${release_tag}.dmg"
   update_dmg_path="${updates_dir}/${update_dmg_name}"
-  update_notes_path="${updates_dir}/SimplePodcastManager-${release_tag}.md"
+  update_notes_path="${updates_dir}/SimplePodcastManager-${release_tag}.html"
   release_notes_source="${RELEASE_NOTES_PATH:-${repo_root}/RELEASE_NOTES.md}"
+  sparkle_changelog_source="${SPARKLE_CHANGELOG_PATH:-${repo_root}/SPARKLE_CHANGELOG.html}"
   download_url_prefix="${SPARKLE_DOWNLOAD_URL_PREFIX:-https://github.com/steveneely/simple-podcast-manager/releases/download/${release_tag}/}"
   maximum_versions="${SPARKLE_MAXIMUM_VERSIONS:-1}"
 
@@ -250,8 +252,25 @@ if [[ "${SKIP_SPARKLE_APPCAST:-0}" != "1" ]]; then
     exit 1
   fi
 
+  if [[ ! -x "$sparkle_changelog_generator" ]]; then
+    echo "Sparkle changelog generator is missing or not executable: $sparkle_changelog_generator" >&2
+    exit 1
+  fi
+
+  "$sparkle_changelog_generator" \
+    --repository "$repo_root" \
+    --current-notes "$release_notes_source" \
+    --current-info "${contents_dir}/Info.plist" \
+    --output "$sparkle_changelog_source" \
+    --check
+
   cp "$dmg_path" "$update_dmg_path"
-  cp "$release_notes_source" "$update_notes_path"
+  rm -f \
+    "${updates_dir}/SimplePodcastManager-${release_tag}.html" \
+    "${updates_dir}/SimplePodcastManager-${release_tag}.txt" \
+    "${updates_dir}/SimplePodcastManager-${release_tag}.md" \
+    "${updates_dir}/SimplePodcastManager-${release_tag}.markdown"
+  cp "$sparkle_changelog_source" "$update_notes_path"
 
   rm -f "${updates_dir}/appcast.xml"
 

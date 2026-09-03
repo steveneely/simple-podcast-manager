@@ -266,6 +266,10 @@ Update design:
 - Sparkle compares the numeric `CFBundleVersion` to determine whether an update is newer
 - `CFBundleShortVersionString` is the user-visible version shown in update UI
 - `SPMReleaseTag` identifies the matching GitHub release artifact
+- the appcast keeps only the current installer and embeds the cumulative `SPARKLE_CHANGELOG.html`
+- each changelog section is labeled with its numeric `CFBundleVersion`; Sparkle marks the installed version and the embedded CSS shows newer releases, keeps the installed release as a muted boundary, and hides older releases
+- users on an unrecognized older build see the complete retained changelog, which is the safe fallback
+- `scripts/generate-sparkle-changelog.py` builds the cumulative HTML from the current `RELEASE_NOTES.md` and committed release-note history, with the newest correction winning when a release note was amended and exact carry-forward bullets retained only under their earliest release
 
 Do not keep a parallel GitHub-release update checker in the app UI. Sparkle owns installed-app update behavior.
 

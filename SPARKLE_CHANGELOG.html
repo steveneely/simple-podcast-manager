@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Simple Podcast Manager version history</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+
+        body {
+            margin: 0;
+            padding: 0 4px 20px;
+            color: CanvasText;
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        h1 {
+            margin: 0 0 14px;
+            font-size: 18px;
+            line-height: 1.25;
+        }
+
+        .release {
+            padding: 14px 0;
+            border-top: 1px solid rgba(128, 128, 128, 0.35);
+        }
+
+        .release h2 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            line-height: 1.3;
+        }
+
+        .release ul {
+            margin: 0;
+            padding-left: 22px;
+        }
+
+        .release li + li {
+            margin-top: 6px;
+        }
+
+        .release code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+            font-size: 0.92em;
+        }
+
+        .release.sparkle-installed-version {
+            opacity: 0.58;
+        }
+
+        .release.sparkle-installed-version::before {
+            content: "Currently installed";
+            display: block;
+            margin-bottom: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .release.sparkle-installed-version ~ .release {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="89" data-release-tag="v1.17.0">
+            <h2>v1.17.0</h2>
+            <ul>
+                <li>Shows the complete set of relevant release notes when updating across multiple versions.</li>
+                <li>Clearly marks the currently installed version and hides changes the user has already received.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="88" data-release-tag="v1.16.8">
+            <h2>v1.16.8</h2>
+            <ul>
+                <li>Shows <code>Scan for Other Audio…</code> only when the connected device actually contains supported audio that is not managed by Simple Podcast Manager.</li>
+                <li>Uses a lightweight, early-exit check so large music libraries do not need to be fully listed during device refresh.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="87" data-release-tag="v1.16.7">
+            <h2>v1.16.7</h2>
+            <ul>
+                <li>Moves other-audio scanning and file selection into a focused review window with clearer progress, results, and deletion controls.</li>
+                <li>Keeps the device card compact with a subtle Scan for Other Audio button and only shows other-audio status when files are found.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="86" data-release-tag="v1.16.6">
+            <h2>v1.16.6</h2>
+            <ul>
+                <li>Lets you replace an incomplete episode copy directly from the Sync dialog, with clear confirmation when the replacement plan is ready and a specific explanation if it cannot be prepared.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="85" data-release-tag="v1.16.5">
+            <h2>v1.16.5</h2>
+            <ul>
+                <li>Keeps the app responsive when devices contain large music libraries by limiting automatic inventory to app-managed podcast folders.</li>
+                <li>Makes unrelated-audio review explicit and cancellable, and displays its results only when files are found.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="84" data-release-tag="v1.16.4">
+            <h2>v1.16.4</h2>
+            <ul>
+                <li>Keeps downloaded episodes listed and shows an error when their local files cannot be deleted, so cleanup can be retried safely.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="83" data-release-tag="v1.16.3">
+            <h2>v1.16.3</h2>
+            <ul>
+                <li>Lets you leave MP3 Genre blank to omit the ID3 genre field from future downloads.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="82" data-release-tag="v1.16.2">
+            <h2>v1.16.2</h2>
+            <ul>
+                <li>Fixes exported subscription filenames sometimes ending with a duplicate <code>.opml</code> extension.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="81" data-release-tag="v1.16.1">
+            <h2>v1.16.1</h2>
+            <ul>
+                <li>Fixes device podcast folder settings reverting to <code>Music</code> on players whose mounted volume names contain spaces or other special characters.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="80" data-release-tag="v1.16.0">
+            <h2>v1.16.0</h2>
+            <ul>
+                <li>When changing the device podcast folder, offers to move existing app-managed podcasts, leave them in place, or cancel after reviewing the exact files.</li>
+                <li>Safely preserves unrelated files and cleans up empty podcast folders left by a completed move.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="79" data-release-tag="v1.15.0">
+            <h2>v1.15.0</h2>
+            <ul>
+                <li>Writes <code>Podcast</code> to the MP3 ID3 genre field by default, with a new setting for choosing a custom genre for future downloads.</li>
+                <li>Clarifies how the inactive-show indicator works in Settings.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="78" data-release-tag="v1.14.0">
+            <h2>v1.14.0</h2>
+            <ul>
+                <li>Replaces age-based Device Cleanup with an optional per-show limit of 3, 5, 10, or 20 episodes.</li>
+                <li>Shows every suggested cleanup in the Sync review so you can keep individual episodes before syncing.</li>
+                <li>Existing age-based cleanup settings are ignored and cleanup starts Off; choose a new episode limit in Settings to use it.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="77" data-release-tag="v1.13.2">
+            <h2>v1.13.2</h2>
+            <ul>
+                <li>Replaces separate activity icons with compact status text beside each show&#x27;s episode count.</li>
+                <li>Shows new episodes in blue and inactive shows in orange for easier scanning.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="76" data-release-tag="v1.13.1">
+            <h2>v1.13.1</h2>
+            <ul>
+                <li>Correctly restores every panel to the macOS appearance when switching from Light back to System.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="75" data-release-tag="v1.13.0">
+            <h2>v1.13.0</h2>
+            <ul>
+                <li>Starts with no show selected so new-episode badges remain visible for every show until you open it.</li>
+                <li>Keeps another show&#x27;s badge intact when the currently selected show is removed or app data is restored.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="74" data-release-tag="v1.12.1">
+            <h2>v1.12.1</h2>
+            <ul>
+                <li>Reorganizes Settings so common episode and MP3 player options are easier to find.</li>
+                <li>Moves technical download and conversion options into a separate Advanced section.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="73" data-release-tag="v1.12.0">
+            <h2>v1.12.0</h2>
+            <ul>
+                <li>Improves launch speed and responsiveness throughout the app.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="72" data-release-tag="v1.11.1">
+            <h2>v1.11.1</h2>
+            <ul>
+                <li>Clarifies how Automatic Downloads and Device Cleanup work in Settings.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="71" data-release-tag="v1.11.0">
+            <h2>v1.11.0</h2>
+            <ul>
+                <li>Shows a blue count when podcasts have new episodes and clears it when you open the show or successfully sync those episodes.</li>
+                <li>Adds an optional inactive-show clock with configurable timing, plus simpler <code>Off</code> and <code>After…</code> menus for inactive shows and Device Cleanup.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="70" data-release-tag="v1.10.0">
+            <h2>v1.10.0</h2>
+            <ul>
+                <li>Adds optional device cleanup that suggests synced episodes older than a chosen number of days.</li>
+                <li>Lets you review and keep individual cleanup candidates before every sync while leaving unrelated audio untouched.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="69" data-release-tag="v1.9.4">
+            <h2>v1.9.4</h2>
+            <ul>
+                <li>Keeps Settings fully on-screen with a scrollable layout that no longer shifts the main window.</li>
+                <li>Shows complete Settings descriptions instead of truncating them with an ellipsis.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="68" data-release-tag="v1.9.3">
+            <h2>v1.9.3</h2>
+            <ul>
+                <li>Removes the duplicate in-window app title and moves download progress into the window toolbar.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="67" data-release-tag="v1.9.2">
+            <h2>v1.9.2</h2>
+            <ul>
+                <li>Adds File &gt; Add Podcast Feed with the Command-N shortcut and removes the unused new-window command.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="66" data-release-tag="v1.9.1">
+            <h2>v1.9.1</h2>
+            <ul>
+                <li>Asks for confirmation before deleting a podcast feed.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="65" data-release-tag="v1.9.0">
+            <h2>v1.9.0</h2>
+            <ul>
+                <li>Automatically prepares the latest 1, 2, 3, or all new episodes after feed refreshes.</li>
+                <li>Sets a first-refresh baseline so existing feed backlogs are not downloaded.</li>
+                <li>Lets each show opt out of automatic downloads or be disabled entirely.</li>
+                <li>Keeps device sync manual so every copy and deletion can still be reviewed.</li>
+                <li>Groups Refresh, Edit, and Remove controls under the selected show.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="64" data-release-tag="v1.8.2">
+            <h2>v1.8.2</h2>
+            <ul>
+                <li>Confirms when an app data restore finishes successfully.</li>
+                <li>Shows where the pre-restore backup was saved and can reveal it in Finder.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="63" data-release-tag="v1.8.1">
+            <h2>v1.8.1</h2>
+            <ul>
+                <li>Asks for confirmation before restoring an app data backup.</li>
+                <li>Clearly explains which data will be replaced and what will be preserved.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="62" data-release-tag="v1.8.0">
+            <h2>v1.8.0</h2>
+            <ul>
+                <li>Keeps large download and removal histories responsive with SQLite storage.</li>
+                <li>Imports existing episode history automatically on first launch.</li>
+                <li>Keeps app data backups compatible with the existing JSON backup format.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="61" data-release-tag="v1.7.4">
+            <h2>v1.7.4</h2>
+            <ul>
+                <li>Fixes the feed editor occasionally opening without the saved feed URL.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="60" data-release-tag="v1.7.3">
+            <h2>v1.7.3</h2>
+            <ul>
+                <li>Fixes valid RSS feeds failing to load when they include a long XML preamble.</li>
+                <li>Improves compatibility with podcast feeds that include XML stylesheet declarations.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="59" data-release-tag="v1.7.2">
+            <h2>v1.7.2</h2>
+            <ul>
+                <li>Shows sync progress only in the sync dialog instead of duplicating it in the background window.</li>
+                <li>Keeps the Device section focused on device status and the last completed sync.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="58" data-release-tag="v1.7.1">
+            <h2>v1.7.1</h2>
+            <ul>
+                <li>Keeps episodes with special characters associated with the correct podcast on the device.</li>
+                <li>Uses readable MP3-player-friendly filenames such as <code>grosse</code> instead of <code>gro-e</code>.</li>
+                <li>Keeps similarly named audio in unrelated folders listed under Other Audio.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="57" data-release-tag="v1.7.0">
+            <h2>v1.7.0</h2>
+            <ul>
+                <li>Adds an option to prefix MP3 titles with the publication date in <code>MM.dd</code> format.</li>
+                <li>Organizes Settings into clearer sections with stronger labels.</li>
+                <li>Applies the title prefix to new downloads without changing existing files.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="56" data-release-tag="v1.6.1">
+            <h2>v1.6.1</h2>
+            <ul>
+                <li>Loads podcast artwork over HTTPS when feeds publish an HTTP image URL.</li>
+                <li>Applies one-time and saved HTTP download choices consistently to episode audio and artwork.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="55" data-release-tag="v1.6.0">
+            <h2>v1.6.0</h2>
+            <ul>
+                <li>Imports podcast subscriptions from standard OPML files with a review step that skips duplicates.</li>
+                <li>Exports subscriptions as OPML for moving them to another podcast app.</li>
+                <li>Shows newly added and imported podcasts immediately while their episodes load in the background.</li>
+                <li>Keeps subscription transfer in the File menu and moves app backup and restore into Settings.</li>
+                <li>Includes HTTPS-first episode downloads and explicit approval before using insecure HTTP for users upgrading from before v1.5.0.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="54" data-release-tag="v1.5.0">
+            <h2>v1.5.0</h2>
+            <ul>
+                <li>Tries HTTPS before downloading any episode over an insecure HTTP connection.</li>
+                <li>Lets you allow an insecure download once or always after a clear warning.</li>
+                <li>Adds a Settings control for changing the saved HTTP download preference.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="53" data-release-tag="v1.4.5">
+            <h2>v1.4.5</h2>
+            <ul>
+                <li>Removes excess empty space around the Other Audio section.</li>
+                <li>Keeps longer Other Audio lists compact and scrollable.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="52" data-release-tag="v1.4.4">
+            <h2>v1.4.4</h2>
+            <ul>
+                <li>Shows whether an episode is on the MP3 player directly in its episode row.</li>
+                <li>Lets you clear that checkbox to remove the episode during the next sync.</li>
+                <li>Keeps older device episodes available in a compact section below the current feed.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="51" data-release-tag="v1.4.3">
+            <h2>v1.4.3</h2>
+            <ul>
+                <li>Simplifies podcast and connected-device details so the main window is easier to scan.</li>
+                <li>Shows download, feed, device, and sync errors where they occurred instead of collecting unrelated messages at the bottom of the window.</li>
+                <li>Keeps download failures associated with the correct podcast when different feeds use the same episode identifier.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="50" data-release-tag="v1.4.2">
+            <h2>v1.4.2</h2>
+            <ul>
+                <li>Shows download activity directly on the episode being downloaded instead of adding a separate panel to every podcast.</li>
+                <li>Adds a compact app-wide download indicator beside the main heading without shifting the interface as it appears or disappears.</li>
+                <li>Keeps download and downloaded states associated with the correct podcast, even when different feeds use the same episode identifier.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="49" data-release-tag="v1.4.1">
+            <h2>v1.4.1</h2>
+            <ul>
+                <li>Simplifies the main sync area so it appears only when an MP3 player is connected.</li>
+                <li>Keeps the latest sync result aligned with the Sync button for easier scanning.</li>
+                <li>Removes changing plan-status text that could make a successful sync look like it had failed after ejecting or reconnecting the player.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="48" data-release-tag="v1.4.0">
+            <h2>v1.4.0</h2>
+            <ul>
+                <li>Shows the size of every MP3 being copied or deleted in the sync plan, plus total copied and deleted sizes when the sync finishes.</li>
+                <li>Checks whether the complete selection fits before changing the device. Available-space messages now compare the full sync size with usable device space, including space recovered by selected deletions.</li>
+                <li>Runs selected deletions before copies, keeping sync behavior predictable and making room before new episodes are transferred.</li>
+                <li>Keeps capacity errors in the sync dialog, clears stale plans while recalculating, and prevents a sync from starting when the plan cannot fit.</li>
+                <li>Uses generic MP3-player wording instead of assuming the connected device is a Walkman.</li>
+                <li>Adds and edits RSS subscriptions with one feed request, reducing duplicate network work.</li>
+                <li>Cleans up failed downloads and conversion intermediates from the app&#x27;s local media workspace.</li>
+                <li>Adds an Appearance setting with System, Light, and Dark modes. Changes preview immediately, and the chosen mode is remembered after saving.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="47" data-release-tag="v1.3.1">
+            <h2>v1.3.1</h2>
+            <ul>
+                <li>Writes episode and podcast names from the RSS feed into every prepared MP3, replacing missing, stale, or placeholder publisher metadata on offline players.</li>
+                <li>Uses one consistent metadata and artwork preparation path for original and converted MP3 files.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="46" data-release-tag="v1.3.0">
+            <h2>v1.3.0</h2>
+            <ul>
+                <li>Checks available device space before syncing and stops before making changes when the planned sync will not fit.</li>
+                <li>When needed, runs only the device deletions you already selected before copying so the sync can make enough room.</li>
+                <li>Reports failed copies clearly, including when a partial file may remain on the device, and flags same-name files whose size suggests an interrupted earlier copy.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="45" data-release-tag="v1.2.0">
+            <h2>v1.2.0</h2>
+            <ul>
+                <li>Add an Appearance setting with System, Light, and Dark modes. Changes preview immediately, and the chosen mode is remembered after saving.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="44" data-release-tag="v1.1.11">
+            <h2>v1.1.11</h2>
+            <ul>
+                <li>Automatic update checks now show the available update window during the same app launch, while staying quiet when you already have the latest version.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="43" data-release-tag="v1.1.10">
+            <h2>v1.1.10</h2>
+            <ul>
+                <li>New installs now show an Add Podcast button immediately, so you can subscribe to your first RSS feed without needing the Shows sidebar first.</li>
+                <li>Clarifies the onboarding guidance for adding your first podcast and subsequent shows.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="42" data-release-tag="v1.1.9">
+            <h2>v1.1.9</h2>
+            <ul>
+                <li>Publishes a new version so the prompt-before-install update behavior can be verified from v1.1.8.</li>
+                <li>Updates still require your approval before installation and relaunch.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="41" data-release-tag="v1.1.8">
+            <h2>v1.1.8</h2>
+            <ul>
+                <li>Keeps automatic update checks available while preventing updates from silently downloading, installing, or relaunching the app.</li>
+                <li>Shows the update details and lets you choose when to install and restart.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="40" data-release-tag="v1.1.7">
+            <h2>v1.1.7</h2>
+            <ul>
+                <li>Publishes a new version so background download and quit-time installation can be observed from v1.1.6.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="39" data-release-tag="v1.1.6">
+            <h2>v1.1.6</h2>
+            <ul>
+                <li>Publishes a new version so launch-time automatic update checks can be verified from v1.1.5.</li>
+                <li>Contains no podcast, download, Sync, or device workflow changes.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="38" data-release-tag="v1.1.5">
+            <h2>v1.1.5</h2>
+            <ul>
+                <li>Adds an <code>Automatically check for updates</code> option to Settings so the preference can be changed at any time.</li>
+                <li>Checks quietly for updates each time the installed app opens when automatic checks are enabled, fitting the app&#x27;s open-sync-close workflow.</li>
+                <li>Keeps <code>Simple Podcast Manager &gt; Check for Updates…</code> available for an immediate manual check.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="37" data-release-tag="v1.1.4">
+            <h2>v1.1.4</h2>
+            <ul>
+                <li>Checks multiple podcast feeds at the same time, making startup and full-library refreshes faster while retaining feed-cache and not-modified optimizations.</li>
+                <li>Inventories a connected player once per refresh or plan instead of repeatedly scanning it for every podcast.</li>
+                <li>Keeps the interface responsive while inspecting slower external players and building the Sync plan.</li>
+                <li>Avoids unnecessary feed and device refresh work after a successful Sync.</li>
+                <li>Includes internal interface cleanup that preserves the existing workflow while making future changes easier to maintain.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="36" data-release-tag="v1.1.3">
+            <h2>v1.1.3</h2>
+            <ul>
+                <li>Improves MP3 cover-art compatibility for Sony Walkman players by placing podcast artwork first in the prepared MP3 metadata.</li>
+                <li>Removes bulky podcast chapter metadata from the device-ready MP3 copy so players can find artwork more reliably.</li>
+                <li>Keeps original downloaded audio files unchanged; the cleanup only applies to newly prepared files copied to the device.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="35" data-release-tag="v1.1.2">
+            <h2>v1.1.2</h2>
+            <ul>
+                <li>Publishes a visible version bump so the updater can confirm the SemVer display path is working.</li>
+                <li>No app workflow changes are included in this verification release.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="34" data-release-tag="v0.1.1">
+            <h2>v0.1.1</h2>
+            <ul>
+                <li>Shows a real user-visible version bump in Sparkle update prompts instead of another hidden beta number.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="33" data-release-tag="v0.1.0-beta.33">
+            <h2>v0.1.0-beta.33</h2>
+            <ul>
+                <li>Removes <code>Download All</code> from podcast detail views to avoid accidental large downloads.</li>
+                <li>Adds a refresh button for the selected podcast so one feed can be checked without refreshing every show.</li>
+                <li>Shortens show toolbar hover labels to <code>Edit</code> and <code>Remove</code>.</li>
+                <li>Keeps multiple recent Sparkle release-note entries so users updating across skipped versions can review what changed.</li>
+            </ul>
+        </section>
+
+        <section class="release" data-sparkle-version="32" data-release-tag="v0.1.0-beta.32">
+            <h2>v0.1.0-beta.32</h2>
+            <ul>
+                <li>Removes stale subscription retention internals that were no longer used by the app.</li>
+                <li>Keeps older app data compatible: subscriptions saved with the old retention field still load normally.</li>
+                <li>Cleans up old compatibility names around device podcast folders and sync success state.</li>
+                <li>No action is required after updating.</li>
+            </ul>
+        </section>
+    </main>
+</body>
+</html>

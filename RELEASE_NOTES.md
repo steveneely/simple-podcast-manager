@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.16.8
+# Simple Podcast Manager v1.17.0
 
-- Shows `Scan for Other Audio…` only when the connected device actually contains supported audio that is not managed by Simple Podcast Manager.
-- Uses a lightweight, early-exit check so large music libraries do not need to be fully listed during device refresh.
+- Shows the complete set of relevant release notes when updating across multiple versions.
+- Clearly marks the currently installed version and hides changes the user has already received.

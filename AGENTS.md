@@ -78,7 +78,7 @@ Keep the release identifiers aligned:
 
 ### Release Notes
 
-Write `RELEASE_NOTES.md` before building because its contents are embedded in the Sparkle appcast.
+Write `RELEASE_NOTES.md` before building, then run `./scripts/generate-sparkle-changelog.py`. The generator combines the current notes with committed release-note history in `SPARKLE_CHANGELOG.html`; the cumulative HTML is embedded in the Sparkle appcast so users who skip releases see every relevant change. Do not edit `SPARKLE_CHANGELOG.html` by hand.
 
 - mention the exact `SPMReleaseTag`
 - describe user-visible changes since the previous release
@@ -86,6 +86,7 @@ Write `RELEASE_NOTES.md` before building because its contents are embedded in th
 - omit internal implementation details
 - repeat an older change only when it affects compatibility, migration, safety, or requires user action across skipped versions
 - never publish generic notes such as only `Build 32.`
+- keep the complete git history available when generating the changelog; generation fails when the earliest retained release-note build is missing
 
 ### Credentials
 
@@ -96,7 +97,7 @@ Write `RELEASE_NOTES.md` before building because its contents are embedded in th
 
 Complete every step before calling a release finished:
 
-1. Update the version identifiers and `RELEASE_NOTES.md`.
+1. Update the version identifiers and `RELEASE_NOTES.md`, then run `./scripts/generate-sparkle-changelog.py` to refresh `SPARKLE_CHANGELOG.html`.
 2. Run `./scripts/swift-test.sh`.
 3. Build the DMG and Sparkle appcast with `./scripts/build-release.sh`.
 4. Run `./scripts/verify-release.sh`.

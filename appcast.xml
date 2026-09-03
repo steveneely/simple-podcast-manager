@@ -3,17 +3,18 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.16.6</title>
-            <pubDate>Wed, 02 Sep 2026 18:56:16 -0600</pubDate>
-            <sparkle:version>86</sparkle:version>
-            <sparkle:shortVersionString>1.16.6</sparkle:shortVersionString>
+            <title>1.16.7</title>
+            <pubDate>Wed, 02 Sep 2026 20:00:47 -0600</pubDate>
+            <sparkle:version>87</sparkle:version>
+            <sparkle:shortVersionString>1.16.7</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.6
+            <description sparkle:format="markdown"><![CDATA[# Simple Podcast Manager v1.16.7
 
-- Lets you replace an incomplete episode copy directly from the Sync dialog, with clear confirmation when the replacement plan is ready and a specific explanation if it cannot be prepared.
+- Moves other-audio scanning and file selection into a focused review window with clearer progress, results, and deletion controls.
+- Keeps the device card compact with a subtle Scan for Other Audio button and only shows other-audio status when files are found.
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.6/SimplePodcastManager-v1.16.6.dmg" length="7261271" type="application/octet-stream" sparkle:edSignature="EfanKTk4inV0LJd/KVqV9C4B+CZiopuJsxCQ7zlmkVkjNim1oU072pMUZE5xIfGyCNyD2/YxfqhMQ2Mayp78Cg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.16.7/SimplePodcastManager-v1.16.7.dmg" length="7302579" type="application/octet-stream" sparkle:edSignature="lcuGzc4ISv/u/mkNJV99B21jVymIJBXD5TVrnq/nsg0Juluzo0B7TxTuU48N2ZC3sWIZG04zPUK2BgA7/0zyAw=="/>
         </item>
     </channel>
 </rss>

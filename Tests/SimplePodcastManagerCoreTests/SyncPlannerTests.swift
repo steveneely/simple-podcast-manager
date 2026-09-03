@@ -777,7 +777,7 @@ struct SyncPlannerTests {
         )
 
         #expect(throws: SyncCapacityError.incompleteExistingCopy(
-            fileName: destinationURL.lastPathComponent,
+            targetURL: destinationURL,
             expectedBytes: 100,
             actualBytes: 25
         )) {
@@ -788,6 +788,46 @@ struct SyncPlannerTests {
                 ejectAfterSync: false
             )
         }
+    }
+
+    @Test
+    func plansDeleteThenCopyWhenReplacingAnIncompleteDeviceCopy() throws {
+        let device = makeDevice()
+        let preparedEpisode = makePreparedEpisode(
+            id: "new",
+            title: "New Episode",
+            preparedFileName: "2026.07.18-New Episode-(Example Podcast).mp3"
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent("Example Podcast", isDirectory: true)
+        let destinationURL = managedDirectory
+            .appendingPathComponent(preparedEpisode.preparedFileURL.lastPathComponent)
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [managedDirectory.path: [destinationURL]]),
+            storageInspector: TestSyncStorageInspector(
+                sizesByPath: [
+                    preparedEpisode.preparedFileURL.path: 100,
+                    destinationURL.path: 25,
+                ]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            replacementTargets: [destinationURL],
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions == [
+            .deleteFromDevice(targetURL: destinationURL, fileSizeBytes: 25),
+            .copyToDevice(
+                sourceURL: preparedEpisode.preparedFileURL,
+                destinationURL: destinationURL,
+                fileSizeBytes: 100
+            ),
+        ])
     }
 
     private func makeDevice() -> DeviceInfo {

@@ -46,6 +46,7 @@ public struct MainView: View {
     @State private var expandedEpisodeIDs: Set<String> = []
     @State private var expandedDescriptionFeedIDs: Set<UUID> = []
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
+    @State private var replacementTargets: Set<URL> = []
     @State private var excludedCleanupDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
@@ -536,7 +537,10 @@ public struct MainView: View {
             progress: syncExecutionViewModel.progress,
             isSyncing: syncExecutionViewModel.isSyncing,
             isPlanning: syncPlanViewModel.isPlanning,
+            planningErrorTitle: syncPlanViewModel.planningErrorTitle,
             planningErrorMessage: syncPlanViewModel.lastErrorMessage,
+            incompleteCopyRecoveryTarget: syncPlanViewModel.incompleteCopyRecoveryTarget,
+            isReplacementPlanReady: syncPlanViewModel.isReplacementPlanReady,
             lastResult: syncExecutionViewModel.lastResult,
             lastErrorMessage: syncExecutionViewModel.lastErrorMessage,
             preparedEpisodeCount: preparationPreviewViewModel.preparedEpisodes.count,
@@ -547,6 +551,7 @@ public struct MainView: View {
             deleteDownloadsAfterSync: $isDeleteDownloadedAfterSyncEnabled,
             onEjectAfterSyncChange: rebuildSyncPlan,
             onToggleCleanupDeletion: toggleCleanupDeletionSelection,
+            onReplaceIncompleteCopy: selectIncompleteCopyForReplacement,
             onSync: { Task { await runSync() } }
         )
     }
@@ -925,6 +930,7 @@ public struct MainView: View {
                 preparedEpisodes: preparationPreviewViewModel.preparedEpisodes,
                 subscriptions: viewModel.feedSubscriptions,
                 manualDeleteTargets: manuallySelectedDeletionTargets,
+                replacementTargets: replacementTargets,
                 cleanupPolicy: viewModel.settings.deviceCleanupPolicy,
                 excludedCleanupTargets: excludedCleanupDeletionTargets,
                 managedInventory: deviceLibraryViewModel.managedInventory,
@@ -1295,6 +1301,11 @@ public struct MainView: View {
         await syncExecutionViewModel.sync(plan: syncPlanViewModel.plan)
 
         if syncExecutionViewModel.lastErrorMessage == nil,
+           syncExecutionViewModel.lastResult != nil {
+            replacementTargets = []
+        }
+
+        if syncExecutionViewModel.lastErrorMessage == nil,
            let completedPlan = syncExecutionViewModel.lastPlan,
            syncExecutionViewModel.lastResult != nil {
             let acknowledgedEpisodes = FeedActivitySyncAcknowledgement.episodesAcknowledged(
@@ -1309,12 +1320,8 @@ public struct MainView: View {
             let result = syncExecutionViewModel.lastResult,
             let lastPlan = syncExecutionViewModel.lastPlan
         {
-            let deletedTargetURLs = lastPlan.actions.compactMap { action -> URL? in
-                guard case .deleteFromDevice(let targetURL, _) = action else { return nil }
-                return targetURL
-            }
             removedEpisodeHistoryViewModel.recordDeletedEpisodes(
-                deletedTargetURLs: deletedTargetURLs,
+                deletedTargetURLs: lastPlan.removalTargetURLs,
                 filesBySubscriptionID: filesBySubscriptionID,
                 episodesBySubscriptionID: episodesBySubscriptionID,
                 deviceName: deviceViewModel.selectedDevice?.name,
@@ -1341,6 +1348,7 @@ public struct MainView: View {
         isEjectAfterSyncEnabled = true
         isDeleteDownloadedAfterSyncEnabled = true
         excludedCleanupDeletionTargets = []
+        replacementTargets = []
         rebuildSyncPlan()
         isShowingSyncDialog = true
     }
@@ -1387,6 +1395,14 @@ public struct MainView: View {
         } else {
             manuallySelectedDeletionTargets.insert(fileURL)
         }
+        rebuildSyncPlan()
+    }
+
+    private func selectIncompleteCopyForReplacement(_ fileURL: URL) {
+        let fileURL = fileURL.standardizedFileURL
+        replacementTargets.insert(fileURL)
+        manuallySelectedDeletionTargets.remove(fileURL)
+        excludedCleanupDeletionTargets.remove(fileURL)
         rebuildSyncPlan()
     }
 

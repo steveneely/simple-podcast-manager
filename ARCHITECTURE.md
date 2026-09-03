@@ -83,6 +83,7 @@ Expected runtime flow:
    - validate device
    - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-show retention limit
    - exclude any cleanup candidates the user unchecked in the current review
+   - when an existing device copy has an unexpected size, offer an in-dialog recovery action that selects that exact app-managed file for deletion and recopies the prepared episode in the same reviewed plan; refresh the dialog with the replacement plan and a persistent ready confirmation on success, or keep it open with the specific planning failure on error
    - build a `SyncPlan`
    - show planned copies, skips, deletions, and optional eject
 8. `SyncExecutionViewModel` executes the plan:
@@ -224,6 +225,7 @@ Delete behavior:
 - never automatically select an undated file, unrelated audio, or a file that cannot be associated with a current subscription
 - show every proposed cleanup deletion with its own checkbox and rebuild the executable plan after selection changes
 - show a clear cleanup or removal notice before starting any plan that contains deletions; retention-cleanup copy names the configured per-show limit and points back to Settings
+- require an explicit recovery selection before replacing an incomplete device copy, then show both its exact deletion and replacement copy in the reviewed plan
 - identify app-managed episodes from their podcast folder and filename metadata
 - only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation
 - never bulk-delete by loose pattern matching

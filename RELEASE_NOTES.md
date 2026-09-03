@@ -1,4 +1,3 @@
-# Simple Podcast Manager v1.16.5
+# Simple Podcast Manager v1.16.6
 
-- Keeps the app responsive when devices contain large music libraries by limiting automatic inventory to app-managed podcast folders.
-- Makes unrelated-audio review explicit and cancellable, and displays its results only when files are found.
+- Lets you replace an incomplete episode copy directly from the Sync dialog, with clear confirmation when the replacement plan is ready and a specific explanation if it cannot be prepared.

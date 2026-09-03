@@ -20,6 +20,7 @@ public struct SyncPlanner: Sendable {
         preparedEpisodes: [PreparedEpisode],
         subscriptions: [FeedSubscription],
         manualDeleteTargets: Set<URL> = [],
+        replacementTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
         managedInventory: ManagedDeviceLibraryInventory? = nil,
@@ -39,6 +40,8 @@ public struct SyncPlanner: Sendable {
             return (subscriptionID, preparedEpisode)
         }, by: { $0.0 })
         let manualDeleteTargets = Set(manualDeleteTargets.map(\.standardizedFileURL))
+        let replacementTargets = Set(replacementTargets.map(\.standardizedFileURL))
+        let explicitDeleteTargets = manualDeleteTargets.union(replacementTargets)
         let excludedCleanupTargets = Set(excludedCleanupTargets.map(\.standardizedFileURL))
         let deviceInventory: ManagedDeviceLibraryInventory
         if let managedInventory,
@@ -67,7 +70,7 @@ public struct SyncPlanner: Sendable {
                     preparedEpisodes: preparedEpisodes,
                     managedDirectory: managedDirectory,
                     subscription: subscription,
-                    manualDeleteTargets: manualDeleteTargets,
+                    manualDeleteTargets: explicitDeleteTargets,
                     maximumEpisodesPerShow: maximumEpisodesPerShow,
                     device: device
                 )
@@ -80,10 +83,10 @@ public struct SyncPlanner: Sendable {
             let selectedFiles = existingFiles
                 .filter { fileURL in
                     let standardizedURL = fileURL.standardizedFileURL
-                    let isManuallySelected = manualDeleteTargets.contains(standardizedURL)
+                    let isExplicitlySelected = explicitDeleteTargets.contains(standardizedURL)
                     let isSelectedCleanupCandidate = cleanupCandidateSizesByURL[standardizedURL] != nil
                         && !excludedCleanupTargets.contains(standardizedURL)
-                    return isManuallySelected || isSelectedCleanupCandidate
+                    return isExplicitlySelected || isSelectedCleanupCandidate
                 }
                 .sorted { $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending }
             let selectedFileURLs = Set(selectedFiles.map(\.standardizedFileURL))
@@ -95,7 +98,16 @@ public struct SyncPlanner: Sendable {
                 if let existingFileURL = existingFiles.first(where: {
                     $0.lastPathComponent == destinationURL.lastPathComponent
                 }) {
-                    if selectedFileURLs.contains(existingFileURL.standardizedFileURL) {
+                    let standardizedExistingURL = existingFileURL.standardizedFileURL
+                    if replacementTargets.contains(standardizedExistingURL) {
+                        try safetyValidator.validateWriteTarget(destinationURL, on: device)
+                        let fileSizeBytes = try storageInspector.fileSize(at: preparedEpisode.preparedFileURL)
+                        actions.append(.copyToDevice(
+                            sourceURL: preparedEpisode.preparedFileURL,
+                            destinationURL: destinationURL,
+                            fileSizeBytes: fileSizeBytes
+                        ))
+                    } else if selectedFileURLs.contains(standardizedExistingURL) {
                         actions.append(.skip(reason: "Selected for removal from device: \(preparedEpisode.episode.title)"))
                     } else {
                         try verifyExistingCopy(existingFileURL, matches: preparedEpisode.preparedFileURL)
@@ -250,7 +262,7 @@ public struct SyncPlanner: Sendable {
         let actualSize = try storageInspector.fileSize(at: deviceURL)
         guard expectedSize == actualSize else {
             throw SyncCapacityError.incompleteExistingCopy(
-                fileName: deviceURL.lastPathComponent,
+                targetURL: deviceURL,
                 expectedBytes: expectedSize,
                 actualBytes: actualSize
             )

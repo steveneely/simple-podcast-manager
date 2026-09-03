@@ -65,7 +65,7 @@ public enum SyncCapacityError: LocalizedError, Equatable, Sendable {
     case capacityUnavailable(URL)
     case fileSizeUnavailable(URL)
     case insufficientCapacity(requiredBytes: Int64, availableBytes: Int64)
-    case incompleteExistingCopy(fileName: String, expectedBytes: Int64, actualBytes: Int64)
+    case incompleteExistingCopy(targetURL: URL, expectedBytes: Int64, actualBytes: Int64)
 
     public var errorDescription: String? {
         switch self {
@@ -75,8 +75,8 @@ public enum SyncCapacityError: LocalizedError, Equatable, Sendable {
             return "Could not determine the size of \(url.lastPathComponent)."
         case .insufficientCapacity(let requiredBytes, let availableBytes):
             return "There is not enough free space to copy all selected files. This sync plan requires \(Self.formatted(requiredBytes)), but only \(Self.formatted(availableBytes)) is available."
-        case .incompleteExistingCopy(let fileName, let expectedBytes, let actualBytes):
-            return "\(fileName) on the device may be an incomplete copy (expected \(Self.formatted(expectedBytes)), found \(Self.formatted(actualBytes)). Select it for deletion and sync again."
+        case .incompleteExistingCopy(let targetURL, let expectedBytes, let actualBytes):
+            return "\(targetURL.lastPathComponent) on the device may be an incomplete copy (expected \(Self.formatted(expectedBytes)), found \(Self.formatted(actualBytes))."
         }
     }
 

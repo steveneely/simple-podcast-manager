@@ -7,7 +7,10 @@ struct SyncDialogView: View {
     let progress: SyncExecutionProgress?
     let isSyncing: Bool
     let isPlanning: Bool
+    let planningErrorTitle: String?
     let planningErrorMessage: String?
+    let incompleteCopyRecoveryTarget: URL?
+    let isReplacementPlanReady: Bool
     let lastResult: SyncResult?
     let lastErrorMessage: String?
     let preparedEpisodeCount: Int
@@ -18,6 +21,7 @@ struct SyncDialogView: View {
     @Binding var deleteDownloadsAfterSync: Bool
     let onEjectAfterSyncChange: () -> Void
     let onToggleCleanupDeletion: (URL) -> Void
+    let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
 
     private var hasSuccessfulResult: Bool {
@@ -89,7 +93,14 @@ struct SyncDialogView: View {
                 }
 
                 if let planningErrorMessage {
-                    planningErrorCard(planningErrorMessage)
+                    planningErrorCard(
+                        title: planningErrorTitle ?? "Cannot Start Sync",
+                        message: planningErrorMessage
+                    )
+                }
+
+                if isReplacementPlanReady {
+                    replacementPlanReadyCard
                 }
 
                 if plannedDeletionCount > 0 {
@@ -207,18 +218,46 @@ struct SyncDialogView: View {
         }
     }
 
-    private func planningErrorCard(_ message: String) -> some View {
+    private func planningErrorCard(title: String, message: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Cannot Start Sync", systemImage: "exclamationmark.triangle.fill")
+            Label(title, systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
                 .foregroundStyle(.red)
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            if let incompleteCopyRecoveryTarget {
+                Button("Replace Incomplete Copy", systemImage: "arrow.triangle.2.circlepath") {
+                    onReplaceIncompleteCopy(incompleteCopyRecoveryTarget)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Prepare a sync plan that replaces the incomplete device copy")
+
+                Text("SPM will remove the device copy and copy the prepared episode back in the same sync. Review both actions before starting.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.red.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var replacementPlanReadyCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Replacement Plan Ready", systemImage: "checkmark.circle.fill")
+                .font(.headline)
+                .foregroundStyle(.green)
+            Text("SPM is ready to remove the incomplete device copy and copy the complete episode back. Review the actions below, then click Sync.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.green.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 

@@ -99,6 +99,140 @@ struct SyncPlanViewModelTests {
     }
 
     @Test
+    func incompleteCopyOffersExactTargetAndBuildsReplacementPlan() async {
+        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let subscription = FeedSubscription(
+            id: subscriptionID,
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "SPM Test Walkman",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+        )
+        let preparedFileURL = URL(fileURLWithPath: "/tmp/2026.07.18-Episode-(Example Podcast).mp3")
+        let preparedEpisode = PreparedEpisode(
+            episode: Episode(
+                id: "episode",
+                subscriptionID: subscriptionID,
+                podcastTitle: subscription.title,
+                title: "Episode",
+                enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+                sourceFeedURL: subscription.rssURL
+            ),
+            sourceFileURL: preparedFileURL,
+            preparedFileURL: preparedFileURL,
+            preparationAction: .passthroughMP3
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent(subscription.title, isDirectory: true)
+        let deviceFileURL = managedDirectory.appendingPathComponent(preparedFileURL.lastPathComponent)
+        let planner = makeTestPlanner(
+            deviceLibrary: StubPlanDeviceLibrary(
+                filesByDirectory: [managedDirectory.path: [deviceFileURL]]
+            ),
+            storageInspector: TestUISyncStorageInspector(
+                sizesByPath: [
+                    preparedFileURL.path: 100,
+                    deviceFileURL.path: 25,
+                ]
+            )
+        )
+        let viewModel = SyncPlanViewModel(planner: planner)
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            ejectAfterSync: false
+        )
+
+        #expect(viewModel.plan == nil)
+        #expect(viewModel.planningErrorTitle == "Cannot Start Sync")
+        #expect(viewModel.incompleteCopyRecoveryTarget == deviceFileURL.standardizedFileURL)
+        #expect(!viewModel.isReplacementPlanReady)
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            replacementTargets: [deviceFileURL],
+            ejectAfterSync: false
+        )
+
+        #expect(viewModel.incompleteCopyRecoveryTarget == nil)
+        #expect(viewModel.planningErrorTitle == nil)
+        #expect(viewModel.isReplacementPlanReady)
+        #expect(viewModel.plan?.actions == [
+            .deleteFromDevice(targetURL: deviceFileURL, fileSizeBytes: 25),
+            .copyToDevice(
+                sourceURL: preparedFileURL,
+                destinationURL: deviceFileURL,
+                fileSizeBytes: 100
+            ),
+        ])
+    }
+
+    @Test
+    func failedIncompleteCopyRecoveryExplainsWhyReplacementCouldNotBePrepared() async {
+        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let subscription = FeedSubscription(
+            id: subscriptionID,
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Full Test Disk",
+            rootURL: URL(fileURLWithPath: "/Volumes/FULL-TEST-DISK", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/FULL-TEST-DISK/music", isDirectory: true)
+        )
+        let preparedFileURL = URL(fileURLWithPath: "/tmp/2026.07.18-Episode-(Example Podcast).mp3")
+        let preparedEpisode = PreparedEpisode(
+            episode: Episode(
+                id: "episode",
+                subscriptionID: subscriptionID,
+                podcastTitle: subscription.title,
+                title: "Episode",
+                enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+                sourceFeedURL: subscription.rssURL
+            ),
+            sourceFileURL: preparedFileURL,
+            preparedFileURL: preparedFileURL,
+            preparationAction: .passthroughMP3
+        )
+        let managedDirectory = device.podcastDirectoryURL
+            .appendingPathComponent(subscription.title, isDirectory: true)
+        let deviceFileURL = managedDirectory.appendingPathComponent(preparedFileURL.lastPathComponent)
+        let planner = makeTestPlanner(
+            deviceLibrary: StubPlanDeviceLibrary(
+                filesByDirectory: [managedDirectory.path: [deviceFileURL]]
+            ),
+            storageInspector: TestUISyncStorageInspector(
+                availableBytes: 0,
+                sizesByPath: [
+                    preparedFileURL.path: 100,
+                    deviceFileURL.path: 25,
+                ]
+            )
+        )
+        let viewModel = SyncPlanViewModel(planner: planner)
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            replacementTargets: [deviceFileURL],
+            ejectAfterSync: false
+        )
+
+        #expect(viewModel.plan == nil)
+        #expect(viewModel.planningErrorTitle == "Could Not Prepare Replacement")
+        #expect(viewModel.lastErrorMessage?.contains("not enough free space") == true)
+        #expect(!viewModel.isReplacementPlanReady)
+    }
+
+    @Test
     func buildPlanWithoutDeviceSurfacesError() async {
         let viewModel = SyncPlanViewModel()
 

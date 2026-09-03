@@ -102,6 +102,47 @@ struct RSSFeedServiceTests {
     }
 
     @Test
+    func interpretsTwoDigitRSSYearsInTheExpectedCentury() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FeedURLProtocolStub.self]
+        let feedURL = URL(string: "https://example.com/two-digit-years.xml")!
+        FeedURLProtocolStub.stub(feedURL: feedURL, responseBody: """
+        <rss version="2.0">
+          <channel>
+            <title>Two-Digit Years</title>
+            <item>
+              <title>Recent Episode</title>
+              <guid>recent</guid>
+              <pubDate>01 Sep 26 00:01 +0200</pubDate>
+              <enclosure url="https://cdn.example.com/recent.mp3" type="audio/mpeg"/>
+            </item>
+            <item>
+              <title>Archive Episode</title>
+              <guid>archive</guid>
+              <pubDate>01 Sep 76 00:01 +0200</pubDate>
+              <enclosure url="https://cdn.example.com/archive.mp3" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        """)
+
+        let service = RSSFeedService(
+            session: URLSession(configuration: configuration),
+            cacheStore: InMemoryFeedCacheStore()
+        )
+        let result = try await service.fetchLatestEpisodes(for: [
+            FeedSubscription(title: "Two-Digit Years", rssURL: feedURL)
+        ])
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        #expect(result.allEpisodes.map(\.title) == ["Recent Episode", "Archive Episode"])
+        #expect(result.allEpisodes.map { episode in
+            episode.publicationDate.map { calendar.component(.year, from: $0) }
+        } == [2026, 1976])
+    }
+
+    @Test
     func formatsInlineSponsorSectionsInEpisodeDescriptions() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FeedURLProtocolStub.self]

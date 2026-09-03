@@ -208,6 +208,27 @@ struct SQLiteEpisodeStoreTests {
     }
 
     @Test
+    func correctsTwoDigitPublicationYearInPersistedFeedActivity() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let parsedAsYear26 = try #require(calendar.date(from: DateComponents(year: 26, month: 9, day: 1)))
+        let state = FeedActivityState(feeds: [
+            FeedActivityFeedState(
+                subscriptionID: fixture.subscriptionID,
+                rssURL: URL(string: "https://example.com/feed.xml")!,
+                newestPublicationDate: parsedAsYear26
+            )
+        ])
+        try fixture.store.saveFeedActivityState(state)
+
+        let loadedDate = try #require(fixture.store.loadFeedActivityState().feeds.first?.newestPublicationDate)
+
+        #expect(calendar.component(.year, from: loadedDate) == 2026)
+    }
+
+    @Test
     func importsLegacyAutomaticDownloadStateOnceAndKeepsSourceFile() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

@@ -120,6 +120,26 @@ struct FeedActivityPlannerTests {
         #expect(!FeedActivityPlanner.isInactive(missing, threshold: .sixMonths, currentDate: current, calendar: calendar))
     }
 
+    @Test
+    func inactiveCheckRepairsPersistedTwoDigitPublicationYear() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let parsedAsYear26 = try #require(calendar.date(from: DateComponents(year: 26, month: 9, day: 1)))
+        let current = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 2)))
+        let feed = FeedActivityFeedState(
+            subscriptionID: subscriptionID,
+            rssURL: makeSubscription().rssURL,
+            newestPublicationDate: parsedAsYear26
+        )
+
+        #expect(!FeedActivityPlanner.isInactive(
+            feed,
+            threshold: .sixMonths,
+            currentDate: current,
+            calendar: calendar
+        ))
+    }
+
     private func makeSubscription() -> FeedSubscription {
         FeedSubscription(id: subscriptionID, title: "Show", rssURL: URL(string: "https://example.com/feed.xml")!)
     }

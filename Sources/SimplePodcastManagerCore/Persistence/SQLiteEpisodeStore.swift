@@ -458,7 +458,9 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                 rssURL: rssURL,
                 observedEpisodeIDs: observedBySubscription[storedID] ?? [],
                 newEpisodeIDs: newBySubscription[storedID] ?? [],
-                newestPublicationDate: timestamp.map(Date.init(timeIntervalSince1970:))
+                newestPublicationDate: PublicationDateNormalizer.normalize(
+                    timestamp.map(Date.init(timeIntervalSince1970:))
+                )
             )
         }
         return FeedActivityState(feeds: feeds)

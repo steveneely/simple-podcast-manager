@@ -36,7 +36,7 @@ public enum FeedActivityPlanner {
             let candidateEpisodes: ArraySlice<Episode>
             if let anchorIndex = currentEpisodes.firstIndex(where: { observedIDSet.contains($0.id) }) {
                 candidateEpisodes = currentEpisodes[..<anchorIndex]
-            } else if let previousNewestDate = feed.newestPublicationDate {
+            } else if let previousNewestDate = PublicationDateNormalizer.normalize(feed.newestPublicationDate) {
                 candidateEpisodes = currentEpisodes[...].filter {
                     guard let publicationDate = $0.publicationDate else { return false }
                     return publicationDate > previousNewestDate
@@ -88,7 +88,7 @@ public enum FeedActivityPlanner {
         calendar: Calendar = Calendar(identifier: .gregorian)
     ) -> Bool {
         guard let monthCount = threshold.monthCount,
-              let newestPublicationDate = feed?.newestPublicationDate,
+              let newestPublicationDate = PublicationDateNormalizer.normalize(feed?.newestPublicationDate),
               let cutoff = calendar.date(byAdding: .month, value: -monthCount, to: currentDate)
         else { return false }
         return newestPublicationDate < cutoff

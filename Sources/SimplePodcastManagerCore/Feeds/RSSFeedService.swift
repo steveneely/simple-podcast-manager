@@ -149,7 +149,7 @@ public struct RSSFeedService: FeedService {
 
     private func result(from cachedFeed: CachedFeed) -> FeedFetchResult {
         FeedFetchResult(
-            allEpisodes: cachedFeed.episodes,
+            allEpisodes: cachedFeed.episodes.map(PublicationDateNormalizer.normalize),
             feedSummaries: [cachedFeed.summary]
         )
     }

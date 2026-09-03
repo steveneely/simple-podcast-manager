@@ -68,6 +68,41 @@ struct JSONFeedCacheStoreTests {
     }
 
     @Test
+    func correctsTwoDigitPublicationYearsInExistingCache() throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appending(path: "SimplePodcastManagerTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directoryURL) }
+        let store = JSONFeedCacheStore(directoryURL: directoryURL)
+        let subscriptionID = UUID()
+        let rssURL = URL(string: "https://example.com/feed.xml")!
+        let subscription = FeedSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let parsedAsYear26 = try #require(calendar.date(from: DateComponents(year: 26, month: 9, day: 1)))
+        try store.saveCachedFeed(CachedFeed(
+            subscriptionID: subscriptionID,
+            rssURL: rssURL,
+            fetchedAt: Date(),
+            summary: FeedSummary(subscriptionID: subscriptionID, title: "Example"),
+            episodes: [
+                Episode(
+                    id: "ep-1",
+                    subscriptionID: subscriptionID,
+                    podcastTitle: "Example",
+                    title: "Episode 1",
+                    publicationDate: parsedAsYear26,
+                    enclosureURL: URL(string: "https://cdn.example.com/ep1.mp3")!,
+                    sourceFeedURL: rssURL
+                )
+            ]
+        ))
+
+        let loadedDate = try #require(store.loadCachedFeed(for: subscription)?.episodes.first?.publicationDate)
+
+        #expect(calendar.component(.year, from: loadedDate) == 2026)
+    }
+
+    @Test
     func deletesCachedFeed() throws {
         let directoryURL = FileManager.default.temporaryDirectory
             .appending(path: "SimplePodcastManagerTests-\(UUID().uuidString)", directoryHint: .isDirectory)

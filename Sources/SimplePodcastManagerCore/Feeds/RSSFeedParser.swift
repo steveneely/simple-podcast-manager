@@ -292,7 +292,7 @@ private extension RSSFeedParser {
             subscriptionID: subscriptionID,
             podcastTitle: feedTitle,
             title: title,
-            publicationDate: item.pubDate,
+            publicationDate: PublicationDateNormalizer.normalize(item.pubDate),
             duration: item.iTunes?.duration,
             description: episodeDescription(from: item),
             artworkURL: episodeArtworkURL(from: item) ?? feedArtworkURL,

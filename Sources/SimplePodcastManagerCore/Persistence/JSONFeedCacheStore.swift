@@ -13,7 +13,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
             return nil
         }
 
-        guard let cachedFeed = try? AppJSONFile.decode(CachedFeed.self, from: fileURL) else {
+        guard var cachedFeed = try? AppJSONFile.decode(CachedFeed.self, from: fileURL) else {
             return nil
         }
 
@@ -24,6 +24,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
             return nil
         }
 
+        cachedFeed.episodes = cachedFeed.episodes.map(PublicationDateNormalizer.normalize)
         return cachedFeed
     }
 

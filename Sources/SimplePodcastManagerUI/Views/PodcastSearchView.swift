@@ -49,10 +49,10 @@ struct PodcastSearchView: View {
 
             searchResults
 
-            HStack(spacing: 4) {
-                Text("Searches are sent to")
+            HStack(spacing: 0) {
+                Text("Searches are sent to ")
                 Link(
-                    "Podcast Index",
+                    "https://podcastindex.org",
                     destination: URL(string: "https://podcastindex.org")!
                 )
                 Text(".")
@@ -123,7 +123,10 @@ struct PodcastSearchView: View {
         let isSubscribed = subscriptionMatcher.isSubscribed(result)
 
         return Button {
-            selectedResult = result
+            selectedResult = Self.selection(
+                afterClicking: result,
+                currentSelection: selectedResult
+            )
         } label: {
             HStack(spacing: 10) {
                 PodcastArtworkView(
@@ -185,8 +188,17 @@ struct PodcastSearchView: View {
         .accessibilityHint(
             isSubscribed
                 ? "This podcast is already in your library"
-                : "Uses this podcast's RSS feed"
+                : selectedResult?.id == result.id
+                    ? "Deselects this podcast"
+                    : "Uses this podcast's RSS feed"
         )
+    }
+
+    static func selection(
+        afterClicking result: PodcastSearchResult,
+        currentSelection: PodcastSearchResult?
+    ) -> PodcastSearchResult? {
+        currentSelection?.id == result.id ? nil : result
     }
 
     private func performSearch() {

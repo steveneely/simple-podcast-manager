@@ -128,20 +128,6 @@ public struct MainView: View {
         .padding(.bottom, 20)
         .padding(.top, 8)
         .frame(minWidth: 720, minHeight: 460)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                if preparationPreviewViewModel.isPreparing {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(globalDownloadStatusText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-        }
         .overlay {
             if let opmlImportPreview {
                 ZStack {
@@ -316,6 +302,9 @@ public struct MainView: View {
             viewModel: deviceViewModel,
             isShowingDetails: $isShowingDeviceDetails,
             libraryErrorMessage: deviceLibraryViewModel.lastErrorMessage,
+            downloadStatusText: preparationPreviewViewModel.isPreparing
+                ? globalDownloadStatusText
+                : nil,
             deviceSelection: deviceSelectionBinding,
             onDisconnect: {
                 Task {

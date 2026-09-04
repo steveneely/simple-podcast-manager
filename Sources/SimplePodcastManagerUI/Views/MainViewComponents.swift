@@ -25,6 +25,7 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     @Bindable var viewModel: DeviceViewModel
     @Binding var isShowingDetails: Bool
     let libraryErrorMessage: String?
+    let downloadStatusText: String?
     let deviceSelection: Binding<String>
     let onDisconnect: () -> Void
     let onRefresh: () -> Void
@@ -63,6 +64,17 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
                 }
 
                 Spacer()
+
+                if let downloadStatusText {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(downloadStatusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
 
                 if viewModel.selectedDevice != nil {
                     HoverIconButton(

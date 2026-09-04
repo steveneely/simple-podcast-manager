@@ -45,6 +45,13 @@ public enum InactivePodcastThreshold: String, Codable, Equatable, Sendable, Case
     }
 }
 
+public enum ShowSortOrder: String, Codable, Equatable, Sendable, CaseIterable {
+    case alphabetic
+    case reverseAlphabetic
+    case recentlyUpdated
+    case leastRecentlyUpdated
+}
+
 public struct DeviceCleanupPolicy: Codable, Equatable, Sendable {
     public static let allowedMaximumEpisodesPerShow = [3, 5, 10, 20]
 
@@ -71,6 +78,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var automaticDownloadLimit: AutomaticDownloadLimit
     public var deviceCleanupPolicy: DeviceCleanupPolicy
     public var inactivePodcastThreshold: InactivePodcastThreshold
+    public var showSortOrder: ShowSortOrder
 
     public init(
         ffmpegExecutablePath: String? = nil,
@@ -80,7 +88,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mp3Genre: String = AppSettings.defaultMP3Genre,
         automaticDownloadLimit: AutomaticDownloadLimit = .off,
         deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
-        inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths
+        inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths,
+        showSortOrder: ShowSortOrder = .alphabetic
     ) {
         self.ffmpegExecutablePath = ffmpegExecutablePath
         self.appearancePreference = appearancePreference
@@ -90,6 +99,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.automaticDownloadLimit = automaticDownloadLimit
         self.deviceCleanupPolicy = deviceCleanupPolicy
         self.inactivePodcastThreshold = inactivePodcastThreshold
+        self.showSortOrder = showSortOrder
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -102,6 +112,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case automaticDownloadLimit
         case deviceCleanupPolicy
         case inactivePodcastThreshold
+        case showSortOrder
     }
 
     public init(from decoder: Decoder) throws {
@@ -128,6 +139,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
             InactivePodcastThreshold.self,
             forKey: .inactivePodcastThreshold
         ) ?? .sixMonths
+        showSortOrder = try container.decodeIfPresent(
+            ShowSortOrder.self,
+            forKey: .showSortOrder
+        ) ?? .alphabetic
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -140,5 +155,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(automaticDownloadLimit, forKey: .automaticDownloadLimit)
         try container.encode(deviceCleanupPolicy, forKey: .deviceCleanupPolicy)
         try container.encode(inactivePodcastThreshold, forKey: .inactivePodcastThreshold)
+        try container.encode(showSortOrder, forKey: .showSortOrder)
     }
 }

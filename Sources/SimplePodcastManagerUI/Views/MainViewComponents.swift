@@ -21,6 +21,11 @@ enum FeedSidebarActivityStatus: Equatable {
     case inactive
 }
 
+enum FeedSidebarSortCriterion: Hashable {
+    case name
+    case recentlyUpdated
+}
+
 enum DownloadStatusPresentation {
     static func text(count: Int, isAutomatic: Bool) -> String {
         if isAutomatic {
@@ -221,6 +226,7 @@ struct FeedSidebarView: View {
 
     let subscriptions: [FeedSubscription]
     @Binding var selectedFeedID: FeedSubscription.ID?
+    @Binding var sortOrder: ShowSortOrder
     let isRefreshing: Bool
     let refreshStatus: FeedRefreshStatus?
     let episodeCount: (FeedSubscription) -> Int
@@ -235,14 +241,47 @@ struct FeedSidebarView: View {
     let onRefreshSubscription: (FeedSubscription) -> Void
     let onEdit: (FeedSubscription) -> Void
     let onDelete: (FeedSubscription) -> Void
-    let onDeleteOffsets: (IndexSet) -> Void
+    let onDeleteSubscriptions: ([FeedSubscription]) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Shows")
-                    .font(.headline)
+                Button {
+                    sortOrder = Self.reversedSortOrder(sortOrder)
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("Shows")
+                            .font(.headline)
+                        Image(systemName: Self.sortDirectionIcon(for: sortOrder))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Self.sortDirectionHelpText(for: sortOrder))
+                .help(Self.sortDirectionHelpText(for: sortOrder))
+
                 Spacer()
+
+                Menu {
+                    Picker("Sort by", selection: Binding(
+                        get: { Self.sortCriterion(for: sortOrder) },
+                        set: { sortOrder = Self.defaultSortOrder(for: $0) }
+                    )) {
+                        Text("Name").tag(FeedSidebarSortCriterion.name)
+                        Text("Recently Updated").tag(FeedSidebarSortCriterion.recentlyUpdated)
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .accessibilityLabel("Choose show sort field")
+                .help("Choose show sort field")
 
                 HoverIconButton(systemName: "plus", helpText: "Add show", action: onAdd)
 
@@ -261,7 +300,13 @@ struct FeedSidebarView: View {
             }
 
             List {
-                ForEach(subscriptions) { subscription in
+                let sortedSubscriptions = Self.sortedSubscriptions(
+                    subscriptions,
+                    by: sortOrder,
+                    newestPublicationDate: newestPublicationDate
+                )
+
+                ForEach(sortedSubscriptions) { subscription in
                     let count = episodeCount(subscription)
                     let isSelected = selectedFeedID == subscription.id
                     let hasIssue = hasFeedIssue(subscription)
@@ -373,7 +418,11 @@ struct FeedSidebarView: View {
                         isSelected ? Color.accentColor.opacity(0.12) : Color.clear
                     )
                 }
-                .onDelete(perform: onDeleteOffsets)
+                .onDelete { offsets in
+                    onDeleteSubscriptions(offsets.compactMap { offset in
+                        sortedSubscriptions.indices.contains(offset) ? sortedSubscriptions[offset] : nil
+                    })
+                }
             }
 
             refreshStatusFooter
@@ -474,6 +523,90 @@ struct FeedSidebarView: View {
 
     static func newEpisodeLabel(for count: Int) -> String {
         count > 99 ? "99+ new" : "\(count) new"
+    }
+
+    static func sortedSubscriptions(
+        _ subscriptions: [FeedSubscription],
+        by sortOrder: ShowSortOrder,
+        newestPublicationDate: (FeedSubscription) -> Date?
+    ) -> [FeedSubscription] {
+        subscriptions.sorted { first, second in
+            if sortOrder == .recentlyUpdated || sortOrder == .leastRecentlyUpdated {
+                switch (newestPublicationDate(first), newestPublicationDate(second)) {
+                case let (firstDate?, secondDate?) where firstDate != secondDate:
+                    return sortOrder == .recentlyUpdated
+                        ? firstDate > secondDate
+                        : firstDate < secondDate
+                case (_?, nil):
+                    return sortOrder == .recentlyUpdated
+                case (nil, _?):
+                    return sortOrder == .leastRecentlyUpdated
+                default:
+                    break
+                }
+            }
+
+            let titleComparison = first.title.localizedCaseInsensitiveCompare(second.title)
+            if titleComparison != .orderedSame {
+                return sortOrder == .reverseAlphabetic
+                    ? titleComparison == .orderedDescending
+                    : titleComparison == .orderedAscending
+            }
+            return first.id.uuidString < second.id.uuidString
+        }
+    }
+
+    static func reversedSortOrder(_ sortOrder: ShowSortOrder) -> ShowSortOrder {
+        switch sortOrder {
+        case .alphabetic:
+            return .reverseAlphabetic
+        case .reverseAlphabetic:
+            return .alphabetic
+        case .recentlyUpdated:
+            return .leastRecentlyUpdated
+        case .leastRecentlyUpdated:
+            return .recentlyUpdated
+        }
+    }
+
+    static func sortCriterion(for sortOrder: ShowSortOrder) -> FeedSidebarSortCriterion {
+        switch sortOrder {
+        case .alphabetic, .reverseAlphabetic:
+            return .name
+        case .recentlyUpdated, .leastRecentlyUpdated:
+            return .recentlyUpdated
+        }
+    }
+
+    static func defaultSortOrder(for criterion: FeedSidebarSortCriterion) -> ShowSortOrder {
+        switch criterion {
+        case .name:
+            return .alphabetic
+        case .recentlyUpdated:
+            return .recentlyUpdated
+        }
+    }
+
+    static func sortDirectionIcon(for sortOrder: ShowSortOrder) -> String {
+        switch sortOrder {
+        case .alphabetic, .leastRecentlyUpdated:
+            return "arrow.up"
+        case .reverseAlphabetic, .recentlyUpdated:
+            return "arrow.down"
+        }
+    }
+
+    static func sortDirectionHelpText(for sortOrder: ShowSortOrder) -> String {
+        switch sortOrder {
+        case .alphabetic:
+            return "Sorted by name, A–Z. Click to reverse."
+        case .reverseAlphabetic:
+            return "Sorted by name, Z–A. Click to reverse."
+        case .recentlyUpdated:
+            return "Sorted by recently updated, newest first. Click to reverse."
+        case .leastRecentlyUpdated:
+            return "Sorted by recently updated, oldest first. Click to reverse."
+        }
     }
 
     private func inactiveHelpText(for subscription: FeedSubscription) -> String {

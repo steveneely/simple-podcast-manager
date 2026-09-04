@@ -149,7 +149,8 @@ struct MainViewModelTests {
                 prefixesPublicationDateInEpisodeTitles: true,
                 mp3Genre: "Spoken Word",
                 automaticDownloadLimit: .latest3,
-                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10)
+                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10),
+                showSortOrder: .reverseAlphabetic
             )
         )
 
@@ -160,6 +161,7 @@ struct MainViewModelTests {
         #expect(viewModel.settings.mp3Genre == "Spoken Word")
         #expect(viewModel.settings.automaticDownloadLimit == .latest3)
         #expect(viewModel.settings.deviceCleanupPolicy == DeviceCleanupPolicy(maximumEpisodesPerShow: 10))
+        #expect(viewModel.settings.showSortOrder == .reverseAlphabetic)
         #expect(store.configuration.settings == viewModel.settings)
     }
 

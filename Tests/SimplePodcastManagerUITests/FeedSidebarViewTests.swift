@@ -82,6 +82,91 @@ struct FeedSidebarViewTests {
     }
 
     @Test
+    func alphabeticSortOrdersShowsByTitle() {
+        let bravo = makeSubscription(title: "Bravo")
+        let alpha = makeSubscription(title: "alpha")
+
+        let sorted = FeedSidebarView.sortedSubscriptions(
+            [bravo, alpha],
+            by: .alphabetic,
+            newestPublicationDate: { _ in nil }
+        )
+
+        #expect(sorted.map(\.id) == [alpha.id, bravo.id])
+    }
+
+    @Test
+    func reverseAlphabeticSortOrdersShowsFromZToA() {
+        let bravo = makeSubscription(title: "Bravo")
+        let alpha = makeSubscription(title: "Alpha")
+
+        let sorted = FeedSidebarView.sortedSubscriptions(
+            [alpha, bravo],
+            by: .reverseAlphabetic,
+            newestPublicationDate: { _ in nil }
+        )
+
+        #expect(sorted.map(\.id) == [bravo.id, alpha.id])
+    }
+
+    @Test
+    func recentlyUpdatedSortUsesNewestEpisodeThenTitleAndPlacesUndatedShowsLast() {
+        let older = makeSubscription(title: "Older")
+        let newestZulu = makeSubscription(title: "Zulu")
+        let newestAlpha = makeSubscription(title: "Alpha")
+        let undated = makeSubscription(title: "Undated")
+        let dates = [
+            older.id: Date(timeIntervalSince1970: 100),
+            newestZulu.id: Date(timeIntervalSince1970: 200),
+            newestAlpha.id: Date(timeIntervalSince1970: 200),
+        ]
+
+        let sorted = FeedSidebarView.sortedSubscriptions(
+            [undated, newestZulu, older, newestAlpha],
+            by: .recentlyUpdated,
+            newestPublicationDate: { dates[$0.id] }
+        )
+
+        #expect(sorted.map(\.id) == [newestAlpha.id, newestZulu.id, older.id, undated.id])
+    }
+
+    @Test
+    func leastRecentlyUpdatedSortPlacesUndatedAndOldestShowsFirst() {
+        let older = makeSubscription(title: "Older")
+        let newer = makeSubscription(title: "Newer")
+        let undatedZulu = makeSubscription(title: "Zulu")
+        let undatedAlpha = makeSubscription(title: "Alpha")
+        let dates = [
+            older.id: Date(timeIntervalSince1970: 100),
+            newer.id: Date(timeIntervalSince1970: 200),
+        ]
+
+        let sorted = FeedSidebarView.sortedSubscriptions(
+            [newer, undatedZulu, older, undatedAlpha],
+            by: .leastRecentlyUpdated,
+            newestPublicationDate: { dates[$0.id] }
+        )
+
+        #expect(sorted.map(\.id) == [undatedAlpha.id, undatedZulu.id, older.id, newer.id])
+    }
+
+    @Test
+    func columnHeaderReversesTheCurrentSortDirection() {
+        #expect(FeedSidebarView.reversedSortOrder(.alphabetic) == .reverseAlphabetic)
+        #expect(FeedSidebarView.reversedSortOrder(.reverseAlphabetic) == .alphabetic)
+        #expect(FeedSidebarView.reversedSortOrder(.recentlyUpdated) == .leastRecentlyUpdated)
+        #expect(FeedSidebarView.reversedSortOrder(.leastRecentlyUpdated) == .recentlyUpdated)
+    }
+
+    @Test
+    func choosingASortCriterionUsesItsNaturalDefaultDirection() {
+        #expect(FeedSidebarView.defaultSortOrder(for: .name) == .alphabetic)
+        #expect(FeedSidebarView.defaultSortOrder(for: .recentlyUpdated) == .recentlyUpdated)
+        #expect(FeedSidebarView.sortCriterion(for: .reverseAlphabetic) == .name)
+        #expect(FeedSidebarView.sortCriterion(for: .leastRecentlyUpdated) == .recentlyUpdated)
+    }
+
+    @Test
     func removingSelectedFeedDoesNotOpenAnotherFeed() {
         let selectedFeed = makeSubscription(title: "Selected")
         let remainingFeed = makeSubscription(title: "Remaining")

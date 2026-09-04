@@ -31,7 +31,8 @@ struct JSONConfigurationStoreTests {
                 mp3Genre: "Spoken Word",
                 automaticDownloadLimit: .latest3,
                 deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10),
-                inactivePodcastThreshold: .oneYear
+                inactivePodcastThreshold: .oneYear,
+                showSortOrder: .leastRecentlyUpdated
             ),
             feedSubscriptions: [
                 FeedSubscription(
@@ -94,6 +95,7 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.automaticDownloadLimit == .off)
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
+        #expect(configuration.settings.showSortOrder == .alphabetic)
         #expect(configuration.feedSubscriptions.isEmpty)
     }
 

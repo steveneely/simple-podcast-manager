@@ -346,6 +346,15 @@ public struct MainView: View {
         FeedSidebarView(
             subscriptions: viewModel.feedSubscriptions,
             selectedFeedID: $selectedFeedID,
+            sortOrder: Binding(
+                get: { viewModel.settings.showSortOrder },
+                set: { updatedSortOrder in
+                    guard updatedSortOrder != viewModel.settings.showSortOrder else { return }
+                    var updatedSettings = viewModel.settings
+                    updatedSettings.showSortOrder = updatedSortOrder
+                    viewModel.replaceSettings(updatedSettings)
+                }
+            ),
             isRefreshing: feedRefreshStatus?.isRefreshing == true,
             refreshStatus: feedRefreshStatus,
             episodeCount: { allEpisodes(for: $0).count },
@@ -375,12 +384,9 @@ public struct MainView: View {
                 feedEditorPresentation = FeedEditorPresentation(subscription: subscription)
             },
             onDelete: { subscription in
-                guard let index = viewModel.feedSubscriptions.firstIndex(where: { $0.id == subscription.id }) else {
-                    return
-                }
-                requestFeedDeletion(at: IndexSet(integer: index))
+                requestFeedDeletion(for: [subscription])
             },
-            onDeleteOffsets: requestFeedDeletion
+            onDeleteSubscriptions: requestFeedDeletion
         )
     }
 
@@ -1289,10 +1295,7 @@ public struct MainView: View {
         await refreshAllContent()
     }
 
-    private func requestFeedDeletion(at offsets: IndexSet) {
-        let subscriptions = offsets.compactMap { offset in
-            viewModel.feedSubscriptions.indices.contains(offset) ? viewModel.feedSubscriptions[offset] : nil
-        }
+    private func requestFeedDeletion(for subscriptions: [FeedSubscription]) {
         guard !subscriptions.isEmpty else { return }
         let subscriptionIDs = Set(subscriptions.map(\.id))
         let localDownloadCount = preparationPreviewViewModel.preparedEpisodes.count { preparedEpisode in

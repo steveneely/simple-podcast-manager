@@ -7,6 +7,6 @@ struct AppDataRestoreConfirmation: Equatable {
     let message: String
 
     init(backupURL: URL) {
-        message = "Restoring \(backupURL.lastPathComponent) replaces your subscriptions, settings, and episode history. Your current app data will be backed up first. Downloaded audio files will not be deleted."
+        message = "Restoring \(backupURL.lastPathComponent) replaces your podcasts, settings, and episode history. Your current app data will be backed up first. Downloaded audio files will not be deleted."
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct FeedActivityEpisodeKey: Hashable, Sendable {
+public struct PodcastActivityEpisodeKey: Hashable, Sendable {
     public var subscriptionID: UUID
     public var episodeID: String
 
@@ -15,10 +15,10 @@ public struct FeedActivityEpisodeKey: Hashable, Sendable {
     }
 }
 
-public enum FeedActivitySyncAcknowledgement {
+public enum PodcastActivitySyncAcknowledgement {
     public static func episodesAcknowledged(
         preparedEpisodes: [PreparedEpisode],
-        existingDeviceFiles: [FeedActivityEpisodeKey: URL],
+        existingDeviceFiles: [PodcastActivityEpisodeKey: URL],
         completedPlan: SyncPlan
     ) -> [Episode] {
         let copiedSourceURLs = Set(completedPlan.actions.compactMap { action -> URL? in
@@ -31,7 +31,7 @@ public enum FeedActivitySyncAcknowledgement {
         })
 
         return preparedEpisodes.filter { prepared in
-            let retainedExistingFile = FeedActivityEpisodeKey(episode: prepared.episode)
+            let retainedExistingFile = PodcastActivityEpisodeKey(episode: prepared.episode)
                 .flatMap { existingDeviceFiles[$0] }
                 .map { !deletedTargetURLs.contains($0.standardizedFileURL) } == true
             return retainedExistingFile

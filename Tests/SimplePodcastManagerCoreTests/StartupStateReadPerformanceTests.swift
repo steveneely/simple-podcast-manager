@@ -77,7 +77,7 @@ final class StartupStateReadPerformanceTests: XCTestCase {
             _ = try! store.loadDownloadedEpisodes()
             _ = try! store.loadRemovedEpisodes()
             _ = try! store.loadState()
-            _ = try! store.loadFeedActivityState()
+            _ = try! store.loadPodcastActivityState()
         }
     }
 }

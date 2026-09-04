@@ -2,14 +2,14 @@ import Foundation
 import Testing
 @testable import SimplePodcastManagerCore
 
-struct FeedActivityPlannerTests {
+struct PodcastActivityPlannerTests {
     private let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
 
     @Test
     func firstRefreshEstablishesBaselineAndLaterRefreshCountsOnlyNewPrefix() {
         let subscription = makeSubscription()
-        let baselineUpdate = FeedActivityPlanner.update(
-            FeedActivityState(),
+        let baselineUpdate = PodcastActivityPlanner.update(
+            PodcastActivityState(),
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
@@ -17,9 +17,9 @@ struct FeedActivityPlannerTests {
         )
         let baseline = baselineUpdate.state
         #expect(baselineUpdate.discoveredEpisodeCount == 0)
-        #expect(baseline.feeds[0].newEpisodeIDs.isEmpty)
+        #expect(baseline.podcasts[0].newEpisodeIDs.isEmpty)
 
-        let refreshUpdate = FeedActivityPlanner.update(
+        let refreshUpdate = PodcastActivityPlanner.update(
             baseline,
             subscriptions: [subscription],
             episodes: [episode("3", day: 3), episode("2", day: 2), episode("1", day: 1)],
@@ -28,37 +28,37 @@ struct FeedActivityPlannerTests {
         )
         let updated = refreshUpdate.state
         #expect(refreshUpdate.discoveredEpisodeCount == 1)
-        #expect(updated.feeds[0].newEpisodeIDs == ["3"])
+        #expect(updated.podcasts[0].newEpisodeIDs == ["3"])
     }
 
     @Test
     func archiveExpansionDoesNotCountOldEpisodesAndMissingCurrentEpisodesLoseTheirBadge() {
         let subscription = makeSubscription()
         let initial = state(observed: ["3", "2"], new: ["3"], newestDay: 3)
-        let expanded = FeedActivityPlanner.updating(
+        let expanded = PodcastActivityPlanner.updating(
             initial,
             subscriptions: [subscription],
             episodes: [episode("3", day: 3), episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: []
         )
-        #expect(expanded.feeds[0].newEpisodeIDs == ["3"])
+        #expect(expanded.podcasts[0].newEpisodeIDs == ["3"])
 
-        let disappeared = FeedActivityPlanner.updating(
+        let disappeared = PodcastActivityPlanner.updating(
             expanded,
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: []
         )
-        #expect(disappeared.feeds[0].newEpisodeIDs.isEmpty)
+        #expect(disappeared.podcasts[0].newEpisodeIDs.isEmpty)
     }
 
     @Test
     func failedRefreshDoesNotAdvanceStateAndNextSuccessfulRefreshAccumulatesNewBadges() {
         let subscription = makeSubscription()
         let initial = state(observed: ["1"], newestDay: 1)
-        let failed = FeedActivityPlanner.updating(
+        let failed = PodcastActivityPlanner.updating(
             initial,
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
@@ -67,7 +67,7 @@ struct FeedActivityPlannerTests {
         )
         #expect(failed == initial)
 
-        let openUpdate = FeedActivityPlanner.update(
+        let openUpdate = PodcastActivityPlanner.update(
             initial,
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
@@ -76,29 +76,29 @@ struct FeedActivityPlannerTests {
         )
         let open = openUpdate.state
         #expect(openUpdate.discoveredEpisodeCount == 1)
-        #expect(open.feeds[0].newEpisodeIDs == ["2"])
-        #expect(open.feeds[0].observedEpisodeIDs == ["2", "1"])
+        #expect(open.podcasts[0].newEpisodeIDs == ["2"])
+        #expect(open.podcasts[0].observedEpisodeIDs == ["2", "1"])
     }
 
     @Test
-    func syncAndFeedURLChangeClearTheAppropriateNewState() {
+    func syncAndRSSURLChangeClearTheAppropriateNewState() {
         let initial = state(observed: ["3", "2"], new: ["3", "2"], newestDay: 3)
-        let synced = FeedActivityPlanner.acknowledging(episodes: [episode("3", day: 3)], in: initial)
-        #expect(synced.feeds[0].newEpisodeIDs == ["2"])
-        let changedSubscription = FeedSubscription(
+        let synced = PodcastActivityPlanner.acknowledging(episodes: [episode("3", day: 3)], in: initial)
+        #expect(synced.podcasts[0].newEpisodeIDs == ["2"])
+        let changedSubscription = PodcastSubscription(
             id: subscriptionID,
             title: "Show",
             rssURL: URL(string: "https://example.com/changed.xml")!
         )
-        let reset = FeedActivityPlanner.updating(
+        let reset = PodcastActivityPlanner.updating(
             initial,
             subscriptions: [changedSubscription],
             episodes: [episode("9", day: 9, feedURL: changedSubscription.rssURL)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: []
         )
-        #expect(reset.feeds[0].newEpisodeIDs.isEmpty)
-        #expect(reset.feeds[0].observedEpisodeIDs == ["9"])
+        #expect(reset.podcasts[0].newEpisodeIDs.isEmpty)
+        #expect(reset.podcasts[0].observedEpisodeIDs == ["9"])
     }
 
     @Test
@@ -107,14 +107,14 @@ struct FeedActivityPlannerTests {
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let current = calendar.date(from: DateComponents(year: 2026, month: 8, day: 23))!
         let cutoff = calendar.date(byAdding: .month, value: -6, to: current)!
-        let exact = FeedActivityFeedState(subscriptionID: subscriptionID, rssURL: makeSubscription().rssURL, newestPublicationDate: cutoff)
-        let old = FeedActivityFeedState(subscriptionID: subscriptionID, rssURL: makeSubscription().rssURL, newestPublicationDate: cutoff.addingTimeInterval(-1))
-        let missing = FeedActivityFeedState(subscriptionID: subscriptionID, rssURL: makeSubscription().rssURL)
+        let exact = PodcastActivityEntry(subscriptionID: subscriptionID, rssURL: makeSubscription().rssURL, newestPublicationDate: cutoff)
+        let old = PodcastActivityEntry(subscriptionID: subscriptionID, rssURL: makeSubscription().rssURL, newestPublicationDate: cutoff.addingTimeInterval(-1))
+        let missing = PodcastActivityEntry(subscriptionID: subscriptionID, rssURL: makeSubscription().rssURL)
 
-        #expect(!FeedActivityPlanner.isInactive(exact, threshold: .sixMonths, currentDate: current, calendar: calendar))
-        #expect(FeedActivityPlanner.isInactive(old, threshold: .sixMonths, currentDate: current, calendar: calendar))
-        #expect(!FeedActivityPlanner.isInactive(old, threshold: .off, currentDate: current, calendar: calendar))
-        #expect(!FeedActivityPlanner.isInactive(missing, threshold: .sixMonths, currentDate: current, calendar: calendar))
+        #expect(!PodcastActivityPlanner.isInactive(exact, threshold: .sixMonths, currentDate: current, calendar: calendar))
+        #expect(PodcastActivityPlanner.isInactive(old, threshold: .sixMonths, currentDate: current, calendar: calendar))
+        #expect(!PodcastActivityPlanner.isInactive(old, threshold: .off, currentDate: current, calendar: calendar))
+        #expect(!PodcastActivityPlanner.isInactive(missing, threshold: .sixMonths, currentDate: current, calendar: calendar))
     }
 
     @Test
@@ -123,27 +123,27 @@ struct FeedActivityPlannerTests {
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let parsedAsYear26 = try #require(calendar.date(from: DateComponents(year: 26, month: 9, day: 1)))
         let current = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 2)))
-        let feed = FeedActivityFeedState(
+        let podcast = PodcastActivityEntry(
             subscriptionID: subscriptionID,
             rssURL: makeSubscription().rssURL,
             newestPublicationDate: parsedAsYear26
         )
 
-        #expect(!FeedActivityPlanner.isInactive(
-            feed,
+        #expect(!PodcastActivityPlanner.isInactive(
+            podcast,
             threshold: .sixMonths,
             currentDate: current,
             calendar: calendar
         ))
     }
 
-    private func makeSubscription() -> FeedSubscription {
-        FeedSubscription(id: subscriptionID, title: "Show", rssURL: URL(string: "https://example.com/feed.xml")!)
+    private func makeSubscription() -> PodcastSubscription {
+        PodcastSubscription(id: subscriptionID, title: "Show", rssURL: URL(string: "https://example.com/feed.xml")!)
     }
 
-    private func state(observed: [String], new: Set<String> = [], newestDay: Int) -> FeedActivityState {
-        FeedActivityState(feeds: [
-            FeedActivityFeedState(
+    private func state(observed: [String], new: Set<String> = [], newestDay: Int) -> PodcastActivityState {
+        PodcastActivityState(podcasts: [
+            PodcastActivityEntry(
                 subscriptionID: subscriptionID,
                 rssURL: makeSubscription().rssURL,
                 observedEpisodeIDs: observed,

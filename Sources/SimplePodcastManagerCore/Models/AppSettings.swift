@@ -45,7 +45,7 @@ public enum InactivePodcastThreshold: String, Codable, Equatable, Sendable, Case
     }
 }
 
-public enum ShowSortOrder: String, Codable, Equatable, Sendable, CaseIterable {
+public enum PodcastSortOrder: String, Codable, Equatable, Sendable, CaseIterable {
     case alphabetic
     case reverseAlphabetic
     case recentlyUpdated
@@ -53,18 +53,22 @@ public enum ShowSortOrder: String, Codable, Equatable, Sendable, CaseIterable {
 }
 
 public struct DeviceCleanupPolicy: Codable, Equatable, Sendable {
-    public static let allowedMaximumEpisodesPerShow = [3, 5, 10, 20]
+    public static let allowedMaximumEpisodesPerPodcast = [3, 5, 10, 20]
 
-    public var maximumEpisodesPerShow: Int?
+    public var maximumEpisodesPerPodcast: Int?
 
-    public init(maximumEpisodesPerShow: Int? = nil) {
-        self.maximumEpisodesPerShow = maximumEpisodesPerShow
+    public init(maximumEpisodesPerPodcast: Int? = nil) {
+        self.maximumEpisodesPerPodcast = maximumEpisodesPerPodcast
     }
 
     public var isEnabled: Bool {
-        maximumEpisodesPerShow != nil
+        maximumEpisodesPerPodcast != nil
     }
 
+    private enum CodingKeys: String, CodingKey {
+        // Keep the established JSON key so existing settings remain readable.
+        case maximumEpisodesPerPodcast = "maximumEpisodesPerShow"
+    }
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {
@@ -78,7 +82,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var automaticDownloadLimit: AutomaticDownloadLimit
     public var deviceCleanupPolicy: DeviceCleanupPolicy
     public var inactivePodcastThreshold: InactivePodcastThreshold
-    public var showSortOrder: ShowSortOrder
+    public var podcastSortOrder: PodcastSortOrder
 
     public init(
         ffmpegExecutablePath: String? = nil,
@@ -89,7 +93,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         automaticDownloadLimit: AutomaticDownloadLimit = .off,
         deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths,
-        showSortOrder: ShowSortOrder = .alphabetic
+        podcastSortOrder: PodcastSortOrder = .alphabetic
     ) {
         self.ffmpegExecutablePath = ffmpegExecutablePath
         self.appearancePreference = appearancePreference
@@ -99,7 +103,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.automaticDownloadLimit = automaticDownloadLimit
         self.deviceCleanupPolicy = deviceCleanupPolicy
         self.inactivePodcastThreshold = inactivePodcastThreshold
-        self.showSortOrder = showSortOrder
+        self.podcastSortOrder = podcastSortOrder
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -112,7 +116,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case automaticDownloadLimit
         case deviceCleanupPolicy
         case inactivePodcastThreshold
-        case showSortOrder
+        // Keep the established JSON key so existing settings remain readable.
+        case podcastSortOrder = "showSortOrder"
     }
 
     public init(from decoder: Decoder) throws {
@@ -139,9 +144,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
             InactivePodcastThreshold.self,
             forKey: .inactivePodcastThreshold
         ) ?? .sixMonths
-        showSortOrder = try container.decodeIfPresent(
-            ShowSortOrder.self,
-            forKey: .showSortOrder
+        podcastSortOrder = try container.decodeIfPresent(
+            PodcastSortOrder.self,
+            forKey: .podcastSortOrder
         ) ?? .alphabetic
     }
 
@@ -155,6 +160,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(automaticDownloadLimit, forKey: .automaticDownloadLimit)
         try container.encode(deviceCleanupPolicy, forKey: .deviceCleanupPolicy)
         try container.encode(inactivePodcastThreshold, forKey: .inactivePodcastThreshold)
-        try container.encode(showSortOrder, forKey: .showSortOrder)
+        try container.encode(podcastSortOrder, forKey: .podcastSortOrder)
     }
 }

@@ -5,7 +5,7 @@ struct PodcastSearchSubscriptionMatcher {
     private let feedURLIdentities: Set<String>
     private let titles: Set<String>
 
-    init(subscriptions: [FeedSubscription]) {
+    init(subscriptions: [PodcastSubscription]) {
         self.feedURLIdentities = Set(
             subscriptions.map { FeedURLIdentity.normalized($0.rssURL) }
         )

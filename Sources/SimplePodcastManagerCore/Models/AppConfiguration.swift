@@ -2,13 +2,19 @@ import Foundation
 
 public struct AppConfiguration: Codable, Equatable, Sendable {
     public var settings: AppSettings
-    public var feedSubscriptions: [FeedSubscription]
+    public var podcastSubscriptions: [PodcastSubscription]
 
     public init(
         settings: AppSettings = AppSettings(),
-        feedSubscriptions: [FeedSubscription] = []
+        podcastSubscriptions: [PodcastSubscription] = []
     ) {
         self.settings = settings
-        self.feedSubscriptions = feedSubscriptions
+        self.podcastSubscriptions = podcastSubscriptions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case settings
+        // Keep the established JSON key so existing app data remains readable.
+        case podcastSubscriptions = "feedSubscriptions"
     }
 }

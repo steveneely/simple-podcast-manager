@@ -7,7 +7,7 @@ public struct JSONFeedCacheStore: FeedCacheStore {
         self.directoryURL = directoryURL
     }
 
-    public func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
+    public func loadCachedFeed(for subscription: PodcastSubscription) throws -> CachedFeed? {
         let fileURL = fileURL(for: subscription.id)
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return nil

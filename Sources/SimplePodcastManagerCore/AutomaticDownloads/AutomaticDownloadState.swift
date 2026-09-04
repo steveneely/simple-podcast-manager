@@ -15,7 +15,7 @@ public struct AutomaticDownloadEpisodeID: Hashable, Sendable {
     }
 }
 
-public struct AutomaticDownloadFeedState: Codable, Equatable, Sendable {
+public struct AutomaticDownloadPodcastState: Codable, Equatable, Sendable {
     public var subscriptionID: UUID
     public var rssURL: URL
     public var observedEpisodeIDs: [String]
@@ -35,9 +35,14 @@ public struct AutomaticDownloadFeedState: Codable, Equatable, Sendable {
 }
 
 public struct AutomaticDownloadState: Codable, Equatable, Sendable {
-    public var feeds: [AutomaticDownloadFeedState]
+    public var podcasts: [AutomaticDownloadPodcastState]
 
-    public init(feeds: [AutomaticDownloadFeedState] = []) {
-        self.feeds = feeds
+    public init(podcasts: [AutomaticDownloadPodcastState] = []) {
+        self.podcasts = podcasts
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        // Keep the established JSON key for one-time legacy-state imports.
+        case podcasts = "feeds"
     }
 }

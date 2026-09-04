@@ -25,23 +25,78 @@ struct HoverIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(width: 28, height: 28)
-                .background(backgroundColor)
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7)
-                        .strokeBorder(borderColor, lineWidth: isHovered ? 1 : 0)
-                )
+            HoverIconLabel(
+                systemName: systemName,
+                isHovered: isHovered,
+                isDestructive: isDestructive,
+                isDisabled: isDisabled
+            )
         }
         .buttonStyle(.plain)
-        .foregroundStyle(foregroundColor)
         .help(helpText)
+        .accessibilityLabel(helpText)
         .disabled(isDisabled)
         .onHover { hovering in
             isHovered = hovering
         }
+    }
+}
+
+struct HoverIconMenu<Content: View>: View {
+    let systemName: String
+    let helpText: String
+    @ViewBuilder let content: Content
+
+    @State private var isHovered = false
+
+    init(
+        systemName: String,
+        helpText: String,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.systemName = systemName
+        self.helpText = helpText
+        self.content = content()
+    }
+
+    var body: some View {
+        Menu {
+            content
+        } label: {
+            HoverIconLabel(
+                systemName: systemName,
+                isHovered: isHovered,
+                isDestructive: false,
+                isDisabled: false
+            )
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .help(helpText)
+        .accessibilityLabel(helpText)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+private struct HoverIconLabel: View {
+    let systemName: String
+    let isHovered: Bool
+    let isDestructive: Bool
+    let isDisabled: Bool
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 13, weight: .semibold))
+            .frame(width: 28, height: 28)
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .strokeBorder(borderColor, lineWidth: isHovered ? 1 : 0)
+            )
+            .foregroundStyle(foregroundColor)
     }
 
     private var foregroundColor: Color {

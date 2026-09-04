@@ -5,20 +5,20 @@ public struct EpisodeStateStartupSnapshot: Sendable {
     public let downloadedEpisodes: [DownloadedEpisodeRecord]
     public let removedEpisodes: [RemovedEpisodeRecord]
     public let automaticDownloadState: AutomaticDownloadState
-    public let feedActivityState: FeedActivityState
+    public let podcastActivityState: PodcastActivityState
 
     public init(
         preparedEpisodes: [PreparedEpisode],
         downloadedEpisodes: [DownloadedEpisodeRecord],
         removedEpisodes: [RemovedEpisodeRecord],
         automaticDownloadState: AutomaticDownloadState,
-        feedActivityState: FeedActivityState
+        podcastActivityState: PodcastActivityState
     ) {
         self.preparedEpisodes = preparedEpisodes
         self.downloadedEpisodes = downloadedEpisodes
         self.removedEpisodes = removedEpisodes
         self.automaticDownloadState = automaticDownloadState
-        self.feedActivityState = feedActivityState
+        self.podcastActivityState = podcastActivityState
     }
 }
 

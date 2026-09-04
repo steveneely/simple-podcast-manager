@@ -20,6 +20,30 @@ Code should be:
 
 Remove duplication when doing so improves clarity. Do not apply DRY mechanically when a shared abstraction would make the code harder to understand.
 
+## UI, UX, and Terminology Standards
+
+Keep the app visually and behaviorally consistent. New UI and changes to existing UI must follow these conventions:
+
+- Use `Podcast` for the product and domain concept in user-facing copy, type names, file names, variables, functions, tests, and comments.
+- Use `feed` only when referring specifically to an RSS document, RSS URL, parser, network request, or derived feed cache. Use `RSS Feed URL` for field labels and explanatory copy; the compact Add Podcast method selector uses `Feed URL`.
+- Use `subscription` only when the relationship or portable subscription data is the subject, such as OPML import/export or a persisted subscription identifier.
+- Do not introduce `show` as a synonym for podcast. The verb “show” remains appropriate for actions such as `Show more` or `Show in Finder`.
+- Use buttons for app actions, links only for navigation to a URL, and toggles or checkboxes for selectable on/off state. Do not make a button look like a checkbox or style non-navigation actions as links.
+- Make every interactive control recognizable through its native role, label, hover/pressed treatment, selection state, or standard macOS affordance. Icon-only controls must have both help text and an accessibility label.
+- Use `HoverIconButton` and `HoverIconMenu` for compact toolbar actions so icon size, hit target, hover feedback, and accessibility stay consistent. Destructive controls should use the shared destructive treatment.
+- Prefer text buttons for primary workflow actions. Place dialog actions in a trailing footer with Cancel or Close before the primary action, and use a prominent style only for the primary action when emphasis is needed.
+- Use native SwiftUI controls and standard macOS interaction behavior before creating custom interaction styles.
+- Keep capitalization, nouns, and action wording consistent across menus, buttons, headings, alerts, tooltips, empty states, and settings.
+
+When changing UI:
+
+- review the affected screen beside related screens for control style, spacing, hierarchy, terminology, and interaction-role consistency
+- verify keyboard, hover, disabled, selected, destructive, and accessibility states that apply
+- add or update focused UI-facing tests for presentation and state behavior
+- inspect the running app when appearance or control semantics changed; use a packaged `.app` when bundle behavior matters
+
+Persisted identifiers are a compatibility boundary. Do not rename JSON keys, backup filenames, notification identifiers used externally, database migrations, or SQLite tables merely to match current terminology. Keep the legacy identifier behind a clearly named Swift API and document why it remains, or add and test an explicit migration.
+
 ## Critical Safety Rules
 
 These rules override convenience or speed:

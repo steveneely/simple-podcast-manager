@@ -4,33 +4,33 @@ import Testing
 @testable import SimplePodcastManagerUI
 
 @MainActor
-struct FeedRefreshCoordinatorTests {
+struct PodcastRefreshCoordinatorTests {
     @Test
     func topLevelRefreshFailureIsAppliedToActivityAndAutomaticDownloads() async {
         let subscription = makeSubscription(number: 1)
         let episode = makeEpisode(number: 1, subscription: subscription)
         let summary = FeedSummary(subscriptionID: subscription.id, title: subscription.title)
-        let preview = StubFeedRefreshPreview(
+        let preview = StubPodcastRefreshPreview(
             allEpisodes: [episode],
             feedSummaries: [subscription.id: summary],
             lastErrorMessage: "Network unavailable"
         )
-        let activity = StubFeedRefreshActivity()
-        let automaticDownloads = StubFeedRefreshAutomaticDownloads()
-        let preparation = StubFeedRefreshPreparation()
-        let subscriptionLibrary = StubFeedRefreshSubscriptionLibrary(
-            feedSubscriptions: [subscription],
+        let activity = StubPodcastRefreshActivity()
+        let automaticDownloads = StubPodcastRefreshAutomaticDownloads()
+        let preparation = StubPodcastRefreshPreparation()
+        let subscriptionLibrary = StubPodcastRefreshSubscriptionLibrary(
+            podcastSubscriptions: [subscription],
             settings: AppSettings(automaticDownloadLimit: .latest1)
         )
-        let coordinator = FeedRefreshCoordinator(
-            feedPreview: preview,
-            subscriptionLibrary: subscriptionLibrary,
-            feedActivity: activity,
+        let coordinator = PodcastRefreshCoordinator(
+            podcastPreview: preview,
+            podcastLibrary: subscriptionLibrary,
+            podcastActivity: activity,
             automaticDownloads: automaticDownloads,
             episodePreparation: preparation
         )
 
-        let outcome = await coordinator.refresh(.allEnabledSubscriptions([subscription]))
+        let outcome = await coordinator.refresh(.allEnabledPodcasts([subscription]))
 
         #expect(preview.allSubscriptionsRefreshes == [[subscription]])
         #expect(activity.refreshedSubscriptionIDs == [subscription.id])
@@ -52,7 +52,7 @@ struct FeedRefreshCoordinatorTests {
         let unrelatedSubscription = makeSubscription(number: 2)
         let downloadedEpisode = makeEpisode(number: 1, subscription: subscription)
         let permissionEpisode = makeEpisode(number: 2, subscription: subscription)
-        let preview = StubFeedRefreshPreview(
+        let preview = StubPodcastRefreshPreview(
             allEpisodes: [downloadedEpisode, permissionEpisode],
             failures: [FeedFetchFailure(
                 subscriptionID: unrelatedSubscription.id,
@@ -60,27 +60,27 @@ struct FeedRefreshCoordinatorTests {
                 message: "Unrelated failure"
             )]
         )
-        let activity = StubFeedRefreshActivity(discoveredEpisodeCount: 2)
-        let automaticDownloads = StubFeedRefreshAutomaticDownloads(
+        let activity = StubPodcastRefreshActivity(discoveredEpisodeCount: 2)
+        let automaticDownloads = StubPodcastRefreshAutomaticDownloads(
             episodesToReturn: [downloadedEpisode, permissionEpisode]
         )
-        let preparation = StubFeedRefreshPreparation(
+        let preparation = StubPodcastRefreshPreparation(
             downloadedEpisodeIDsAfterPreparation: [downloadedEpisode.id],
             insecurePermissionEpisodeIDs: [permissionEpisode.id]
         )
-        let subscriptionLibrary = StubFeedRefreshSubscriptionLibrary(
-            feedSubscriptions: [subscription, unrelatedSubscription],
+        let subscriptionLibrary = StubPodcastRefreshSubscriptionLibrary(
+            podcastSubscriptions: [subscription, unrelatedSubscription],
             settings: AppSettings(automaticDownloadLimit: .allNew)
         )
-        let coordinator = FeedRefreshCoordinator(
-            feedPreview: preview,
-            subscriptionLibrary: subscriptionLibrary,
-            feedActivity: activity,
+        let coordinator = PodcastRefreshCoordinator(
+            podcastPreview: preview,
+            podcastLibrary: subscriptionLibrary,
+            podcastActivity: activity,
             automaticDownloads: automaticDownloads,
             episodePreparation: preparation
         )
 
-        let outcome = await coordinator.refresh(.subscription(subscription))
+        let outcome = await coordinator.refresh(.podcast(subscription))
 
         #expect(preview.subscriptionRefreshes == [subscription])
         #expect(activity.failedSubscriptionIDs.isEmpty)
@@ -96,15 +96,15 @@ struct FeedRefreshCoordinatorTests {
         #expect(outcome.failedSubscriptionCount == 0)
     }
 
-    private func makeSubscription(number: Int) -> FeedSubscription {
-        FeedSubscription(
+    private func makeSubscription(number: Int) -> PodcastSubscription {
+        PodcastSubscription(
             id: UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", number))!,
             title: "Podcast \(number)",
             rssURL: URL(string: "https://example.com/feed-\(number).xml")!
         )
     }
 
-    private func makeEpisode(number: Int, subscription: FeedSubscription) -> Episode {
+    private func makeEpisode(number: Int, subscription: PodcastSubscription) -> Episode {
         Episode(
             id: "episode-\(number)",
             subscriptionID: subscription.id,
@@ -117,13 +117,13 @@ struct FeedRefreshCoordinatorTests {
 }
 
 @MainActor
-private final class StubFeedRefreshSubscriptionLibrary: FeedRefreshSubscriptionUpdating {
-    var feedSubscriptions: [FeedSubscription]
+private final class StubPodcastRefreshSubscriptionLibrary: PodcastRefreshLibraryUpdating {
+    var podcastSubscriptions: [PodcastSubscription]
     var settings: AppSettings
     private(set) var appliedFeedSummaries: [FeedSummary] = []
 
-    init(feedSubscriptions: [FeedSubscription], settings: AppSettings) {
-        self.feedSubscriptions = feedSubscriptions
+    init(podcastSubscriptions: [PodcastSubscription], settings: AppSettings) {
+        self.podcastSubscriptions = podcastSubscriptions
         self.settings = settings
     }
 
@@ -133,14 +133,14 @@ private final class StubFeedRefreshSubscriptionLibrary: FeedRefreshSubscriptionU
 }
 
 @MainActor
-private final class StubFeedRefreshPreview: FeedRefreshPreviewing {
+private final class StubPodcastRefreshPreview: PodcastRefreshPreviewing {
     var allEpisodes: [Episode]
     var failures: [FeedFetchFailure]
     var feedSummaries: [UUID: FeedSummary]
     var lastErrorMessage: String?
-    private(set) var allSubscriptionsRefreshes: [[FeedSubscription]] = []
-    private(set) var subscriptionRefreshes: [FeedSubscription] = []
-    private(set) var newSubscriptionsRefreshes: [[FeedSubscription]] = []
+    private(set) var allSubscriptionsRefreshes: [[PodcastSubscription]] = []
+    private(set) var subscriptionRefreshes: [PodcastSubscription] = []
+    private(set) var newPodcastsRefreshes: [[PodcastSubscription]] = []
 
     init(
         allEpisodes: [Episode] = [],
@@ -154,21 +154,21 @@ private final class StubFeedRefreshPreview: FeedRefreshPreviewing {
         self.lastErrorMessage = lastErrorMessage
     }
 
-    func refreshPreview(for subscriptions: [FeedSubscription]) async {
+    func refreshPreview(for subscriptions: [PodcastSubscription]) async {
         allSubscriptionsRefreshes.append(subscriptions)
     }
 
-    func refreshPreview(for subscription: FeedSubscription) async {
+    func refreshPreview(for subscription: PodcastSubscription) async {
         subscriptionRefreshes.append(subscription)
     }
 
-    func refreshPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
-        newSubscriptionsRefreshes.append(subscriptions)
+    func refreshPreview(forNewSubscriptions subscriptions: [PodcastSubscription]) async {
+        newPodcastsRefreshes.append(subscriptions)
     }
 }
 
 @MainActor
-private final class StubFeedRefreshActivity: FeedRefreshActivityUpdating {
+private final class StubPodcastRefreshActivity: PodcastRefreshActivityUpdating {
     let discoveredEpisodeCount: Int
     private(set) var refreshedSubscriptionIDs: Set<UUID> = []
     private(set) var failedSubscriptionIDs: Set<UUID> = []
@@ -179,7 +179,7 @@ private final class StubFeedRefreshActivity: FeedRefreshActivityUpdating {
     }
 
     func updateAfterRefresh(
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
         failedSubscriptionIDs: Set<UUID>
@@ -195,7 +195,7 @@ private final class StubFeedRefreshActivity: FeedRefreshActivityUpdating {
 }
 
 @MainActor
-private final class StubFeedRefreshAutomaticDownloads: FeedRefreshAutomaticDownloading {
+private final class StubPodcastRefreshAutomaticDownloads: PodcastRefreshAutomaticDownloading {
     var episodesToReturn: [Episode]
     private(set) var refreshedSubscriptionIDs: Set<UUID> = []
     private(set) var failedSubscriptionIDs: Set<UUID> = []
@@ -209,7 +209,7 @@ private final class StubFeedRefreshAutomaticDownloads: FeedRefreshAutomaticDownl
     func episodesToDownload(
         afterRefreshing refreshedSubscriptionIDs: Set<UUID>,
         failedSubscriptionIDs: Set<UUID>,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,
         limit: AutomaticDownloadLimit
@@ -226,7 +226,7 @@ private final class StubFeedRefreshAutomaticDownloads: FeedRefreshAutomaticDownl
 }
 
 @MainActor
-private final class StubFeedRefreshPreparation: FeedRefreshEpisodePreparing {
+private final class StubPodcastRefreshPreparation: PodcastRefreshEpisodePreparing {
     var downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID> = []
     private let downloadedEpisodeIDsAfterPreparation: Set<String>
     private let insecurePermissionEpisodeIDs: Set<String>

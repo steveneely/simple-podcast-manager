@@ -3,15 +3,15 @@ import Testing
 
 struct SyncPresentationTests {
     @Test
-    func cleanupNoticeNamesTheConfiguredPerShowLimit() {
+    func cleanupNoticeNamesTheConfiguredPerPodcastLimit() {
         let notice = SyncPresentation.deletionNotice(
             deletionCount: 2,
             selectedCleanupDeletionCount: 2,
-            cleanupMaximumEpisodesPerShow: 5
+            cleanupMaximumEpisodesPerPodcast: 5
         )
 
         #expect(SyncPresentation.deletionNoticeTitle(selectedCleanupDeletionCount: 2) == "Episodes Selected for Cleanup")
-        #expect(notice.contains("keep the latest 5 episodes per show"))
+        #expect(notice.contains("keep the latest 5 episodes per podcast"))
         #expect(notice.contains("2 older episodes are selected for cleanup"))
     }
 
@@ -20,7 +20,7 @@ struct SyncPresentationTests {
         let notice = SyncPresentation.deletionNotice(
             deletionCount: 1,
             selectedCleanupDeletionCount: 0,
-            cleanupMaximumEpisodesPerShow: nil
+            cleanupMaximumEpisodesPerPodcast: nil
         )
 
         #expect(SyncPresentation.deletionNoticeTitle(selectedCleanupDeletionCount: 0) == "Episodes Selected for Removal")

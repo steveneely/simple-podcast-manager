@@ -25,7 +25,7 @@ struct SyncPlanViewModelTests {
             preparedFileURL: URL(fileURLWithPath: "/tmp/Episode_1.mp3"),
             preparationAction: .passthroughMP3
         )
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Example Podcast",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -83,7 +83,7 @@ struct SyncPlanViewModelTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [
-                FeedSubscription(
+                PodcastSubscription(
                     id: subscriptionID,
                     title: "Example Podcast",
                     rssURL: URL(string: "https://example.com/feed.xml")!
@@ -101,7 +101,7 @@ struct SyncPlanViewModelTests {
     @Test
     func incompleteCopyOffersExactTargetAndBuildsReplacementPlan() async {
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: subscriptionID,
             title: "Example Podcast",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -177,7 +177,7 @@ struct SyncPlanViewModelTests {
     @Test
     func failedIncompleteCopyRecoveryExplainsWhyReplacementCouldNotBePrepared() async {
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: subscriptionID,
             title: "Example Podcast",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -273,13 +273,13 @@ struct SyncPlanViewModelTests {
             device: device,
             preparedEpisodes: [],
             subscriptions: [
-                FeedSubscription(
+                PodcastSubscription(
                     id: subscriptionID,
                     title: "Example Podcast",
                     rssURL: URL(string: "https://example.com/feed.xml")!
                 )
             ],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             excludedCleanupTargets: [oldEpisodeURL],
             ejectAfterSync: false
         )
@@ -310,7 +310,7 @@ struct SyncPlanViewModelTests {
 
     @Test
     func buildPlanReusesManagedInventoryWithoutReadingTheDeviceAgain() async {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Example Podcast",
             rssURL: URL(string: "https://example.com/feed.xml")!

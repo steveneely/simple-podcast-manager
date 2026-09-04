@@ -79,7 +79,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Example Podcast",
                 rssURL: feedURL,
                 isEnabled: true
@@ -131,7 +131,7 @@ struct RSSFeedServiceTests {
             cacheStore: InMemoryFeedCacheStore()
         )
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(title: "Two-Digit Years", rssURL: feedURL)
+            PodcastSubscription(title: "Two-Digit Years", rssURL: feedURL)
         ])
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -166,7 +166,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Cognitive Revolution",
                 rssURL: feedURL,
                 isEnabled: true
@@ -206,7 +206,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(title: "Readable Podcast", rssURL: feedURL, isEnabled: true)
+            PodcastSubscription(title: "Readable Podcast", rssURL: feedURL, isEnabled: true)
         ])
 
         let description = try #require(result.allEpisodes.first?.description)
@@ -237,7 +237,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(title: "Sectioned Podcast", rssURL: feedURL, isEnabled: true)
+            PodcastSubscription(title: "Sectioned Podcast", rssURL: feedURL, isEnabled: true)
         ])
 
         let description = try #require(result.allEpisodes.first?.description)
@@ -259,7 +259,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Broken Feed",
                 rssURL: feedURL,
                 isEnabled: true
@@ -296,7 +296,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Future of Life",
                 rssURL: feedURL,
                 isEnabled: true
@@ -317,7 +317,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Disabled Feed",
                 rssURL: URL(string: "https://example.com/disabled.xml")!,
                 isEnabled: false
@@ -354,7 +354,7 @@ struct RSSFeedServiceTests {
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: InMemoryFeedCacheStore())
 
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Example Podcast",
                 rssURL: feedURL,
                 isEnabled: true
@@ -398,7 +398,7 @@ struct RSSFeedServiceTests {
 
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: cacheStore)
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(id: subscriptionID, title: "Cached Podcast", rssURL: feedURL)
+            PodcastSubscription(id: subscriptionID, title: "Cached Podcast", rssURL: feedURL)
         ])
 
         #expect(result.failures.isEmpty)
@@ -443,7 +443,7 @@ struct RSSFeedServiceTests {
             currentDate: { Date(timeIntervalSince1970: 1_777_000_000) }
         )
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(id: subscriptionID, title: "Updated Podcast", rssURL: feedURL)
+            PodcastSubscription(id: subscriptionID, title: "Updated Podcast", rssURL: feedURL)
         ])
 
         #expect(result.failures.isEmpty)
@@ -482,12 +482,12 @@ struct RSSFeedServiceTests {
 
         let service = RSSFeedService(session: URLSession(configuration: configuration), cacheStore: cacheStore)
         let result = try await service.fetchLatestEpisodes(for: [
-            FeedSubscription(id: subscriptionID, title: "Cached Podcast", rssURL: feedURL)
+            PodcastSubscription(id: subscriptionID, title: "Cached Podcast", rssURL: feedURL)
         ])
 
         #expect(result.allEpisodes.map(\.title) == ["Cached Episode"])
         #expect(result.failures.count == 1)
-        #expect(result.failures.first?.message.contains("Could not refresh this feed. Showing saved episodes from") == true)
+        #expect(result.failures.first?.message.contains("Could not refresh this RSS feed. Showing saved episodes from") == true)
         #expect(result.failures.first?.message.contains("410") == true)
     }
 
@@ -495,7 +495,7 @@ struct RSSFeedServiceTests {
     func refreshesFeedsWithBoundedParallelism() async throws {
         let subscriptions = (0..<5).map { index in
             let feedURL = URL(string: "https://example.com/parallel-\(index).xml")!
-            return FeedSubscription(title: "Podcast \(index)", rssURL: feedURL)
+            return PodcastSubscription(title: "Podcast \(index)", rssURL: feedURL)
         }
         let session = DelayedFeedSession()
 
@@ -653,7 +653,7 @@ private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable 
         self.storage = cachedFeeds
     }
 
-    func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
+    func loadCachedFeed(for subscription: PodcastSubscription) throws -> CachedFeed? {
         lock.lock()
         defer { lock.unlock() }
         guard let cachedFeed = storage[subscription.id], cachedFeed.rssURL == subscription.rssURL else {

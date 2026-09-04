@@ -37,19 +37,19 @@ struct SimplePodcastManagerDesktopApp: App {
         .defaultSize(width: 900, height: 720)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Add Podcast Feed…") {
-                    NotificationCenter.default.post(name: .simplePodcastManagerAddPodcastFeed, object: nil)
+                Button("Add Podcast…") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerAddPodcast, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command])
 
                 Divider()
 
-                Button("Import Subscriptions…") {
+                Button("Import Podcasts…") {
                     NotificationCenter.default.post(name: .simplePodcastManagerImportSubscriptions, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
 
-                Button("Export Subscriptions…") {
+                Button("Export Podcasts…") {
                     NotificationCenter.default.post(name: .simplePodcastManagerExportSubscriptions, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .option])

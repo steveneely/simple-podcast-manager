@@ -4,16 +4,16 @@ import SimplePodcastManagerCore
 
 @MainActor
 @Observable
-public final class FeedActivityViewModel {
+public final class PodcastActivityViewModel {
     public private(set) var lastErrorMessage: String?
     public private(set) var hasLoadedState = false
 
-    private let persistence: FeedActivityPersistence
-    private var state = FeedActivityState()
-    private var feedsBySubscriptionID: [UUID: FeedActivityFeedState] = [:]
+    private let persistence: PodcastActivityPersistence
+    private var state = PodcastActivityState()
+    private var activityByPodcastID: [UUID: PodcastActivityEntry] = [:]
 
-    public init(store: any FeedActivityStateStore = SQLiteEpisodeStore.shared) {
-        self.persistence = FeedActivityPersistence(store: store)
+    public init(store: any PodcastActivityStateStore = SQLiteEpisodeStore.shared) {
+        self.persistence = PodcastActivityPersistence(store: store)
     }
 
     public func load() async {
@@ -23,12 +23,12 @@ public final class FeedActivityViewModel {
             lastErrorMessage = nil
             hasLoadedState = true
         } catch {
-            state = FeedActivityState()
+            state = PodcastActivityState()
             lastErrorMessage = error.localizedDescription
         }
     }
 
-    public func applyPersistedState(_ state: FeedActivityState) {
+    public func applyPersistedState(_ state: PodcastActivityState) {
         self.state = state
         rebuildIndex()
         lastErrorMessage = nil
@@ -36,12 +36,12 @@ public final class FeedActivityViewModel {
     }
 
     public func updateAfterRefresh(
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
         failedSubscriptionIDs: Set<UUID>
     ) async -> Int {
-        let update = FeedActivityPlanner.update(
+        let update = PodcastActivityPlanner.update(
             state,
             subscriptions: subscriptions,
             episodes: episodes,
@@ -56,21 +56,21 @@ public final class FeedActivityViewModel {
 
     public func acknowledge(_ episodes: [Episode]) async {
         guard !episodes.isEmpty else { return }
-        state = FeedActivityPlanner.acknowledging(episodes: episodes, in: state)
+        state = PodcastActivityPlanner.acknowledging(episodes: episodes, in: state)
         rebuildIndex()
         await persist()
     }
 
     public func newEpisodeCount(for subscriptionID: UUID) -> Int {
-        feedsBySubscriptionID[subscriptionID]?.newEpisodeIDs.count ?? 0
+        activityByPodcastID[subscriptionID]?.newEpisodeIDs.count ?? 0
     }
 
     public func newEpisodeIDs(for subscriptionID: UUID) -> Set<String> {
-        feedsBySubscriptionID[subscriptionID]?.newEpisodeIDs ?? []
+        activityByPodcastID[subscriptionID]?.newEpisodeIDs ?? []
     }
 
     public func newestPublicationDate(for subscriptionID: UUID) -> Date? {
-        feedsBySubscriptionID[subscriptionID]?.newestPublicationDate
+        activityByPodcastID[subscriptionID]?.newestPublicationDate
     }
 
     public func isInactive(
@@ -78,12 +78,12 @@ public final class FeedActivityViewModel {
         threshold: InactivePodcastThreshold,
         currentDate: Date = Date()
     ) -> Bool {
-        let feed = feedsBySubscriptionID[subscriptionID]
-        return FeedActivityPlanner.isInactive(feed, threshold: threshold, currentDate: currentDate)
+        let activity = activityByPodcastID[subscriptionID]
+        return PodcastActivityPlanner.isInactive(activity, threshold: threshold, currentDate: currentDate)
     }
 
     private func rebuildIndex() {
-        feedsBySubscriptionID = Dictionary(uniqueKeysWithValues: state.feeds.map { ($0.subscriptionID, $0) })
+        activityByPodcastID = Dictionary(uniqueKeysWithValues: state.podcasts.map { ($0.subscriptionID, $0) })
     }
 
     private func persist() async {
@@ -96,13 +96,13 @@ public final class FeedActivityViewModel {
     }
 }
 
-private actor FeedActivityPersistence {
-    let store: any FeedActivityStateStore
+private actor PodcastActivityPersistence {
+    let store: any PodcastActivityStateStore
 
-    init(store: any FeedActivityStateStore) {
+    init(store: any PodcastActivityStateStore) {
         self.store = store
     }
 
-    func load() throws -> FeedActivityState { try store.loadFeedActivityState() }
-    func save(_ state: FeedActivityState) throws { try store.saveFeedActivityState(state) }
+    func load() throws -> PodcastActivityState { try store.loadPodcastActivityState() }
+    func save(_ state: PodcastActivityState) throws { try store.savePodcastActivityState(state) }
 }

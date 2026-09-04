@@ -98,7 +98,7 @@ struct EpisodeRowView<Details: View>: View {
                 if isPrepared {
                     HoverIconButton(
                         systemName: "trash",
-                        helpText: "Delete downloaded podcast",
+                        helpText: "Delete downloaded episode",
                         isDestructive: true,
                         action: onRemoveDownload
                     )

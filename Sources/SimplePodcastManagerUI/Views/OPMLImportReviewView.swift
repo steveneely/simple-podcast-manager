@@ -19,7 +19,7 @@ public struct OPMLImportReviewView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Import Podcast Subscriptions")
+            Text("Import Podcasts")
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -35,7 +35,7 @@ public struct OPMLImportReviewView: View {
                         Text("\(preview.duplicateEntryCount) duplicate in this file")
                     }
                     if preview.invalidEntryCount > 0 {
-                        Text("\(preview.invalidEntryCount) invalid feed URL")
+                        Text("\(preview.invalidEntryCount) invalid RSS feed URL")
                     }
                 }
                 .font(.caption)
@@ -84,9 +84,9 @@ public struct OPMLImportReviewView: View {
 
     private var summaryText: String {
         if preview.subscriptionsToAdd.isEmpty {
-            return "No new podcast subscriptions can be added from this file."
+            return "No new podcasts can be added from this file."
         }
-        return "Review the podcast subscriptions to add. Their titles and artwork will update when feeds refresh."
+        return "Review the podcasts to add. Their titles and artwork will update when podcasts refresh."
     }
 
     private var hasSkippedEntries: Bool {

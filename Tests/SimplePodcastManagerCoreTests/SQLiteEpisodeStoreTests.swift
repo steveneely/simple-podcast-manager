@@ -37,16 +37,16 @@ struct SQLiteEpisodeStoreTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let records = fixture.records(number: 1)
-        let automaticDownloadState = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let automaticDownloadState = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 observedEpisodeIDs: [records.downloaded.episodeID],
                 pendingEpisodeIDs: [records.downloaded.episodeID]
             )
         ])
-        let feedActivityState = FeedActivityState(feeds: [
-            FeedActivityFeedState(
+        let podcastActivityState = PodcastActivityState(podcasts: [
+            PodcastActivityEntry(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 observedEpisodeIDs: [records.downloaded.episodeID],
@@ -58,7 +58,7 @@ struct SQLiteEpisodeStoreTests {
         try fixture.store.saveDownloadedEpisodes([records.downloaded])
         try fixture.store.saveRemovedEpisodes([records.removed])
         try fixture.store.saveState(automaticDownloadState)
-        try fixture.store.saveFeedActivityState(feedActivityState)
+        try fixture.store.savePodcastActivityState(podcastActivityState)
 
         let snapshot = try fixture.store.loadStartupSnapshot()
 
@@ -66,7 +66,7 @@ struct SQLiteEpisodeStoreTests {
         #expect(snapshot.downloadedEpisodes == [records.downloaded])
         #expect(snapshot.removedEpisodes == [records.removed])
         #expect(snapshot.automaticDownloadState == automaticDownloadState)
-        #expect(snapshot.feedActivityState == feedActivityState)
+        #expect(snapshot.podcastActivityState == podcastActivityState)
     }
 
     @Test
@@ -159,8 +159,8 @@ struct SQLiteEpisodeStoreTests {
     func savesLoadsAndReplacesAutomaticDownloadState() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        let firstState = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let firstState = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 observedEpisodeIDs: ["newest", "older"],
@@ -171,8 +171,8 @@ struct SQLiteEpisodeStoreTests {
 
         #expect(try fixture.store.loadState() == firstState)
 
-        let replacementState = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let replacementState = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 observedEpisodeIDs: ["latest", "newest", "older"],
@@ -183,15 +183,15 @@ struct SQLiteEpisodeStoreTests {
 
         #expect(try fixture.store.loadState() == replacementState)
         try fixture.store.saveState(AutomaticDownloadState())
-        #expect(try fixture.store.loadState().feeds.isEmpty)
+        #expect(try fixture.store.loadState().podcasts.isEmpty)
     }
 
     @Test
-    func savesLoadsAndReplacesFeedActivityState() throws {
+    func savesLoadsAndReplacesPodcastActivityState() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        let state = FeedActivityState(feeds: [
-            FeedActivityFeedState(
+        let state = PodcastActivityState(podcasts: [
+            PodcastActivityEntry(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 observedEpisodeIDs: ["newest", "older"],
@@ -200,30 +200,30 @@ struct SQLiteEpisodeStoreTests {
             )
         ])
 
-        try fixture.store.saveFeedActivityState(state)
-        #expect(try fixture.store.loadFeedActivityState() == state)
+        try fixture.store.savePodcastActivityState(state)
+        #expect(try fixture.store.loadPodcastActivityState() == state)
 
-        try fixture.store.saveFeedActivityState(FeedActivityState())
-        #expect(try fixture.store.loadFeedActivityState().feeds.isEmpty)
+        try fixture.store.savePodcastActivityState(PodcastActivityState())
+        #expect(try fixture.store.loadPodcastActivityState().podcasts.isEmpty)
     }
 
     @Test
-    func correctsTwoDigitPublicationYearInPersistedFeedActivity() throws {
+    func correctsTwoDigitPublicationYearInPersistedPodcastActivity() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let parsedAsYear26 = try #require(calendar.date(from: DateComponents(year: 26, month: 9, day: 1)))
-        let state = FeedActivityState(feeds: [
-            FeedActivityFeedState(
+        let state = PodcastActivityState(podcasts: [
+            PodcastActivityEntry(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 newestPublicationDate: parsedAsYear26
             )
         ])
-        try fixture.store.saveFeedActivityState(state)
+        try fixture.store.savePodcastActivityState(state)
 
-        let loadedDate = try #require(fixture.store.loadFeedActivityState().feeds.first?.newestPublicationDate)
+        let loadedDate = try #require(fixture.store.loadPodcastActivityState().podcasts.first?.newestPublicationDate)
 
         #expect(calendar.component(.year, from: loadedDate) == 2026)
     }
@@ -233,8 +233,8 @@ struct SQLiteEpisodeStoreTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let legacyURL = fixture.supportURL.appending(path: "automatic-downloads.json")
-        let original = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let original = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: fixture.subscriptionID,
                 rssURL: URL(string: "https://example.com/feed.xml")!,
                 observedEpisodeIDs: ["episode-2", "episode-1"],
@@ -258,25 +258,25 @@ struct SQLiteEpisodeStoreTests {
     func handlesLargeAutomaticDownloadState() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        let feeds = (0..<40).map { feedNumber in
-            AutomaticDownloadFeedState(
+        let podcasts = (0..<40).map { podcastNumber in
+            AutomaticDownloadPodcastState(
                 subscriptionID: UUID(
-                    uuidString: String(format: "00000000-0000-0000-0000-%012d", feedNumber + 1)
+                    uuidString: String(format: "00000000-0000-0000-0000-%012d", podcastNumber + 1)
                 )!,
-                rssURL: URL(string: "https://example.com/feed-\(feedNumber).xml")!,
-                observedEpisodeIDs: (0..<400).map { "feed-\(feedNumber)-episode-\($0)" },
-                pendingEpisodeIDs: ["feed-\(feedNumber)-episode-0"]
+                rssURL: URL(string: "https://example.com/feed-\(podcastNumber).xml")!,
+                observedEpisodeIDs: (0..<400).map { "podcast-\(podcastNumber)-episode-\($0)" },
+                pendingEpisodeIDs: ["podcast-\(podcastNumber)-episode-0"]
             )
         }
-        let state = AutomaticDownloadState(feeds: feeds)
+        let state = AutomaticDownloadState(podcasts: podcasts)
         try fixture.store.saveState(state)
 
         let loaded = try fixture.store.loadState()
-        #expect(loaded.feeds.count == 40)
-        #expect(loaded.feeds.reduce(0) { $0 + $1.observedEpisodeIDs.count } == 16_000)
+        #expect(loaded.podcasts.count == 40)
+        #expect(loaded.podcasts.reduce(0) { $0 + $1.observedEpisodeIDs.count } == 16_000)
 
         var updated = loaded
-        updated.feeds[0].pendingEpisodeIDs.removeAll()
+        updated.podcasts[0].pendingEpisodeIDs.removeAll()
         try fixture.store.saveState(updated)
         #expect(try fixture.store.loadState() == updated)
     }

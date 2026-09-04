@@ -26,7 +26,7 @@ struct OPMLSubscriptionServiceTests {
         let preview = try service.importPreview(
             data: data,
             existingSubscriptions: [
-                FeedSubscription(title: "Existing Podcast", rssURL: URL(string: "https://example.com/existing.xml")!)
+                PodcastSubscription(title: "Existing Podcast", rssURL: URL(string: "https://example.com/existing.xml")!)
             ]
         )
 
@@ -58,8 +58,8 @@ struct OPMLSubscriptionServiceTests {
     @Test
     func exportedSubscriptionsCanBeImportedWithoutLosingEscapedTitles() throws {
         let sourceSubscriptions = [
-            FeedSubscription(title: "Zebra", rssURL: URL(string: "https://example.com/zebra.xml")!),
-            FeedSubscription(title: "Alpha & \"Beta\"", rssURL: URL(string: "https://example.com/alpha.xml?source=one&format=rss")!),
+            PodcastSubscription(title: "Zebra", rssURL: URL(string: "https://example.com/zebra.xml")!),
+            PodcastSubscription(title: "Alpha & \"Beta\"", rssURL: URL(string: "https://example.com/alpha.xml?source=one&format=rss")!),
         ]
 
         let exportedData = service.exportSubscriptions(sourceSubscriptions)

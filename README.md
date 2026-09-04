@@ -21,7 +21,7 @@ After the first install, enable automatic checks in Settings or use `Simple Podc
 - Find podcasts by title or creator, add them with RSS feed URLs, or import subscriptions from OPML.
 - Download episodes manually or automatically after feed refreshes, write player-friendly MP3 metadata with a genre that defaults to `Podcast` and can be customized or omitted, add podcast artwork, and convert non-MP3 audio with `ffmpeg` when needed.
 - Review every copy and deletion before sync and confirm the complete plan will fit.
-- Optionally suggest app-managed episodes beyond a chosen per-show limit, with per-episode review before deletion.
+- Optionally suggest app-managed episodes beyond a chosen per-podcast limit, with per-episode review before deletion.
 - Remember download and removal history.
 - Export subscriptions or back up the app's settings and history.
 
@@ -34,6 +34,8 @@ New users should start with the [Quick Start](docs/USER_MANUAL.md).
 For technical context, see [Architecture](ARCHITECTURE.md).
 
 ## Development
+
+Contributions should follow the UI, UX, terminology, compatibility, and testing standards in [AGENTS.md](AGENTS.md), plus the system boundaries in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Run tests:
 

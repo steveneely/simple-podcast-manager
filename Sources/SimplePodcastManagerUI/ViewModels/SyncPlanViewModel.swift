@@ -29,7 +29,7 @@ public final class SyncPlanViewModel {
     public func buildPlan(
         device: DeviceInfo?,
         preparedEpisodes: [PreparedEpisode],
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         manualDeleteTargets: Set<URL> = [],
         replacementTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),

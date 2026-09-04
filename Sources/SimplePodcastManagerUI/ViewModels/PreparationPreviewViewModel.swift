@@ -470,13 +470,13 @@ private struct LocalPreparedMediaFileDeleter: PreparedMediaFileDeleting {
 
 private enum EpisodePreparationID: Hashable {
     case subscription(UUID, episodeID: String)
-    case feed(URL, episodeID: String)
+    case rssFeed(URL, episodeID: String)
 
     init(_ episode: Episode) {
         if let subscriptionID = episode.subscriptionID {
             self = .subscription(subscriptionID, episodeID: episode.id)
         } else {
-            self = .feed(episode.sourceFeedURL, episodeID: episode.id)
+            self = .rssFeed(episode.sourceFeedURL, episodeID: episode.id)
         }
     }
 

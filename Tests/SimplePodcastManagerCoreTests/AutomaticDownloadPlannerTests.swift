@@ -19,7 +19,7 @@ struct AutomaticDownloadPlannerTests {
         )
 
         #expect(plan.episodesToDownload.isEmpty)
-        #expect(plan.state.feeds.first?.observedEpisodeIDs == ["newer", "older"])
+        #expect(plan.state.podcasts.first?.observedEpisodeIDs == ["newer", "older"])
     }
 
     @Test(arguments: [
@@ -28,7 +28,7 @@ struct AutomaticDownloadPlannerTests {
         (.latest3, 3),
         (.allNew, 4),
     ])
-    func limitSelectsNewestEpisodesPerFeed(limit: AutomaticDownloadLimit, expectedCount: Int) {
+    func limitSelectsNewestEpisodesPerPodcast(limit: AutomaticDownloadLimit, expectedCount: Int) {
         let subscription = makeSubscription()
         let baseline = makeEpisode("baseline", subscription: subscription, day: 1)
         let initialState = baselineState(subscription: subscription, episodeIDs: [baseline.id])
@@ -45,16 +45,16 @@ struct AutomaticDownloadPlannerTests {
     }
 
     @Test
-    func numericLimitAppliesToEachFeed() {
+    func numericLimitAppliesToEachPodcast() {
         let first = makeSubscription()
         let second = makeSubscription()
-        let state = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let state = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: first.id,
                 rssURL: first.rssURL,
                 observedEpisodeIDs: ["first-baseline"]
             ),
-            AutomaticDownloadFeedState(
+            AutomaticDownloadPodcastState(
                 subscriptionID: second.id,
                 rssURL: second.rssURL,
                 observedEpisodeIDs: ["second-baseline"]
@@ -111,7 +111,7 @@ struct AutomaticDownloadPlannerTests {
     }
 
     @Test
-    func offAndExcludedFeedsAdvanceBaselineWithoutDownloading() {
+    func offAndExcludedPodcastsAdvanceBaselineWithoutDownloading() {
         var excludedSubscription = makeSubscription()
         excludedSubscription.includesInAutomaticDownloads = false
         let baseline = makeEpisode("baseline", subscription: excludedSubscription, day: 1)
@@ -160,11 +160,11 @@ struct AutomaticDownloadPlannerTests {
         )
 
         #expect(plan.episodesToDownload == [secondNewEpisode])
-        #expect(plan.state.feeds.first?.pendingEpisodeIDs == [secondNewEpisode.id])
+        #expect(plan.state.podcasts.first?.pendingEpisodeIDs == [secondNewEpisode.id])
     }
 
     @Test
-    func enablingDownloadsDoesNotQueueNewEpisodesForAnExcludedShow() {
+    func enablingDownloadsDoesNotQueueNewEpisodesForAnExcludedPodcast() {
         var subscription = makeSubscription()
         subscription.includesInAutomaticDownloads = false
         let newEpisode = makeEpisode("new", subscription: subscription, day: 2)
@@ -180,15 +180,15 @@ struct AutomaticDownloadPlannerTests {
         )
 
         #expect(plan.episodesToDownload.isEmpty)
-        #expect(plan.state.feeds.first?.pendingEpisodeIDs.isEmpty == true)
+        #expect(plan.state.podcasts.first?.pendingEpisodeIDs.isEmpty == true)
     }
 
     @Test
     func failedRefreshPreservesPendingEpisodes() {
         let subscription = makeSubscription()
         let pending = makeEpisode("pending", subscription: subscription, day: 2)
-        let state = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let state = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: subscription.id,
                 rssURL: subscription.rssURL,
                 observedEpisodeIDs: ["baseline", pending.id],
@@ -214,8 +214,8 @@ struct AutomaticDownloadPlannerTests {
     func pendingEpisodeRetriesUntilDownloadedAndHistoryPreventsRedownload() {
         let subscription = makeSubscription()
         let pending = makeEpisode("pending", subscription: subscription, day: 2)
-        let state = AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        let state = AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: subscription.id,
                 rssURL: subscription.rssURL,
                 observedEpisodeIDs: [pending.id],
@@ -241,11 +241,11 @@ struct AutomaticDownloadPlannerTests {
 
         #expect(retryPlan.episodesToDownload == [pending])
         #expect(downloadedPlan.episodesToDownload.isEmpty)
-        #expect(downloadedPlan.state.feeds.first?.pendingEpisodeIDs.isEmpty == true)
+        #expect(downloadedPlan.state.podcasts.first?.pendingEpisodeIDs.isEmpty == true)
     }
 
     @Test
-    func feedURLChangeAndReenabledFeedEstablishNewBaselines() {
+    func rssURLChangeAndReenabledPodcastEstablishNewBaselines() {
         var subscription = makeSubscription()
         let oldState = baselineState(subscription: subscription, episodeIDs: ["old"])
         subscription.rssURL = URL(string: "https://example.com/replacement.xml")!
@@ -272,13 +272,13 @@ struct AutomaticDownloadPlannerTests {
         )
 
         #expect(changedURLPlan.episodesToDownload.isEmpty)
-        #expect(disabledState.feeds.isEmpty)
+        #expect(disabledState.podcasts.isEmpty)
         #expect(reenabledPlan.episodesToDownload.isEmpty)
     }
 
     private func makePlan(
         state: AutomaticDownloadState,
-        subscription: FeedSubscription,
+        subscription: PodcastSubscription,
         episodes: [Episode],
         limit: AutomaticDownloadLimit
     ) -> AutomaticDownloadPlan {
@@ -294,11 +294,11 @@ struct AutomaticDownloadPlannerTests {
     }
 
     private func baselineState(
-        subscription: FeedSubscription,
+        subscription: PodcastSubscription,
         episodeIDs: [String]
     ) -> AutomaticDownloadState {
-        AutomaticDownloadState(feeds: [
-            AutomaticDownloadFeedState(
+        AutomaticDownloadState(podcasts: [
+            AutomaticDownloadPodcastState(
                 subscriptionID: subscription.id,
                 rssURL: subscription.rssURL,
                 observedEpisodeIDs: episodeIDs
@@ -306,15 +306,15 @@ struct AutomaticDownloadPlannerTests {
         ])
     }
 
-    private func makeSubscription() -> FeedSubscription {
-        FeedSubscription(
+    private func makeSubscription() -> PodcastSubscription {
+        PodcastSubscription(
             id: UUID(),
             title: "Example",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
     }
 
-    private func makeEpisode(_ id: String, subscription: FeedSubscription, day: Int) -> Episode {
+    private func makeEpisode(_ id: String, subscription: PodcastSubscription, day: Int) -> Episode {
         Episode(
             id: id,
             subscriptionID: subscription.id,

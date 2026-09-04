@@ -9,7 +9,7 @@ public struct ManagedDeviceLibraryInventory: Sendable {
 
     public init(
         device: DeviceInfo,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         managedDirectoryURLsBySubscriptionID: [UUID: URL],
         filesBySubscriptionID: [UUID: [URL]]
     ) {
@@ -20,13 +20,13 @@ public struct ManagedDeviceLibraryInventory: Sendable {
         self.filesBySubscriptionID = filesBySubscriptionID
     }
 
-    public func canBeUsed(on device: DeviceInfo, subscriptions: [FeedSubscription]) -> Bool {
+    public func canBeUsed(on device: DeviceInfo, subscriptions: [PodcastSubscription]) -> Bool {
         deviceID == device.id
             && podcastDirectoryURL == device.podcastDirectoryURL.standardizedFileURL
             && subscriptionIDs == Set(subscriptions.map(\.id))
     }
 
-    public func managedDirectoryURL(for subscription: FeedSubscription, on device: DeviceInfo) -> URL {
+    public func managedDirectoryURL(for subscription: PodcastSubscription, on device: DeviceInfo) -> URL {
         managedDirectoryURLsBySubscriptionID[subscription.id]
             ?? device.podcastDirectoryURL.appendingPathComponent(
                 EpisodeFileName.directoryName(for: subscription),
@@ -34,7 +34,7 @@ public struct ManagedDeviceLibraryInventory: Sendable {
             )
     }
 
-    public func files(for subscription: FeedSubscription) -> [URL] {
+    public func files(for subscription: PodcastSubscription) -> [URL] {
         filesBySubscriptionID[subscription.id] ?? []
     }
 
@@ -57,7 +57,7 @@ public struct ManagedDeviceLibraryInventoryBuilder: Sendable {
 
     public func makeInventory(
         device: DeviceInfo,
-        subscriptions: [FeedSubscription]
+        subscriptions: [PodcastSubscription]
     ) throws -> ManagedDeviceLibraryInventory {
         try Task.checkCancellation()
         let candidateDirectories = try deviceLibrary.directories(in: device.podcastDirectoryURL)

@@ -30,12 +30,12 @@ struct JSONConfigurationStoreTests {
                 prefixesPublicationDateInEpisodeTitles: true,
                 mp3Genre: "Spoken Word",
                 automaticDownloadLimit: .latest3,
-                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10),
+                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 10),
                 inactivePodcastThreshold: .oneYear,
-                showSortOrder: .leastRecentlyUpdated
+                podcastSortOrder: .leastRecentlyUpdated
             ),
-            feedSubscriptions: [
-                FeedSubscription(
+            podcastSubscriptions: [
+                PodcastSubscription(
                     title: "Accidental Tech Podcast",
                     rssURL: URL(string: "https://atp.fm/rss")!
                 )
@@ -95,8 +95,8 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.automaticDownloadLimit == .off)
         #expect(configuration.settings.deviceCleanupPolicy == DeviceCleanupPolicy())
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
-        #expect(configuration.settings.showSortOrder == .alphabetic)
-        #expect(configuration.feedSubscriptions.isEmpty)
+        #expect(configuration.settings.podcastSortOrder == .alphabetic)
+        #expect(configuration.podcastSubscriptions.isEmpty)
     }
 
     @Test
@@ -171,6 +171,6 @@ struct JSONConfigurationStoreTests {
 
         let configuration = try JSONConfigurationStore(fileURL: fileURL).loadConfiguration()
 
-        #expect(configuration.feedSubscriptions.first?.includesInAutomaticDownloads == true)
+        #expect(configuration.podcastSubscriptions.first?.includesInAutomaticDownloads == true)
     }
 }

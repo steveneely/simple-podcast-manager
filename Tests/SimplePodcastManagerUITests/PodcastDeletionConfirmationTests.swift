@@ -3,21 +3,21 @@ import Testing
 @testable import SimplePodcastManagerCore
 @testable import SimplePodcastManagerUI
 
-struct FeedDeletionConfirmationTests {
+struct PodcastDeletionConfirmationTests {
     @Test
     func namesThePodcastAndRequiresAnExplicitDelete() {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "Connected",
             rssURL: URL(string: "https://relay.fm/connected/feed")!
         )
 
-        let confirmation = FeedDeletionConfirmation(
+        let confirmation = PodcastDeletionConfirmation(
             subscriptions: [subscription],
             localDownloadCount: 2
         )
 
         #expect(confirmation.subscriptionIDs == [subscription.id])
-        #expect(confirmation.title == "Delete Podcast Feed?")
+        #expect(confirmation.title == "Delete Podcast?")
         #expect(confirmation.message == """
         Are you sure you want to delete “Connected”?
 
@@ -26,25 +26,25 @@ struct FeedDeletionConfirmationTests {
         Episodes already copied to a device will not be deleted.
         """)
         #expect(confirmation.cancelButtonTitle == "Cancel")
-        #expect(confirmation.deleteButtonTitle == "Delete Feed")
+        #expect(confirmation.deleteButtonTitle == "Delete Podcast")
     }
 
     @Test
-    func describesDeletingMultipleFeeds() {
+    func describesDeletingMultiplePodcasts() {
         let subscriptions = [
-            FeedSubscription(title: "Connected", rssURL: URL(string: "https://relay.fm/connected/feed")!),
-            FeedSubscription(title: "ATP", rssURL: URL(string: "https://atp.fm/rss")!),
+            PodcastSubscription(title: "Connected", rssURL: URL(string: "https://relay.fm/connected/feed")!),
+            PodcastSubscription(title: "ATP", rssURL: URL(string: "https://atp.fm/rss")!),
         ]
 
-        let confirmation = FeedDeletionConfirmation(subscriptions: subscriptions)
+        let confirmation = PodcastDeletionConfirmation(subscriptions: subscriptions)
 
         #expect(confirmation.subscriptionIDs == subscriptions.map(\.id))
-        #expect(confirmation.title == "Delete Podcast Feeds?")
+        #expect(confirmation.title == "Delete Podcasts?")
         #expect(confirmation.message == """
-        Are you sure you want to delete these 2 podcast feeds?
+        Are you sure you want to delete these 2 podcasts?
 
         Episodes already copied to a device will not be deleted.
         """)
-        #expect(confirmation.deleteButtonTitle == "Delete Feeds")
+        #expect(confirmation.deleteButtonTitle == "Delete Podcasts")
     }
 }

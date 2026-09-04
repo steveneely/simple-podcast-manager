@@ -68,7 +68,7 @@ struct AppDataBackupServiceTests {
         let restoredConfiguration = try JSONConfigurationStore(
             fileURL: destinationSupportURL.appending(path: "config.json")
         ).loadConfiguration()
-        #expect(restoredConfiguration.feedSubscriptions.map(\.title) == ["Example Podcast"])
+        #expect(restoredConfiguration.podcastSubscriptions.map(\.title) == ["Example Podcast"])
         let restoredDownloadHistory = try SQLiteEpisodeStore(
             fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
             supportDirectoryURL: destinationSupportURL
@@ -78,12 +78,12 @@ struct AppDataBackupServiceTests {
             fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
             supportDirectoryURL: destinationSupportURL
         ).loadState()
-        #expect(restoredAutomaticDownloadState.feeds.first?.observedEpisodeIDs == ["episode-1"])
+        #expect(restoredAutomaticDownloadState.podcasts.first?.observedEpisodeIDs == ["episode-1"])
         let restoredActivityState = try SQLiteEpisodeStore(
             fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
             supportDirectoryURL: destinationSupportURL
-        ).loadFeedActivityState()
-        #expect(restoredActivityState.feeds.first?.newEpisodeIDs == ["episode-1"])
+        ).loadPodcastActivityState()
+        #expect(restoredActivityState.podcasts.first?.newEpisodeIDs == ["episode-1"])
         #expect(previousBackupURL != nil)
         #expect(FileManager.default.fileExists(atPath: previousBackupURL!.appending(path: "config.json").path))
     }
@@ -179,7 +179,7 @@ struct AppDataBackupServiceTests {
         #expect(try episodeStore.loadPreparedEpisodes().isEmpty)
         #expect(try episodeStore.loadDownloadedEpisodes().isEmpty)
         #expect(try episodeStore.loadRemovedEpisodes().isEmpty)
-        #expect(try episodeStore.loadState().feeds.isEmpty)
+        #expect(try episodeStore.loadState().podcasts.isEmpty)
     }
 
     private func writeSampleAppData(to supportURL: URL) throws {
@@ -196,8 +196,8 @@ struct AppDataBackupServiceTests {
 
         try JSONConfigurationStore(fileURL: supportURL.appending(path: "config.json")).saveConfiguration(
             AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(
+                podcastSubscriptions: [
+                    PodcastSubscription(
                         id: subscriptionID,
                         title: "Example Podcast",
                         rssURL: URL(string: "https://example.com/feed.xml")!
@@ -234,8 +234,8 @@ struct AppDataBackupServiceTests {
             )
         ], to: supportURL.appending(path: "removed-episodes.json"))
         try AppJSONFile.save(
-            AutomaticDownloadState(feeds: [
-                AutomaticDownloadFeedState(
+            AutomaticDownloadState(podcasts: [
+                AutomaticDownloadPodcastState(
                     subscriptionID: subscriptionID,
                     rssURL: URL(string: "https://example.com/feed.xml")!,
                     observedEpisodeIDs: ["episode-1"]
@@ -246,9 +246,9 @@ struct AppDataBackupServiceTests {
         try SQLiteEpisodeStore(
             fileURL: supportURL.appending(path: "episodes.sqlite3"),
             supportDirectoryURL: supportURL
-        ).saveFeedActivityState(
-            FeedActivityState(feeds: [
-                FeedActivityFeedState(
+        ).savePodcastActivityState(
+            PodcastActivityState(podcasts: [
+                PodcastActivityEntry(
                     subscriptionID: subscriptionID,
                     rssURL: URL(string: "https://example.com/feed.xml")!,
                     observedEpisodeIDs: ["episode-1"],
@@ -262,8 +262,8 @@ struct AppDataBackupServiceTests {
     private func writeAlternateConfiguration(to supportURL: URL) throws {
         try JSONConfigurationStore(fileURL: supportURL.appending(path: "config.json")).saveConfiguration(
             AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(
+                podcastSubscriptions: [
+                    PodcastSubscription(
                         title: "Other Podcast",
                         rssURL: URL(string: "https://example.com/other.xml")!
                     )

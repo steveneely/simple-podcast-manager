@@ -23,7 +23,7 @@ public struct SettingsView: View {
     private let selectedDeviceName: String?
     private let selectedDeviceRootURL: URL?
     private let savedAppearancePreference: AppearancePreference
-    private let showSortOrder: ShowSortOrder
+    private let podcastSortOrder: PodcastSortOrder
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let makePodcastDirectoryMigrationPlan: (String?) throws -> DevicePodcastDirectoryMigrationPlan?
     private let onSave: (AppSettings, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void
@@ -70,7 +70,7 @@ public struct SettingsView: View {
         self.selectedDeviceName = selectedDeviceName
         self.selectedDeviceRootURL = selectedDeviceRootURL
         self.savedAppearancePreference = settings.appearancePreference
-        self.showSortOrder = settings.showSortOrder
+        self.podcastSortOrder = settings.podcastSortOrder
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
         self.makePodcastDirectoryMigrationPlan = makePodcastDirectoryMigrationPlan
         self.onSave = onSave
@@ -92,7 +92,7 @@ public struct SettingsView: View {
                     SettingsSection(title: "Episodes") {
                         LabeledField(
                             title: "Automatic Downloads",
-                            detail: "Downloads new episodes automatically after feeds refresh. The selected limit applies separately to each included show.",
+                            detail: "Downloads new episodes automatically after podcasts refresh. The selected limit applies separately to each included podcast.",
                             emphasizesTitle: true
                         ) {
                             Picker("Automatic Downloads", selection: $automaticDownloadLimit) {
@@ -130,11 +130,11 @@ public struct SettingsView: View {
                         }
 
                         LabeledField(
-                            title: "Inactive Shows",
+                            title: "Inactive Podcasts",
                             detail: "Shows an orange Inactive label beside podcasts that have not published recently.",
                             emphasizesTitle: true
                         ) {
-                            Picker("Inactive Shows", selection: $inactivePodcastThreshold) {
+                            Picker("Inactive Podcasts", selection: $inactivePodcastThreshold) {
                                 Text("Off").tag(InactivePodcastThreshold.off)
                                 Text("After 3 months").tag(InactivePodcastThreshold.threeMonths)
                                 Text("After 6 months").tag(InactivePodcastThreshold.sixMonths)
@@ -148,12 +148,12 @@ public struct SettingsView: View {
                     SettingsSection(title: "MP3 Player") {
                         LabeledField(
                             title: "Device Cleanup",
-                            detail: "Suggests deleting episodes beyond the selected number per show. You can review and keep any episode before syncing.",
+                            detail: "Suggests deleting episodes beyond the selected number per podcast. You can review and keep any episode before syncing.",
                             emphasizesTitle: true
                         ) {
                             Picker("Device Cleanup", selection: cleanupEpisodeLimitSelection) {
                                 Text("Off").tag(Int?.none)
-                                ForEach(DeviceCleanupPolicy.allowedMaximumEpisodesPerShow, id: \.self) { count in
+                                ForEach(DeviceCleanupPolicy.allowedMaximumEpisodesPerPodcast, id: \.self) { count in
                                     Text("Keep \(count) episodes").tag(Int?.some(count))
                                 }
                             }
@@ -359,7 +359,7 @@ public struct SettingsView: View {
                 automaticDownloadLimit: automaticDownloadLimit,
                 deviceCleanupPolicy: deviceCleanupPolicy,
                 inactivePodcastThreshold: inactivePodcastThreshold,
-                showSortOrder: showSortOrder
+                podcastSortOrder: podcastSortOrder
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates,
@@ -402,10 +402,10 @@ public struct SettingsView: View {
 
     private var cleanupEpisodeLimitSelection: Binding<Int?> {
         Binding(
-            get: { deviceCleanupPolicy.maximumEpisodesPerShow },
-            set: { maximumEpisodesPerShow in
+            get: { deviceCleanupPolicy.maximumEpisodesPerPodcast },
+            set: { maximumEpisodesPerPodcast in
                 deviceCleanupPolicy = DeviceCleanupPolicy(
-                    maximumEpisodesPerShow: maximumEpisodesPerShow
+                    maximumEpisodesPerPodcast: maximumEpisodesPerPodcast
                 )
             }
         )

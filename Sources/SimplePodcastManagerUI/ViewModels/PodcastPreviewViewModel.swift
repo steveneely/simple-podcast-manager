@@ -4,7 +4,7 @@ import SimplePodcastManagerCore
 
 @MainActor
 @Observable
-public final class FeedPreviewViewModel {
+public final class PodcastPreviewViewModel {
     public private(set) var allEpisodes: [Episode]
     public private(set) var failures: [FeedFetchFailure]
     public private(set) var feedSummaries: [UUID: FeedSummary]
@@ -35,7 +35,7 @@ public final class FeedPreviewViewModel {
         !allEpisodes.isEmpty || !failures.isEmpty || !feedSummaries.isEmpty
     }
 
-    public func loadCachedPreview(for subscriptions: [FeedSubscription]) async {
+    public func loadCachedPreview(for subscriptions: [PodcastSubscription]) async {
         let cacheStore = self.cacheStore
         let enabledSubscriptions = subscriptions.filter(\.isEnabled)
         let cachedFeeds = await Task.detached(priority: .userInitiated) {
@@ -48,7 +48,7 @@ public final class FeedPreviewViewModel {
         rebuildIndexes()
     }
 
-    public func refreshPreview(for subscriptions: [FeedSubscription]) async {
+    public func refreshPreview(for subscriptions: [PodcastSubscription]) async {
         await loadCachedPreview(for: subscriptions)
         isLoading = true
         defer { isLoading = false }
@@ -69,11 +69,11 @@ public final class FeedPreviewViewModel {
         }
     }
 
-    public func refreshPreview(for subscription: FeedSubscription) async {
+    public func refreshPreview(for subscription: PodcastSubscription) async {
         await refreshPreview(forNewSubscriptions: [subscription])
     }
 
-    public func refreshPreview(forNewSubscriptions subscriptions: [FeedSubscription]) async {
+    public func refreshPreview(forNewSubscriptions subscriptions: [PodcastSubscription]) async {
         guard !subscriptions.isEmpty else { return }
         isLoading = true
         defer { isLoading = false }

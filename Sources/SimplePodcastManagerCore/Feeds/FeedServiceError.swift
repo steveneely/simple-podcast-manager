@@ -8,11 +8,11 @@ public enum FeedServiceError: LocalizedError, Equatable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "The feed request returned an invalid response."
+            return "The RSS feed request returned an invalid response."
         case .invalidFeedData:
-            return "The feed data could not be parsed."
+            return "The RSS feed data could not be parsed."
         case .requestFailed(let statusCode):
-            return "The feed request failed with HTTP \(statusCode)."
+            return "The RSS feed request failed with HTTP \(statusCode)."
         }
     }
 }

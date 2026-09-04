@@ -49,7 +49,7 @@ public final class DeviceLibraryViewModel {
         self.managedInventory = nil
     }
 
-    public func refresh(device: DeviceInfo?, subscriptions: [FeedSubscription]) async {
+    public func refresh(device: DeviceInfo?, subscriptions: [PodcastSubscription]) async {
         inventoryTask?.cancel()
         cancelOtherAudioReview(clearResults: true)
         hasOtherAudioAvailable = false
@@ -192,7 +192,7 @@ public final class DeviceLibraryViewModel {
         cancelOtherAudioReview(clearResults: false)
     }
 
-    public func files(for subscription: FeedSubscription) -> [URL] {
+    public func files(for subscription: PodcastSubscription) -> [URL] {
         filesBySubscriptionID[subscription.id] ?? []
     }
 
@@ -220,7 +220,7 @@ public final class DeviceLibraryViewModel {
     }
 
     public func unmatchedFiles(
-        for subscription: FeedSubscription,
+        for subscription: PodcastSubscription,
         episodes: [Episode]
     ) -> [URL] {
         let currentEpisodeFileStems = Set(episodes.map(EpisodeFileName.fileStem(for:)))

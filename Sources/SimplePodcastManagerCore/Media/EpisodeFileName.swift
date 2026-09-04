@@ -45,7 +45,7 @@ public enum EpisodeFileName {
         return stem
     }
 
-    public static func directoryName(for subscription: FeedSubscription) -> String {
+    public static func directoryName(for subscription: PodcastSubscription) -> String {
         let title = sanitizedComponent(subscription.title)
         return title.isEmpty ? subscription.id.uuidString : title
     }
@@ -62,7 +62,7 @@ public enum EpisodeFileName {
         fileURL.lastPathComponent.hasPrefix("._")
     }
 
-    public static func isManagedEpisodeFile(_ fileURL: URL, for subscription: FeedSubscription) -> Bool {
+    public static func isManagedEpisodeFile(_ fileURL: URL, for subscription: PodcastSubscription) -> Bool {
         guard fileURL.hasDirectoryPath == false else {
             return false
         }

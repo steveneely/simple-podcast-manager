@@ -5,7 +5,7 @@ import SimplePodcastManagerCore
 @MainActor
 @Observable
 public final class MainViewModel {
-    public private(set) var feedSubscriptions: [FeedSubscription]
+    public private(set) var podcastSubscriptions: [PodcastSubscription]
     public private(set) var settings: AppSettings
     public private(set) var lastErrorMessage: String?
     public private(set) var hasLoadedConfiguration: Bool
@@ -22,14 +22,14 @@ public final class MainViewModel {
         self.store = store
         self.feedResolver = feedResolver
         self.feedCacheStore = feedCacheStore
-        self.feedSubscriptions = []
+        self.podcastSubscriptions = []
         self.settings = AppSettings()
         self.lastErrorMessage = nil
         self.hasLoadedConfiguration = false
     }
 
-    public var hasFeeds: Bool {
-        !feedSubscriptions.isEmpty
+    public var hasPodcasts: Bool {
+        !podcastSubscriptions.isEmpty
     }
 
     public func load() async {
@@ -38,7 +38,7 @@ public final class MainViewModel {
             let configuration = try await Task.detached(priority: .userInitiated) {
                 try store.loadConfiguration()
             }.value
-            self.feedSubscriptions = configuration.feedSubscriptions.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            self.podcastSubscriptions = configuration.podcastSubscriptions.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             self.settings = configuration.settings
             self.lastErrorMessage = nil
             self.hasLoadedConfiguration = true
@@ -48,7 +48,7 @@ public final class MainViewModel {
     }
 
     @discardableResult
-    public func addFeed(from draft: FeedDraft) throws -> FeedSubscription.ID {
+    public func addPodcast(from draft: PodcastDraft) throws -> PodcastSubscription.ID {
         do {
             let rssURL = try draft.resolvedRSSURL()
             let subscription = try draft.makeSubscription(
@@ -63,11 +63,11 @@ public final class MainViewModel {
         }
     }
 
-    public func updateFeed(from draft: FeedDraft) async throws {
+    public func updatePodcast(from draft: PodcastDraft) async throws {
         do {
             let rssURL = try draft.resolvedRSSURL()
             if let subscriptionID = draft.id,
-               let existingSubscription = feedSubscriptions.first(where: { $0.id == subscriptionID }),
+               let existingSubscription = podcastSubscriptions.first(where: { $0.id == subscriptionID }),
                rssURL == existingSubscription.rssURL {
                 let updatedSubscription = try draft.makeSubscription(
                     title: existingSubscription.title,
@@ -87,13 +87,13 @@ public final class MainViewModel {
         }
     }
 
-    public func removeFeeds(at offsets: IndexSet) {
+    public func removePodcasts(at offsets: IndexSet) {
         let removedIDs = offsets.compactMap { offset in
-            feedSubscriptions.indices.contains(offset) ? feedSubscriptions[offset].id : nil
+            podcastSubscriptions.indices.contains(offset) ? podcastSubscriptions[offset].id : nil
         }
         let removedIDSet = Set(removedIDs)
         mutateConfiguration {
-            $0.feedSubscriptions.removeAll { removedIDSet.contains($0.id) }
+            $0.podcastSubscriptions.removeAll { removedIDSet.contains($0.id) }
         }
 
         for removedID in removedIDs {
@@ -108,18 +108,18 @@ public final class MainViewModel {
     }
 
     @discardableResult
-    public func importSubscriptions(_ subscriptions: [OPMLSubscription]) throws -> [FeedSubscription.ID] {
-        let feedSubscriptions = subscriptions.map {
-            FeedSubscription(title: $0.title, rssURL: $0.rssURL)
+    public func importSubscriptions(_ subscriptions: [OPMLSubscription]) throws -> [PodcastSubscription.ID] {
+        let podcastSubscriptions = subscriptions.map {
+            PodcastSubscription(title: $0.title, rssURL: $0.rssURL)
         }
-        return try addSubscriptions(feedSubscriptions)
+        return try addSubscriptions(podcastSubscriptions)
     }
 
     public func applyFeedSummaries(_ feedSummaries: [FeedSummary]) {
         guard !feedSummaries.isEmpty else { return }
         let summariesByID = Dictionary(uniqueKeysWithValues: feedSummaries.map { ($0.subscriptionID, $0) })
 
-        let needsUpdate = feedSubscriptions.contains { subscription in
+        let needsUpdate = podcastSubscriptions.contains { subscription in
             guard let summary = summariesByID[subscription.id] else { return false }
             return subscription.title != summary.title
                 || subscription.artworkURL != summary.artworkURL
@@ -128,23 +128,23 @@ public final class MainViewModel {
         guard needsUpdate else { return }
 
         mutateConfiguration {
-            for index in $0.feedSubscriptions.indices {
-                let subscriptionID = $0.feedSubscriptions[index].id
+            for index in $0.podcastSubscriptions.indices {
+                let subscriptionID = $0.podcastSubscriptions[index].id
                 guard let summary = summariesByID[subscriptionID] else { continue }
 
-                if $0.feedSubscriptions[index].title != summary.title {
-                    $0.feedSubscriptions[index].title = summary.title
+                if $0.podcastSubscriptions[index].title != summary.title {
+                    $0.podcastSubscriptions[index].title = summary.title
                 }
 
-                if $0.feedSubscriptions[index].artworkURL != summary.artworkURL {
-                    $0.feedSubscriptions[index].artworkURL = summary.artworkURL
+                if $0.podcastSubscriptions[index].artworkURL != summary.artworkURL {
+                    $0.podcastSubscriptions[index].artworkURL = summary.artworkURL
                 }
 
-                if $0.feedSubscriptions[index].description != summary.description {
-                    $0.feedSubscriptions[index].description = summary.description
+                if $0.podcastSubscriptions[index].description != summary.description {
+                    $0.podcastSubscriptions[index].description = summary.description
                 }
             }
-            $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            $0.podcastSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
     }
 
@@ -161,16 +161,16 @@ public final class MainViewModel {
         try transform(&configuration)
         try store.saveConfiguration(configuration)
 
-        self.feedSubscriptions = configuration.feedSubscriptions.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        self.podcastSubscriptions = configuration.podcastSubscriptions.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         self.settings = configuration.settings
         self.lastErrorMessage = nil
         self.hasLoadedConfiguration = true
     }
 
     private func ensureUniqueSubscription(
-        _ subscription: FeedSubscription,
-        in existingSubscriptions: [FeedSubscription],
-        excluding excludedID: FeedSubscription.ID? = nil
+        _ subscription: PodcastSubscription,
+        in existingSubscriptions: [PodcastSubscription],
+        excluding excludedID: PodcastSubscription.ID? = nil
     ) throws {
         let normalizedURL = FeedURLIdentity.normalized(subscription.rssURL)
         if existingSubscriptions.contains(where: {
@@ -180,16 +180,16 @@ public final class MainViewModel {
         }
     }
 
-    private func addSubscriptions(_ subscriptions: [FeedSubscription]) throws -> [FeedSubscription.ID] {
+    private func addSubscriptions(_ subscriptions: [PodcastSubscription]) throws -> [PodcastSubscription.ID] {
         guard !subscriptions.isEmpty else { return [] }
 
         do {
             try commitConfiguration {
                 for subscription in subscriptions {
-                    try ensureUniqueSubscription(subscription, in: $0.feedSubscriptions)
-                    $0.feedSubscriptions.append(subscription)
+                    try ensureUniqueSubscription(subscription, in: $0.podcastSubscriptions)
+                    $0.podcastSubscriptions.append(subscription)
                 }
-                $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+                $0.podcastSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             }
             return subscriptions.map(\.id)
         } catch {
@@ -198,7 +198,7 @@ public final class MainViewModel {
         }
     }
 
-    private func resolveFeed(from draft: FeedDraft) async throws -> (subscription: FeedSubscription, cachedFeed: CachedFeed) {
+    private func resolveFeed(from draft: PodcastDraft) async throws -> (subscription: PodcastSubscription, cachedFeed: CachedFeed) {
         let rssURL = try draft.resolvedRSSURL()
         let subscriptionID = draft.id ?? UUID()
         var cachedFeed = try await feedResolver.resolveFeed(for: rssURL, subscriptionID: subscriptionID)
@@ -219,21 +219,21 @@ public final class MainViewModel {
         return (subscription, cachedFeed)
     }
 
-    private func saveUpdatedSubscription(_ updatedSubscription: FeedSubscription) throws {
+    private func saveUpdatedSubscription(_ updatedSubscription: PodcastSubscription) throws {
         try commitConfiguration {
             try ensureUniqueSubscription(
                 updatedSubscription,
-                in: $0.feedSubscriptions,
+                in: $0.podcastSubscriptions,
                 excluding: updatedSubscription.id
             )
-            guard let existingIndex = $0.feedSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
-                $0.feedSubscriptions.append(updatedSubscription)
-                $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            guard let existingIndex = $0.podcastSubscriptions.firstIndex(where: { $0.id == updatedSubscription.id }) else {
+                $0.podcastSubscriptions.append(updatedSubscription)
+                $0.podcastSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
                 return
             }
 
-            $0.feedSubscriptions[existingIndex] = updatedSubscription
-            $0.feedSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            $0.podcastSubscriptions[existingIndex] = updatedSubscription
+            $0.podcastSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
     }
 
@@ -252,7 +252,7 @@ public enum MainViewModelError: LocalizedError, Equatable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .duplicateSubscription:
-            return "That podcast feed is already in your subscription list."
+            return "That podcast is already in your library."
         }
     }
 }

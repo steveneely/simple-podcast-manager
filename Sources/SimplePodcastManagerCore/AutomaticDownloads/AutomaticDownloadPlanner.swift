@@ -13,7 +13,7 @@ public struct AutomaticDownloadPlan: Equatable, Sendable {
 public enum AutomaticDownloadPlanner {
     public static func makePlan(
         state: AutomaticDownloadState,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
         failedSubscriptionIDs: Set<UUID>,
@@ -28,7 +28,7 @@ public enum AutomaticDownloadPlanner {
         }, by: { $0.0 })
 
         var statesBySubscription = Dictionary(
-            uniqueKeysWithValues: state.feeds
+            uniqueKeysWithValues: state.podcasts
                 .filter { subscriptionsByID[$0.subscriptionID] != nil }
                 .map { ($0.subscriptionID, $0) }
         )
@@ -48,8 +48,8 @@ public enum AutomaticDownloadPlanner {
             let currentEpisodeIDs = uniqueEpisodeIDs(currentEpisodes.map(\.id))
             let currentEpisodeIDSet = Set(currentEpisodeIDs)
 
-            guard var feedState = statesBySubscription[subscription.id], feedState.rssURL == subscription.rssURL else {
-                statesBySubscription[subscription.id] = AutomaticDownloadFeedState(
+            guard var podcastState = statesBySubscription[subscription.id], podcastState.rssURL == subscription.rssURL else {
+                statesBySubscription[subscription.id] = AutomaticDownloadPodcastState(
                     subscriptionID: subscription.id,
                     rssURL: subscription.rssURL,
                     observedEpisodeIDs: currentEpisodeIDs
@@ -57,12 +57,12 @@ public enum AutomaticDownloadPlanner {
                 continue
             }
 
-            let previouslyObservedEpisodeIDs = Set(feedState.observedEpisodeIDs)
+            let previouslyObservedEpisodeIDs = Set(podcastState.observedEpisodeIDs)
             let newEpisodes = currentEpisodes.filter { !previouslyObservedEpisodeIDs.contains($0.id) }
-            let olderObservedEpisodeIDs = uniqueEpisodeIDs(feedState.observedEpisodeIDs.filter {
+            let olderObservedEpisodeIDs = uniqueEpisodeIDs(podcastState.observedEpisodeIDs.filter {
                 !currentEpisodeIDSet.contains($0)
             })
-            feedState.observedEpisodeIDs = currentEpisodeIDs + olderObservedEpisodeIDs
+            podcastState.observedEpisodeIDs = currentEpisodeIDs + olderObservedEpisodeIDs
 
             if limit != .off, subscription.includesInAutomaticDownloads {
                 let selectedNewEpisodes: ArraySlice<Episode>
@@ -71,26 +71,26 @@ public enum AutomaticDownloadPlanner {
                 } else {
                     selectedNewEpisodes = newEpisodes[...]
                 }
-                feedState.pendingEpisodeIDs.formUnion(selectedNewEpisodes.map(\.id))
+                podcastState.pendingEpisodeIDs.formUnion(selectedNewEpisodes.map(\.id))
             } else {
-                feedState.pendingEpisodeIDs.removeAll()
+                podcastState.pendingEpisodeIDs.removeAll()
             }
 
             let downloadedIDsForSubscription = Set(downloadedEpisodeIDs.compactMap {
                 $0.subscriptionID == subscription.id ? $0.episodeID : nil
             })
-            feedState.pendingEpisodeIDs.subtract(downloadedIDsForSubscription)
-            feedState.pendingEpisodeIDs.formIntersection(currentEpisodeIDSet)
+            podcastState.pendingEpisodeIDs.subtract(downloadedIDsForSubscription)
+            podcastState.pendingEpisodeIDs.formIntersection(currentEpisodeIDSet)
 
             plannedEpisodes.append(contentsOf: currentEpisodes.filter {
-                feedState.pendingEpisodeIDs.contains($0.id)
+                podcastState.pendingEpisodeIDs.contains($0.id)
             })
-            statesBySubscription[subscription.id] = feedState
+            statesBySubscription[subscription.id] = podcastState
         }
 
         statesBySubscription = statesBySubscription.filter { enabledSubscriptionIDs.contains($0.key) }
         let updatedState = AutomaticDownloadState(
-            feeds: statesBySubscription.values.sorted {
+            podcasts: statesBySubscription.values.sorted {
                 $0.subscriptionID.uuidString < $1.subscriptionID.uuidString
             }
         )
@@ -102,27 +102,27 @@ public enum AutomaticDownloadPlanner {
 
     public static func applyingPreferences(
         to state: AutomaticDownloadState,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         limit: AutomaticDownloadLimit
     ) -> AutomaticDownloadState {
         let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
-        let feeds = state.feeds.compactMap { feedState -> AutomaticDownloadFeedState? in
-            guard let subscription = subscriptionsByID[feedState.subscriptionID], subscription.isEnabled else {
+        let podcasts = state.podcasts.compactMap { podcastState -> AutomaticDownloadPodcastState? in
+            guard let subscription = subscriptionsByID[podcastState.subscriptionID], subscription.isEnabled else {
                 return nil
             }
-            var updatedState = feedState
+            var updatedState = podcastState
             if limit == .off || !subscription.includesInAutomaticDownloads {
                 updatedState.pendingEpisodeIDs.removeAll()
             }
             return updatedState
         }
-        return AutomaticDownloadState(feeds: feeds)
+        return AutomaticDownloadState(podcasts: podcasts)
     }
 
     public static func activatingCurrentlyNewEpisodes(
         in state: AutomaticDownloadState,
         subscriptionIDs: Set<UUID>,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         newEpisodeIDsBySubscription: [UUID: Set<String>],
         downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,
@@ -143,7 +143,7 @@ public enum AutomaticDownloadPlanner {
             return (subscriptionID, episode)
         }, by: { $0.0 })
         var statesBySubscription = Dictionary(
-            uniqueKeysWithValues: updatedState.feeds.map { ($0.subscriptionID, $0) }
+            uniqueKeysWithValues: updatedState.podcasts.map { ($0.subscriptionID, $0) }
         )
         var selectedEpisodes: [Episode] = []
 
@@ -170,20 +170,20 @@ public enum AutomaticDownloadPlanner {
                 activatedEpisodes = eligibleEpisodes
             }
 
-            var feedState = statesBySubscription[subscriptionID]
-                ?? AutomaticDownloadFeedState(
+            var podcastState = statesBySubscription[subscriptionID]
+                ?? AutomaticDownloadPodcastState(
                     subscriptionID: subscriptionID,
                     rssURL: subscription.rssURL,
                     observedEpisodeIDs: uniqueEpisodeIDs(currentEpisodes.map(\.id))
                 )
-            guard feedState.rssURL == subscription.rssURL else { continue }
-            feedState.pendingEpisodeIDs.formUnion(activatedEpisodes.map(\.id))
-            feedState.pendingEpisodeIDs.subtract(downloadedIDs)
-            statesBySubscription[subscriptionID] = feedState
+            guard podcastState.rssURL == subscription.rssURL else { continue }
+            podcastState.pendingEpisodeIDs.formUnion(activatedEpisodes.map(\.id))
+            podcastState.pendingEpisodeIDs.subtract(downloadedIDs)
+            statesBySubscription[subscriptionID] = podcastState
             selectedEpisodes.append(contentsOf: activatedEpisodes)
         }
 
-        updatedState.feeds = statesBySubscription.values.sorted {
+        updatedState.podcasts = statesBySubscription.values.sorted {
             $0.subscriptionID.uuidString < $1.subscriptionID.uuidString
         }
         return AutomaticDownloadPlan(
@@ -197,15 +197,15 @@ public enum AutomaticDownloadPlanner {
         in state: AutomaticDownloadState
     ) -> AutomaticDownloadState {
         let downloadedIDs = Set(downloadedEpisodes.compactMap(AutomaticDownloadEpisodeID.init))
-        let feeds = state.feeds.map { feedState -> AutomaticDownloadFeedState in
-            var updatedState = feedState
+        let podcasts = state.podcasts.map { podcastState -> AutomaticDownloadPodcastState in
+            var updatedState = podcastState
             let episodeIDs = downloadedIDs.compactMap {
-                $0.subscriptionID == feedState.subscriptionID ? $0.episodeID : nil
+                $0.subscriptionID == podcastState.subscriptionID ? $0.episodeID : nil
             }
             updatedState.pendingEpisodeIDs.subtract(episodeIDs)
             return updatedState
         }
-        return AutomaticDownloadState(feeds: feeds)
+        return AutomaticDownloadState(podcasts: podcasts)
     }
 
     private static func uniqueEpisodeIDs(_ episodeIDs: [String]) -> [String] {

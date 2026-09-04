@@ -1,14 +1,19 @@
 import Foundation
 
-public struct FeedActivityState: Codable, Equatable, Sendable {
-    public var feeds: [FeedActivityFeedState]
+public struct PodcastActivityState: Codable, Equatable, Sendable {
+    public var podcasts: [PodcastActivityEntry]
 
-    public init(feeds: [FeedActivityFeedState] = []) {
-        self.feeds = feeds
+    public init(podcasts: [PodcastActivityEntry] = []) {
+        self.podcasts = podcasts
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        // Keep the established JSON key for backup compatibility.
+        case podcasts = "feeds"
     }
 }
 
-public struct FeedActivityFeedState: Codable, Equatable, Sendable {
+public struct PodcastActivityEntry: Codable, Equatable, Sendable {
     public var subscriptionID: UUID
     public var rssURL: URL
     public var observedEpisodeIDs: [String]
@@ -30,7 +35,7 @@ public struct FeedActivityFeedState: Codable, Equatable, Sendable {
     }
 }
 
-public protocol FeedActivityStateStore: Sendable {
-    func loadFeedActivityState() throws -> FeedActivityState
-    func saveFeedActivityState(_ state: FeedActivityState) throws
+public protocol PodcastActivityStateStore: Sendable {
+    func loadPodcastActivityState() throws -> PodcastActivityState
+    func savePodcastActivityState(_ state: PodcastActivityState) throws
 }

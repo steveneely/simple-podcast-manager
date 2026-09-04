@@ -28,12 +28,12 @@ public struct DeviceCleanupCandidate: Equatable, Sendable, Identifiable {
 }
 
 public enum DeviceCleanupPolicyError: LocalizedError, Equatable, Sendable {
-    case invalidMaximumEpisodesPerShow(Int)
+    case invalidMaximumEpisodesPerPodcast(Int)
 
     public var errorDescription: String? {
         switch self {
-        case .invalidMaximumEpisodesPerShow:
-            return "Choose a supported number of episodes to keep per show. No cleanup was planned."
+        case .invalidMaximumEpisodesPerPodcast:
+            return "Choose a supported number of episodes to keep per podcast. No cleanup was planned."
         }
     }
 }

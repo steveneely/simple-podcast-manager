@@ -10,7 +10,7 @@ struct PodcastSearchView: View {
 
     init(
         searcher: any PodcastSearching,
-        existingSubscriptions: [FeedSubscription],
+        existingSubscriptions: [PodcastSubscription],
         selectedResult: Binding<PodcastSearchResult?>
     ) {
         self._viewModel = State(initialValue: PodcastSearchViewModel(searcher: searcher))
@@ -96,8 +96,7 @@ struct PodcastSearchView: View {
         } else if viewModel.results.isEmpty {
             ContentUnavailableView(
                 "Search for a Podcast",
-                systemImage: "magnifyingglass",
-                description: Text("Choose a result to use its RSS feed.")
+                systemImage: "magnifyingglass"
             )
             .frame(maxWidth: .infinity, minHeight: 250)
         } else {

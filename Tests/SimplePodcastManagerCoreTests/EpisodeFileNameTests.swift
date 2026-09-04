@@ -5,7 +5,7 @@ import Testing
 struct EpisodeFileNameTests {
     @Test
     func directoryNameUsesMP3PlayerFriendlyASCII() {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "\u{201C}The Cognitive Revolution\u{201D} | AI Builders, Researchers, and Live Player Analysis",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -49,7 +49,7 @@ struct EpisodeFileNameTests {
 
     @Test
     func managedEpisodeMatchingUsesTheSameUnicodeTransliterationAsFileNames() {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "Hörspiel für große Hörer",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )

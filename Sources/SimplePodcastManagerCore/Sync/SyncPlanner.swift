@@ -18,7 +18,7 @@ public struct SyncPlanner: Sendable {
     public func makePlan(
         device: DeviceInfo,
         preparedEpisodes: [PreparedEpisode],
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         manualDeleteTargets: Set<URL> = [],
         replacementTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
@@ -29,7 +29,7 @@ public struct SyncPlanner: Sendable {
         try Task.checkCancellation()
         try safetyValidator.validateDevice(device)
 
-        let maximumEpisodesPerShow = try validatedMaximumEpisodesPerShow(for: cleanupPolicy)
+        let maximumEpisodesPerPodcast = try validatedMaximumEpisodesPerPodcast(for: cleanupPolicy)
 
         var actions: [SyncAction] = []
         var cleanupCandidates: [DeviceCleanupCandidate] = []
@@ -64,14 +64,14 @@ public struct SyncPlanner: Sendable {
             }
 
             var cleanupCandidateSizesByURL: [URL: Int64] = [:]
-            if let maximumEpisodesPerShow {
+            if let maximumEpisodesPerPodcast {
                 let subscriptionCleanupCandidates = try makeCleanupCandidates(
                     existingFiles: existingFiles,
                     preparedEpisodes: preparedEpisodes,
                     managedDirectory: managedDirectory,
                     subscription: subscription,
                     manualDeleteTargets: explicitDeleteTargets,
-                    maximumEpisodesPerShow: maximumEpisodesPerShow,
+                    maximumEpisodesPerPodcast: maximumEpisodesPerPodcast,
                     device: device
                 )
                 for candidate in subscriptionCleanupCandidates {
@@ -151,23 +151,23 @@ public struct SyncPlanner: Sendable {
         )
     }
 
-    private func validatedMaximumEpisodesPerShow(
+    private func validatedMaximumEpisodesPerPodcast(
         for policy: DeviceCleanupPolicy
     ) throws -> Int? {
-        guard let maximumEpisodesPerShow = policy.maximumEpisodesPerShow else { return nil }
-        guard DeviceCleanupPolicy.allowedMaximumEpisodesPerShow.contains(maximumEpisodesPerShow) else {
-            throw DeviceCleanupPolicyError.invalidMaximumEpisodesPerShow(maximumEpisodesPerShow)
+        guard let maximumEpisodesPerPodcast = policy.maximumEpisodesPerPodcast else { return nil }
+        guard DeviceCleanupPolicy.allowedMaximumEpisodesPerPodcast.contains(maximumEpisodesPerPodcast) else {
+            throw DeviceCleanupPolicyError.invalidMaximumEpisodesPerPodcast(maximumEpisodesPerPodcast)
         }
-        return maximumEpisodesPerShow
+        return maximumEpisodesPerPodcast
     }
 
     private func makeCleanupCandidates(
         existingFiles: [URL],
         preparedEpisodes: [PreparedEpisode],
         managedDirectory: URL,
-        subscription: FeedSubscription,
+        subscription: PodcastSubscription,
         manualDeleteTargets: Set<URL>,
-        maximumEpisodesPerShow: Int,
+        maximumEpisodesPerPodcast: Int,
         device: DeviceInfo
     ) throws -> [DeviceCleanupCandidate] {
         var retentionEntriesByURL: [URL: CleanupRetentionEntry] = [:]
@@ -207,10 +207,10 @@ public struct SyncPlanner: Sendable {
         }
 
         let orderedEntries = retentionEntriesByURL.values.sorted(by: CleanupRetentionEntry.isNewer)
-        guard orderedEntries.count > maximumEpisodesPerShow else { return [] }
-        let oldestRetainedDate = orderedEntries[maximumEpisodesPerShow - 1].publicationDate
+        guard orderedEntries.count > maximumEpisodesPerPodcast else { return [] }
+        let oldestRetainedDate = orderedEntries[maximumEpisodesPerPodcast - 1].publicationDate
         let excessExistingEpisodes = orderedEntries
-            .dropFirst(maximumEpisodesPerShow)
+            .dropFirst(maximumEpisodesPerPodcast)
             .filter { entry in
                 entry.existsOnDevice && entry.publicationDate < oldestRetainedDate
             }

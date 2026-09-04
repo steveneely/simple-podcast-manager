@@ -12,8 +12,8 @@ struct MainViewModelTests {
                 settings: AppSettings(
                     ffmpegExecutablePath: "/usr/local/bin/ffmpeg"
                 ),
-                feedSubscriptions: [
-                    FeedSubscription(title: "ATP", rssURL: URL(string: "https://atp.fm/rss")!)
+                podcastSubscriptions: [
+                    PodcastSubscription(title: "ATP", rssURL: URL(string: "https://atp.fm/rss")!)
                 ]
             )
         )
@@ -22,7 +22,7 @@ struct MainViewModelTests {
         await viewModel.load()
 
         #expect(viewModel.hasLoadedConfiguration)
-        #expect(viewModel.feedSubscriptions.count == 1)
+        #expect(viewModel.podcastSubscriptions.count == 1)
         #expect(viewModel.settings.ffmpegExecutablePath == "/usr/local/bin/ffmpeg")
     }
 
@@ -37,7 +37,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func addUpdateAndRemoveFeedPersistThroughStore() async throws {
+    func addUpdateAndRemovePodcastPersistThroughStore() async throws {
         let store = InMemoryConfigurationStore()
         let viewModel = MainViewModel(
             store: store,
@@ -53,19 +53,19 @@ struct MainViewModelTests {
             )
         )
 
-        try viewModel.addFeed(
-            from: FeedDraft(
+        try viewModel.addPodcast(
+            from: PodcastDraft(
                 rssURLString: "https://relay.fm/connected/feed"
             )
         )
 
-        #expect(viewModel.feedSubscriptions.count == 1)
-        #expect(store.configuration.feedSubscriptions.count == 1)
-        #expect(viewModel.feedSubscriptions.first?.title == "relay.fm")
+        #expect(viewModel.podcastSubscriptions.count == 1)
+        #expect(store.configuration.podcastSubscriptions.count == 1)
+        #expect(viewModel.podcastSubscriptions.first?.title == "relay.fm")
 
-        let existingSubscription = try #require(viewModel.feedSubscriptions.first)
-        try await viewModel.updateFeed(
-            from: FeedDraft(
+        let existingSubscription = try #require(viewModel.podcastSubscriptions.first)
+        try await viewModel.updatePodcast(
+            from: PodcastDraft(
                 id: existingSubscription.id,
                 rssURLString: "https://relay.fm/connected/updated-feed",
                 artworkURL: existingSubscription.artworkURL,
@@ -75,39 +75,39 @@ struct MainViewModelTests {
             )
         )
 
-        #expect(viewModel.feedSubscriptions.first?.title == "Connected")
-        #expect(viewModel.feedSubscriptions.first?.description == "A show about connected things.")
-        #expect(viewModel.feedSubscriptions.first?.isEnabled == false)
-        #expect(viewModel.feedSubscriptions.first?.includesInAutomaticDownloads == false)
+        #expect(viewModel.podcastSubscriptions.first?.title == "Connected")
+        #expect(viewModel.podcastSubscriptions.first?.description == "A show about connected things.")
+        #expect(viewModel.podcastSubscriptions.first?.isEnabled == false)
+        #expect(viewModel.podcastSubscriptions.first?.includesInAutomaticDownloads == false)
 
-        viewModel.removeFeeds(at: IndexSet(integer: 0))
+        viewModel.removePodcasts(at: IndexSet(integer: 0))
 
-        #expect(viewModel.feedSubscriptions.isEmpty)
-        #expect(store.configuration.feedSubscriptions.isEmpty)
+        #expect(viewModel.podcastSubscriptions.isEmpty)
+        #expect(store.configuration.podcastSubscriptions.isEmpty)
     }
 
     @Test
-    func updateFeedPreferencesDoesNotResolveUnchangedURL() async throws {
-        let subscription = FeedSubscription(
+    func updatePodcastPreferencesDoesNotResolveUnchangedURL() async throws {
+        let subscription = PodcastSubscription(
             title: "Example",
             rssURL: URL(string: "https://example.com/feed.xml")!,
             artworkURL: URL(string: "https://example.com/art.png")!,
             description: "Existing description"
         )
         let store = InMemoryConfigurationStore(
-            configuration: AppConfiguration(feedSubscriptions: [subscription])
+            configuration: AppConfiguration(podcastSubscriptions: [subscription])
         )
         let viewModel = MainViewModel(
             store: store,
             feedResolver: MockFeedResolver(summariesByURL: [:])
         )
         await viewModel.load()
-        var draft = FeedDraft(subscription: subscription)
+        var draft = PodcastDraft(subscription: subscription)
         draft.includesInAutomaticDownloads = false
 
-        try await viewModel.updateFeed(from: draft)
+        try await viewModel.updatePodcast(from: draft)
 
-        let updatedSubscription = try #require(viewModel.feedSubscriptions.first)
+        let updatedSubscription = try #require(viewModel.podcastSubscriptions.first)
         #expect(!updatedSubscription.includesInAutomaticDownloads)
         #expect(updatedSubscription.title == subscription.title)
         #expect(updatedSubscription.artworkURL == subscription.artworkURL)
@@ -115,7 +115,7 @@ struct MainViewModelTests {
     }
 
     @Test
-    func addFeedPersistsBeforeResolvingFeedMetadata() throws {
+    func addPodcastPersistsBeforeResolvingRSSMetadata() throws {
         let store = InMemoryConfigurationStore()
         let cacheStore = InMemoryFeedCacheStore()
         let viewModel = MainViewModel(
@@ -124,15 +124,15 @@ struct MainViewModelTests {
             feedCacheStore: cacheStore
         )
 
-        let subscriptionID = try viewModel.addFeed(
-            from: FeedDraft(rssURLString: "https://www.example.com/podcast.xml")
+        let subscriptionID = try viewModel.addPodcast(
+            from: PodcastDraft(rssURLString: "https://www.example.com/podcast.xml")
         )
 
-        let subscription = try #require(viewModel.feedSubscriptions.first)
+        let subscription = try #require(viewModel.podcastSubscriptions.first)
         #expect(subscription.id == subscriptionID)
         #expect(subscription.title == "example.com")
         #expect(subscription.rssURL.absoluteString == "https://www.example.com/podcast.xml")
-        #expect(store.configuration.feedSubscriptions == [subscription])
+        #expect(store.configuration.podcastSubscriptions == [subscription])
         #expect(cacheStore.savedFeeds.isEmpty)
     }
 
@@ -149,8 +149,8 @@ struct MainViewModelTests {
                 prefixesPublicationDateInEpisodeTitles: true,
                 mp3Genre: "Spoken Word",
                 automaticDownloadLimit: .latest3,
-                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 10),
-                showSortOrder: .reverseAlphabetic
+                deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 10),
+                podcastSortOrder: .reverseAlphabetic
             )
         )
 
@@ -160,8 +160,8 @@ struct MainViewModelTests {
         #expect(viewModel.settings.prefixesPublicationDateInEpisodeTitles)
         #expect(viewModel.settings.mp3Genre == "Spoken Word")
         #expect(viewModel.settings.automaticDownloadLimit == .latest3)
-        #expect(viewModel.settings.deviceCleanupPolicy == DeviceCleanupPolicy(maximumEpisodesPerShow: 10))
-        #expect(viewModel.settings.showSortOrder == .reverseAlphabetic)
+        #expect(viewModel.settings.deviceCleanupPolicy == DeviceCleanupPolicy(maximumEpisodesPerPodcast: 10))
+        #expect(viewModel.settings.podcastSortOrder == .reverseAlphabetic)
         #expect(store.configuration.settings == viewModel.settings)
     }
 
@@ -171,8 +171,8 @@ struct MainViewModelTests {
         let newURL = URL(string: "https://example.com/new.xml")!
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(title: "Existing", rssURL: existingURL)
+                podcastSubscriptions: [
+                    PodcastSubscription(title: "Existing", rssURL: existingURL)
                 ]
             )
         )
@@ -183,9 +183,9 @@ struct MainViewModelTests {
             OPMLSubscription(title: "New", rssURL: newURL)
         ])
 
-        #expect(viewModel.feedSubscriptions.map(\.title) == ["Existing", "New"])
-        #expect(store.configuration.feedSubscriptions.map(\.rssURL) == [existingURL, newURL])
-        #expect(addedSubscriptionIDs == [viewModel.feedSubscriptions[1].id])
+        #expect(viewModel.podcastSubscriptions.map(\.title) == ["Existing", "New"])
+        #expect(store.configuration.podcastSubscriptions.map(\.rssURL) == [existingURL, newURL])
+        #expect(addedSubscriptionIDs == [viewModel.podcastSubscriptions[1].id])
 
         #expect(throws: MainViewModelError.duplicateSubscription) {
             try viewModel.importSubscriptions([
@@ -193,16 +193,16 @@ struct MainViewModelTests {
                 OPMLSubscription(title: "Duplicate", rssURL: existingURL),
             ])
         }
-        #expect(store.configuration.feedSubscriptions.map(\.rssURL) == [existingURL, newURL])
+        #expect(store.configuration.podcastSubscriptions.map(\.rssURL) == [existingURL, newURL])
     }
 
     @Test
-    func rejectsDuplicateFeedAcrossCommonURLAliases() async throws {
+    func rejectsDuplicatePodcastAcrossCommonRSSURLAliases() async throws {
         let existingURL = URL(string: "https://feeds.example.com/show/")!
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(title: "Existing", rssURL: existingURL)
+                podcastSubscriptions: [
+                    PodcastSubscription(title: "Existing", rssURL: existingURL)
                 ]
             )
         )
@@ -210,20 +210,20 @@ struct MainViewModelTests {
         await viewModel.load()
 
         #expect(throws: MainViewModelError.duplicateSubscription) {
-            try viewModel.addFeed(
-                from: FeedDraft(rssURLString: "http://feeds.example.com:80/show#episodes")
+            try viewModel.addPodcast(
+                from: PodcastDraft(rssURLString: "http://feeds.example.com:80/show#episodes")
             )
         }
-        #expect(store.configuration.feedSubscriptions.map(\.rssURL) == [existingURL])
+        #expect(store.configuration.podcastSubscriptions.map(\.rssURL) == [existingURL])
     }
 
     @Test
-    func applyFeedSummariesUpdatesStoredMetadata() async throws {
+    func applyFeedSummariesUpdatesStoredPodcastMetadata() async throws {
         let subscriptionID = UUID(uuidString: "7B9FEA54-E516-4B39-8156-5B83D0B96768")!
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(
+                podcastSubscriptions: [
+                    PodcastSubscription(
                         id: subscriptionID,
                         title: "Old Title",
                         rssURL: URL(string: "https://example.com/feed.xml")!
@@ -243,19 +243,19 @@ struct MainViewModelTests {
             )
         ])
 
-        #expect(viewModel.feedSubscriptions.first?.title == "New Title")
-        #expect(viewModel.feedSubscriptions.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
-        #expect(viewModel.feedSubscriptions.first?.description == "Fresh feed description.")
+        #expect(viewModel.podcastSubscriptions.first?.title == "New Title")
+        #expect(viewModel.podcastSubscriptions.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
+        #expect(viewModel.podcastSubscriptions.first?.description == "Fresh feed description.")
     }
 
     @Test
-    func removeFeedDeletesCachedFeed() async throws {
+    func removePodcastDeletesCachedFeed() async throws {
         let subscriptionID = UUID()
         let cacheStore = InMemoryFeedCacheStore()
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(
+                podcastSubscriptions: [
+                    PodcastSubscription(
                         id: subscriptionID,
                         title: "Cached Feed",
                         rssURL: URL(string: "https://example.com/feed.xml")!
@@ -266,25 +266,25 @@ struct MainViewModelTests {
         let viewModel = MainViewModel(store: store, feedCacheStore: cacheStore)
         await viewModel.load()
 
-        viewModel.removeFeeds(at: IndexSet(integer: 0))
+        viewModel.removePodcasts(at: IndexSet(integer: 0))
 
         #expect(cacheStore.deletedSubscriptionIDs == [subscriptionID])
     }
 
     @Test
-    func removeFeedRemovesSelectedSubscriptionEvenWhenStoredOrderDiffers() async throws {
+    func removePodcastRemovesSelectedSubscriptionEvenWhenStoredOrderDiffers() async throws {
         let alphaID = UUID()
         let zuluID = UUID()
         let cacheStore = InMemoryFeedCacheStore()
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(
+                podcastSubscriptions: [
+                    PodcastSubscription(
                         id: zuluID,
                         title: "Zulu Podcast",
                         rssURL: URL(string: "https://example.com/zulu.xml")!
                     ),
-                    FeedSubscription(
+                    PodcastSubscription(
                         id: alphaID,
                         title: "Alpha Podcast",
                         rssURL: URL(string: "https://example.com/alpha.xml")!
@@ -295,25 +295,25 @@ struct MainViewModelTests {
         let viewModel = MainViewModel(store: store, feedCacheStore: cacheStore)
         await viewModel.load()
 
-        #expect(viewModel.feedSubscriptions.map(\.id) == [alphaID, zuluID])
+        #expect(viewModel.podcastSubscriptions.map(\.id) == [alphaID, zuluID])
 
-        viewModel.removeFeeds(at: IndexSet(integer: 0))
+        viewModel.removePodcasts(at: IndexSet(integer: 0))
 
-        #expect(store.configuration.feedSubscriptions.map(\.id) == [zuluID])
-        #expect(viewModel.feedSubscriptions.map(\.id) == [zuluID])
+        #expect(store.configuration.podcastSubscriptions.map(\.id) == [zuluID])
+        #expect(viewModel.podcastSubscriptions.map(\.id) == [zuluID])
         #expect(cacheStore.deletedSubscriptionIDs == [alphaID])
     }
 
     @Test
-    func updateFeedReplacesCachedFeedWhenURLChanges() async throws {
+    func updatePodcastReplacesCachedFeedWhenURLChanges() async throws {
         let subscriptionID = UUID()
         let oldURL = URL(string: "https://example.com/old.xml")!
         let newURL = URL(string: "https://example.com/new.xml")!
         let cacheStore = InMemoryFeedCacheStore()
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
-                feedSubscriptions: [
-                    FeedSubscription(
+                podcastSubscriptions: [
+                    PodcastSubscription(
                         id: subscriptionID,
                         title: "Cached Feed",
                         rssURL: oldURL
@@ -332,8 +332,8 @@ struct MainViewModelTests {
         )
         await viewModel.load()
 
-        try await viewModel.updateFeed(
-            from: FeedDraft(
+        try await viewModel.updatePodcast(
+            from: PodcastDraft(
                 id: subscriptionID,
                 rssURLString: newURL.absoluteString,
                 currentTitle: "Cached Feed"
@@ -365,7 +365,7 @@ private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable 
     var deletedSubscriptionIDs: [UUID] = []
     var savedFeeds: [CachedFeed] = []
 
-    func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
+    func loadCachedFeed(for subscription: PodcastSubscription) throws -> CachedFeed? {
         nil
     }
 

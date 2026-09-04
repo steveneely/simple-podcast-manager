@@ -67,7 +67,7 @@ struct SyncPlannerTests {
     @Test
     func skipsCopyWhenTransliteratedUnicodeFileAlreadyExists() throws {
         let device = makeDevice()
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Hörspiel für große Hörer",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -215,7 +215,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: preparedEpisodes,
             subscriptions: [subscription],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             ejectAfterSync: false
         )
 
@@ -269,7 +269,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [],
             subscriptions: [subscription],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             excludedCleanupTargets: [oldEpisodeURL],
             ejectAfterSync: false
         )
@@ -303,7 +303,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [subscription],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             ejectAfterSync: false
         )
 
@@ -316,12 +316,12 @@ struct SyncPlannerTests {
     func invalidEnabledCleanupPolicyFailsClosed() throws {
         let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [:]))
 
-        #expect(throws: DeviceCleanupPolicyError.invalidMaximumEpisodesPerShow(4)) {
+        #expect(throws: DeviceCleanupPolicyError.invalidMaximumEpisodesPerPodcast(4)) {
             try planner.makePlan(
                 device: makeDevice(),
                 preparedEpisodes: [],
                 subscriptions: [makeSubscription()],
-                cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 4),
+                cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 4),
                 ejectAfterSync: false
             )
         }
@@ -344,7 +344,7 @@ struct SyncPlannerTests {
             preparedEpisodes: [],
             subscriptions: [makeSubscription()],
             manualDeleteTargets: [manuallyDeletedURL],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             ejectAfterSync: false
         )
 
@@ -372,7 +372,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             ejectAfterSync: false
         )
 
@@ -405,7 +405,7 @@ struct SyncPlannerTests {
             device: device,
             preparedEpisodes: [],
             subscriptions: [makeSubscription()],
-            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerShow: 3),
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             ejectAfterSync: false
         )
 
@@ -549,7 +549,7 @@ struct SyncPlannerTests {
     @Test
     func reusesExistingManagedFolderWhenSubscriptionTitlePunctuationChanges() throws {
         let device = makeDevice()
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Sean Carroll's Mindscape: Science, Society, Philosophy, Culture, Arts, and Ideas",
             rssURL: URL(string: "https://example.com/feed.xml")!
@@ -591,8 +591,8 @@ struct SyncPlannerTests {
     func enumeratesDeviceDirectoriesOnceWhenPlanningMultipleSubscriptions() throws {
         let device = makeDevice()
         let subscriptions = [
-            FeedSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
-            FeedSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
+            PodcastSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
+            PodcastSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
         ]
         let deviceLibrary = CountingPlannerDeviceLibrary()
         let planner = makeTestPlanner(deviceLibrary: deviceLibrary)
@@ -838,8 +838,8 @@ struct SyncPlannerTests {
         )
     }
 
-    private func makeSubscription() -> FeedSubscription {
-        FeedSubscription(
+    private func makeSubscription() -> PodcastSubscription {
+        PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Example Podcast",
             rssURL: URL(string: "https://example.com/feed.xml")!

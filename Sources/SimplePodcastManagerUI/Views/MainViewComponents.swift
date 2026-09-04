@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 import SimplePodcastManagerCore
 
-enum FeedSelectionPolicy {
-    static let initialSelection: FeedSubscription.ID? = nil
+enum PodcastSelectionPolicy {
+    static let initialSelection: PodcastSubscription.ID? = nil
 
-    static func selectionAfterRemovingFeeds(
-        currentSelection: FeedSubscription.ID?,
-        remainingSubscriptions: [FeedSubscription]
-    ) -> FeedSubscription.ID? {
+    static func selectionAfterRemovingPodcasts(
+        currentSelection: PodcastSubscription.ID?,
+        remainingSubscriptions: [PodcastSubscription]
+    ) -> PodcastSubscription.ID? {
         guard let currentSelection else { return nil }
         return remainingSubscriptions.contains(where: { $0.id == currentSelection })
             ? currentSelection
@@ -16,12 +16,12 @@ enum FeedSelectionPolicy {
     }
 }
 
-enum FeedSidebarActivityStatus: Equatable {
+enum PodcastSidebarActivityStatus: Equatable {
     case newEpisodes(Int)
     case inactive
 }
 
-enum FeedSidebarSortCriterion: Hashable {
+enum PodcastSidebarSortCriterion: Hashable {
     case name
     case recentlyUpdated
 }
@@ -53,10 +53,15 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
                     Text("Device")
                         .font(.headline)
                     if let selectedDevice = viewModel.selectedDevice {
-                        Button(viewModel.statusMessage) {
+                        Button {
                             isShowingDetails.toggle()
+                        } label: {
+                            Label(viewModel.statusMessage, systemImage: "info.circle")
                         }
-                        .buttonStyle(.link)
+                        .buttonStyle(.borderless)
+                        .controlSize(.small)
+                        .help("Show device details")
+                        .accessibilityLabel("Show device details for \(selectedDevice.name)")
                         .popover(isPresented: $isShowingDetails, arrowEdge: .bottom) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(selectedDevice.name)
@@ -139,24 +144,24 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     }
 }
 
-enum FeedRefreshDisplayScope: Equatable {
-    case allShows
-    case show(String)
+enum PodcastRefreshDisplayScope: Equatable {
+    case allPodcasts
+    case podcast(String)
 
     var progressText: String {
         switch self {
-        case .allShows:
-            "Checking shows…"
-        case let .show(title):
+        case .allPodcasts:
+            "Checking podcasts…"
+        case let .podcast(title):
             "Checking \(title)…"
         }
     }
 }
 
-struct FeedRefreshSummary: Equatable {
-    var scope: FeedRefreshDisplayScope
+struct PodcastRefreshSummary: Equatable {
+    var scope: PodcastRefreshDisplayScope
     var discoveredEpisodeCount: Int?
-    var downloadedEpisodes: [FeedRefreshDownloadedEpisode]
+    var downloadedEpisodes: [PodcastRefreshDownloadedEpisode]
     var failedSubscriptionCount: Int
 
     var downloadedEpisodeCount: Int { downloadedEpisodes.count }
@@ -170,15 +175,15 @@ struct FeedRefreshSummary: Equatable {
             parts.append("\(downloadedEpisodeCount) downloaded")
         }
         if failedSubscriptionCount > 0 {
-            let showLabel = failedSubscriptionCount == 1 ? "show" : "shows"
-            parts.append("\(failedSubscriptionCount) \(showLabel) failed")
+            let podcastLabel = failedSubscriptionCount == 1 ? "podcast" : "podcasts"
+            parts.append("\(failedSubscriptionCount) \(podcastLabel) failed")
         }
 
         let result = parts.joined(separator: " · ")
         switch scope {
-        case .allShows:
+        case .allPodcasts:
             return result
-        case let .show(title):
+        case let .podcast(title):
             return "\(title): \(result)"
         }
     }
@@ -190,7 +195,7 @@ struct FeedRefreshSummary: Equatable {
     }
 }
 
-struct FeedRefreshDownloadedEpisode: Equatable, Identifiable {
+struct PodcastRefreshDownloadedEpisode: Equatable, Identifiable {
     let id: String
     let episodeTitle: String
     let podcastTitle: String
@@ -203,17 +208,17 @@ struct FeedRefreshDownloadedEpisode: Equatable, Identifiable {
     }
 
     static func merging(
-        _ existingEpisodes: [FeedRefreshDownloadedEpisode],
-        with newEpisodes: [FeedRefreshDownloadedEpisode]
-    ) -> [FeedRefreshDownloadedEpisode] {
+        _ existingEpisodes: [PodcastRefreshDownloadedEpisode],
+        with newEpisodes: [PodcastRefreshDownloadedEpisode]
+    ) -> [PodcastRefreshDownloadedEpisode] {
         var episodeIDs = Set(existingEpisodes.map(\.id))
         return existingEpisodes + newEpisodes.filter { episodeIDs.insert($0.id).inserted }
     }
 }
 
-enum FeedRefreshStatus: Equatable {
-    case refreshing(FeedRefreshDisplayScope)
-    case completed(FeedRefreshSummary)
+enum PodcastRefreshStatus: Equatable {
+    case refreshing(PodcastRefreshDisplayScope)
+    case completed(PodcastRefreshSummary)
 
     var isRefreshing: Bool {
         if case .refreshing = self { return true }
@@ -221,27 +226,27 @@ enum FeedRefreshStatus: Equatable {
     }
 }
 
-struct FeedSidebarView: View {
+struct PodcastSidebarView: View {
     @State private var isShowingDownloadedEpisodes = false
 
-    let subscriptions: [FeedSubscription]
-    @Binding var selectedFeedID: FeedSubscription.ID?
-    @Binding var sortOrder: ShowSortOrder
+    let subscriptions: [PodcastSubscription]
+    @Binding var selectedPodcastID: PodcastSubscription.ID?
+    @Binding var sortOrder: PodcastSortOrder
     let isRefreshing: Bool
-    let refreshStatus: FeedRefreshStatus?
-    let episodeCount: (FeedSubscription) -> Int
-    let newEpisodeCount: (FeedSubscription) -> Int
-    let isInactive: (FeedSubscription) -> Bool
-    let newestPublicationDate: (FeedSubscription) -> Date?
-    let hasFeedIssue: (FeedSubscription) -> Bool
-    let artworkURL: (FeedSubscription) -> URL?
-    let allowsInsecureArtwork: (FeedSubscription) -> Bool
+    let refreshStatus: PodcastRefreshStatus?
+    let episodeCount: (PodcastSubscription) -> Int
+    let newEpisodeCount: (PodcastSubscription) -> Int
+    let isInactive: (PodcastSubscription) -> Bool
+    let newestPublicationDate: (PodcastSubscription) -> Date?
+    let hasPodcastIssue: (PodcastSubscription) -> Bool
+    let artworkURL: (PodcastSubscription) -> URL?
+    let allowsInsecureArtwork: (PodcastSubscription) -> Bool
     let onAdd: () -> Void
     let onRefresh: () -> Void
-    let onRefreshSubscription: (FeedSubscription) -> Void
-    let onEdit: (FeedSubscription) -> Void
-    let onDelete: (FeedSubscription) -> Void
-    let onDeleteSubscriptions: ([FeedSubscription]) -> Void
+    let onRefreshSubscription: (PodcastSubscription) -> Void
+    let onEdit: (PodcastSubscription) -> Void
+    let onDelete: (PodcastSubscription) -> Void
+    let onDeleteSubscriptions: ([PodcastSubscription]) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -250,7 +255,7 @@ struct FeedSidebarView: View {
                     sortOrder = Self.reversedSortOrder(sortOrder)
                 } label: {
                     HStack(spacing: 5) {
-                        Text("Shows")
+                        Text("Podcasts")
                             .font(.headline)
                         Image(systemName: Self.sortDirectionIcon(for: sortOrder))
                             .font(.caption2.weight(.semibold))
@@ -264,36 +269,30 @@ struct FeedSidebarView: View {
 
                 Spacer()
 
-                Menu {
+                HoverIconMenu(
+                    systemName: "line.3.horizontal",
+                    helpText: "Choose podcast sort field"
+                ) {
                     Picker("Sort by", selection: Binding(
                         get: { Self.sortCriterion(for: sortOrder) },
                         set: { sortOrder = Self.defaultSortOrder(for: $0) }
                     )) {
-                        Text("Name").tag(FeedSidebarSortCriterion.name)
-                        Text("Recently Updated").tag(FeedSidebarSortCriterion.recentlyUpdated)
+                        Text("Name").tag(PodcastSidebarSortCriterion.name)
+                        Text("Recently Updated").tag(PodcastSidebarSortCriterion.recentlyUpdated)
                     }
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .accessibilityLabel("Choose show sort field")
-                .help("Choose show sort field")
 
-                HoverIconButton(systemName: "plus", helpText: "Add show", action: onAdd)
+                HoverIconButton(systemName: "plus", helpText: "Add podcast", action: onAdd)
 
                 if isRefreshing {
                     ProgressView()
                         .controlSize(.small)
-                        .frame(width: 24, height: 24)
-                        .help("Loading feeds")
+                        .frame(width: 28, height: 28)
+                        .help("Refreshing podcasts")
                 } else {
                     HoverIconButton(
                         systemName: "arrow.clockwise",
-                        helpText: "Refresh shows",
+                        helpText: "Refresh podcasts",
                         action: onRefresh
                     )
                 }
@@ -308,20 +307,20 @@ struct FeedSidebarView: View {
 
                 ForEach(sortedSubscriptions) { subscription in
                     let count = episodeCount(subscription)
-                    let isSelected = selectedFeedID == subscription.id
-                    let hasIssue = hasFeedIssue(subscription)
+                    let isSelected = selectedPodcastID == subscription.id
+                    let hasIssue = hasPodcastIssue(subscription)
                     let activityStatus = Self.activityStatus(
                         newEpisodeCount: newEpisodeCount(subscription),
                         isInactive: isInactive(subscription),
-                        hasFeedIssue: hasIssue,
+                        hasPodcastIssue: hasIssue,
                         isEnabled: subscription.isEnabled
                     )
 
                     VStack(alignment: .leading, spacing: 4) {
                         Button {
-                            selectedFeedID = Self.selection(
+                            selectedPodcastID = Self.selection(
                                 afterClicking: subscription.id,
-                                currentSelection: selectedFeedID
+                                currentSelection: selectedPodcastID
                             )
                         } label: {
                             HStack(alignment: .center, spacing: 10) {
@@ -377,7 +376,7 @@ struct FeedSidebarView: View {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .font(.caption)
                                         .foregroundStyle(.orange)
-                                        .help("This feed had a refresh problem")
+                                        .help("This podcast had a refresh problem")
                                 }
                             }
                             .contentShape(Rectangle())
@@ -475,7 +474,7 @@ struct FeedSidebarView: View {
     }
 
     private func downloadedEpisodesPopover(
-        _ downloadedEpisodes: [FeedRefreshDownloadedEpisode]
+        _ downloadedEpisodes: [PodcastRefreshDownloadedEpisode]
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Downloaded Episodes")
@@ -502,19 +501,19 @@ struct FeedSidebarView: View {
     }
 
     static func selection(
-        afterClicking subscriptionID: FeedSubscription.ID,
-        currentSelection: FeedSubscription.ID?
-    ) -> FeedSubscription.ID? {
+        afterClicking subscriptionID: PodcastSubscription.ID,
+        currentSelection: PodcastSubscription.ID?
+    ) -> PodcastSubscription.ID? {
         currentSelection == subscriptionID ? nil : subscriptionID
     }
 
     static func activityStatus(
         newEpisodeCount: Int,
         isInactive: Bool,
-        hasFeedIssue: Bool,
+        hasPodcastIssue: Bool,
         isEnabled: Bool
-    ) -> FeedSidebarActivityStatus? {
-        guard isEnabled, !hasFeedIssue else { return nil }
+    ) -> PodcastSidebarActivityStatus? {
+        guard isEnabled, !hasPodcastIssue else { return nil }
         if newEpisodeCount > 0 {
             return .newEpisodes(newEpisodeCount)
         }
@@ -526,10 +525,10 @@ struct FeedSidebarView: View {
     }
 
     static func sortedSubscriptions(
-        _ subscriptions: [FeedSubscription],
-        by sortOrder: ShowSortOrder,
-        newestPublicationDate: (FeedSubscription) -> Date?
-    ) -> [FeedSubscription] {
+        _ subscriptions: [PodcastSubscription],
+        by sortOrder: PodcastSortOrder,
+        newestPublicationDate: (PodcastSubscription) -> Date?
+    ) -> [PodcastSubscription] {
         subscriptions.sorted { first, second in
             if sortOrder == .recentlyUpdated || sortOrder == .leastRecentlyUpdated {
                 switch (newestPublicationDate(first), newestPublicationDate(second)) {
@@ -556,7 +555,7 @@ struct FeedSidebarView: View {
         }
     }
 
-    static func reversedSortOrder(_ sortOrder: ShowSortOrder) -> ShowSortOrder {
+    static func reversedSortOrder(_ sortOrder: PodcastSortOrder) -> PodcastSortOrder {
         switch sortOrder {
         case .alphabetic:
             return .reverseAlphabetic
@@ -569,7 +568,7 @@ struct FeedSidebarView: View {
         }
     }
 
-    static func sortCriterion(for sortOrder: ShowSortOrder) -> FeedSidebarSortCriterion {
+    static func sortCriterion(for sortOrder: PodcastSortOrder) -> PodcastSidebarSortCriterion {
         switch sortOrder {
         case .alphabetic, .reverseAlphabetic:
             return .name
@@ -578,7 +577,7 @@ struct FeedSidebarView: View {
         }
     }
 
-    static func defaultSortOrder(for criterion: FeedSidebarSortCriterion) -> ShowSortOrder {
+    static func defaultSortOrder(for criterion: PodcastSidebarSortCriterion) -> PodcastSortOrder {
         switch criterion {
         case .name:
             return .alphabetic
@@ -587,7 +586,7 @@ struct FeedSidebarView: View {
         }
     }
 
-    static func sortDirectionIcon(for sortOrder: ShowSortOrder) -> String {
+    static func sortDirectionIcon(for sortOrder: PodcastSortOrder) -> String {
         switch sortOrder {
         case .alphabetic, .leastRecentlyUpdated:
             return "arrow.up"
@@ -596,7 +595,7 @@ struct FeedSidebarView: View {
         }
     }
 
-    static func sortDirectionHelpText(for sortOrder: ShowSortOrder) -> String {
+    static func sortDirectionHelpText(for sortOrder: PodcastSortOrder) -> String {
         switch sortOrder {
         case .alphabetic:
             return "Sorted by name, A–Z. Click to reverse."
@@ -609,7 +608,7 @@ struct FeedSidebarView: View {
         }
     }
 
-    private func inactiveHelpText(for subscription: FeedSubscription) -> String {
+    private func inactiveHelpText(for subscription: PodcastSubscription) -> String {
         guard let date = newestPublicationDate(subscription) else { return "No recent episodes" }
         return "Latest episode published \(date.formatted(date: .long, time: .omitted))"
     }
@@ -671,7 +670,7 @@ struct OtherAudioReviewView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Review Device Audio")
-                    .font(.title3)
+                    .font(.title2)
                     .fontWeight(.semibold)
                 Text("\(deviceName)  ·  \(podcastDirectoryPath)")
                     .font(.caption)
@@ -681,8 +680,6 @@ struct OtherAudioReviewView: View {
             }
 
             Spacer()
-
-            HoverIconButton(systemName: "xmark", helpText: "Close review", action: onClose)
         }
         .padding(20)
     }
@@ -750,13 +747,17 @@ struct OtherAudioReviewView: View {
         let standardizedURL = fileURL.standardizedFileURL
         let isSelected = selectedFiles.contains(standardizedURL)
 
-        return Button {
-            onToggleSelection(fileURL)
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                    .font(.body)
-                    .foregroundStyle(isSelected ? Color.red : Color.secondary)
+        return Toggle(
+            isOn: Binding(
+                get: { isSelected },
+                set: { shouldSelect in
+                    if shouldSelect != isSelected {
+                        onToggleSelection(fileURL)
+                    }
+                }
+            )
+        ) {
+            HStack {
                 Text(relativePath(fileURL))
                     .font(.callout)
                     .foregroundStyle(.primary)
@@ -769,9 +770,9 @@ struct OtherAudioReviewView: View {
             .contentShape(Rectangle())
             .background(isSelected ? Color.red.opacity(0.06) : Color.clear)
         }
-        .buttonStyle(.plain)
+        .toggleStyle(.checkbox)
+        .tint(.red)
         .accessibilityLabel(relativePath(fileURL))
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private var emptyContent: some View {
@@ -862,7 +863,7 @@ struct EpisodeDetailsView: View {
                     detailRow(label: "Device", value: removedLabel)
                 }
                 urlRow(label: "Media URL", url: episode.enclosureURL)
-                urlRow(label: "Feed URL", url: episode.sourceFeedURL)
+                urlRow(label: "RSS Feed URL", url: episode.sourceFeedURL)
             }
         }
         .padding(10)

@@ -6,6 +6,7 @@ public struct PreparedEpisode: Codable, Equatable, Sendable, Identifiable {
         if let subscriptionID = episode.subscriptionID {
             return "subscription:\(subscriptionID.uuidString.lowercased())::\(episode.id)"
         }
+        // Keep the established prefix so existing SQLite record keys remain stable.
         return "feed:\(episode.sourceFeedURL.absoluteString)::\(episode.id)"
     }
     public var episode: Episode

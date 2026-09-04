@@ -4,7 +4,7 @@ public struct ManagedDirectoryResolver: Sendable {
     public init() {}
 
     public func managedDirectoryURL(
-        for subscription: FeedSubscription,
+        for subscription: PodcastSubscription,
         on device: DeviceInfo,
         candidateDirectories: [URL]
     ) -> URL {

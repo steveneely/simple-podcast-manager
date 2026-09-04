@@ -1,20 +1,20 @@
 import SimplePodcastManagerCore
 import SwiftUI
 
-public struct FeedEditorView: View {
+public struct PodcastEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var draft: FeedDraft
+    @State private var draft: PodcastDraft
     @State private var errorMessage: String?
     @State private var isSaving = false
     @State private var addMethod: AddMethod
     @State private var selectedSearchResult: PodcastSearchResult?
     @FocusState private var focusedField: Field?
     private let title: String
-    private let initialDraft: FeedDraft
+    private let initialDraft: PodcastDraft
     private let podcastSearcher: any PodcastSearching
-    private let existingSubscriptions: [FeedSubscription]
-    private let onSave: @Sendable (FeedDraft) async throws -> Void
+    private let existingSubscriptions: [PodcastSubscription]
+    private let onSave: @Sendable (PodcastDraft) async throws -> Void
 
     private enum Field: Hashable {
         case rssURL
@@ -22,22 +22,22 @@ public struct FeedEditorView: View {
 
     private enum AddMethod: String, CaseIterable, Identifiable {
         case search
-        case feedURL
+        case rssFeedURL
 
         var id: Self { self }
     }
 
     public init(
         title: String,
-        draft: FeedDraft,
+        draft: PodcastDraft,
         podcastSearcher: any PodcastSearching = PodcastIndexSearchService(),
-        existingSubscriptions: [FeedSubscription] = [],
-        onSave: @escaping @Sendable (FeedDraft) async throws -> Void
+        existingSubscriptions: [PodcastSubscription] = [],
+        onSave: @escaping @Sendable (PodcastDraft) async throws -> Void
     ) {
         self.title = title
         self.initialDraft = draft
         self._draft = State(initialValue: draft)
-        self._addMethod = State(initialValue: draft.id == nil ? .search : .feedURL)
+        self._addMethod = State(initialValue: draft.id == nil ? .search : .rssFeedURL)
         self.podcastSearcher = podcastSearcher
         self.existingSubscriptions = existingSubscriptions
         self.onSave = onSave
@@ -50,10 +50,10 @@ public struct FeedEditorView: View {
                 .fontWeight(.semibold)
 
             VStack(alignment: .leading, spacing: 14) {
-                if isCreatingFeed {
+                if isCreatingPodcast {
                     Picker("Add podcast using", selection: $addMethod) {
                         Text("Search").tag(AddMethod.search)
-                        Text("Feed URL").tag(AddMethod.feedURL)
+                        Text("Feed URL").tag(AddMethod.rssFeedURL)
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -65,13 +65,13 @@ public struct FeedEditorView: View {
                             selectedResult: $selectedSearchResult
                         )
                     } else {
-                        feedURLAddView
+                        rssFeedURLAddView
                     }
                 } else {
-                    feedURLField
+                    rssFeedURLField
                 }
 
-                Toggle("Feed enabled", isOn: $draft.isEnabled)
+                Toggle("Podcast enabled", isOn: $draft.isEnabled)
 
                 Toggle("Include in automatic downloads", isOn: $draft.includesInAutomaticDownloads)
                     .disabled(!draft.isEnabled)
@@ -99,8 +99,8 @@ public struct FeedEditorView: View {
         }
         .padding(20)
         .frame(
-            minWidth: isCreatingFeed ? 560 : 460,
-            minHeight: isCreatingFeed ? 520 : nil
+            minWidth: isCreatingPodcast ? 560 : 460,
+            minHeight: isCreatingPodcast ? 520 : nil
         )
         .onAppear {
             draft = initialDraft
@@ -110,7 +110,7 @@ public struct FeedEditorView: View {
             errorMessage = nil
             selectedSearchResult = nil
             draft.rssURLString = ""
-            if addMethod == .feedURL {
+            if addMethod == .rssFeedURL {
                 focusedField = .rssURL
             }
         }
@@ -120,9 +120,9 @@ public struct FeedEditorView: View {
         }
     }
 
-    private var feedURLField: some View {
+    private var rssFeedURLField: some View {
         LabeledField(
-            title: "Feed URL",
+            title: "RSS Feed URL",
             detail: "Paste the podcast's RSS feed address."
         ) {
             TextField("https://example.com/feed.xml", text: $draft.rssURLString)
@@ -131,16 +131,13 @@ public struct FeedEditorView: View {
         }
     }
 
-    private var feedURLAddView: some View {
+    private var rssFeedURLAddView: some View {
         VStack(alignment: .leading, spacing: 10) {
-            feedURLField
+            rssFeedURLField
 
             ContentUnavailableView(
-                "Add with a Feed URL",
-                systemImage: "link",
-                description: Text(
-                    "Use the podcast's RSS feed when it is private or missing from search."
-                )
+                "Add with an RSS Feed URL",
+                systemImage: "link"
             )
             .frame(maxWidth: .infinity)
             .frame(height: 250)
@@ -153,9 +150,9 @@ public struct FeedEditorView: View {
 
     private var primaryButtonTitle: String {
         if isSaving {
-            return isCreatingFeed ? "Adding..." : "Saving..."
+            return isCreatingPodcast ? "Adding..." : "Saving..."
         }
-        return isCreatingFeed ? "Add Podcast" : "Save"
+        return isCreatingPodcast ? "Add Podcast" : "Save"
     }
 
     private func save() {
@@ -172,7 +169,7 @@ public struct FeedEditorView: View {
         }
     }
 
-    private var isCreatingFeed: Bool {
+    private var isCreatingPodcast: Bool {
         draft.id == nil
     }
 

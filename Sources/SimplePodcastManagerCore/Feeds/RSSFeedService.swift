@@ -18,7 +18,7 @@ public struct RSSFeedService: FeedService {
         self.maximumConcurrentRefreshes = max(1, maximumConcurrentRefreshes)
     }
 
-    public func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
+    public func fetchLatestEpisodes(for subscriptions: [PodcastSubscription]) async throws -> FeedFetchResult {
         let enabledSubscriptions = subscriptions.filter(\.isEnabled)
         var nextSubscriptionIndex = 0
         var outcomes: [SubscriptionFetchOutcome] = []
@@ -60,7 +60,7 @@ public struct RSSFeedService: FeedService {
         )
     }
 
-    private func fetchLatestEpisodes(for subscription: FeedSubscription) async -> FeedFetchResult {
+    private func fetchLatestEpisodes(for subscription: PodcastSubscription) async -> FeedFetchResult {
         let cachedFeed = try? cacheStore.loadCachedFeed(for: subscription)
         do {
             var request = URLRequest(url: subscription.rssURL)
@@ -157,7 +157,7 @@ public struct RSSFeedService: FeedService {
     private func cachedFeedFallbackMessage(for cachedFeed: CachedFeed, error: Error) -> String {
         let cachedDate = cachedFeed.fetchedAt.formatted(date: .abbreviated, time: .omitted)
         let errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        return "Could not refresh this feed. Showing saved episodes from \(cachedDate). \(errorMessage)"
+        return "Could not refresh this RSS feed. Showing saved episodes from \(cachedDate). \(errorMessage)"
     }
 }
 

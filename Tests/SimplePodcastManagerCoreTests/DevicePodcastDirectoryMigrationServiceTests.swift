@@ -222,7 +222,7 @@ struct DevicePodcastDirectoryMigrationServiceTests {
 }
 
 private struct MigrationFixture {
-    let subscription = FeedSubscription(
+    let subscription = PodcastSubscription(
         title: "ATP",
         rssURL: URL(string: "https://example.com/feed.xml")!
     )

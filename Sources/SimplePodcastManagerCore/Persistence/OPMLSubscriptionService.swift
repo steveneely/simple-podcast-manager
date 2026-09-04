@@ -38,7 +38,7 @@ public struct OPMLSubscriptionService {
 
     public func importPreview(
         data: Data,
-        existingSubscriptions: [FeedSubscription]
+        existingSubscriptions: [PodcastSubscription]
     ) throws -> OPMLSubscriptionImportPreview {
         let entries = try OPMLSubscriptionParser().parse(data: data)
         guard !entries.isEmpty else {
@@ -84,7 +84,7 @@ public struct OPMLSubscriptionService {
         )
     }
 
-    public func exportSubscriptions(_ subscriptions: [FeedSubscription]) -> Data {
+    public func exportSubscriptions(_ subscriptions: [PodcastSubscription]) -> Data {
         let outlines = subscriptions
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
             .map { subscription -> String in
@@ -149,7 +149,7 @@ public enum OPMLSubscriptionError: LocalizedError, Equatable, Sendable {
         case .invalidDocument:
             return "That file is not a valid OPML subscription list."
         case .noSubscriptions:
-            return "No podcast feed URLs were found in that OPML file."
+            return "No podcast RSS feed URLs were found in that OPML file."
         }
     }
 }

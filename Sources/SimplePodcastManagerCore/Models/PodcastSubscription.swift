@@ -1,6 +1,6 @@
 import Foundation
 
-public struct FeedSubscription: Codable, Equatable, Sendable, Identifiable {
+public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
     public var id: UUID
     public var title: String
     public var rssURL: URL

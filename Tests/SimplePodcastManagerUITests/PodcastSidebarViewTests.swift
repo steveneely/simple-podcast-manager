@@ -4,17 +4,17 @@ import SimplePodcastManagerCore
 @testable import SimplePodcastManagerUI
 
 @MainActor
-struct FeedSidebarViewTests {
+struct PodcastSidebarViewTests {
     @Test
-    func appStartsWithoutSelectingAFeed() {
-        #expect(FeedSelectionPolicy.initialSelection == nil)
+    func appStartsWithoutSelectingAPodcast() {
+        #expect(PodcastSelectionPolicy.initialSelection == nil)
     }
 
     @Test
-    func clickingSelectedFeedClearsSelection() {
+    func clickingSelectedPodcastClearsSelection() {
         let subscriptionID = UUID()
 
-        let selection = FeedSidebarView.selection(
+        let selection = PodcastSidebarView.selection(
             afterClicking: subscriptionID,
             currentSelection: subscriptionID
         )
@@ -23,11 +23,11 @@ struct FeedSidebarViewTests {
     }
 
     @Test
-    func clickingDifferentFeedSelectsIt() {
+    func clickingDifferentPodcastSelectsIt() {
         let selectedID = UUID()
         let clickedID = UUID()
 
-        let selection = FeedSidebarView.selection(
+        let selection = PodcastSidebarView.selection(
             afterClicking: clickedID,
             currentSelection: selectedID
         )
@@ -37,10 +37,10 @@ struct FeedSidebarViewTests {
 
     @Test
     func newEpisodeStatusTakesPrecedenceOverInactiveStatus() {
-        let status = FeedSidebarView.activityStatus(
+        let status = PodcastSidebarView.activityStatus(
             newEpisodeCount: 4,
             isInactive: true,
-            hasFeedIssue: false,
+            hasPodcastIssue: false,
             isEnabled: true
         )
 
@@ -48,27 +48,27 @@ struct FeedSidebarViewTests {
     }
 
     @Test
-    func refreshIssueAndDisabledFeedHideActivityStatus() {
-        #expect(FeedSidebarView.activityStatus(
+    func refreshIssueAndDisabledPodcastHideActivityStatus() {
+        #expect(PodcastSidebarView.activityStatus(
             newEpisodeCount: 4,
             isInactive: false,
-            hasFeedIssue: true,
+            hasPodcastIssue: true,
             isEnabled: true
         ) == nil)
-        #expect(FeedSidebarView.activityStatus(
+        #expect(PodcastSidebarView.activityStatus(
             newEpisodeCount: 4,
             isInactive: false,
-            hasFeedIssue: false,
+            hasPodcastIssue: false,
             isEnabled: false
         ) == nil)
     }
 
     @Test
     func inactiveStatusAppearsWithoutNewEpisodes() {
-        let status = FeedSidebarView.activityStatus(
+        let status = PodcastSidebarView.activityStatus(
             newEpisodeCount: 0,
             isInactive: true,
-            hasFeedIssue: false,
+            hasPodcastIssue: false,
             isEnabled: true
         )
 
@@ -77,16 +77,16 @@ struct FeedSidebarViewTests {
 
     @Test
     func newEpisodeLabelCapsLargeCounts() {
-        #expect(FeedSidebarView.newEpisodeLabel(for: 4) == "4 new")
-        #expect(FeedSidebarView.newEpisodeLabel(for: 100) == "99+ new")
+        #expect(PodcastSidebarView.newEpisodeLabel(for: 4) == "4 new")
+        #expect(PodcastSidebarView.newEpisodeLabel(for: 100) == "99+ new")
     }
 
     @Test
-    func alphabeticSortOrdersShowsByTitle() {
+    func alphabeticSortOrdersPodcastsByTitle() {
         let bravo = makeSubscription(title: "Bravo")
         let alpha = makeSubscription(title: "alpha")
 
-        let sorted = FeedSidebarView.sortedSubscriptions(
+        let sorted = PodcastSidebarView.sortedSubscriptions(
             [bravo, alpha],
             by: .alphabetic,
             newestPublicationDate: { _ in nil }
@@ -96,11 +96,11 @@ struct FeedSidebarViewTests {
     }
 
     @Test
-    func reverseAlphabeticSortOrdersShowsFromZToA() {
+    func reverseAlphabeticSortOrdersPodcastsFromZToA() {
         let bravo = makeSubscription(title: "Bravo")
         let alpha = makeSubscription(title: "Alpha")
 
-        let sorted = FeedSidebarView.sortedSubscriptions(
+        let sorted = PodcastSidebarView.sortedSubscriptions(
             [alpha, bravo],
             by: .reverseAlphabetic,
             newestPublicationDate: { _ in nil }
@@ -110,7 +110,7 @@ struct FeedSidebarViewTests {
     }
 
     @Test
-    func recentlyUpdatedSortUsesNewestEpisodeThenTitleAndPlacesUndatedShowsLast() {
+    func recentlyUpdatedSortUsesNewestEpisodeThenTitleAndPlacesUndatedPodcastsLast() {
         let older = makeSubscription(title: "Older")
         let newestZulu = makeSubscription(title: "Zulu")
         let newestAlpha = makeSubscription(title: "Alpha")
@@ -121,7 +121,7 @@ struct FeedSidebarViewTests {
             newestAlpha.id: Date(timeIntervalSince1970: 200),
         ]
 
-        let sorted = FeedSidebarView.sortedSubscriptions(
+        let sorted = PodcastSidebarView.sortedSubscriptions(
             [undated, newestZulu, older, newestAlpha],
             by: .recentlyUpdated,
             newestPublicationDate: { dates[$0.id] }
@@ -131,7 +131,7 @@ struct FeedSidebarViewTests {
     }
 
     @Test
-    func leastRecentlyUpdatedSortPlacesUndatedAndOldestShowsFirst() {
+    func leastRecentlyUpdatedSortPlacesUndatedAndOldestPodcastsFirst() {
         let older = makeSubscription(title: "Older")
         let newer = makeSubscription(title: "Newer")
         let undatedZulu = makeSubscription(title: "Zulu")
@@ -141,7 +141,7 @@ struct FeedSidebarViewTests {
             newer.id: Date(timeIntervalSince1970: 200),
         ]
 
-        let sorted = FeedSidebarView.sortedSubscriptions(
+        let sorted = PodcastSidebarView.sortedSubscriptions(
             [newer, undatedZulu, older, undatedAlpha],
             by: .leastRecentlyUpdated,
             newestPublicationDate: { dates[$0.id] }
@@ -152,26 +152,26 @@ struct FeedSidebarViewTests {
 
     @Test
     func columnHeaderReversesTheCurrentSortDirection() {
-        #expect(FeedSidebarView.reversedSortOrder(.alphabetic) == .reverseAlphabetic)
-        #expect(FeedSidebarView.reversedSortOrder(.reverseAlphabetic) == .alphabetic)
-        #expect(FeedSidebarView.reversedSortOrder(.recentlyUpdated) == .leastRecentlyUpdated)
-        #expect(FeedSidebarView.reversedSortOrder(.leastRecentlyUpdated) == .recentlyUpdated)
+        #expect(PodcastSidebarView.reversedSortOrder(.alphabetic) == .reverseAlphabetic)
+        #expect(PodcastSidebarView.reversedSortOrder(.reverseAlphabetic) == .alphabetic)
+        #expect(PodcastSidebarView.reversedSortOrder(.recentlyUpdated) == .leastRecentlyUpdated)
+        #expect(PodcastSidebarView.reversedSortOrder(.leastRecentlyUpdated) == .recentlyUpdated)
     }
 
     @Test
     func choosingASortCriterionUsesItsNaturalDefaultDirection() {
-        #expect(FeedSidebarView.defaultSortOrder(for: .name) == .alphabetic)
-        #expect(FeedSidebarView.defaultSortOrder(for: .recentlyUpdated) == .recentlyUpdated)
-        #expect(FeedSidebarView.sortCriterion(for: .reverseAlphabetic) == .name)
-        #expect(FeedSidebarView.sortCriterion(for: .leastRecentlyUpdated) == .recentlyUpdated)
+        #expect(PodcastSidebarView.defaultSortOrder(for: .name) == .alphabetic)
+        #expect(PodcastSidebarView.defaultSortOrder(for: .recentlyUpdated) == .recentlyUpdated)
+        #expect(PodcastSidebarView.sortCriterion(for: .reverseAlphabetic) == .name)
+        #expect(PodcastSidebarView.sortCriterion(for: .leastRecentlyUpdated) == .recentlyUpdated)
     }
 
     @Test
-    func removingSelectedFeedDoesNotOpenAnotherFeed() {
+    func removingSelectedPodcastDoesNotOpenAnotherPodcast() {
         let selectedFeed = makeSubscription(title: "Selected")
         let remainingFeed = makeSubscription(title: "Remaining")
 
-        let selection = FeedSelectionPolicy.selectionAfterRemovingFeeds(
+        let selection = PodcastSelectionPolicy.selectionAfterRemovingPodcasts(
             currentSelection: selectedFeed.id,
             remainingSubscriptions: [remainingFeed]
         )
@@ -180,10 +180,10 @@ struct FeedSidebarViewTests {
     }
 
     @Test
-    func removingAnotherFeedKeepsCurrentSelection() {
+    func removingAnotherPodcastKeepsCurrentSelection() {
         let selectedFeed = makeSubscription(title: "Selected")
 
-        let selection = FeedSelectionPolicy.selectionAfterRemovingFeeds(
+        let selection = PodcastSelectionPolicy.selectionAfterRemovingPodcasts(
             currentSelection: selectedFeed.id,
             remainingSubscriptions: [selectedFeed]
         )
@@ -191,8 +191,8 @@ struct FeedSidebarViewTests {
         #expect(selection == selectedFeed.id)
     }
 
-    private func makeSubscription(title: String) -> FeedSubscription {
-        FeedSubscription(
+    private func makeSubscription(title: String) -> PodcastSubscription {
+        PodcastSubscription(
             title: title,
             rssURL: URL(string: "https://example.com/\(UUID().uuidString).xml")!
         )

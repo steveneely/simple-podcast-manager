@@ -78,7 +78,7 @@ public struct AppDataBackupService {
             downloadedEpisodes: appData.downloadedEpisodes,
             removedEpisodes: appData.removedEpisodes,
             automaticDownloadState: appData.automaticDownloadState,
-            feedActivityState: appData.feedActivityState
+            podcastActivityState: appData.podcastActivityState
         )
     }
 
@@ -102,10 +102,10 @@ public struct AppDataBackupService {
                 fileName: "automatic-downloads.json",
                 defaultValue: AutomaticDownloadState()
             ),
-            feedActivityState: decode(
-                FeedActivityState.self,
+            podcastActivityState: decode(
+                PodcastActivityState.self,
                 fileName: "feed-activity.json",
-                defaultValue: FeedActivityState()
+                defaultValue: PodcastActivityState()
             )
         )
     }
@@ -117,7 +117,7 @@ public struct AppDataBackupService {
             downloadedEpisodes: snapshot.downloadedEpisodes,
             removedEpisodes: snapshot.removedEpisodes,
             automaticDownloadState: snapshot.automaticDownloadState,
-            feedActivityState: snapshot.feedActivityState
+            podcastActivityState: snapshot.podcastActivityState
         )
 
         let configurationURL = supportDirectoryURL.appending(path: "config.json", directoryHint: .notDirectory)
@@ -144,7 +144,7 @@ public struct AppDataBackupService {
         try write(snapshot.downloadedEpisodes, fileName: "downloaded-episodes.json", to: directoryURL)
         try write(snapshot.removedEpisodes, fileName: "removed-episodes.json", to: directoryURL)
         try write(snapshot.automaticDownloadState, fileName: "automatic-downloads.json", to: directoryURL)
-        try write(snapshot.feedActivityState, fileName: "feed-activity.json", to: directoryURL)
+        try write(snapshot.podcastActivityState, fileName: "feed-activity.json", to: directoryURL)
         includedFiles.formUnion(Self.stateFileNames)
 
         let manifest = AppDataBackupManifest(
@@ -233,7 +233,7 @@ public struct AppDataBackupService {
         case "automatic-downloads.json":
             _ = try AppJSONCoding.makeDecoder().decode(AutomaticDownloadState.self, from: data)
         case "feed-activity.json":
-            _ = try AppJSONCoding.makeDecoder().decode(FeedActivityState.self, from: data)
+            _ = try AppJSONCoding.makeDecoder().decode(PodcastActivityState.self, from: data)
         default:
             throw AppDataBackupError.unknownFiles([fileName])
         }
@@ -265,15 +265,15 @@ private struct AppDataSnapshot {
     var downloadedEpisodes: [DownloadedEpisodeRecord]
     var removedEpisodes: [RemovedEpisodeRecord]
     var automaticDownloadState: AutomaticDownloadState
-    var feedActivityState: FeedActivityState
+    var podcastActivityState: PodcastActivityState
 
     var hasData: Bool {
         configurationData != nil
             || !preparedEpisodes.isEmpty
             || !downloadedEpisodes.isEmpty
             || !removedEpisodes.isEmpty
-            || !automaticDownloadState.feeds.isEmpty
-            || !feedActivityState.feeds.isEmpty
+            || !automaticDownloadState.podcasts.isEmpty
+            || !podcastActivityState.podcasts.isEmpty
     }
 }
 

@@ -7,7 +7,7 @@ import Testing
 struct DeviceLibraryViewModelTests {
     @Test
     func matchesCurrentEpisodesAndKeepsOlderDeviceFilesSeparate() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "Connected",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -48,7 +48,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func associatesTransliteratedUnicodeFilesWithTheirPodcast() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "Hörspiel für große Hörer",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -85,7 +85,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func refreshOrdersDeviceFilesNewestToOldestWhenEpisodesMatch() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "Connected",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -116,7 +116,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func refreshFallsBackToFileNameOrderingWhenEpisodesDoNotMatch() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -149,7 +149,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func refreshIgnoresAppleDoubleMetadataSidecars() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -178,7 +178,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func refreshIgnoresFilesThatDoNotLookAppManaged() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -211,7 +211,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func refreshUsesExistingManagedFolderWhenSubscriptionTitlePunctuationChanges() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "Sean Carroll's Mindscape: Science, Society, Philosophy, Culture, Arts, and Ideas",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -245,7 +245,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func refreshShowsOtherAudioFilesNotAssociatedWithSubscriptions() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -288,7 +288,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func matchingFileNameInAnUnrelatedFolderRemainsOtherAudio() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -315,7 +315,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func deleteOtherAudioFilesOnlyDeletesExplicitKnownOtherAudioUnderDevicePodcastDirectory() async throws {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -361,8 +361,8 @@ struct DeviceLibraryViewModelTests {
             podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
         )
         let subscriptions = [
-            FeedSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
-            FeedSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
+            PodcastSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
+            PodcastSubscription(title: "Second", rssURL: URL(string: "https://example.com/second.xml")!),
         ]
         let directories = subscriptions.map {
             device.podcastDirectoryURL.appendingPathComponent($0.title, isDirectory: true)
@@ -388,7 +388,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func normalRefreshDoesNotRecursivelyEnumerateVirtualLargeLibrary() async {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -414,7 +414,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func otherAudioReviewKeepsSectionEmptyWhenDeviceContainsOnlyManagedFiles() async {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
@@ -440,7 +440,7 @@ struct DeviceLibraryViewModelTests {
 
     @Test
     func failedOptionalAudioPresenceProbeDoesNotBlockManagedInventory() async {
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             title: "ATP",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )

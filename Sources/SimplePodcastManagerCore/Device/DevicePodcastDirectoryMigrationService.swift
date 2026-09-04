@@ -48,7 +48,7 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
         podcastDirectoryPath: String,
         on device: DeviceInfo,
         managedFileURLs: [URL],
-        subscriptions: [FeedSubscription]
+        subscriptions: [PodcastSubscription]
     ) throws -> DevicePodcastDirectoryMigrationPlan {
         let configuration = try DevicePodcastConfiguration(podcastDirectoryPath: podcastDirectoryPath)
         let updatedDevice = DeviceInfo(
@@ -93,7 +93,7 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
     @discardableResult
     public func execute(
         _ plan: DevicePodcastDirectoryMigrationPlan,
-        subscriptions: [FeedSubscription]
+        subscriptions: [PodcastSubscription]
     ) throws -> DeviceInfo {
         try validateMigrationDevices(
             currentDevice: plan.currentDevice,
@@ -160,7 +160,7 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
         sourceURL: URL,
         currentDevice: DeviceInfo,
         updatedDevice: DeviceInfo,
-        subscriptions: [FeedSubscription]
+        subscriptions: [PodcastSubscription]
     ) throws -> DevicePodcastDirectoryMigrationItem {
         let sourceURL = sourceURL.standardizedFileURL
         try safetyValidator.validateDeleteTarget(sourceURL, on: currentDevice)

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import SimplePodcastManagerCore
 
-struct FeedActivitySyncAcknowledgementTests {
+struct PodcastActivitySyncAcknowledgementTests {
     @Test
     func acknowledgesExactCopiesAndRetainedExistingFilesButNotDeletedOrUnplannedEpisodes() {
         let root = URL(fileURLWithPath: "/Volumes/SPMTEST")
@@ -22,11 +22,11 @@ struct FeedActivitySyncAcknowledgementTests {
             .deleteFromDevice(targetURL: deletedURL, fileSizeBytes: 1),
         ])
         let existing = [
-            FeedActivityEpisodeKey(episode: retained.episode)!: retainedURL,
-            FeedActivityEpisodeKey(episode: deleted.episode)!: deletedURL,
+            PodcastActivityEpisodeKey(episode: retained.episode)!: retainedURL,
+            PodcastActivityEpisodeKey(episode: deleted.episode)!: deletedURL,
         ]
 
-        let acknowledged = FeedActivitySyncAcknowledgement.episodesAcknowledged(
+        let acknowledged = PodcastActivitySyncAcknowledgement.episodesAcknowledged(
             preparedEpisodes: [copied, retained, deleted, unplanned],
             existingDeviceFiles: existing,
             completedPlan: plan

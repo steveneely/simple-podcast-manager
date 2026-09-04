@@ -20,22 +20,41 @@ The app has two layers:
 
 The UI should not contain sync logic. It should call focused core services and render progress updates.
 
+## UI and Interaction Conventions
+
+The canonical product term is **podcast**. Swift types, properties, functions, tests, comments, and user-facing copy should use that term for a managed podcast. **RSS feed** is reserved for the underlying XML document, URL, parser, request, and cache. **Subscription** is reserved for the saved relationship or portable OPML data. **Show** is not a synonym for podcast.
+
+Interaction roles should remain semantic and native:
+
+- `Button` performs an app action.
+- `Link` opens a URL.
+- `Toggle` represents persistent or selectable on/off state, including checkbox lists.
+- `HoverIconButton` and `HoverIconMenu` provide the shared 28-point compact toolbar treatment, hover feedback, help text, and accessibility naming.
+- Primary workflow actions use text buttons. Dialogs put Cancel or Close before the trailing primary action.
+- Destructive emphasis is reserved for destructive actions and confirmation states.
+
+Controls must communicate that they are interactive through a standard macOS affordance, hover or pressed feedback, or a visible selected state. Icon-only controls always require descriptive help and accessibility labels. Related screens should use matching spacing, capitalization, action wording, dialog hierarchy, and footer placement.
+
+Swift-facing terminology can improve without breaking stored data. Existing JSON keys, backup filenames, database migration names, and SQLite table names remain stable unless an explicit backward-compatible migration is implemented and tested. Legacy storage identifiers should be isolated at persistence boundaries and accompanied by a compatibility comment.
+
+The complete implementation and review checklist lives in `AGENTS.md` under **UI, UX, and Terminology Standards**.
+
 ## Main Modules
 
 ### UI Layer
 
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface; shows device status and the last completed sync
-- `FeedSidebarView`: show selection; remembered name or publication-recency sorting through a reversible column header and field menu; and grouped refresh, edit, and remove actions for the selected feed
-- `FeedEditorView`: search for and add podcasts, or add and edit feeds by URL
+- `PodcastSidebarView`: podcast selection; remembered name or publication-recency sorting through a reversible column header and field menu; and grouped refresh, edit, and remove actions for the selected podcast
+- `PodcastEditorView`: search for, add, and edit podcasts through Podcast Index or a direct RSS feed URL
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: app preferences, optional review-first device cleanup, device podcast folder, app data backup and restore
-- `FeedPreviewViewModel`: load cached feed data and refresh RSS feeds
-- `FeedRefreshCoordinator`: coordinate refresh results, feed activity, and automatic episode preparation behind testable dependency boundaries
+- `PodcastPreviewViewModel`: load cached feed data and refresh RSS feeds
+- `PodcastRefreshCoordinator`: coordinate refresh results, podcast activity, and automatic episode preparation behind testable dependency boundaries
 - `PodcastSearchViewModel`: manage an explicit Podcast Index search without persisting directory results
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
-- `FeedActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
+- `PodcastActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
 - `SyncPlanViewModel`: build the full-device plan shown before execution
 - `SyncExecutionViewModel`: execute the selected plan and expose progress in the sync dialog
 - `DeviceViewModel`: monitor device availability and selected target
@@ -48,14 +67,14 @@ The UI should not contain sync logic. It should call focused core services and r
 - `PodcastSearching` and `PodcastIndexSearchService`: discover RSS feed URLs through Podcast Index's keyless search endpoint
 - `FeedService`: refresh, cache, and parse saved RSS subscriptions
 - `FeedCacheStore`: persist parsed feed snapshots and HTTP validators per subscription
-- `AutomaticDownloadPlanner`: identify newly observed episodes and apply the per-feed download limit
+- `AutomaticDownloadPlanner`: identify newly observed episodes and apply the per-podcast download limit
 - `AutomaticDownloadStateStore`: persist observed and pending episode IDs per subscription
-- `FeedActivityPlanner` and `FeedActivityStateStore`: detect new feed prefixes, preserve conservative baselines, and persist activity in indexed SQLite rows
+- `PodcastActivityPlanner` and `PodcastActivityStateStore`: detect new feed prefixes, preserve conservative baselines, and persist activity in indexed SQLite rows
 - `OPMLSubscriptionService`: parse, validate, de-duplicate, and export standard OPML subscription lists
 - `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
-- `SyncPlanner`: calculate copy, skip, selected per-show retention cleanup, manual delete, and eject actions; verify the complete plan fits; and order selected deletions before copies
+- `SyncPlanner`: calculate copy, skip, selected per-podcast retention cleanup, manual delete, and eject actions; verify the complete plan fits; and order selected deletions before copies
 - `SyncExecutor`: perform scoped copies and deletes on the device
 - `SafetyValidator`: verify all device paths before any mutation
 
@@ -63,7 +82,7 @@ The UI should not contain sync logic. It should call focused core services and r
 
 The core domain models are:
 
-- `FeedSubscription`
+- `PodcastSubscription`
 - `Episode`
 - `DeviceInfo`
 - `SyncAction`
@@ -75,15 +94,15 @@ The core domain models are:
 
 Expected runtime flow:
 
-1. The app loads persisted feeds and settings off the main actor without selecting a show, then concurrently loads cached feed previews, one SQLite startup snapshot, and mounted-device discovery. Cached episodes can render as soon as their cache read finishes. Network refresh and device inventory then proceed independently in the background.
+1. The app loads persisted podcast subscriptions and settings off the main actor without selecting a podcast, then concurrently loads cached feed previews, one SQLite startup snapshot, and mounted-device discovery. Cached episodes can render as soon as their cache read finishes. Network refresh and device inventory then proceed independently in the background.
 2. The user adds a podcast by searching Podcast Index and selecting a result, or by entering an RSS feed URL directly.
-3. The app immediately creates a `FeedSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
+3. The app immediately creates a `PodcastSubscription`, shows it as loading, and resolves its metadata and episodes in the background.
 4. `DeviceService` monitors mounted volumes and identifies valid candidates.
-5. `FeedRefreshCoordinator` applies each refresh consistently to show activity and automatic-download planning; failed feeds do not advance either baseline. The user downloads episodes manually, or automatic-download settings prepare new episodes.
+5. `PodcastRefreshCoordinator` applies each refresh consistently to podcast activity and automatic-download planning; failed podcast refreshes do not advance either baseline. The user downloads episodes manually, or automatic-download settings prepare new episodes.
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
-   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-show retention limit
+   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-podcast retention limit
    - exclude any cleanup candidates the user unchecked in the current review
    - when an existing device copy has an unexpected size, offer an in-dialog recovery action that selects that exact app-managed file for deletion and recopies the prepared episode in the same reviewed plan; refresh the dialog with the replacement plan and a persistent ready confirmation on success, or keep it open with the specific planning failure on error
    - build a `SyncPlan`
@@ -94,7 +113,7 @@ Expected runtime flow:
    - optionally eject after success
 9. Progress and result state are rendered in the UI.
 
-Feed activity is separate from automatic downloads. Existing feeds establish a no-badge baseline, only episodes ahead of a previously observed episode are normally considered new, explicitly opening a show marks its current episodes seen, and a fully successful sync acknowledges prepared episodes copied or already present. The sidebar appends blue new-episode text or an orange inactive label to each show's episode count; refresh errors take precedence. No show is implicitly opened at startup, after app-data restore, or when the selected show is removed. Feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
+Podcast activity is separate from automatic downloads. Existing podcasts establish a no-badge baseline, only episodes ahead of a previously observed episode are normally considered new, explicitly opening a podcast marks its current episodes seen, and a fully successful sync acknowledges prepared episodes copied or already present. The sidebar appends blue new-episode text or an orange inactive label to each podcast's episode count; refresh errors take precedence. No podcast is implicitly opened at startup, after app-data restore, or when the selected podcast is removed. RSS feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
 
 The plan shown to the user is the plan executed by the app.
 
@@ -102,9 +121,9 @@ The plan shown to the user is the plan executed by the app.
 
 Episode audio and artwork use HTTPS whenever possible. When a feed publishes an HTTP URL, the app first tries the equivalent HTTPS URL. HTTPS URLs that redirect to HTTP are also treated as insecure.
 
-If the secure attempt fails, the UI asks before downloading over HTTP. A one-time approval covers that episode's audio and artwork and allows its show icon to load for the current app session. The user may instead save an app-wide preference in Settings. The main app keeps App Transport Security enabled; approved HTTP fallbacks use the system `curl` executable with only HTTP and HTTPS protocols permitted. RSS feeds, Sparkle updates, and unapproved downloads remain protected by ATS.
+If the secure attempt fails, the UI asks before downloading over HTTP. A one-time approval covers that episode's audio and artwork and allows its podcast artwork to load for the current app session. The user may instead save an app-wide preference in Settings. The main app keeps App Transport Security enabled; approved HTTP fallbacks use the system `curl` executable with only HTTP and HTTPS protocols permitted. RSS feeds, Sparkle updates, and unapproved downloads remain protected by ATS.
 
-## RSS Subscription
+## Podcast Subscriptions
 
 Subscriptions are RSS-first. The add/edit flow captures a feed URL, resolves title and artwork metadata from the feed, and stores the subscription.
 
@@ -116,7 +135,7 @@ The new-subscription flow should be:
 
 - user enters an RSS feed URL
 - the app validates and stores the URL immediately with a temporary title derived from its host
-- the editor closes and the new show displays a loading state
+- the editor closes and the new podcast displays a loading state
 - a background refresh fetches episodes and replaces the temporary title, artwork, and description with RSS metadata
 - later refreshes can update the stored title and artwork if the feed changes
 
@@ -165,15 +184,15 @@ Small configuration data remains in `config.json`. Growing episode state is stor
 - download history
 - removal history
 - automatic-download baselines and pending episodes
-- feed activity, including observed and new episode IDs
+- podcast activity, including observed and new episode IDs
 
 Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
 
-Startup reads prepared episodes, download history, removal history, automatic-download state, and feed activity in one consistent SQLite read transaction. The UI builds keyed indexes for feed episodes and per-episode status so SwiftUI rendering does not repeatedly scan growing history arrays.
+Startup reads prepared episodes, download history, removal history, automatic-download state, and podcast activity in one consistent SQLite read transaction. The UI builds keyed indexes for feed episodes and per-episode status so SwiftUI rendering does not repeatedly scan growing history arrays.
 
 On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. Automatic-download state uses a separate one-time import so upgrades from development builds can retain `automatic-downloads.json`. Import markers are written only after every source file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
 
-App data backups remain format-version-1 JSON directories. They include configuration, prepared/download/removal records, automatic-download state, and feed activity. Restore accepts older format-version-1 backups where newer state files are absent, validates the complete backup before changing live data, and writes all episode state in one database transaction.
+App data backups remain format-version-1 JSON directories. They include configuration, prepared/download/removal records, automatic-download state, and podcast activity. Restore accepts older format-version-1 backups where newer state files are absent, validates the complete backup before changing live data, and writes all episode state in one database transaction.
 
 ## Automatic Downloads
 
@@ -225,10 +244,10 @@ Delete behavior:
 - never schedule a deletion unless the user selected that file
 - optional device cleanup starts disabled and only preselects eligible files for the current Sync review
 - rank dated app-managed device episodes and dated planned copies newest-first within each subscription
-- preselect only existing device episodes beyond the configured per-show limit; keep every episode tied on the retention-boundary publication day
+- preselect only existing device episodes beyond the configured per-podcast limit; keep every episode tied on the retention-boundary publication day
 - never automatically select an undated file, unrelated audio, or a file that cannot be associated with a current subscription
 - show every proposed cleanup deletion with its own checkbox and rebuild the executable plan after selection changes
-- show a clear cleanup or removal notice before starting any plan that contains deletions; retention-cleanup copy names the configured per-show limit and points back to Settings
+- show a clear cleanup or removal notice before starting any plan that contains deletions; retention-cleanup copy names the configured per-podcast limit and points back to Settings
 - require an explicit recovery selection before replacing an incomplete device copy, then show both its exact deletion and replacement copy in the reviewed plan
 - identify app-managed episodes from their podcast folder and filename metadata
 - only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation

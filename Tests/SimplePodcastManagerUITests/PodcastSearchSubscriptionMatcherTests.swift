@@ -8,7 +8,7 @@ struct PodcastSearchSubscriptionMatcherTests {
     func matchesAnExistingFeedAcrossCommonURLAliases() throws {
         let matcher = PodcastSearchSubscriptionMatcher(
             subscriptions: [
-                FeedSubscription(
+                PodcastSubscription(
                     title: "Existing Show",
                     rssURL: try #require(URL(string: "https://feeds.example.com/show/"))
                 )
@@ -26,7 +26,7 @@ struct PodcastSearchSubscriptionMatcherTests {
     func matchesAnExistingTitleWhenDirectoryURLsDiffer() throws {
         let matcher = PodcastSearchSubscriptionMatcher(
             subscriptions: [
-                FeedSubscription(
+                PodcastSubscription(
                     title: "Café   Conversations",
                     rssURL: try #require(URL(string: "https://publisher.example.com/feed"))
                 )
@@ -44,7 +44,7 @@ struct PodcastSearchSubscriptionMatcherTests {
     func allowsAResultWithADifferentURLAndTitle() throws {
         let matcher = PodcastSearchSubscriptionMatcher(
             subscriptions: [
-                FeedSubscription(
+                PodcastSubscription(
                     title: "Existing Show",
                     rssURL: try #require(URL(string: "https://feeds.example.com/existing"))
                 )

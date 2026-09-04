@@ -1,11 +1,11 @@
 import Foundation
 import SimplePodcastManagerCore
 
-public enum FeedDraftError: Error, Equatable, Sendable {
+public enum PodcastDraftError: Error, Equatable, Sendable {
     case invalidRSSURL
 }
 
-public struct FeedDraft: Equatable, Sendable {
+public struct PodcastDraft: Equatable, Sendable {
     public var id: UUID?
     public var rssURLString: String
     public var artworkURL: URL?
@@ -29,7 +29,7 @@ public struct FeedDraft: Equatable, Sendable {
         self.includesInAutomaticDownloads = includesInAutomaticDownloads
     }
 
-    public init(subscription: FeedSubscription) {
+    public init(subscription: PodcastSubscription) {
         self.id = subscription.id
         self.rssURLString = subscription.rssURL.absoluteString
         self.artworkURL = subscription.artworkURL
@@ -51,14 +51,14 @@ public struct FeedDraft: Equatable, Sendable {
             let scheme = rssURL.scheme?.lowercased(),
             scheme == "http" || scheme == "https"
         else {
-            throw FeedDraftError.invalidRSSURL
+            throw PodcastDraftError.invalidRSSURL
         }
 
         return rssURL
     }
 
-    public func makeSubscription(title: String, artworkURL: URL?, description: String?) throws -> FeedSubscription {
-        return FeedSubscription(
+    public func makeSubscription(title: String, artworkURL: URL?, description: String?) throws -> PodcastSubscription {
+        return PodcastSubscription(
             id: id ?? UUID(),
             title: title,
             rssURL: try resolvedRSSURL(),

@@ -10,7 +10,7 @@ struct JSONFeedCacheStoreTests {
         let store = JSONFeedCacheStore(directoryURL: directoryURL)
         let subscriptionID = UUID()
         let rssURL = URL(string: "https://example.com/feed.xml")!
-        let subscription = FeedSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
+        let subscription = PodcastSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
         let cachedFeed = CachedFeed(
             subscriptionID: subscriptionID,
             rssURL: rssURL,
@@ -58,7 +58,7 @@ struct JSONFeedCacheStoreTests {
             )
         )
 
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: subscriptionID,
             title: "Example",
             rssURL: URL(string: "https://example.com/new.xml")!
@@ -75,7 +75,7 @@ struct JSONFeedCacheStoreTests {
         let store = JSONFeedCacheStore(directoryURL: directoryURL)
         let subscriptionID = UUID()
         let rssURL = URL(string: "https://example.com/feed.xml")!
-        let subscription = FeedSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
+        let subscription = PodcastSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let parsedAsYear26 = try #require(calendar.date(from: DateComponents(year: 26, month: 9, day: 1)))
@@ -108,7 +108,7 @@ struct JSONFeedCacheStoreTests {
             .appending(path: "SimplePodcastManagerTests-\(UUID().uuidString)", directoryHint: .isDirectory)
         let store = JSONFeedCacheStore(directoryURL: directoryURL)
         let subscriptionID = UUID()
-        let subscription = FeedSubscription(
+        let subscription = PodcastSubscription(
             id: subscriptionID,
             title: "Example",
             rssURL: URL(string: "https://example.com/feed.xml")!

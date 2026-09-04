@@ -4,11 +4,11 @@ import Testing
 @testable import SimplePodcastManagerUI
 
 @MainActor
-struct FeedPreviewViewModelTests {
+struct PodcastPreviewViewModelTests {
     @Test
     func refreshPreviewLoadsEpisodesAndFailures() async throws {
         let subscriptionID = UUID()
-        let viewModel = FeedPreviewViewModel(
+        let viewModel = PodcastPreviewViewModel(
             service: MockFeedService(
                 result: FeedFetchResult(
                     allEpisodes: [
@@ -26,7 +26,7 @@ struct FeedPreviewViewModelTests {
                         FeedFetchFailure(
                             subscriptionID: UUID(),
                             subscriptionTitle: "Broken Feed",
-                            message: "The feed data could not be parsed."
+                            message: "The RSS feed data could not be parsed."
                         )
                     ],
                     feedSummaries: [
@@ -54,7 +54,7 @@ struct FeedPreviewViewModelTests {
     func loadCachedPreviewLoadsPersistedEpisodesAndSummary() async throws {
         let subscriptionID = UUID()
         let rssURL = URL(string: "https://example.com/feed.xml")!
-        let subscription = FeedSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
+        let subscription = PodcastSubscription(id: subscriptionID, title: "Example", rssURL: rssURL)
         let store = InMemoryFeedCacheStore(
             cachedFeeds: [
                 subscriptionID: CachedFeed(
@@ -81,7 +81,7 @@ struct FeedPreviewViewModelTests {
                 )
             ]
         )
-        let viewModel = FeedPreviewViewModel(service: MockFeedService(result: FeedFetchResult()), cacheStore: store)
+        let viewModel = PodcastPreviewViewModel(service: MockFeedService(result: FeedFetchResult()), cacheStore: store)
 
         await viewModel.loadCachedPreview(for: [subscription])
 
@@ -93,12 +93,12 @@ struct FeedPreviewViewModelTests {
 
     @Test
     func refreshSingleSubscriptionReplacesOnlyThatSubscription() async throws {
-        let firstSubscription = FeedSubscription(
+        let firstSubscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "First",
             rssURL: URL(string: "https://example.com/first.xml")!
         )
-        let secondSubscription = FeedSubscription(
+        let secondSubscription = PodcastSubscription(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             title: "Second",
             rssURL: URL(string: "https://example.com/second.xml")!
@@ -123,7 +123,7 @@ struct FeedPreviewViewModelTests {
                 ]
             ),
         ])
-        let viewModel = FeedPreviewViewModel(service: service)
+        let viewModel = PodcastPreviewViewModel(service: service)
 
         await viewModel.refreshPreview(for: [firstSubscription, secondSubscription])
         await viewModel.refreshPreview(for: firstSubscription)
@@ -139,17 +139,17 @@ struct FeedPreviewViewModelTests {
 
     @Test
     func refreshNewSubscriptionsFetchesBatchAndPreservesExistingPreviewData() async throws {
-        let existingSubscription = FeedSubscription(
+        let existingSubscription = PodcastSubscription(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             title: "Existing",
             rssURL: URL(string: "https://example.com/existing.xml")!
         )
-        let firstNewSubscription = FeedSubscription(
+        let firstNewSubscription = PodcastSubscription(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             title: "First New",
             rssURL: URL(string: "https://example.com/first-new.xml")!
         )
-        let secondNewSubscription = FeedSubscription(
+        let secondNewSubscription = PodcastSubscription(
             id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
             title: "Second New",
             rssURL: URL(string: "https://example.com/second-new.xml")!
@@ -170,7 +170,7 @@ struct FeedPreviewViewModelTests {
                 ]
             ),
         ])
-        let viewModel = FeedPreviewViewModel(service: service)
+        let viewModel = PodcastPreviewViewModel(service: service)
 
         await viewModel.refreshPreview(for: [existingSubscription])
         await viewModel.refreshPreview(forNewSubscriptions: [firstNewSubscription, secondNewSubscription])
@@ -187,7 +187,7 @@ struct FeedPreviewViewModelTests {
     func indexedEpisodeLookupPerformanceComparison() async throws {
         guard ProcessInfo.processInfo.environment["SPM_RUN_PERFORMANCE_TESTS"] == "1" else { return }
         let subscriptions = (0..<50).map { number in
-            FeedSubscription(
+            PodcastSubscription(
                 title: "Podcast \(number)",
                 rssURL: URL(string: "https://example.com/feed-\(number).xml")!
             )
@@ -211,7 +211,7 @@ struct FeedPreviewViewModelTests {
                 )
             )
         })
-        let viewModel = FeedPreviewViewModel(
+        let viewModel = PodcastPreviewViewModel(
             service: MockFeedService(result: FeedFetchResult()),
             cacheStore: InMemoryFeedCacheStore(cachedFeeds: cachedFeeds)
         )
@@ -240,7 +240,7 @@ struct FeedPreviewViewModelTests {
         #expect(indexedDuration < linearDuration)
     }
 
-    private func makeEpisode(id: String, subscription: FeedSubscription, title: String) -> Episode {
+    private func makeEpisode(id: String, subscription: PodcastSubscription, title: String) -> Episode {
         Episode(
             id: id,
             subscriptionID: subscription.id,
@@ -256,7 +256,7 @@ struct FeedPreviewViewModelTests {
 private struct MockFeedService: FeedService {
     let result: FeedFetchResult
 
-    func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
+    func fetchLatestEpisodes(for subscriptions: [PodcastSubscription]) async throws -> FeedFetchResult {
         result
     }
 }
@@ -269,7 +269,7 @@ private final class SequencedFeedService: FeedService, @unchecked Sendable {
         self.results = results
     }
 
-    func fetchLatestEpisodes(for subscriptions: [FeedSubscription]) async throws -> FeedFetchResult {
+    func fetchLatestEpisodes(for subscriptions: [PodcastSubscription]) async throws -> FeedFetchResult {
         requestedSubscriptionIDs.append(subscriptions.map(\.id))
         return results.removeFirst()
     }
@@ -282,7 +282,7 @@ private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable 
         self.cachedFeeds = cachedFeeds
     }
 
-    func loadCachedFeed(for subscription: FeedSubscription) throws -> CachedFeed? {
+    func loadCachedFeed(for subscription: PodcastSubscription) throws -> CachedFeed? {
         guard let cachedFeed = cachedFeeds[subscription.id], cachedFeed.rssURL == subscription.rssURL else {
             return nil
         }

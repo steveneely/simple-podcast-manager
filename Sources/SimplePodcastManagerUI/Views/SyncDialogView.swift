@@ -15,7 +15,7 @@ struct SyncDialogView: View {
     let lastErrorMessage: String?
     let preparedEpisodeCount: Int
     let enabledSubscriptionCount: Int
-    let cleanupMaximumEpisodesPerShow: Int?
+    let cleanupMaximumEpisodesPerPodcast: Int?
     @Binding var isPresented: Bool
     @Binding var ejectAfterSync: Bool
     @Binding var deleteDownloadsAfterSync: Bool
@@ -59,22 +59,10 @@ struct SyncDialogView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Spacer()
-
-                Button("Close") {
-                    isPresented = false
-                }
-
-                if !hasSuccessfulResult, planningErrorMessage == nil {
-                    Button(isSyncing ? "Working..." : isPlanning ? "Checking..." : "Sync") {
-                        onSync()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSync)
-                }
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Sync Podcasts")
+                .font(.title2)
+                .fontWeight(.semibold)
 
             if hasSuccessfulResult {
                 successConfirmation
@@ -117,6 +105,24 @@ struct SyncDialogView: View {
                     plannedActions
                 }
             }
+
+            Spacer(minLength: 4)
+
+            HStack {
+                Spacer()
+
+                Button("Close") {
+                    isPresented = false
+                }
+
+                if !hasSuccessfulResult, planningErrorMessage == nil {
+                    Button(isSyncing ? "Working..." : isPlanning ? "Checking..." : "Sync") {
+                        onSync()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSync)
+                }
+            }
         }
         .padding(20)
         .frame(minWidth: 560, minHeight: 420, alignment: .topLeading)
@@ -135,7 +141,7 @@ struct SyncDialogView: View {
                 SyncPresentation.deletionNotice(
                     deletionCount: plannedDeletionCount,
                     selectedCleanupDeletionCount: selectedCleanupDeletionCount,
-                    cleanupMaximumEpisodesPerShow: cleanupMaximumEpisodesPerShow
+                    cleanupMaximumEpisodesPerPodcast: cleanupMaximumEpisodesPerPodcast
                 )
             )
                 .font(.caption)
@@ -198,7 +204,7 @@ struct SyncDialogView: View {
                 let deleteCount = plan.actions.count(where: { if case .deleteFromDevice = $0 { true } else { false } })
                 let skipCount = plan.actions.count(where: { if case .skip = $0 { true } else { false } })
 
-                Text("\(preparedEpisodeCount) episode\(preparedEpisodeCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) show\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
+                Text("\(preparedEpisodeCount) episode\(preparedEpisodeCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) podcast\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -345,10 +351,10 @@ enum SyncPresentation {
     static func deletionNotice(
         deletionCount: Int,
         selectedCleanupDeletionCount: Int,
-        cleanupMaximumEpisodesPerShow: Int?
+        cleanupMaximumEpisodesPerPodcast: Int?
     ) -> String {
-        if selectedCleanupDeletionCount > 0, let cleanupMaximumEpisodesPerShow {
-            let cleanupEpisodeText = "Device Cleanup is set to keep the latest \(cleanupMaximumEpisodesPerShow) episodes per show. \(selectedCleanupDeletionCount) older episode\(selectedCleanupDeletionCount == 1 ? "" : "s")"
+        if selectedCleanupDeletionCount > 0, let cleanupMaximumEpisodesPerPodcast {
+            let cleanupEpisodeText = "Device Cleanup is set to keep the latest \(cleanupMaximumEpisodesPerPodcast) episodes per podcast. \(selectedCleanupDeletionCount) older episode\(selectedCleanupDeletionCount == 1 ? "" : "s")"
             let otherRemovalCount = deletionCount - selectedCleanupDeletionCount
             let otherRemovalText = otherRemovalCount > 0
                 ? " Another \(otherRemovalCount) episode\(otherRemovalCount == 1 ? " is" : "s are") selected for removal."

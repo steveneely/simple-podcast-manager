@@ -40,7 +40,7 @@ public final class AutomaticDownloadViewModel {
     public func episodesToDownload(
         afterRefreshing refreshedSubscriptionIDs: Set<UUID>,
         failedSubscriptionIDs: Set<UUID>,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,
         limit: AutomaticDownloadLimit
@@ -60,7 +60,7 @@ public final class AutomaticDownloadViewModel {
     }
 
     public func applyPreferences(
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         limit: AutomaticDownloadLimit
     ) async {
         state = AutomaticDownloadPlanner.applyingPreferences(
@@ -73,7 +73,7 @@ public final class AutomaticDownloadViewModel {
 
     public func activateDownloadsForCurrentlyNewEpisodes(
         subscriptionIDs: Set<UUID>,
-        subscriptions: [FeedSubscription],
+        subscriptions: [PodcastSubscription],
         episodes: [Episode],
         newEpisodeIDsBySubscription: [UUID: Set<String>],
         downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,

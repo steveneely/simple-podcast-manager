@@ -150,15 +150,18 @@ enum FeedRefreshDisplayScope: Equatable {
 
 struct FeedRefreshSummary: Equatable {
     var scope: FeedRefreshDisplayScope
-    var discoveredEpisodeCount: Int
+    var discoveredEpisodeCount: Int?
     var downloadedEpisodes: [FeedRefreshDownloadedEpisode]
     var failedSubscriptionCount: Int
 
     var downloadedEpisodeCount: Int { downloadedEpisodes.count }
 
     var text: String {
-        var parts = [episodeText]
-        if discoveredEpisodeCount > 0 || downloadedEpisodeCount > 0 {
+        var parts: [String] = []
+        if let discoveredEpisodeCount {
+            parts.append(episodeText(discoveredEpisodeCount))
+        }
+        if discoveredEpisodeCount.map({ $0 > 0 }) == true || downloadedEpisodeCount > 0 {
             parts.append("\(downloadedEpisodeCount) downloaded")
         }
         if failedSubscriptionCount > 0 {
@@ -175,7 +178,7 @@ struct FeedRefreshSummary: Equatable {
         }
     }
 
-    private var episodeText: String {
+    private func episodeText(_ discoveredEpisodeCount: Int) -> String {
         guard discoveredEpisodeCount > 0 else { return "No new episodes" }
         let episodeLabel = discoveredEpisodeCount == 1 ? "episode" : "episodes"
         return "\(discoveredEpisodeCount) new \(episodeLabel)"
@@ -192,6 +195,14 @@ struct FeedRefreshDownloadedEpisode: Equatable, Identifiable {
         self.id = "\(sourceID)|\(episode.id)"
         self.episodeTitle = episode.title
         self.podcastTitle = episode.podcastTitle
+    }
+
+    static func merging(
+        _ existingEpisodes: [FeedRefreshDownloadedEpisode],
+        with newEpisodes: [FeedRefreshDownloadedEpisode]
+    ) -> [FeedRefreshDownloadedEpisode] {
+        var episodeIDs = Set(existingEpisodes.map(\.id))
+        return existingEpisodes + newEpisodes.filter { episodeIDs.insert($0.id).inserted }
     }
 }
 
@@ -399,7 +410,7 @@ struct FeedSidebarView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Show automatically downloaded episodes")
+                    .help("Show downloaded episodes")
                     .popover(isPresented: $isShowingDownloadedEpisodes, arrowEdge: .bottom) {
                         downloadedEpisodesPopover(summary.downloadedEpisodes)
                     }
@@ -418,7 +429,7 @@ struct FeedSidebarView: View {
         _ downloadedEpisodes: [FeedRefreshDownloadedEpisode]
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Automatically Downloaded")
+            Text("Downloaded Episodes")
                 .font(.headline)
 
             ScrollView {

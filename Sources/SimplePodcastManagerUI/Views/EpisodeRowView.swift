@@ -104,10 +104,14 @@ struct EpisodeRowView<Details: View>: View {
                     )
                 } else if isPreparing {
                     Button(action: onCancelDownload) {
-                        ProgressView()
-                            .controlSize(.small)
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Cancel")
+                                .font(.caption)
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderless)
                     .help("Cancel download")
                     .accessibilityLabel("Cancel download of \(episode.title)")
                 } else {

@@ -36,6 +36,7 @@ public struct MainView: View {
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedFeedID = FeedSelectionPolicy.initialSelection
     @State private var feedRefreshStatus: FeedRefreshStatus?
+    @State private var downloadedEpisodesForCurrentSummary: [FeedRefreshDownloadedEpisode] = []
     @State private var activeAutomaticDownloadOperations = 0
     @State private var feedEditorPresentation: FeedEditorPresentation?
     @State private var pendingFeedDeletionConfirmation: FeedDeletionConfirmation?
@@ -628,6 +629,7 @@ public struct MainView: View {
                     let downloadedEpisodes = successfullyDownloadedEpisodes(from: [episode])
                     await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
                     await feedActivityViewModel.acknowledge(downloadedEpisodes)
+                    showDownloadSummary(downloadedEpisodes)
                     if preparationPreviewViewModel.requiresInsecureDownloadPermission(for: episode) {
                         enqueueInsecureDownloadPermissions(for: [episode])
                     }
@@ -659,6 +661,7 @@ public struct MainView: View {
             let downloadedEpisodes = successfullyDownloadedEpisodes(from: requestedEpisodes)
             await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
             await feedActivityViewModel.acknowledge(downloadedEpisodes)
+            showDownloadSummary(downloadedEpisodes)
             rebuildSyncPlan()
             showNextInsecureDownloadPrompt()
         }
@@ -906,6 +909,7 @@ public struct MainView: View {
         let downloadedEpisodes = successfullyDownloadedEpisodes(from: episodesToDownload)
         await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
         await feedActivityViewModel.acknowledge(downloadedEpisodes)
+        showDownloadSummary(downloadedEpisodes)
         enqueueInsecureDownloadPermissions(for: episodesToDownload.filter {
             preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
         })
@@ -913,7 +917,54 @@ public struct MainView: View {
     }
 
     private func successfullyDownloadedEpisodes(from episodes: [Episode]) -> [Episode] {
-        episodes.filter { preparationPreviewViewModel.downloadedRecord(for: $0) != nil }
+        episodes.filter { preparationPreviewViewModel.preparedEpisode(for: $0) != nil }
+    }
+
+    private func showDownloadSummary(_ downloadedEpisodes: [Episode]) {
+        guard !downloadedEpisodes.isEmpty else { return }
+        let newDownloads = downloadedEpisodes.map(FeedRefreshDownloadedEpisode.init)
+        downloadedEpisodesForCurrentSummary = FeedRefreshDownloadedEpisode.merging(
+            downloadedEpisodesForCurrentSummary,
+            with: newDownloads
+        )
+
+        switch feedRefreshStatus {
+        case .refreshing:
+            return
+        case .completed(var summary):
+            summary.scope = combinedDownloadSummaryScope(
+                existingScope: summary.scope,
+                downloadedEpisodes: downloadedEpisodesForCurrentSummary
+            )
+            summary.downloadedEpisodes = downloadedEpisodesForCurrentSummary
+            feedRefreshStatus = .completed(summary)
+        case nil:
+            feedRefreshStatus = .completed(FeedRefreshSummary(
+                scope: combinedDownloadSummaryScope(
+                    existingScope: nil,
+                    downloadedEpisodes: downloadedEpisodesForCurrentSummary
+                ),
+                discoveredEpisodeCount: nil,
+                downloadedEpisodes: downloadedEpisodesForCurrentSummary,
+                failedSubscriptionCount: 0
+            ))
+        }
+    }
+
+    private func combinedDownloadSummaryScope(
+        existingScope: FeedRefreshDisplayScope?,
+        downloadedEpisodes: [FeedRefreshDownloadedEpisode]
+    ) -> FeedRefreshDisplayScope {
+        if existingScope == .allShows { return .allShows }
+
+        var podcastTitles = Set(downloadedEpisodes.map(\.podcastTitle))
+        if case let .show(existingTitle)? = existingScope {
+            podcastTitles.insert(existingTitle)
+        }
+        if podcastTitles.count == 1, let podcastTitle = podcastTitles.first {
+            return .show(podcastTitle)
+        }
+        return .allShows
     }
 
     private func refreshFeedPreview() async {
@@ -980,12 +1031,17 @@ public struct MainView: View {
 
     private func coordinateFeedRefresh(_ scope: FeedRefreshScope) async {
         let displayScope = feedRefreshDisplayScope(for: scope)
+        downloadedEpisodesForCurrentSummary = []
         feedRefreshStatus = .refreshing(displayScope)
         let outcome = await feedRefreshCoordinator.refresh(scope)
+        downloadedEpisodesForCurrentSummary = FeedRefreshDownloadedEpisode.merging(
+            downloadedEpisodesForCurrentSummary,
+            with: outcome.downloadedEpisodes.map(FeedRefreshDownloadedEpisode.init)
+        )
         feedRefreshStatus = .completed(FeedRefreshSummary(
             scope: displayScope,
             discoveredEpisodeCount: outcome.discoveredEpisodeCount,
-            downloadedEpisodes: outcome.downloadedEpisodes.map(FeedRefreshDownloadedEpisode.init),
+            downloadedEpisodes: downloadedEpisodesForCurrentSummary,
             failedSubscriptionCount: outcome.failedSubscriptionCount
         ))
         enqueueInsecureDownloadPermissions(for: outcome.episodesRequiringInsecureDownloadPermission)

@@ -244,17 +244,14 @@ private final class StubFeedRefreshPreparation: FeedRefreshEpisodePreparing {
         preparedEpisodes = episodes
     }
 
-    func downloadedRecord(for episode: Episode) -> DownloadedEpisodeRecord? {
-        guard downloadedEpisodeIDsAfterPreparation.contains(episode.id),
-              let subscriptionID = episode.subscriptionID else {
-            return nil
-        }
-        return DownloadedEpisodeRecord(
-            subscriptionID: subscriptionID,
-            episodeID: episode.id,
-            episodeTitle: episode.title,
-            preparationAction: .passthroughMP3,
-            downloadedAt: Date(timeIntervalSince1970: 0)
+    func preparedEpisode(for episode: Episode) -> PreparedEpisode? {
+        guard downloadedEpisodeIDsAfterPreparation.contains(episode.id) else { return nil }
+        let fileURL = URL(fileURLWithPath: "/tmp/\(episode.id).mp3")
+        return PreparedEpisode(
+            episode: episode,
+            sourceFileURL: fileURL,
+            preparedFileURL: fileURL,
+            preparationAction: .passthroughMP3
         )
     }
 

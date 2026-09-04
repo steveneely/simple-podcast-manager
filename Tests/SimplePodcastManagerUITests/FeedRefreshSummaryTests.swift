@@ -24,6 +24,31 @@ struct FeedRefreshSummaryTests {
     }
 
     @Test
+    func directDownloadSummaryOmitsFeedRefreshLanguage() {
+        let summary = FeedRefreshSummary(
+            scope: .show("Example Show"),
+            discoveredEpisodeCount: nil,
+            downloadedEpisodes: [download("Downloaded Episode", show: "Example Show")],
+            failedSubscriptionCount: 0
+        )
+
+        #expect(summary.text == "Example Show: 1 downloaded")
+    }
+
+    @Test
+    func downloadedEpisodeDetailsMergeWithoutDuplicates() {
+        let first = download("First", show: "Show A")
+        let second = download("Second", show: "Show B")
+
+        let merged = FeedRefreshDownloadedEpisode.merging(
+            [first],
+            with: [first, second]
+        )
+
+        #expect(merged == [first, second])
+    }
+
+    @Test
     func noChangesSummaryConfirmsRefreshCompleted() {
         let summary = FeedRefreshSummary(
             scope: .allShows,

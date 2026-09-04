@@ -81,7 +81,7 @@ final class FeedRefreshCoordinator {
 
         await episodePreparation.prepare(episodesToDownload, settings: subscriptionLibrary.settings)
         let downloadedEpisodes = episodesToDownload.filter {
-            episodePreparation.downloadedRecord(for: $0) != nil
+            episodePreparation.preparedEpisode(for: $0) != nil
         }
         await automaticDownloads.markDownloaded(downloadedEpisodes)
         await feedActivity.acknowledge(downloadedEpisodes)
@@ -170,7 +170,7 @@ protocol FeedRefreshEpisodePreparing: AnyObject {
     var downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID> { get }
 
     func prepare(_ episodes: [Episode], settings: AppSettings) async
-    func downloadedRecord(for episode: Episode) -> DownloadedEpisodeRecord?
+    func preparedEpisode(for episode: Episode) -> PreparedEpisode?
     func requiresInsecureDownloadPermission(for episode: Episode) -> Bool
 }
 

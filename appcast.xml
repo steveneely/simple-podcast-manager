@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.18.1</title>
-            <pubDate>Thu, 03 Sep 2026 15:38:32 -0600</pubDate>
-            <sparkle:version>92</sparkle:version>
-            <sparkle:shortVersionString>1.18.1</sparkle:shortVersionString>
+            <title>1.19.0</title>
+            <pubDate>Fri, 04 Sep 2026 13:00:16 -0600</pubDate>
+            <sparkle:version>93</sparkle:version>
+            <sparkle:shortVersionString>1.19.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,16 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="93" data-release-tag="v1.19.0">
+            <h2>v1.19.0</h2>
+            <ul>
+                <li>Delivers a batch of UX/UI improvements that make podcast updates easier to review, download, and manage.</li>
+                <li>Adds remembered show sorting by name or recent episode activity, with a clickable header to reverse either order.</li>
+                <li>Keeps refresh and download feedback together, preserves new-episode indicators until successful downloads, and makes individual downloads easy to cancel.</li>
+                <li>Keeps download progress from shifting the window, allows podcast search selections to be cleared, and removes app-managed local downloads when their show is removed.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="92" data-release-tag="v1.18.1">
             <h2>v1.18.1</h2>
             <ul>
@@ -587,7 +597,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.18.1/SimplePodcastManager-v1.18.1.dmg" length="7403552" type="application/octet-stream" sparkle:edSignature="ovP5MqkHCszIPkXYdPw3wRvWAiK6p6IAX7+bO8jkQ0q7XIgVj96hTk2yOqmgsZz1S3qUXdwdmr5rvZxtDXEqAg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.19.0/SimplePodcastManager-v1.19.0.dmg" length="7528329" type="application/octet-stream" sparkle:edSignature="GYfV8ZlHM/08xEnlC3Azrj/aLl96gs2U2/taOsxRLQYV+Rt0LSMIwBhI3QIvYZkwWu0GRFdpmHylSWWtZfMHBg=="/>
         </item>
     </channel>
 </rss>

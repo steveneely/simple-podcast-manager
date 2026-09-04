@@ -8,59 +8,100 @@
   <meta property="og:title" content="Simple Podcast Manager">
   <meta property="og:description" content="RSS podcasts for your MP3 player. Plug in, sync, done.">
   <meta property="og:image" content="assets/screenshots/main-window.png">
-  <meta name="theme-color" content="#fdf6e3" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#002b36" media="(prefers-color-scheme: dark)">
+  <meta id="theme-color" name="theme-color" content="#ececec">
+  <script>
+    (() => {
+      const storageKey = "spm-website-appearance";
+      let savedAppearance = "system";
+      try {
+        const storedValue = window.localStorage.getItem(storageKey);
+        if (["system", "light", "dark"].includes(storedValue)) {
+          savedAppearance = storedValue;
+        }
+      } catch {}
+      document.documentElement.dataset.appearance = savedAppearance;
+    })();
+  </script>
   <link rel="icon" href="assets/icons/app-icon.png">
   <style>
     :root {
-      color-scheme: light dark;
-      --bg: #fdf6e3;
-      --surface: #f8f2df;
-      --surface-strong: #fffdf7;
-      --surface-alt: #eee8d5;
-      --ink: #073642;
-      --muted: #526970;
-      --line: #b9b5a6;
-      --accent: #0a6f68;
-      --accent-strong: #075b56;
-      --accent-contrast: #fffdf7;
-      --accent-soft: #d9ece5;
-      --gold: #795b00;
-      --header-background: rgba(253, 246, 227, 0.9);
-      --border-soft: rgba(7, 54, 66, 0.16);
-      --border-strong: rgba(7, 54, 66, 0.26);
-      --promise-background: #e7efe4;
-      --promise-border: #a5b9ac;
-      --promise-ink: #294d45;
-      --accent-glow: rgba(42, 161, 152, 0.12);
-      --button-shadow: rgba(7, 54, 66, 0.1);
-      --shadow: 0 20px 60px rgba(7, 54, 66, 0.18);
+      color-scheme: light;
+      --bg: #ececec;
+      --surface: #f6f6f6;
+      --surface-strong: #ffffff;
+      --surface-alt: #e5e5e7;
+      --ink: #1d1d1f;
+      --muted: #5f5f66;
+      --line: #c7c7cb;
+      --accent: #0669c9;
+      --accent-strong: #0057a8;
+      --accent-contrast: #ffffff;
+      --accent-soft: #dcecff;
+      --header-background: rgba(246, 246, 246, 0.9);
+      --border-soft: rgba(60, 60, 67, 0.14);
+      --border-strong: rgba(60, 60, 67, 0.24);
+      --promise-background: #f6f6f6;
+      --promise-border: rgba(60, 60, 67, 0.22);
+      --promise-ink: #3f3f44;
+      --control-fill: rgba(118, 118, 128, 0.12);
+      --control-hover: rgba(118, 118, 128, 0.18);
+      --segment-selected: #ffffff;
+      --button-shadow: rgba(0, 0, 0, 0.12);
+      --shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     }
 
+    :root[data-appearance="dark"] {
+      color-scheme: dark;
+      --bg: #1e1e1e;
+      --surface: #242424;
+      --surface-strong: #2b2b2b;
+      --surface-alt: #202020;
+      --ink: #f5f5f7;
+      --muted: #b4b4ba;
+      --line: #4a4a4d;
+      --accent: #1473e6;
+      --accent-strong: #73b7ff;
+      --accent-contrast: #ffffff;
+      --accent-soft: #153b63;
+      --header-background: rgba(36, 36, 36, 0.9);
+      --border-soft: rgba(235, 235, 245, 0.13);
+      --border-strong: rgba(235, 235, 245, 0.22);
+      --promise-background: #242424;
+      --promise-border: rgba(235, 235, 245, 0.18);
+      --promise-ink: #d1d1d6;
+      --control-fill: rgba(118, 118, 128, 0.22);
+      --control-hover: rgba(118, 118, 128, 0.3);
+      --segment-selected: #606064;
+      --button-shadow: rgba(0, 0, 0, 0.3);
+      --shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
+    }
+
     @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #002b36;
-        --surface: #073642;
-        --surface-strong: #0b3f4b;
-        --surface-alt: #073642;
-        --ink: #eee8d5;
-        --muted: #a7b3b3;
-        --line: #31555d;
-        --accent: #5ccdc2;
-        --accent-strong: #86e6dc;
-        --accent-contrast: #002b36;
-        --accent-soft: #124c53;
-        --gold: #e9c85a;
-        --header-background: rgba(0, 43, 54, 0.9);
-        --border-soft: rgba(167, 179, 179, 0.18);
-        --border-strong: rgba(167, 179, 179, 0.3);
-        --promise-background: #0a3d47;
-        --promise-border: #35616a;
-        --promise-ink: #c5d1ce;
-        --accent-glow: rgba(42, 161, 152, 0.16);
-        --button-shadow: rgba(0, 0, 0, 0.22);
-        --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      :root:not([data-appearance="light"]) {
+        color-scheme: dark;
+        --bg: #1e1e1e;
+        --surface: #242424;
+        --surface-strong: #2b2b2b;
+        --surface-alt: #202020;
+        --ink: #f5f5f7;
+        --muted: #b4b4ba;
+        --line: #4a4a4d;
+        --accent: #1473e6;
+        --accent-strong: #73b7ff;
+        --accent-contrast: #ffffff;
+        --accent-soft: #153b63;
+        --header-background: rgba(36, 36, 36, 0.9);
+        --border-soft: rgba(235, 235, 245, 0.13);
+        --border-strong: rgba(235, 235, 245, 0.22);
+        --promise-background: #242424;
+        --promise-border: rgba(235, 235, 245, 0.18);
+        --promise-ink: #d1d1d6;
+        --control-fill: rgba(118, 118, 128, 0.22);
+        --control-hover: rgba(118, 118, 128, 0.3);
+        --segment-selected: #606064;
+        --button-shadow: rgba(0, 0, 0, 0.3);
+        --shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
       }
     }
 
@@ -74,12 +115,11 @@
 
     body {
       margin: 0;
-      background:
-        radial-gradient(circle at 12% 0%, var(--accent-glow), transparent 34rem),
-        var(--bg);
+      background: var(--bg);
       color: var(--ink);
-      font-size: 17px;
-      line-height: 1.55;
+      font-size: 15px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
     }
 
     a {
@@ -94,12 +134,12 @@
     }
 
     .wrap {
-      width: min(1120px, calc(100% - 40px));
+      width: min(1180px, calc(100% - 40px));
       margin: 0 auto;
     }
 
     .site-header {
-      padding: 18px 0;
+      padding: 10px 0;
       border-bottom: 1px solid var(--border-soft);
       background: var(--header-background);
       position: sticky;
@@ -112,29 +152,36 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 24px;
+      gap: 20px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 9px;
       color: var(--ink);
-      font-weight: 750;
+      font-size: 14px;
+      font-weight: 600;
       text-decoration: none;
     }
 
     .brand img {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+    }
+
+    .header-tools {
+      display: flex;
+      align-items: center;
+      gap: 18px;
     }
 
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 20px;
-      font-size: 15px;
+      gap: 16px;
+      font-size: 13px;
     }
 
     .nav-links a {
@@ -146,90 +193,144 @@
       color: var(--accent-strong);
     }
 
+    .appearance-picker {
+      display: inline-flex;
+      padding: 2px;
+      border: 1px solid var(--border-soft);
+      border-radius: 7px;
+      background: var(--control-fill);
+    }
+
+    .appearance-picker button {
+      display: grid;
+      width: 30px;
+      height: 24px;
+      padding: 0;
+      place-items: center;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .appearance-picker svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.5;
+    }
+
+    .appearance-picker button:hover {
+      color: var(--ink);
+    }
+
+    .appearance-picker button[aria-pressed="true"] {
+      background: var(--segment-selected);
+      color: var(--ink);
+      box-shadow: 0 1px 3px var(--button-shadow);
+    }
+
+    :focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 72%, transparent);
+      outline-offset: 2px;
+    }
+
     .hero {
-      padding: 76px 0 40px;
+      padding: 48px 0 28px;
     }
 
     .hero-grid {
       display: grid;
       grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.25fr);
-      gap: 44px;
+      gap: 40px;
       align-items: center;
     }
 
     .eyebrow {
-      margin: 0 0 14px;
-      color: var(--gold);
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      margin: 0 0 10px;
+      color: var(--accent-strong);
+      font-size: 13px;
+      font-weight: 600;
     }
 
     h1,
     h2,
     h3 {
       margin: 0;
-      line-height: 1.08;
+      line-height: 1.14;
       letter-spacing: 0;
     }
 
     h1 {
-      max-width: 9.5em;
-      font-size: clamp(44px, 7vw, 78px);
+      max-width: 11em;
+      font-size: clamp(38px, 5.2vw, 58px);
+      font-weight: 700;
     }
 
     h2 {
-      font-size: clamp(32px, 4.4vw, 52px);
+      font-size: clamp(26px, 3.2vw, 36px);
+      font-weight: 650;
     }
 
     h3 {
-      font-size: 23px;
+      font-size: 16px;
+      font-weight: 600;
     }
 
     .lede {
       max-width: 660px;
-      margin: 24px 0 0;
+      margin: 16px 0 0;
       color: var(--muted);
-      font-size: 22px;
+      font-size: 18px;
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 30px;
+      gap: 10px;
+      margin-top: 22px;
     }
 
     .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 46px;
-      padding: 0 18px;
+      min-height: 32px;
+      padding: 0 14px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--surface-strong);
       color: var(--ink);
-      font-size: 15px;
-      font-weight: 750;
+      font-size: 13px;
+      font-weight: 600;
       text-decoration: none;
-      box-shadow: 0 2px 0 var(--button-shadow);
+      box-shadow: 0 1px 2px var(--button-shadow);
     }
 
     .button.primary {
-      border-color: var(--accent-strong);
+      border-color: var(--accent);
       background: var(--accent);
       color: var(--accent-contrast);
     }
 
     .button:hover {
-      transform: translateY(-1px);
+      background: var(--control-hover);
+    }
+
+    .button.primary:hover {
+      background: color-mix(in srgb, var(--accent) 88%, black);
     }
 
     .hero-shot {
       border: 1px solid var(--border-strong);
-      border-radius: 8px;
+      border-radius: 12px;
       background: var(--surface-strong);
       box-shadow: var(--shadow);
       overflow: hidden;
@@ -249,16 +350,15 @@
     }
 
     .image-button:focus-visible {
-      outline: 3px solid var(--gold);
-      outline-offset: 3px;
+      outline-offset: -3px;
     }
 
     .image-button img {
-      transition: transform 180ms ease;
+      transition: opacity 120ms ease;
     }
 
     .image-button:hover img {
-      transform: scale(1.01);
+      opacity: 0.92;
     }
 
     .hero-shot img {
@@ -267,29 +367,36 @@
     }
 
     .section {
-      padding: 76px 0;
+      padding: 24px 0;
     }
 
     .section.alt {
-      background: var(--surface-alt);
-      border-block: 1px solid var(--border-soft);
+      background: transparent;
+      border: 0;
+    }
+
+    .section.alt > .wrap {
+      padding: 24px;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      background: var(--surface);
     }
 
     .section-title {
-      margin-bottom: 34px;
+      margin-bottom: 18px;
     }
 
     .steps {
       display: grid;
       grid-template-columns: minmax(0, 0.8fr) minmax(420px, 1fr);
-      gap: 38px;
+      gap: 28px;
       align-items: center;
     }
 
     .step-list {
       display: grid;
-      gap: 16px;
-      margin: 28px 0 0;
+      gap: 12px;
+      margin: 20px 0 0;
       padding: 0;
       list-style: none;
       counter-reset: steps;
@@ -297,8 +404,8 @@
 
     .step-list li {
       display: grid;
-      grid-template-columns: 40px 1fr;
-      gap: 14px;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
       align-items: start;
       counter-increment: steps;
       color: var(--muted);
@@ -307,14 +414,14 @@
     .step-list li::before {
       content: counter(steps);
       display: grid;
-      width: 34px;
-      height: 34px;
+      width: 24px;
+      height: 24px;
       place-items: center;
-      border-radius: 999px;
+      border-radius: 7px;
       background: var(--accent-soft);
       color: var(--accent-strong);
-      font-size: 15px;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 600;
     }
 
     .step-list strong {
@@ -325,16 +432,16 @@
 
     .screen-pair {
       display: grid;
-      gap: 18px;
+      gap: 14px;
     }
 
     .screen {
       overflow: hidden;
       margin: 0;
       border: 1px solid var(--border-strong);
-      border-radius: 8px;
+      border-radius: 12px;
       background: var(--surface-strong);
-      box-shadow: 0 16px 42px var(--button-shadow);
+      box-shadow: 0 4px 14px var(--button-shadow);
     }
 
     .screen img {
@@ -343,27 +450,27 @@
     }
 
     .screen-caption {
-      padding: 13px 16px;
+      padding: 9px 12px;
       border-top: 1px solid var(--line);
       color: var(--muted);
-      font-size: 14px;
+      font-size: 12px;
     }
 
     .promise {
       display: grid;
       grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1fr);
-      gap: 34px;
+      gap: 28px;
       align-items: center;
-      padding: 34px;
+      padding: 24px;
       border: 1px solid var(--promise-border);
-      border-radius: 8px;
+      border-radius: 12px;
       background: var(--promise-background);
     }
 
     .promise p {
-      margin: 18px 0 0;
+      margin: 12px 0 0;
       color: var(--promise-ink);
-      font-size: 19px;
+      font-size: 15px;
     }
 
     .promise ul,
@@ -374,14 +481,14 @@
     }
 
     .promise ul {
-      margin-top: 22px;
+      margin-top: 16px;
     }
 
     .promise li {
-      padding: 12px 0;
+      padding: 9px 0;
       border-bottom: 1px solid var(--border-soft);
       color: var(--promise-ink);
-      font-weight: 700;
+      font-weight: 600;
     }
 
     .promise li:last-child {
@@ -391,34 +498,34 @@
     .faq-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
+      gap: 12px;
     }
 
     .faq li {
-      padding: 22px;
+      padding: 16px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 12px;
       background: var(--surface);
     }
 
     .faq p {
-      margin: 10px 0 0;
+      margin: 6px 0 0;
       color: var(--muted);
     }
 
     .footer {
-      padding: 34px 0 44px;
+      padding: 24px 0 36px;
       color: var(--muted);
-      font-size: 15px;
+      font-size: 12px;
     }
 
     .footer .wrap {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
-      gap: 18px;
+      gap: 14px;
       border-top: 1px solid var(--line);
-      padding-top: 24px;
+      padding-top: 16px;
     }
 
     .footer-links {
@@ -511,13 +618,18 @@
       }
 
       .nav {
-        align-items: flex-start;
+        align-items: stretch;
         flex-direction: column;
+        gap: 10px;
+      }
+
+      .header-tools {
+        justify-content: space-between;
         gap: 12px;
       }
 
       .nav-links {
-        width: 100%;
+        width: auto;
         overflow-x: auto;
         padding-bottom: 2px;
         white-space: nowrap;
@@ -528,7 +640,7 @@
       }
 
       .section {
-        padding: 54px 0;
+        padding: 20px 0;
       }
 
       .promise {
@@ -543,6 +655,38 @@
         max-height: calc(100vh - 146px);
       }
     }
+
+    @media (prefers-contrast: more) {
+      :root {
+        --border-soft: rgba(60, 60, 67, 0.34);
+        --border-strong: rgba(60, 60, 67, 0.48);
+        --line: #85858b;
+      }
+
+      :root[data-appearance="dark"] {
+        --border-soft: rgba(255, 255, 255, 0.34);
+        --border-strong: rgba(255, 255, 255, 0.5);
+        --line: #8a8a90;
+      }
+    }
+
+    @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+      :root:not([data-appearance="light"]) {
+        --border-soft: rgba(255, 255, 255, 0.34);
+        --border-strong: rgba(255, 255, 255, 0.5);
+        --line: #8a8a90;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      .image-button img {
+        transition: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -552,11 +696,32 @@
         <img src="assets/icons/app-icon.png" alt="" width="36" height="36">
         <span>Simple Podcast Manager</span>
       </a>
-      <nav class="nav-links" aria-label="Primary">
-        <a href="#setup">Setup</a>
-        <a href="#safety">Safety</a>
-        <a href="#faq">FAQ</a>
-      </nav>
+      <div class="header-tools">
+        <nav class="nav-links" aria-label="Primary">
+          <a href="#setup">Setup</a>
+          <a href="#safety">Safety</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div class="appearance-picker" role="group" aria-label="Website appearance">
+          <button type="button" data-appearance-option="system" aria-label="System appearance" title="Follow system appearance" aria-pressed="true">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="2" y="2.5" width="12" height="8.5" rx="1.5"></rect>
+              <path d="M6 13.5h4M8 11v2.5"></path>
+            </svg>
+          </button>
+          <button type="button" data-appearance-option="light" aria-label="Light appearance" title="Use light appearance" aria-pressed="false">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.5"></circle>
+              <path d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M12.6 3.4l-.9.9M4.3 11.7l-.9.9"></path>
+            </svg>
+          </button>
+          <button type="button" data-appearance-option="dark" aria-label="Dark appearance" title="Use dark appearance" aria-pressed="false">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M13.5 10.2A5.6 5.6 0 0 1 5.8 2.5 5.7 5.7 0 1 0 13.5 10.2Z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -595,10 +760,10 @@
         </div>
         <div class="screen-pair">
           <figure class="screen">
-            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/add-feed.png" data-lightbox-alt="The add feed screen with an RSS feed URL field." data-lightbox-caption="Add shows using normal podcast RSS feed URLs.">
-              <img src="assets/screenshots/add-feed.png" alt="The add feed screen with an RSS feed URL field.">
+            <button class="image-button" type="button" data-lightbox-src="assets/screenshots/add-feed.png" data-lightbox-alt="The add podcast screen with search and RSS feed URL options." data-lightbox-caption="Find podcasts by search, or add one with its RSS feed URL.">
+              <img src="assets/screenshots/add-feed.png" alt="The add podcast screen with search and RSS feed URL options.">
             </button>
-            <figcaption class="screen-caption">Add shows using normal podcast RSS feed URLs.</figcaption>
+            <figcaption class="screen-caption">Find podcasts by search, or add one with its RSS feed URL.</figcaption>
           </figure>
           <figure class="screen">
             <button class="image-button" type="button" data-lightbox-src="assets/screenshots/episode-list.png" data-lightbox-alt="Episode list with podcast episodes and download controls." data-lightbox-caption="Prepare episodes automatically or choose them individually before syncing.">
@@ -641,7 +806,7 @@
           </li>
           <li>
             <h3>Do I need an account?</h3>
-            <p>No. Add shows with podcast RSS feed URLs; Spotify and Apple Podcasts are not required.</p>
+            <p>No. Search for podcasts directly or add a show with its RSS feed URL; Spotify and Apple Podcasts are not required.</p>
           </li>
           <li>
             <h3>Do I need ffmpeg?</h3>
@@ -675,6 +840,55 @@
   </div>
 
   <script>
+    const appearanceStorageKey = "spm-website-appearance";
+    const appearanceButtons = document.querySelectorAll("[data-appearance-option]");
+    const themeColor = document.getElementById("theme-color");
+    const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function currentAppearance() {
+      return document.documentElement.dataset.appearance || "system";
+    }
+
+    function resolvedAppearance() {
+      const preference = currentAppearance();
+      return preference === "system"
+        ? (systemDarkMode.matches ? "dark" : "light")
+        : preference;
+    }
+
+    function updateAppearanceControls() {
+      const preference = currentAppearance();
+      appearanceButtons.forEach((button) => {
+        button.setAttribute(
+          "aria-pressed",
+          String(button.dataset.appearanceOption === preference)
+        );
+      });
+      themeColor.content = resolvedAppearance() === "dark" ? "#1e1e1e" : "#ececec";
+    }
+
+    function setAppearance(preference) {
+      document.documentElement.dataset.appearance = preference;
+      try {
+        window.localStorage.setItem(appearanceStorageKey, preference);
+      } catch {}
+      updateAppearanceControls();
+    }
+
+    appearanceButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        setAppearance(button.dataset.appearanceOption);
+      });
+    });
+
+    systemDarkMode.addEventListener("change", () => {
+      if (currentAppearance() === "system") {
+        updateAppearanceControls();
+      }
+    });
+
+    updateAppearanceControls();
+
     const lightbox = document.getElementById("image-lightbox");
     const lightboxImage = lightbox.querySelector("img");
     const lightboxCaption = lightbox.querySelector(".lightbox-caption");

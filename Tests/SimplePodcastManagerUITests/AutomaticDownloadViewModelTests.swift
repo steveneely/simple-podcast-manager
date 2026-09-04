@@ -68,6 +68,39 @@ struct AutomaticDownloadViewModelTests {
         #expect(try store.loadState().feeds.first?.pendingEpisodeIDs.isEmpty == true)
     }
 
+    @Test
+    func activatingDownloadsPersistsCurrentlyNewEpisodesAsPending() async throws {
+        let subscription = FeedSubscription(
+            id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+            title: "Example",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let newEpisode = makeEpisode("new", day: 2, subscription: subscription)
+        let store = InMemoryAutomaticDownloadStateStore(
+            state: AutomaticDownloadState(feeds: [
+                AutomaticDownloadFeedState(
+                    subscriptionID: subscription.id,
+                    rssURL: subscription.rssURL,
+                    observedEpisodeIDs: [newEpisode.id]
+                )
+            ])
+        )
+        let viewModel = AutomaticDownloadViewModel(store: store)
+        await viewModel.load()
+
+        let episodes = await viewModel.activateDownloadsForCurrentlyNewEpisodes(
+            subscriptionIDs: [subscription.id],
+            subscriptions: [subscription],
+            episodes: [newEpisode],
+            newEpisodeIDsBySubscription: [subscription.id: [newEpisode.id]],
+            downloadedEpisodeIDs: [],
+            limit: .latest1
+        )
+
+        #expect(episodes == [newEpisode])
+        #expect(try store.loadState().feeds.first?.pendingEpisodeIDs == [newEpisode.id])
+    }
+
     private func makeEpisode(_ id: String, day: Int, subscription: FeedSubscription) -> Episode {
         Episode(
             id: id,

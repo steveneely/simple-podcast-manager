@@ -30,20 +30,20 @@ struct FeedRefreshCoordinatorTests {
             episodePreparation: preparation
         )
 
-        let outcome = await coordinator.refresh(
-            .allEnabledSubscriptions([subscription]),
-            openSubscriptionID: subscription.id
-        )
+        let outcome = await coordinator.refresh(.allEnabledSubscriptions([subscription]))
 
         #expect(preview.allSubscriptionsRefreshes == [[subscription]])
         #expect(activity.refreshedSubscriptionIDs == [subscription.id])
         #expect(activity.failedSubscriptionIDs == [subscription.id])
-        #expect(activity.openSubscriptionID == subscription.id)
         #expect(automaticDownloads.refreshedSubscriptionIDs == [subscription.id])
         #expect(automaticDownloads.failedSubscriptionIDs == [subscription.id])
         #expect(automaticDownloads.limit == .latest1)
         #expect(subscriptionLibrary.appliedFeedSummaries == [summary])
         #expect(!outcome.attemptedAutomaticDownloads)
+        #expect(outcome.discoveredEpisodeCount == 0)
+        #expect(outcome.downloadedEpisodeCount == 0)
+        #expect(outcome.downloadedEpisodes.isEmpty)
+        #expect(outcome.failedSubscriptionCount == 1)
     }
 
     @Test
@@ -60,7 +60,7 @@ struct FeedRefreshCoordinatorTests {
                 message: "Unrelated failure"
             )]
         )
-        let activity = StubFeedRefreshActivity()
+        let activity = StubFeedRefreshActivity(discoveredEpisodeCount: 2)
         let automaticDownloads = StubFeedRefreshAutomaticDownloads(
             episodesToReturn: [downloadedEpisode, permissionEpisode]
         )
@@ -80,18 +80,20 @@ struct FeedRefreshCoordinatorTests {
             episodePreparation: preparation
         )
 
-        let outcome = await coordinator.refresh(
-            .subscription(subscription),
-            openSubscriptionID: nil
-        )
+        let outcome = await coordinator.refresh(.subscription(subscription))
 
         #expect(preview.subscriptionRefreshes == [subscription])
         #expect(activity.failedSubscriptionIDs.isEmpty)
         #expect(automaticDownloads.failedSubscriptionIDs.isEmpty)
         #expect(preparation.preparedEpisodes == [downloadedEpisode, permissionEpisode])
         #expect(automaticDownloads.markedDownloadedEpisodes == [downloadedEpisode])
+        #expect(activity.acknowledgedEpisodes == [downloadedEpisode])
         #expect(outcome.episodesRequiringInsecureDownloadPermission == [permissionEpisode])
         #expect(outcome.attemptedAutomaticDownloads)
+        #expect(outcome.discoveredEpisodeCount == 2)
+        #expect(outcome.downloadedEpisodeCount == 1)
+        #expect(outcome.downloadedEpisodes == [downloadedEpisode])
+        #expect(outcome.failedSubscriptionCount == 0)
     }
 
     private func makeSubscription(number: Int) -> FeedSubscription {
@@ -167,20 +169,28 @@ private final class StubFeedRefreshPreview: FeedRefreshPreviewing {
 
 @MainActor
 private final class StubFeedRefreshActivity: FeedRefreshActivityUpdating {
+    let discoveredEpisodeCount: Int
     private(set) var refreshedSubscriptionIDs: Set<UUID> = []
     private(set) var failedSubscriptionIDs: Set<UUID> = []
-    private(set) var openSubscriptionID: UUID?
+    private(set) var acknowledgedEpisodes: [Episode] = []
+
+    init(discoveredEpisodeCount: Int = 0) {
+        self.discoveredEpisodeCount = discoveredEpisodeCount
+    }
 
     func updateAfterRefresh(
         subscriptions: [FeedSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
-        failedSubscriptionIDs: Set<UUID>,
-        openSubscriptionID: UUID?
-    ) async {
+        failedSubscriptionIDs: Set<UUID>
+    ) async -> Int {
         self.refreshedSubscriptionIDs = refreshedSubscriptionIDs
         self.failedSubscriptionIDs = failedSubscriptionIDs
-        self.openSubscriptionID = openSubscriptionID
+        return discoveredEpisodeCount
+    }
+
+    func acknowledge(_ episodes: [Episode]) async {
+        acknowledgedEpisodes = episodes
     }
 }
 

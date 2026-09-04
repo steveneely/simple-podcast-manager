@@ -11,11 +11,20 @@ struct FeedDeletionConfirmationTests {
             rssURL: URL(string: "https://relay.fm/connected/feed")!
         )
 
-        let confirmation = FeedDeletionConfirmation(subscriptions: [subscription])
+        let confirmation = FeedDeletionConfirmation(
+            subscriptions: [subscription],
+            localDownloadCount: 2
+        )
 
         #expect(confirmation.subscriptionIDs == [subscription.id])
         #expect(confirmation.title == "Delete Podcast Feed?")
-        #expect(confirmation.message.contains("“Connected”"))
+        #expect(confirmation.message == """
+        Are you sure you want to delete “Connected”?
+
+        This will also delete 2 downloaded episodes stored on this Mac.
+
+        Episodes already copied to a device will not be deleted.
+        """)
         #expect(confirmation.cancelButtonTitle == "Cancel")
         #expect(confirmation.deleteButtonTitle == "Delete Feed")
     }
@@ -31,7 +40,11 @@ struct FeedDeletionConfirmationTests {
 
         #expect(confirmation.subscriptionIDs == subscriptions.map(\.id))
         #expect(confirmation.title == "Delete Podcast Feeds?")
-        #expect(confirmation.message.contains("these 2 podcast feeds"))
+        #expect(confirmation.message == """
+        Are you sure you want to delete these 2 podcast feeds?
+
+        Episodes already copied to a device will not be deleted.
+        """)
         #expect(confirmation.deleteButtonTitle == "Delete Feeds")
     }
 }

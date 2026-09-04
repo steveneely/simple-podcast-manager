@@ -71,6 +71,28 @@ public final class AutomaticDownloadViewModel {
         await persistState()
     }
 
+    public func activateDownloadsForCurrentlyNewEpisodes(
+        subscriptionIDs: Set<UUID>,
+        subscriptions: [FeedSubscription],
+        episodes: [Episode],
+        newEpisodeIDsBySubscription: [UUID: Set<String>],
+        downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,
+        limit: AutomaticDownloadLimit
+    ) async -> [Episode] {
+        let plan = AutomaticDownloadPlanner.activatingCurrentlyNewEpisodes(
+            in: state,
+            subscriptionIDs: subscriptionIDs,
+            subscriptions: subscriptions,
+            episodes: episodes,
+            newEpisodeIDsBySubscription: newEpisodeIDsBySubscription,
+            downloadedEpisodeIDs: downloadedEpisodeIDs,
+            limit: limit
+        )
+        state = plan.state
+        await persistState()
+        return plan.episodesToDownload
+    }
+
     public func markDownloaded(_ episodes: [Episode]) async {
         state = AutomaticDownloadPlanner.markingDownloaded(episodes, in: state)
         await persistState()

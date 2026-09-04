@@ -21,6 +21,15 @@ enum FeedSidebarActivityStatus: Equatable {
     case inactive
 }
 
+enum DownloadStatusPresentation {
+    static func text(count: Int, isAutomatic: Bool) -> String {
+        if isAutomatic {
+            return "\(count) automatic download\(count == 1 ? "" : "s")"
+        }
+        return "\(count) downloading"
+    }
+}
+
 struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     @Bindable var viewModel: DeviceViewModel
     @Binding var isShowingDetails: Bool
@@ -125,10 +134,84 @@ struct DeviceSectionView<SyncControls: View, OtherAudio: View>: View {
     }
 }
 
+enum FeedRefreshDisplayScope: Equatable {
+    case allShows
+    case show(String)
+
+    var progressText: String {
+        switch self {
+        case .allShows:
+            "Checking shows…"
+        case let .show(title):
+            "Checking \(title)…"
+        }
+    }
+}
+
+struct FeedRefreshSummary: Equatable {
+    var scope: FeedRefreshDisplayScope
+    var discoveredEpisodeCount: Int
+    var downloadedEpisodes: [FeedRefreshDownloadedEpisode]
+    var failedSubscriptionCount: Int
+
+    var downloadedEpisodeCount: Int { downloadedEpisodes.count }
+
+    var text: String {
+        var parts = [episodeText]
+        if discoveredEpisodeCount > 0 || downloadedEpisodeCount > 0 {
+            parts.append("\(downloadedEpisodeCount) downloaded")
+        }
+        if failedSubscriptionCount > 0 {
+            let showLabel = failedSubscriptionCount == 1 ? "show" : "shows"
+            parts.append("\(failedSubscriptionCount) \(showLabel) failed")
+        }
+
+        let result = parts.joined(separator: " · ")
+        switch scope {
+        case .allShows:
+            return result
+        case let .show(title):
+            return "\(title): \(result)"
+        }
+    }
+
+    private var episodeText: String {
+        guard discoveredEpisodeCount > 0 else { return "No new episodes" }
+        let episodeLabel = discoveredEpisodeCount == 1 ? "episode" : "episodes"
+        return "\(discoveredEpisodeCount) new \(episodeLabel)"
+    }
+}
+
+struct FeedRefreshDownloadedEpisode: Equatable, Identifiable {
+    let id: String
+    let episodeTitle: String
+    let podcastTitle: String
+
+    init(_ episode: Episode) {
+        let sourceID = episode.subscriptionID?.uuidString ?? episode.sourceFeedURL.absoluteString
+        self.id = "\(sourceID)|\(episode.id)"
+        self.episodeTitle = episode.title
+        self.podcastTitle = episode.podcastTitle
+    }
+}
+
+enum FeedRefreshStatus: Equatable {
+    case refreshing(FeedRefreshDisplayScope)
+    case completed(FeedRefreshSummary)
+
+    var isRefreshing: Bool {
+        if case .refreshing = self { return true }
+        return false
+    }
+}
+
 struct FeedSidebarView: View {
+    @State private var isShowingDownloadedEpisodes = false
+
     let subscriptions: [FeedSubscription]
     @Binding var selectedFeedID: FeedSubscription.ID?
     let isRefreshing: Bool
+    let refreshStatus: FeedRefreshStatus?
     let episodeCount: (FeedSubscription) -> Int
     let newEpisodeCount: (FeedSubscription) -> Int
     let isInactive: (FeedSubscription) -> Bool
@@ -281,8 +364,81 @@ struct FeedSidebarView: View {
                 }
                 .onDelete(perform: onDeleteOffsets)
             }
+
+            refreshStatusFooter
         }
         .padding(14)
+    }
+
+    @ViewBuilder
+    private var refreshStatusFooter: some View {
+        Group {
+            switch refreshStatus {
+            case let .refreshing(scope):
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(scope.progressText)
+                        .lineLimit(1)
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .controlSize(.small)
+                }
+            case let .completed(summary):
+                if summary.downloadedEpisodes.isEmpty {
+                    Text(summary.text)
+                        .lineLimit(1)
+                        .help(summary.text)
+                } else {
+                    Button {
+                        isShowingDownloadedEpisodes.toggle()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(summary.text)
+                                .lineLimit(1)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show automatically downloaded episodes")
+                    .popover(isPresented: $isShowingDownloadedEpisodes, arrowEdge: .bottom) {
+                        downloadedEpisodesPopover(summary.downloadedEpisodes)
+                    }
+                }
+            case nil:
+                Color.clear
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func downloadedEpisodesPopover(
+        _ downloadedEpisodes: [FeedRefreshDownloadedEpisode]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Automatically Downloaded")
+                .font(.headline)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(downloadedEpisodes) { episode in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(episode.episodeTitle)
+                                .fontWeight(.medium)
+                            Text(episode.podcastTitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .frame(maxHeight: 280)
+        }
+        .padding(14)
+        .frame(width: 340, alignment: .leading)
     }
 
     static func selection(

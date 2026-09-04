@@ -39,28 +39,23 @@ public final class FeedActivityViewModel {
         subscriptions: [FeedSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
-        failedSubscriptionIDs: Set<UUID>,
-        openSubscriptionID: UUID?
-    ) async {
-        state = FeedActivityPlanner.updating(
+        failedSubscriptionIDs: Set<UUID>
+    ) async -> Int {
+        let update = FeedActivityPlanner.update(
             state,
             subscriptions: subscriptions,
             episodes: episodes,
             refreshedSubscriptionIDs: refreshedSubscriptionIDs,
-            failedSubscriptionIDs: failedSubscriptionIDs,
-            openSubscriptionID: openSubscriptionID
+            failedSubscriptionIDs: failedSubscriptionIDs
         )
+        state = update.state
         rebuildIndex()
         await persist()
+        return update.discoveredEpisodeCount
     }
 
-    public func markSeen(subscriptionID: UUID) async {
-        state = FeedActivityPlanner.markingSeen(subscriptionID: subscriptionID, in: state)
-        rebuildIndex()
-        await persist()
-    }
-
-    public func acknowledgeSynced(_ episodes: [Episode]) async {
+    public func acknowledge(_ episodes: [Episode]) async {
+        guard !episodes.isEmpty else { return }
         state = FeedActivityPlanner.acknowledging(episodes: episodes, in: state)
         rebuildIndex()
         await persist()
@@ -68,6 +63,10 @@ public final class FeedActivityViewModel {
 
     public func newEpisodeCount(for subscriptionID: UUID) -> Int {
         feedsBySubscriptionID[subscriptionID]?.newEpisodeIDs.count ?? 0
+    }
+
+    public func newEpisodeIDs(for subscriptionID: UUID) -> Set<String> {
+        feedsBySubscriptionID[subscriptionID]?.newEpisodeIDs ?? []
     }
 
     public func newestPublicationDate(for subscriptionID: UUID) -> Date? {

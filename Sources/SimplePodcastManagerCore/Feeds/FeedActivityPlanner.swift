@@ -1,17 +1,43 @@
 import Foundation
 
+public struct FeedActivityUpdate: Equatable, Sendable {
+    public var state: FeedActivityState
+    public var discoveredEpisodeCount: Int
+
+    public init(state: FeedActivityState, discoveredEpisodeCount: Int) {
+        self.state = state
+        self.discoveredEpisodeCount = discoveredEpisodeCount
+    }
+}
+
 public enum FeedActivityPlanner {
     public static func updating(
         _ state: FeedActivityState,
         subscriptions: [FeedSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
-        failedSubscriptionIDs: Set<UUID>,
-        openSubscriptionID: UUID?
+        failedSubscriptionIDs: Set<UUID>
     ) -> FeedActivityState {
+        update(
+            state,
+            subscriptions: subscriptions,
+            episodes: episodes,
+            refreshedSubscriptionIDs: refreshedSubscriptionIDs,
+            failedSubscriptionIDs: failedSubscriptionIDs
+        ).state
+    }
+
+    public static func update(
+        _ state: FeedActivityState,
+        subscriptions: [FeedSubscription],
+        episodes: [Episode],
+        refreshedSubscriptionIDs: Set<UUID>,
+        failedSubscriptionIDs: Set<UUID>
+    ) -> FeedActivityUpdate {
         let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
         var feedsByID = Dictionary(uniqueKeysWithValues: state.feeds.map { ($0.subscriptionID, $0) })
         feedsByID = feedsByID.filter { subscriptionsByID[$0.key] != nil }
+        var discoveredEpisodeCount = 0
 
         for subscriptionID in refreshedSubscriptionIDs.subtracting(failedSubscriptionIDs) {
             guard let subscription = subscriptionsByID[subscriptionID], subscription.isEnabled else { continue }
@@ -44,27 +70,22 @@ public enum FeedActivityPlanner {
             } else {
                 candidateEpisodes = []
             }
+            discoveredEpisodeCount += Set(candidateEpisodes.map(\.id)).count
 
             feed.newEpisodeIDs.formIntersection(currentIDSet)
-            if openSubscriptionID != subscriptionID {
-                feed.newEpisodeIDs.formUnion(candidateEpisodes.lazy.map(\.id))
-            }
+            feed.newEpisodeIDs.formUnion(candidateEpisodes.lazy.map(\.id))
             feed.rssURL = subscription.rssURL
             feed.observedEpisodeIDs = currentIDs
             feed.newestPublicationDate = newestDate
             feedsByID[subscriptionID] = feed
         }
 
-        return FeedActivityState(feeds: feedsByID.values.sorted {
-            $0.subscriptionID.uuidString < $1.subscriptionID.uuidString
-        })
-    }
-
-    public static func markingSeen(subscriptionID: UUID, in state: FeedActivityState) -> FeedActivityState {
-        var updated = state
-        guard let index = updated.feeds.firstIndex(where: { $0.subscriptionID == subscriptionID }) else { return state }
-        updated.feeds[index].newEpisodeIDs = []
-        return updated
+        return FeedActivityUpdate(
+            state: FeedActivityState(feeds: feedsByID.values.sorted {
+                $0.subscriptionID.uuidString < $1.subscriptionID.uuidString
+            }),
+            discoveredEpisodeCount: discoveredEpisodeCount
+        )
     }
 
     public static func acknowledging(episodes: [Episode], in state: FeedActivityState) -> FeedActivityState {

@@ -3,6 +3,7 @@ import SimplePodcastManagerCore
 
 struct EpisodeRowView<Details: View>: View {
     let episode: Episode
+    let isNew: Bool
     let isExpanded: Bool
     let durationLabel: String?
     let downloadLabel: String?
@@ -16,6 +17,7 @@ struct EpisodeRowView<Details: View>: View {
     let onToggleDetails: () -> Void
     let onToggleDeviceRemoval: () -> Void
     let onRemoveDownload: () -> Void
+    let onCancelDownload: () -> Void
     let onDownload: () -> Void
     @ViewBuilder let details: Details
 
@@ -37,6 +39,13 @@ struct EpisodeRowView<Details: View>: View {
                                         .font(.body)
                                         .fontWeight(.medium)
                                         .foregroundStyle(.primary)
+                                    if isNew {
+                                        Circle()
+                                            .fill(Color.accentColor)
+                                            .frame(width: 7, height: 7)
+                                            .help("New episode")
+                                            .accessibilityLabel("New episode")
+                                    }
                                     if let durationLabel {
                                         Text(durationLabel)
                                             .font(.caption)
@@ -94,14 +103,13 @@ struct EpisodeRowView<Details: View>: View {
                         action: onRemoveDownload
                     )
                 } else if isPreparing {
-                    HStack(spacing: 6) {
+                    Button(action: onCancelDownload) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Downloading")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                     }
-                    .help("Downloading episode")
+                    .buttonStyle(.plain)
+                    .help("Cancel download")
+                    .accessibilityLabel("Cancel download of \(episode.title)")
                 } else {
                     HoverIconButton(
                         systemName: "arrow.down.circle",

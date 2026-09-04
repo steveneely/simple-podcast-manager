@@ -19,6 +19,9 @@ public final class PreparationPreviewViewModel {
     private var preparedEpisodesByID: [EpisodePreparationID: PreparedEpisode]
     private var downloadedEpisodesByID: [EpisodePreparationID: DownloadedEpisodeRecord]
     private var failuresByID: [EpisodePreparationID: PreparationFailure]
+    private var preparationTasksByID: [EpisodePreparationID: Task<PreparationTaskOutcome, Never>]
+    private var cancelledPreparationIDs: Set<EpisodePreparationID>
+    private let maximumConcurrentPreparations = 3
 
     public convenience init(
         service: MediaPreparationService = MediaPreparationService(),
@@ -52,6 +55,8 @@ public final class PreparationPreviewViewModel {
         self.preparedEpisodesByID = [:]
         self.downloadedEpisodesByID = [:]
         self.failuresByID = [:]
+        self.preparationTasksByID = [:]
+        self.cancelledPreparationIDs = []
     }
 
     public var isPreparing: Bool {
@@ -75,22 +80,73 @@ public final class PreparationPreviewViewModel {
         guard !episodesToPrepare.isEmpty else { return }
 
         beginPreparing(episodesToPrepare)
-        defer {
-            finishPreparing(episodesToPrepare)
+        var newlyPreparedEpisodes: [PreparedEpisode] = []
+
+        for chunkStart in stride(from: 0, to: episodesToPrepare.count, by: maximumConcurrentPreparations) {
+            let chunkEnd = min(chunkStart + maximumConcurrentPreparations, episodesToPrepare.count)
+            let chunk = episodesToPrepare[chunkStart..<chunkEnd]
+            var tasks: [(Episode, Task<PreparationTaskOutcome, Never>)] = []
+
+            for episode in chunk {
+                let episodeID = EpisodePreparationID(episode)
+                guard !cancelledPreparationIDs.contains(episodeID) else {
+                    cancelledPreparationIDs.remove(episodeID)
+                    finishPreparing([episode])
+                    continue
+                }
+
+                let service = self.service
+                let task = Task.detached(priority: .userInitiated) { () -> PreparationTaskOutcome in
+                    do {
+                        let result = try await service.prepareEpisodes([episode], settings: settings)
+                        return Task.isCancelled ? .cancelled : .completed(result)
+                    } catch is CancellationError {
+                        return .cancelled
+                    } catch {
+                        let message = (error as? LocalizedError)?.errorDescription
+                            ?? error.localizedDescription
+                        return .failed(message)
+                    }
+                }
+                preparationTasksByID[episodeID] = task
+                tasks.append((episode, task))
+            }
+
+            for (episode, task) in tasks {
+                let episodeID = EpisodePreparationID(episode)
+                let outcome = await task.value
+                preparationTasksByID.removeValue(forKey: episodeID)
+                let wasCancelled = cancelledPreparationIDs.remove(episodeID) != nil
+
+                if !wasCancelled {
+                    switch outcome {
+                    case let .completed(result):
+                        merge(result)
+                        newlyPreparedEpisodes.append(contentsOf: result.preparedEpisodes)
+                    case let .failed(message):
+                        mergeFailures(for: [episode], message: message)
+                    case .cancelled:
+                        break
+                    }
+                }
+                finishPreparing([episode])
+            }
         }
 
-        do {
-            let result = try await service.prepareEpisodes(episodesToPrepare, settings: settings)
-            merge(result)
-            let downloadedRecords = recordDownloadedEpisodes(result.preparedEpisodes)
-            lastErrorMessage = nil
-            persistNewPreparedEpisodes(result.preparedEpisodes)
-            persistNewDownloadedEpisodes(downloadedRecords)
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            mergeFailures(for: episodesToPrepare, message: message)
-            lastErrorMessage = nil
-        }
+        let downloadedRecords = recordDownloadedEpisodes(newlyPreparedEpisodes)
+        lastErrorMessage = nil
+        persistNewPreparedEpisodes(newlyPreparedEpisodes)
+        persistNewDownloadedEpisodes(downloadedRecords)
+    }
+
+    public func cancelPreparation(for episode: Episode) {
+        let episodeID = EpisodePreparationID(episode)
+        guard preparingEpisodesByID[episodeID] != nil else { return }
+        cancelledPreparationIDs.insert(episodeID)
+        preparationTasksByID[episodeID]?.cancel()
+        preparingEpisodesByID.removeValue(forKey: episodeID)
+        failures.removeAll { EpisodePreparationID($0.episode) == episodeID }
+        rebuildIndexes()
     }
 
     public func isPreparing(_ episode: Episode) -> Bool {
@@ -194,6 +250,68 @@ public final class PreparationPreviewViewModel {
             deletionErrors.append(persistenceError)
         }
         lastErrorMessage = deletionErrors.isEmpty ? nil : deletionErrors.joined(separator: "\n")
+    }
+
+    public func removeDownloads(forSubscriptionIDs subscriptionIDs: Set<UUID>) async -> Bool {
+        guard !subscriptionIDs.isEmpty else { return true }
+        guard !preparingEpisodesByID.values.contains(where: { episode in
+            episode.subscriptionID.map(subscriptionIDs.contains) == true
+        }) else {
+            lastErrorMessage = "Wait for this podcast's active downloads to finish, then try deleting it again."
+            return false
+        }
+
+        let matchingPreparedEpisodes = preparedEpisodes.filter { preparedEpisode in
+            preparedEpisode.episode.subscriptionID.map(subscriptionIDs.contains) == true
+        }
+        var removedEpisodeIDs: Set<EpisodePreparationID> = []
+        var deletionErrors: [String] = []
+
+        for preparedEpisode in matchingPreparedEpisodes {
+            do {
+                try await removeFiles(for: preparedEpisode)
+                removedEpisodeIDs.insert(EpisodePreparationID(preparedEpisode.episode))
+            } catch {
+                deletionErrors.append(deletionErrorMessage(for: preparedEpisode, error: error))
+            }
+        }
+
+        preparedEpisodes.removeAll {
+            removedEpisodeIDs.contains(EpisodePreparationID($0.episode))
+        }
+        failures.removeAll {
+            removedEpisodeIDs.contains(EpisodePreparationID($0.episode))
+        }
+        rebuildIndexes()
+        if let persistenceError = await persistPreparedEpisodes() {
+            deletionErrors.append(persistenceError)
+        }
+
+        guard deletionErrors.isEmpty else {
+            lastErrorMessage = deletionErrors.joined(separator: "\n")
+            return false
+        }
+
+        let remainingDownloadedEpisodes = downloadedEpisodes.filter {
+            !subscriptionIDs.contains($0.subscriptionID)
+        }
+        let downloadedEpisodeStore = self.downloadedEpisodeStore
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try downloadedEpisodeStore.saveDownloadedEpisodes(remainingDownloadedEpisodes)
+            }.value
+        } catch {
+            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            return false
+        }
+
+        downloadedEpisodes = remainingDownloadedEpisodes
+        failures.removeAll { failure in
+            failure.episode.subscriptionID.map(subscriptionIDs.contains) == true
+        }
+        rebuildIndexes()
+        lastErrorMessage = nil
+        return true
     }
 
     private func merge(_ result: MediaPreparationResult) {
@@ -366,4 +484,10 @@ private enum EpisodePreparationID: Hashable {
         self = .subscription(subscriptionID, episodeID: episodeID)
     }
 
+}
+
+private enum PreparationTaskOutcome: Sendable {
+    case completed(MediaPreparationResult)
+    case failed(String)
+    case cancelled
 }

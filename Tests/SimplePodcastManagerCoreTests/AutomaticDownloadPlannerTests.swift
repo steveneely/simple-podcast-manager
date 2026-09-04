@@ -137,6 +137,53 @@ struct AutomaticDownloadPlannerTests {
     }
 
     @Test
+    func enablingDownloadsQueuesOnlyCurrentlyNewUndownloadedEpisodesWithinLimit() {
+        let subscription = makeSubscription()
+        let olderEpisode = makeEpisode("older", subscription: subscription, day: 1)
+        let secondNewEpisode = makeEpisode("second-new", subscription: subscription, day: 2)
+        let newestEpisode = makeEpisode("newest", subscription: subscription, day: 3)
+        let state = baselineState(
+            subscription: subscription,
+            episodeIDs: [newestEpisode.id, secondNewEpisode.id, olderEpisode.id]
+        )
+
+        let plan = AutomaticDownloadPlanner.activatingCurrentlyNewEpisodes(
+            in: state,
+            subscriptionIDs: [subscription.id],
+            subscriptions: [subscription],
+            episodes: [olderEpisode, secondNewEpisode, newestEpisode],
+            newEpisodeIDsBySubscription: [
+                subscription.id: [newestEpisode.id, secondNewEpisode.id],
+            ],
+            downloadedEpisodeIDs: [AutomaticDownloadEpisodeID(newestEpisode)!],
+            limit: .latest1
+        )
+
+        #expect(plan.episodesToDownload == [secondNewEpisode])
+        #expect(plan.state.feeds.first?.pendingEpisodeIDs == [secondNewEpisode.id])
+    }
+
+    @Test
+    func enablingDownloadsDoesNotQueueNewEpisodesForAnExcludedShow() {
+        var subscription = makeSubscription()
+        subscription.includesInAutomaticDownloads = false
+        let newEpisode = makeEpisode("new", subscription: subscription, day: 2)
+
+        let plan = AutomaticDownloadPlanner.activatingCurrentlyNewEpisodes(
+            in: baselineState(subscription: subscription, episodeIDs: [newEpisode.id]),
+            subscriptionIDs: [subscription.id],
+            subscriptions: [subscription],
+            episodes: [newEpisode],
+            newEpisodeIDsBySubscription: [subscription.id: [newEpisode.id]],
+            downloadedEpisodeIDs: [],
+            limit: .allNew
+        )
+
+        #expect(plan.episodesToDownload.isEmpty)
+        #expect(plan.state.feeds.first?.pendingEpisodeIDs.isEmpty == true)
+    }
+
+    @Test
     func failedRefreshPreservesPendingEpisodes() {
         let subscription = makeSubscription()
         let pending = makeEpisode("pending", subscription: subscription, day: 2)

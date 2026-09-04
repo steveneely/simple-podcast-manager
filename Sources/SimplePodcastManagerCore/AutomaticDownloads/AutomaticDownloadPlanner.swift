@@ -119,6 +119,79 @@ public enum AutomaticDownloadPlanner {
         return AutomaticDownloadState(feeds: feeds)
     }
 
+    public static func activatingCurrentlyNewEpisodes(
+        in state: AutomaticDownloadState,
+        subscriptionIDs: Set<UUID>,
+        subscriptions: [FeedSubscription],
+        episodes: [Episode],
+        newEpisodeIDsBySubscription: [UUID: Set<String>],
+        downloadedEpisodeIDs: Set<AutomaticDownloadEpisodeID>,
+        limit: AutomaticDownloadLimit
+    ) -> AutomaticDownloadPlan {
+        var updatedState = applyingPreferences(
+            to: state,
+            subscriptions: subscriptions,
+            limit: limit
+        )
+        guard limit != .off, !subscriptionIDs.isEmpty else {
+            return AutomaticDownloadPlan(state: updatedState, episodesToDownload: [])
+        }
+
+        let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
+        let episodesBySubscription = Dictionary(grouping: episodes.compactMap { episode -> (UUID, Episode)? in
+            guard let subscriptionID = episode.subscriptionID else { return nil }
+            return (subscriptionID, episode)
+        }, by: { $0.0 })
+        var statesBySubscription = Dictionary(
+            uniqueKeysWithValues: updatedState.feeds.map { ($0.subscriptionID, $0) }
+        )
+        var selectedEpisodes: [Episode] = []
+
+        for subscriptionID in subscriptionIDs {
+            guard let subscription = subscriptionsByID[subscriptionID],
+                  subscription.isEnabled,
+                  subscription.includesInAutomaticDownloads
+            else { continue }
+
+            let currentEpisodes = (episodesBySubscription[subscriptionID] ?? [])
+                .map(\.1)
+                .sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+            let newEpisodeIDs = newEpisodeIDsBySubscription[subscriptionID] ?? []
+            let downloadedIDs = Set(downloadedEpisodeIDs.compactMap {
+                $0.subscriptionID == subscriptionID ? $0.episodeID : nil
+            })
+            let eligibleEpisodes = currentEpisodes.filter {
+                newEpisodeIDs.contains($0.id) && !downloadedIDs.contains($0.id)
+            }
+            let activatedEpisodes: [Episode]
+            if let maximumEpisodeCount = limit.maximumEpisodeCount {
+                activatedEpisodes = Array(eligibleEpisodes.prefix(maximumEpisodeCount))
+            } else {
+                activatedEpisodes = eligibleEpisodes
+            }
+
+            var feedState = statesBySubscription[subscriptionID]
+                ?? AutomaticDownloadFeedState(
+                    subscriptionID: subscriptionID,
+                    rssURL: subscription.rssURL,
+                    observedEpisodeIDs: uniqueEpisodeIDs(currentEpisodes.map(\.id))
+                )
+            guard feedState.rssURL == subscription.rssURL else { continue }
+            feedState.pendingEpisodeIDs.formUnion(activatedEpisodes.map(\.id))
+            feedState.pendingEpisodeIDs.subtract(downloadedIDs)
+            statesBySubscription[subscriptionID] = feedState
+            selectedEpisodes.append(contentsOf: activatedEpisodes)
+        }
+
+        updatedState.feeds = statesBySubscription.values.sorted {
+            $0.subscriptionID.uuidString < $1.subscriptionID.uuidString
+        }
+        return AutomaticDownloadPlan(
+            state: updatedState,
+            episodesToDownload: selectedEpisodes.sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+        )
+    }
+
     public static func markingDownloaded(
         _ downloadedEpisodes: [Episode],
         in state: AutomaticDownloadState

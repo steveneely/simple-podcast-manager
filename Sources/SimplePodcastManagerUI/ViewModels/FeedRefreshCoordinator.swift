@@ -19,6 +19,11 @@ enum FeedRefreshScope {
 struct FeedRefreshOutcome {
     var episodesRequiringInsecureDownloadPermission: [Episode]
     var attemptedAutomaticDownloads: Bool
+    var discoveredEpisodeCount: Int
+    var downloadedEpisodes: [Episode]
+    var failedSubscriptionCount: Int
+
+    var downloadedEpisodeCount: Int { downloadedEpisodes.count }
 }
 
 @MainActor
@@ -43,21 +48,17 @@ final class FeedRefreshCoordinator {
         self.episodePreparation = episodePreparation
     }
 
-    func refresh(
-        _ scope: FeedRefreshScope,
-        openSubscriptionID: UUID?
-    ) async -> FeedRefreshOutcome {
+    func refresh(_ scope: FeedRefreshScope) async -> FeedRefreshOutcome {
         await refreshPreview(for: scope)
         subscriptionLibrary.applyFeedSummaries(Array(feedPreview.feedSummaries.values))
 
         let refreshedSubscriptionIDs = Set(scope.subscriptions.filter(\.isEnabled).map(\.id))
         let failedSubscriptionIDs = failedSubscriptionIDs(in: refreshedSubscriptionIDs)
-        await feedActivity.updateAfterRefresh(
+        let discoveredEpisodeCount = await feedActivity.updateAfterRefresh(
             subscriptions: subscriptionLibrary.feedSubscriptions,
             episodes: feedPreview.allEpisodes,
             refreshedSubscriptionIDs: refreshedSubscriptionIDs,
-            failedSubscriptionIDs: failedSubscriptionIDs,
-            openSubscriptionID: openSubscriptionID
+            failedSubscriptionIDs: failedSubscriptionIDs
         )
 
         let episodesToDownload = await automaticDownloads.episodesToDownload(
@@ -71,20 +72,28 @@ final class FeedRefreshCoordinator {
         guard !episodesToDownload.isEmpty else {
             return FeedRefreshOutcome(
                 episodesRequiringInsecureDownloadPermission: [],
-                attemptedAutomaticDownloads: false
+                attemptedAutomaticDownloads: false,
+                discoveredEpisodeCount: discoveredEpisodeCount,
+                downloadedEpisodes: [],
+                failedSubscriptionCount: failedSubscriptionIDs.count
             )
         }
 
         await episodePreparation.prepare(episodesToDownload, settings: subscriptionLibrary.settings)
-        await automaticDownloads.markDownloaded(episodesToDownload.filter {
+        let downloadedEpisodes = episodesToDownload.filter {
             episodePreparation.downloadedRecord(for: $0) != nil
-        })
+        }
+        await automaticDownloads.markDownloaded(downloadedEpisodes)
+        await feedActivity.acknowledge(downloadedEpisodes)
 
         return FeedRefreshOutcome(
             episodesRequiringInsecureDownloadPermission: episodesToDownload.filter {
                 episodePreparation.requiresInsecureDownloadPermission(for: $0)
             },
-            attemptedAutomaticDownloads: true
+            attemptedAutomaticDownloads: true,
+            discoveredEpisodeCount: discoveredEpisodeCount,
+            downloadedEpisodes: downloadedEpisodes,
+            failedSubscriptionCount: failedSubscriptionIDs.count
         )
     }
 
@@ -136,9 +145,10 @@ protocol FeedRefreshActivityUpdating: AnyObject {
         subscriptions: [FeedSubscription],
         episodes: [Episode],
         refreshedSubscriptionIDs: Set<UUID>,
-        failedSubscriptionIDs: Set<UUID>,
-        openSubscriptionID: UUID?
-    ) async
+        failedSubscriptionIDs: Set<UUID>
+    ) async -> Int
+
+    func acknowledge(_ episodes: [Episode]) async
 }
 
 @MainActor

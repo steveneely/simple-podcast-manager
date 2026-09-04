@@ -161,6 +161,108 @@ struct PreparationPreviewViewModelTests {
     }
 
     @Test
+    func removingSubscriptionDownloadsDeletesOnlyMatchingLocalFilesAndRecords() async throws {
+        let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let removedFileURL = temporaryDirectoryURL.appendingPathComponent("removed.mp3")
+        let retainedFileURL = temporaryDirectoryURL.appendingPathComponent("retained.mp3")
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+        try Data("removed".utf8).write(to: removedFileURL)
+        try Data("retained".utf8).write(to: retainedFileURL)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectoryURL) }
+
+        let removedSubscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let retainedSubscriptionID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let removedEpisode = makeEpisode(
+            id: "removed",
+            subscriptionID: removedSubscriptionID
+        )
+        let retainedEpisode = makeEpisode(
+            id: "retained",
+            subscriptionID: retainedSubscriptionID
+        )
+        let removedPreparedEpisode = PreparedEpisode(
+            episode: removedEpisode,
+            sourceFileURL: removedFileURL,
+            preparedFileURL: removedFileURL,
+            preparationAction: .passthroughMP3
+        )
+        let retainedPreparedEpisode = PreparedEpisode(
+            episode: retainedEpisode,
+            sourceFileURL: retainedFileURL,
+            preparedFileURL: retainedFileURL,
+            preparationAction: .passthroughMP3
+        )
+        let preparedStore = InMemoryPreparedEpisodeStore(
+            preparedEpisodes: [removedPreparedEpisode, retainedPreparedEpisode]
+        )
+        let downloadedStore = InMemoryDownloadedEpisodeStore(downloadedEpisodes: [
+            makeDownloadedRecord(episode: removedEpisode),
+            makeDownloadedRecord(episode: retainedEpisode),
+        ])
+        let viewModel = makeViewModel(
+            workspaceURL: temporaryDirectoryURL,
+            preparedStore: preparedStore,
+            downloadedStore: downloadedStore
+        )
+        await viewModel.loadPersistedPreparedEpisodes()
+
+        let didRemoveDownloads = await viewModel.removeDownloads(
+            forSubscriptionIDs: [removedSubscriptionID]
+        )
+
+        #expect(didRemoveDownloads)
+        #expect(viewModel.preparedEpisodes == [retainedPreparedEpisode])
+        #expect(preparedStore.preparedEpisodes == [retainedPreparedEpisode])
+        #expect(downloadedStore.downloadedEpisodes.map(\.subscriptionID) == [retainedSubscriptionID])
+        #expect(!FileManager.default.fileExists(atPath: removedFileURL.path))
+        #expect(FileManager.default.fileExists(atPath: retainedFileURL.path))
+    }
+
+    @Test
+    func failedSubscriptionDownloadDeletionKeepsItsRecordsForRetry() async throws {
+        let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let fileURL = temporaryDirectoryURL.appendingPathComponent("episode.mp3")
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+        try Data("audio".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectoryURL) }
+
+        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let episode = makeEpisode(id: "episode", subscriptionID: subscriptionID)
+        let preparedEpisode = PreparedEpisode(
+            episode: episode,
+            sourceFileURL: fileURL,
+            preparedFileURL: fileURL,
+            preparationAction: .passthroughMP3
+        )
+        let preparedStore = InMemoryPreparedEpisodeStore(preparedEpisodes: [preparedEpisode])
+        let downloadedStore = InMemoryDownloadedEpisodeStore(
+            downloadedEpisodes: [makeDownloadedRecord(episode: episode)]
+        )
+        let viewModel = PreparationPreviewViewModel(
+            service: MediaPreparationService(
+                downloadService: StubPreparationDownloadService(),
+                audioConversionService: StubPreparationAudioConversionService(),
+                workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: temporaryDirectoryURL)
+            ),
+            store: preparedStore,
+            downloadedEpisodeStore: downloadedStore,
+            fileDeleter: FailingPreparedMediaFileDeleter()
+        )
+        await viewModel.loadPersistedPreparedEpisodes()
+
+        let didRemoveDownloads = await viewModel.removeDownloads(
+            forSubscriptionIDs: [subscriptionID]
+        )
+
+        #expect(!didRemoveDownloads)
+        #expect(viewModel.preparedEpisodes == [preparedEpisode])
+        #expect(preparedStore.preparedEpisodes == [preparedEpisode])
+        #expect(downloadedStore.downloadedEpisodes.count == 1)
+        #expect(FileManager.default.fileExists(atPath: fileURL.path))
+        #expect(viewModel.lastErrorMessage?.contains("Could not delete the downloaded files") == true)
+    }
+
+    @Test
     func failedLocalFileDeletionRetainsPreparedEpisodeAndReportsError() async throws {
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp3")
         try Data("audio".utf8).write(to: fileURL)
@@ -307,6 +409,56 @@ struct PreparationPreviewViewModelTests {
     }
 
     @Test
+    func cancellingOneDownloadLeavesOtherDownloadsRunning() async throws {
+        let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(
+            UUID().uuidString,
+            isDirectory: true
+        )
+        defer { try? FileManager.default.removeItem(at: workspaceURL) }
+
+        let viewModel = PreparationPreviewViewModel(
+            service: MediaPreparationService(
+                downloadService: CancellablePreparationDownloadService(cancelledEpisodeID: "cancel-me"),
+                audioConversionService: StubPreparationAudioConversionService(),
+                workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL)
+            ),
+            store: InMemoryPreparedEpisodeStore(),
+            downloadedEpisodeStore: InMemoryDownloadedEpisodeStore()
+        )
+        let cancelledEpisode = Episode(
+            id: "cancel-me",
+            subscriptionID: UUID(),
+            podcastTitle: "Example Podcast",
+            title: "Cancel Me",
+            enclosureURL: URL(string: "https://cdn.example.com/cancel.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let completedEpisode = Episode(
+            id: "keep-going",
+            subscriptionID: UUID(),
+            podcastTitle: "Another Podcast",
+            title: "Keep Going",
+            enclosureURL: URL(string: "https://cdn.example.com/keep.mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/another.xml")!
+        )
+
+        let preparationTask = Task {
+            await viewModel.prepare([cancelledEpisode, completedEpisode], settings: AppSettings())
+        }
+        while !viewModel.isPreparing(cancelledEpisode) {
+            await Task.yield()
+        }
+
+        viewModel.cancelPreparation(for: cancelledEpisode)
+        await preparationTask.value
+
+        #expect(!viewModel.isPreparing(cancelledEpisode))
+        #expect(viewModel.preparedEpisode(for: cancelledEpisode) == nil)
+        #expect(viewModel.failure(for: cancelledEpisode) == nil)
+        #expect(viewModel.preparedEpisode(for: completedEpisode) != nil)
+    }
+
+    @Test
     func preparationFailureIsScopedToItsPodcast() async {
         let firstPodcastEpisode = Episode(
             id: "shared-guid",
@@ -340,6 +492,43 @@ struct PreparationPreviewViewModelTests {
 
         #expect(viewModel.failure(for: firstPodcastEpisode)?.message == "Download failed.")
         #expect(viewModel.failure(for: secondPodcastEpisode) == nil)
+    }
+
+    private func makeEpisode(id: String, subscriptionID: UUID) -> Episode {
+        Episode(
+            id: id,
+            subscriptionID: subscriptionID,
+            podcastTitle: "Podcast \(id)",
+            title: "Episode \(id)",
+            enclosureURL: URL(string: "https://cdn.example.com/\(id).mp3")!,
+            sourceFeedURL: URL(string: "https://example.com/\(id).xml")!
+        )
+    }
+
+    private func makeDownloadedRecord(episode: Episode) -> DownloadedEpisodeRecord {
+        DownloadedEpisodeRecord(
+            subscriptionID: episode.subscriptionID!,
+            episodeID: episode.id,
+            episodeTitle: episode.title,
+            preparationAction: .passthroughMP3,
+            downloadedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    private func makeViewModel(
+        workspaceURL: URL,
+        preparedStore: InMemoryPreparedEpisodeStore,
+        downloadedStore: InMemoryDownloadedEpisodeStore
+    ) -> PreparationPreviewViewModel {
+        PreparationPreviewViewModel(
+            service: MediaPreparationService(
+                downloadService: StubPreparationDownloadService(),
+                audioConversionService: StubPreparationAudioConversionService(),
+                workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL)
+            ),
+            store: preparedStore,
+            downloadedEpisodeStore: downloadedStore
+        )
     }
 }
 
@@ -376,6 +565,25 @@ private struct FailingPreparedMediaFileDeleter: PreparedMediaFileDeleting {
 private struct DelayedPreparationDownloadService: DownloadService {
     func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         try await Task.sleep(nanoseconds: 10_000_000)
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
+        try Data("audio".utf8).write(to: fileURL)
+        return fileURL
+    }
+}
+
+private struct CancellablePreparationDownloadService: DownloadService {
+    let cancelledEpisodeID: String
+
+    func download(
+        _ episode: Episode,
+        into workspaceURL: URL,
+        allowsInsecureHTTP: Bool
+    ) async throws -> URL {
+        if episode.id == cancelledEpisodeID {
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+        try Task.checkCancellation()
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
         try Data("audio".utf8).write(to: fileURL)

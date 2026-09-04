@@ -35,6 +35,8 @@ public struct MainView: View {
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedFeedID = FeedSelectionPolicy.initialSelection
+    @State private var feedRefreshStatus: FeedRefreshStatus?
+    @State private var activeAutomaticDownloadOperations = 0
     @State private var feedEditorPresentation: FeedEditorPresentation?
     @State private var pendingFeedDeletionConfirmation: FeedDeletionConfirmation?
     @State private var isShowingSettings = false
@@ -173,10 +175,6 @@ public struct MainView: View {
                 try await saveFeed(updatedDraft)
             }
         }
-        .onChange(of: selectedFeedID) { _, selectedFeedID in
-            guard let selectedFeedID else { return }
-            Task { await feedActivityViewModel.markSeen(subscriptionID: selectedFeedID) }
-        }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
                 settings: viewModel.settings,
@@ -294,7 +292,11 @@ public struct MainView: View {
 
     private var globalDownloadStatusText: String {
         let count = preparationPreviewViewModel.preparingEpisodeCount
-        return "\(count) downloading"
+        return DownloadStatusPresentation.text(
+            count: count,
+            isAutomatic: feedRefreshStatus?.isRefreshing == true
+                || activeAutomaticDownloadOperations > 0
+        )
     }
 
     private var deviceSection: some View {
@@ -343,7 +345,8 @@ public struct MainView: View {
         FeedSidebarView(
             subscriptions: viewModel.feedSubscriptions,
             selectedFeedID: $selectedFeedID,
-            isRefreshing: feedPreviewViewModel.isLoading,
+            isRefreshing: feedRefreshStatus?.isRefreshing == true,
+            refreshStatus: feedRefreshStatus,
             episodeCount: { allEpisodes(for: $0).count },
             newEpisodeCount: { subscription in
                 subscription.isEnabled ? feedActivityViewModel.newEpisodeCount(for: subscription.id) : 0
@@ -590,6 +593,9 @@ public struct MainView: View {
 
         EpisodeRowView(
             episode: episode,
+            isNew: episode.subscriptionID.map {
+                feedActivityViewModel.newEpisodeIDs(for: $0).contains(episode.id)
+            } ?? false,
             isExpanded: isEpisodeExpanded(episode),
             durationLabel: episodeDurationLabel(for: episode),
             downloadLabel: status.preparedEpisode.map(downloadedEpisodeLabel(for:))
@@ -613,9 +619,15 @@ public struct MainView: View {
                     rebuildSyncPlan()
                 }
             },
+            onCancelDownload: {
+                preparationPreviewViewModel.cancelPreparation(for: episode)
+            },
             onDownload: {
                 Task {
                     await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
+                    let downloadedEpisodes = successfullyDownloadedEpisodes(from: [episode])
+                    await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+                    await feedActivityViewModel.acknowledge(downloadedEpisodes)
                     if preparationPreviewViewModel.requiresInsecureDownloadPermission(for: episode) {
                         enqueueInsecureDownloadPermissions(for: [episode])
                     }
@@ -644,9 +656,9 @@ public struct MainView: View {
 
         Task {
             await preparationPreviewViewModel.prepare(requestedEpisodes, settings: requestedSettings)
-            await automaticDownloadViewModel.markDownloaded(requestedEpisodes.filter {
-                preparationPreviewViewModel.downloadedRecord(for: $0) != nil
-            })
+            let downloadedEpisodes = successfullyDownloadedEpisodes(from: requestedEpisodes)
+            await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+            await feedActivityViewModel.acknowledge(downloadedEpisodes)
             rebuildSyncPlan()
             showNextInsecureDownloadPrompt()
         }
@@ -820,8 +832,8 @@ public struct MainView: View {
             return
         }
 
-        let previousRSSURL = updatedDraft.id.flatMap { subscriptionID in
-            viewModel.feedSubscriptions.first(where: { $0.id == subscriptionID })?.rssURL
+        let previousSubscription = updatedDraft.id.flatMap { subscriptionID in
+            viewModel.feedSubscriptions.first(where: { $0.id == subscriptionID })
         }
         try await viewModel.updateFeed(from: updatedDraft)
         await automaticDownloadViewModel.applyPreferences(
@@ -830,16 +842,78 @@ public struct MainView: View {
         )
         await feedPreviewViewModel.loadCachedPreview(for: viewModel.feedSubscriptions)
         if let subscription = viewModel.feedSubscriptions.first(where: { $0.id == updatedDraft.id }),
-           previousRSSURL != subscription.rssURL {
-            await feedActivityViewModel.updateAfterRefresh(
+           previousSubscription?.rssURL != subscription.rssURL {
+            _ = await feedActivityViewModel.updateAfterRefresh(
                 subscriptions: viewModel.feedSubscriptions,
                 episodes: feedPreviewViewModel.allEpisodes,
                 refreshedSubscriptionIDs: [subscription.id],
-                failedSubscriptionIDs: [],
-                openSubscriptionID: selectedFeedID
+                failedSubscriptionIDs: []
             )
         }
+        if let subscription = viewModel.feedSubscriptions.first(where: { $0.id == updatedDraft.id }),
+           shouldActivateAutomaticDownloads(
+               previousSubscription: previousSubscription,
+               updatedSubscription: subscription,
+               limit: viewModel.settings.automaticDownloadLimit
+           ) {
+            Task {
+                await activateAutomaticDownloads(
+                    for: [subscription.id],
+                    limit: viewModel.settings.automaticDownloadLimit
+                )
+            }
+        }
         await refreshDeviceLibrary()
+    }
+
+    private func shouldActivateAutomaticDownloads(
+        previousSubscription: FeedSubscription?,
+        updatedSubscription: FeedSubscription,
+        limit: AutomaticDownloadLimit
+    ) -> Bool {
+        guard limit != .off,
+              updatedSubscription.isEnabled,
+              updatedSubscription.includesInAutomaticDownloads,
+              let previousSubscription else { return false }
+        return !previousSubscription.isEnabled
+            || !previousSubscription.includesInAutomaticDownloads
+    }
+
+    private func activateAutomaticDownloads(
+        for subscriptionIDs: Set<UUID>,
+        additionalNewEpisodeIDsBySubscription: [UUID: Set<String>] = [:],
+        limit: AutomaticDownloadLimit
+    ) async {
+        let newEpisodeIDsBySubscription = Dictionary(uniqueKeysWithValues: subscriptionIDs.map {
+            subscriptionID in
+            let newEpisodeIDs = feedActivityViewModel.newEpisodeIDs(for: subscriptionID)
+            let additionalEpisodeIDs = additionalNewEpisodeIDsBySubscription[subscriptionID] ?? []
+            return (subscriptionID, newEpisodeIDs.union(additionalEpisodeIDs))
+        })
+        let episodesToDownload = await automaticDownloadViewModel.activateDownloadsForCurrentlyNewEpisodes(
+            subscriptionIDs: subscriptionIDs,
+            subscriptions: viewModel.feedSubscriptions,
+            episodes: feedPreviewViewModel.allEpisodes,
+            newEpisodeIDsBySubscription: newEpisodeIDsBySubscription,
+            downloadedEpisodeIDs: preparationPreviewViewModel.downloadedEpisodeIDs,
+            limit: limit
+        )
+        guard !episodesToDownload.isEmpty else { return }
+
+        activeAutomaticDownloadOperations += 1
+        defer { activeAutomaticDownloadOperations -= 1 }
+        await preparationPreviewViewModel.prepare(episodesToDownload, settings: viewModel.settings)
+        let downloadedEpisodes = successfullyDownloadedEpisodes(from: episodesToDownload)
+        await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+        await feedActivityViewModel.acknowledge(downloadedEpisodes)
+        enqueueInsecureDownloadPermissions(for: episodesToDownload.filter {
+            preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
+        })
+        rebuildSyncPlan()
+    }
+
+    private func successfullyDownloadedEpisodes(from episodes: [Episode]) -> [Episode] {
+        episodes.filter { preparationPreviewViewModel.downloadedRecord(for: $0) != nil }
     }
 
     private func refreshFeedPreview() async {
@@ -905,13 +979,32 @@ public struct MainView: View {
     }
 
     private func coordinateFeedRefresh(_ scope: FeedRefreshScope) async {
-        let outcome = await feedRefreshCoordinator.refresh(
-            scope,
-            openSubscriptionID: selectedFeedID
-        )
+        let displayScope = feedRefreshDisplayScope(for: scope)
+        feedRefreshStatus = .refreshing(displayScope)
+        let outcome = await feedRefreshCoordinator.refresh(scope)
+        feedRefreshStatus = .completed(FeedRefreshSummary(
+            scope: displayScope,
+            discoveredEpisodeCount: outcome.discoveredEpisodeCount,
+            downloadedEpisodes: outcome.downloadedEpisodes.map(FeedRefreshDownloadedEpisode.init),
+            failedSubscriptionCount: outcome.failedSubscriptionCount
+        ))
         enqueueInsecureDownloadPermissions(for: outcome.episodesRequiringInsecureDownloadPermission)
         if outcome.attemptedAutomaticDownloads {
             rebuildSyncPlan()
+        }
+    }
+
+    private func feedRefreshDisplayScope(for scope: FeedRefreshScope) -> FeedRefreshDisplayScope {
+        switch scope {
+        case .allEnabledSubscriptions:
+            return .allShows
+        case let .subscription(subscription):
+            return .show(subscription.title)
+        case let .newSubscriptions(subscriptions):
+            if subscriptions.count == 1, let subscription = subscriptions.first {
+                return .show(subscription.title)
+            }
+            return .allShows
         }
     }
 
@@ -1145,43 +1238,49 @@ public struct MainView: View {
             viewModel.feedSubscriptions.indices.contains(offset) ? viewModel.feedSubscriptions[offset] : nil
         }
         guard !subscriptions.isEmpty else { return }
+        let subscriptionIDs = Set(subscriptions.map(\.id))
+        let localDownloadCount = preparationPreviewViewModel.preparedEpisodes.count { preparedEpisode in
+            preparedEpisode.episode.subscriptionID.map(subscriptionIDs.contains) == true
+        }
 
-        pendingFeedDeletionConfirmation = FeedDeletionConfirmation(subscriptions: subscriptions)
+        pendingFeedDeletionConfirmation = FeedDeletionConfirmation(
+            subscriptions: subscriptions,
+            localDownloadCount: localDownloadCount
+        )
     }
 
     private func confirmFeedDeletion(_ confirmation: FeedDeletionConfirmation) {
-        let subscriptionIDs = Set(confirmation.subscriptionIDs)
+        pendingFeedDeletionConfirmation = nil
+        Task { await deleteFeeds(withIDs: Set(confirmation.subscriptionIDs)) }
+    }
+
+    private func deleteFeeds(withIDs subscriptionIDs: Set<FeedSubscription.ID>) async {
+        guard await preparationPreviewViewModel.removeDownloads(
+            forSubscriptionIDs: subscriptionIDs
+        ) else { return }
+
         let offsets = IndexSet(
             viewModel.feedSubscriptions.indices.filter { index in
                 subscriptionIDs.contains(viewModel.feedSubscriptions[index].id)
             }
         )
-        pendingFeedDeletionConfirmation = nil
         guard !offsets.isEmpty else { return }
-
-        deleteFeeds(at: offsets)
-    }
-
-    private func deleteFeeds(at offsets: IndexSet) {
         viewModel.removeFeeds(at: offsets)
         selectedFeedID = FeedSelectionPolicy.selectionAfterRemovingFeeds(
             currentSelection: selectedFeedID,
             remainingSubscriptions: viewModel.feedSubscriptions
         )
-        Task {
-            await feedActivityViewModel.updateAfterRefresh(
-                subscriptions: viewModel.feedSubscriptions,
-                episodes: feedPreviewViewModel.allEpisodes,
-                refreshedSubscriptionIDs: [],
-                failedSubscriptionIDs: [],
-                openSubscriptionID: selectedFeedID
-            )
-            await automaticDownloadViewModel.applyPreferences(
-                subscriptions: viewModel.feedSubscriptions,
-                limit: viewModel.settings.automaticDownloadLimit
-            )
-            await refreshAllContent()
-        }
+        _ = await feedActivityViewModel.updateAfterRefresh(
+            subscriptions: viewModel.feedSubscriptions,
+            episodes: feedPreviewViewModel.allEpisodes,
+            refreshedSubscriptionIDs: [],
+            failedSubscriptionIDs: []
+        )
+        await automaticDownloadViewModel.applyPreferences(
+            subscriptions: viewModel.feedSubscriptions,
+            limit: viewModel.settings.automaticDownloadLimit
+        )
+        await refreshAllContent()
     }
 
     private func allEpisodes(for subscription: FeedSubscription) -> [Episode] {
@@ -1337,7 +1436,7 @@ public struct MainView: View {
                 existingDeviceFiles: alreadyOnDeviceFilesByEpisodeKey,
                 completedPlan: completedPlan
             )
-            await feedActivityViewModel.acknowledgeSynced(acknowledgedEpisodes)
+            await feedActivityViewModel.acknowledge(acknowledgedEpisodes)
         }
 
         if
@@ -1537,12 +1636,26 @@ public struct MainView: View {
             rebuildSyncPlan()
         }
 
+        let previousAutomaticDownloadLimit = viewModel.settings.automaticDownloadLimit
         viewModel.replaceSettings(updatedSettings)
         Task {
             await automaticDownloadViewModel.applyPreferences(
                 subscriptions: viewModel.feedSubscriptions,
                 limit: updatedSettings.automaticDownloadLimit
             )
+            if previousAutomaticDownloadLimit == .off,
+               updatedSettings.automaticDownloadLimit != .off {
+                let activatedSubscriptionIDs = Set(viewModel.feedSubscriptions.compactMap {
+                    subscription in
+                    subscription.isEnabled && subscription.includesInAutomaticDownloads
+                        ? subscription.id
+                        : nil
+                })
+                await activateAutomaticDownloads(
+                    for: activatedSubscriptionIDs,
+                    limit: updatedSettings.automaticDownloadLimit
+                )
+            }
         }
         appearancePreference?.wrappedValue = updatedSettings.appearancePreference
 

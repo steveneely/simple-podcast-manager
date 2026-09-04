@@ -74,6 +74,8 @@ public struct MediaPreparationService: Sendable {
                     preparedEpisodes.append(preparedEpisode)
                 case .failure(let failure):
                     failures.append(failure)
+                case .cancelled:
+                    break
                 }
 
                 completedCount += 1
@@ -98,20 +100,33 @@ public struct MediaPreparationService: Sendable {
         settings: AppSettings
     ) async -> EpisodePreparationOutcome {
         var downloadedFileURL: URL?
+        var preparedFileURL: URL?
         do {
+            try Task.checkCancellation()
             let sourceFileURL = try await downloadService.download(
                 episode,
                 into: workspaceURL,
                 allowsInsecureHTTP: settings.allowsInsecureDownloads
             )
             downloadedFileURL = sourceFileURL
+            try Task.checkCancellation()
             let preparedEpisode = try await audioConversionService.prepareAudio(
                 for: episode,
                 sourceFileURL: sourceFileURL,
                 in: workspaceURL,
                 settings: settings
             )
+            preparedFileURL = preparedEpisode.preparedFileURL
+            try Task.checkCancellation()
             return EpisodePreparationOutcome(episodeID: episode.id, result: .success(preparedEpisode))
+        } catch is CancellationError {
+            if let preparedFileURL, preparedFileURL != downloadedFileURL {
+                try? FileManager.default.removeItem(at: preparedFileURL)
+            }
+            if let downloadedFileURL {
+                try? FileManager.default.removeItem(at: downloadedFileURL)
+            }
+            return EpisodePreparationOutcome(episodeID: episode.id, result: .cancelled)
         } catch {
             // A failed preparation should not leave an incomplete local download behind.
             if let downloadedFileURL {
@@ -146,4 +161,5 @@ private struct EpisodePreparationOutcome: Sendable {
 private enum EpisodePreparationResult: Sendable {
     case success(PreparedEpisode)
     case failure(PreparationFailure)
+    case cancelled
 }

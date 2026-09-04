@@ -8,24 +8,26 @@ struct FeedActivityPlannerTests {
     @Test
     func firstRefreshEstablishesBaselineAndLaterRefreshCountsOnlyNewPrefix() {
         let subscription = makeSubscription()
-        let baseline = FeedActivityPlanner.updating(
+        let baselineUpdate = FeedActivityPlanner.update(
             FeedActivityState(),
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [],
-            openSubscriptionID: nil
+            failedSubscriptionIDs: []
         )
+        let baseline = baselineUpdate.state
+        #expect(baselineUpdate.discoveredEpisodeCount == 0)
         #expect(baseline.feeds[0].newEpisodeIDs.isEmpty)
 
-        let updated = FeedActivityPlanner.updating(
+        let refreshUpdate = FeedActivityPlanner.update(
             baseline,
             subscriptions: [subscription],
             episodes: [episode("3", day: 3), episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [],
-            openSubscriptionID: nil
+            failedSubscriptionIDs: []
         )
+        let updated = refreshUpdate.state
+        #expect(refreshUpdate.discoveredEpisodeCount == 1)
         #expect(updated.feeds[0].newEpisodeIDs == ["3"])
     }
 
@@ -38,8 +40,7 @@ struct FeedActivityPlannerTests {
             subscriptions: [subscription],
             episodes: [episode("3", day: 3), episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [],
-            openSubscriptionID: nil
+            failedSubscriptionIDs: []
         )
         #expect(expanded.feeds[0].newEpisodeIDs == ["3"])
 
@@ -48,14 +49,13 @@ struct FeedActivityPlannerTests {
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [],
-            openSubscriptionID: nil
+            failedSubscriptionIDs: []
         )
         #expect(disappeared.feeds[0].newEpisodeIDs.isEmpty)
     }
 
     @Test
-    func failedRefreshDoesNotAdvanceStateAndOpenShowDoesNotAccumulateNewBadges() {
+    func failedRefreshDoesNotAdvanceStateAndNextSuccessfulRefreshAccumulatesNewBadges() {
         let subscription = makeSubscription()
         let initial = state(observed: ["1"], newestDay: 1)
         let failed = FeedActivityPlanner.updating(
@@ -63,30 +63,28 @@ struct FeedActivityPlannerTests {
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [subscriptionID],
-            openSubscriptionID: nil
+            failedSubscriptionIDs: [subscriptionID]
         )
         #expect(failed == initial)
 
-        let open = FeedActivityPlanner.updating(
+        let openUpdate = FeedActivityPlanner.update(
             initial,
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [],
-            openSubscriptionID: subscriptionID
+            failedSubscriptionIDs: []
         )
-        #expect(open.feeds[0].newEpisodeIDs.isEmpty)
+        let open = openUpdate.state
+        #expect(openUpdate.discoveredEpisodeCount == 1)
+        #expect(open.feeds[0].newEpisodeIDs == ["2"])
         #expect(open.feeds[0].observedEpisodeIDs == ["2", "1"])
     }
 
     @Test
-    func seenSyncAndFeedURLChangeClearTheAppropriateNewState() {
+    func syncAndFeedURLChangeClearTheAppropriateNewState() {
         let initial = state(observed: ["3", "2"], new: ["3", "2"], newestDay: 3)
         let synced = FeedActivityPlanner.acknowledging(episodes: [episode("3", day: 3)], in: initial)
         #expect(synced.feeds[0].newEpisodeIDs == ["2"])
-        #expect(FeedActivityPlanner.markingSeen(subscriptionID: subscriptionID, in: synced).feeds[0].newEpisodeIDs.isEmpty)
-
         let changedSubscription = FeedSubscription(
             id: subscriptionID,
             title: "Show",
@@ -97,8 +95,7 @@ struct FeedActivityPlannerTests {
             subscriptions: [changedSubscription],
             episodes: [episode("9", day: 9, feedURL: changedSubscription.rssURL)],
             refreshedSubscriptionIDs: [subscriptionID],
-            failedSubscriptionIDs: [],
-            openSubscriptionID: nil
+            failedSubscriptionIDs: []
         )
         #expect(reset.feeds[0].newEpisodeIDs.isEmpty)
         #expect(reset.feeds[0].observedEpisodeIDs == ["9"])

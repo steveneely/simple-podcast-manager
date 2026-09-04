@@ -8,23 +8,60 @@
   <meta property="og:title" content="Simple Podcast Manager">
   <meta property="og:description" content="RSS podcasts for your MP3 player. Plug in, sync, done.">
   <meta property="og:image" content="assets/screenshots/main-window.png">
-  <meta name="theme-color" content="#f5f7f4">
+  <meta name="theme-color" content="#fdf6e3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#002b36" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="assets/icons/app-icon.png">
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f5f7f4;
-      --surface: #ffffff;
-      --surface-strong: #ffffff;
-      --ink: #202423;
-      --muted: #5f6864;
-      --line: #d8dfda;
-      --accent: #426b5b;
-      --accent-strong: #2f5547;
-      --accent-soft: #dce8df;
-      --gold: #9a6424;
-      --shadow: 0 20px 60px rgba(28, 44, 38, 0.16);
+      color-scheme: light dark;
+      --bg: #fdf6e3;
+      --surface: #f8f2df;
+      --surface-strong: #fffdf7;
+      --surface-alt: #eee8d5;
+      --ink: #073642;
+      --muted: #526970;
+      --line: #b9b5a6;
+      --accent: #0a6f68;
+      --accent-strong: #075b56;
+      --accent-contrast: #fffdf7;
+      --accent-soft: #d9ece5;
+      --gold: #795b00;
+      --header-background: rgba(253, 246, 227, 0.9);
+      --border-soft: rgba(7, 54, 66, 0.16);
+      --border-strong: rgba(7, 54, 66, 0.26);
+      --promise-background: #e7efe4;
+      --promise-border: #a5b9ac;
+      --promise-ink: #294d45;
+      --accent-glow: rgba(42, 161, 152, 0.12);
+      --button-shadow: rgba(7, 54, 66, 0.1);
+      --shadow: 0 20px 60px rgba(7, 54, 66, 0.18);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #002b36;
+        --surface: #073642;
+        --surface-strong: #0b3f4b;
+        --surface-alt: #073642;
+        --ink: #eee8d5;
+        --muted: #a7b3b3;
+        --line: #31555d;
+        --accent: #5ccdc2;
+        --accent-strong: #86e6dc;
+        --accent-contrast: #002b36;
+        --accent-soft: #124c53;
+        --gold: #e9c85a;
+        --header-background: rgba(0, 43, 54, 0.9);
+        --border-soft: rgba(167, 179, 179, 0.18);
+        --border-strong: rgba(167, 179, 179, 0.3);
+        --promise-background: #0a3d47;
+        --promise-border: #35616a;
+        --promise-ink: #c5d1ce;
+        --accent-glow: rgba(42, 161, 152, 0.16);
+        --button-shadow: rgba(0, 0, 0, 0.22);
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      }
     }
 
     * {
@@ -37,7 +74,9 @@
 
     body {
       margin: 0;
-      background: var(--bg);
+      background:
+        radial-gradient(circle at 12% 0%, var(--accent-glow), transparent 34rem),
+        var(--bg);
       color: var(--ink);
       font-size: 17px;
       line-height: 1.55;
@@ -61,8 +100,8 @@
 
     .site-header {
       padding: 18px 0;
-      border-bottom: 1px solid rgba(58, 78, 69, 0.15);
-      background: rgba(245, 247, 244, 0.88);
+      border-bottom: 1px solid var(--border-soft);
+      background: var(--header-background);
       position: sticky;
       top: 0;
       backdrop-filter: blur(18px);
@@ -175,13 +214,13 @@
       font-size: 15px;
       font-weight: 750;
       text-decoration: none;
-      box-shadow: 0 2px 0 rgba(28, 44, 38, 0.08);
+      box-shadow: 0 2px 0 var(--button-shadow);
     }
 
     .button.primary {
       border-color: var(--accent-strong);
       background: var(--accent);
-      color: white;
+      color: var(--accent-contrast);
     }
 
     .button:hover {
@@ -189,7 +228,7 @@
     }
 
     .hero-shot {
-      border: 1px solid rgba(58, 78, 69, 0.22);
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
       background: var(--surface-strong);
       box-shadow: var(--shadow);
@@ -232,8 +271,8 @@
     }
 
     .section.alt {
-      background: #eef4f1;
-      border-block: 1px solid rgba(58, 78, 69, 0.14);
+      background: var(--surface-alt);
+      border-block: 1px solid var(--border-soft);
     }
 
     .section-title {
@@ -291,10 +330,16 @@
 
     .screen {
       overflow: hidden;
-      border: 1px solid rgba(58, 78, 69, 0.22);
+      margin: 0;
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
       background: var(--surface-strong);
-      box-shadow: 0 16px 42px rgba(28, 44, 38, 0.12);
+      box-shadow: 0 16px 42px var(--button-shadow);
+    }
+
+    .screen img {
+      width: 100%;
+      height: auto;
     }
 
     .screen-caption {
@@ -310,14 +355,14 @@
       gap: 34px;
       align-items: center;
       padding: 34px;
-      border: 1px solid #bacfc2;
+      border: 1px solid var(--promise-border);
       border-radius: 8px;
-      background: #edf5ef;
+      background: var(--promise-background);
     }
 
     .promise p {
       margin: 18px 0 0;
-      color: #4f655b;
+      color: var(--promise-ink);
       font-size: 19px;
     }
 
@@ -334,8 +379,8 @@
 
     .promise li {
       padding: 12px 0;
-      border-bottom: 1px solid rgba(47, 85, 71, 0.16);
-      color: #334f44;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--promise-ink);
       font-weight: 700;
     }
 
@@ -542,7 +587,7 @@
           <h2>From RSS feed to MP3 player.</h2>
           <ol class="step-list">
             <li><span><strong>Install.</strong> Open the DMG and drag the app to Applications.</span></li>
-            <li><span><strong>Add a show.</strong> Paste its podcast RSS feed URL.</span></li>
+            <li><span><strong>Add a show.</strong> Search for a podcast, or paste its RSS feed URL.</span></li>
             <li><span><strong>Download episodes.</strong> Download new episodes after feed refreshes, or choose individual episodes yourself.</span></li>
             <li><span><strong>Connect your player.</strong> Plug it in.</span></li>
             <li><span><strong>Sync.</strong> Review the plan, then click Sync.</span></li>

@@ -33,6 +33,8 @@ public struct ParsedRSSFeed: Equatable, Sendable {
 }
 
 private extension RSSFeedParser {
+    static let regularExpressionCache = RegularExpressionCache()
+
     static func makeParsedRSSFeed(from feed: RSSFeed, sourceFeedURL: URL, subscriptionID: UUID?) -> ParsedRSSFeed {
         let feedTitle = feed.channel?.title ?? sourceFeedURL.absoluteString
         let artworkURL = channelArtworkURL(from: feed.channel)
@@ -70,9 +72,23 @@ private extension RSSFeedParser {
     }
 
     static func channelDescription(from channel: RSSFeedChannel?) -> String? {
-        [channel?.iTunes?.summary, channel?.description]
-            .compactMap { Self.normalizedDescription(from: $0) }
-            .first
+        firstNormalizedDescription(from: [channel?.iTunes?.summary, channel?.description])
+    }
+
+    static func firstNormalizedDescription(
+        from candidates: [String?],
+        preservingLineBreaks: Bool = false
+    ) -> String? {
+        for candidate in candidates {
+            if let description = normalizedDescription(
+                from: candidate,
+                preservingLineBreaks: preservingLineBreaks
+            ) {
+                return description
+            }
+        }
+
+        return nil
     }
 
     static func normalizedDescription(from text: String?, preservingLineBreaks: Bool = false) -> String? {
@@ -92,14 +108,16 @@ private extension RSSFeedParser {
 
     static func textWithoutMarkup(from text: String, preservingLineBreaks: Bool = false) -> String {
         var preparedText = text
-        if preservingLineBreaks {
+        if preservingLineBreaks, preparedText.contains("<") {
             preparedText = replaceRegex(#"(?i)<br\s*/?>"#, in: preparedText, with: "\n")
             preparedText = replaceRegex(#"(?i)</?(p|div|section|article|blockquote|h[1-6]|ul|ol)[^>]*>"#, in: preparedText, with: "\n\n")
             preparedText = replaceRegex(#"(?i)<li[^>]*>"#, in: preparedText, with: "\n- ")
             preparedText = replaceRegex(#"(?i)</li>"#, in: preparedText, with: "\n")
         }
 
-        let withoutTags = preparedText.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
+        let withoutTags = preparedText.contains("<")
+            ? replaceRegex(#"<[^>]+>"#, in: preparedText, with: " ")
+            : preparedText
         return decodeHTMLEntities(in: withoutTags)
     }
 
@@ -109,23 +127,37 @@ private extension RSSFeedParser {
 
         readable = replaceRegex(#"[ \t\f\v]+"#, in: readable, with: " ")
         readable = replaceRegex(#" *\n *"#, in: readable, with: "\n")
-        readable = stripMarkdownEmphasis(from: readable)
+        if readable.contains("*") || readable.contains("_") {
+            readable = stripMarkdownEmphasis(from: readable)
+        }
         readable = stripReadabilityBoilerplate(from: readable)
-        readable = replaceRegex(#"(?i)(^|[^\n])(Sponsors:) *"#, in: readable, with: "$1\n\n$2\n")
-        readable = replaceRegex(#"(^|[^\n])(SPONSORS?) *"#, in: readable, with: "$1\n\n$2\n")
-        readable = splitSponsorLabels(in: readable)
-        readable = replaceRegex(#"(^|[^\n])(---)"#, in: readable, with: "$1\n\n$2\n\n")
+        if readable.range(of: "sponsor", options: .caseInsensitive) != nil {
+            readable = replaceRegex(#"(?i)(^|[^\n])(Sponsors:) *"#, in: readable, with: "$1\n\n$2\n")
+            readable = replaceRegex(#"(^|[^\n])(SPONSORS?) *"#, in: readable, with: "$1\n\n$2\n")
+            readable = splitSponsorLabels(in: readable)
+        }
+        if readable.contains("---") {
+            readable = replaceRegex(#"(^|[^\n])(---)"#, in: readable, with: "$1\n\n$2\n\n")
+        }
+        if containsEpisodeSectionHeading(in: readable) {
+            readable = replaceRegex(
+                #"(?i)(^|[^\n])((?:LINKS|EPISODE LINKS|PODCAST INFO|SUPPORT & CONNECT|OUTLINE|CHAPTERS|RECOMMENDED PODCAST):)"#,
+                in: readable,
+                with: "$1\n\n$2\n"
+            )
+        }
+        if readable.range(of: "TIMESTAMPS:", options: .caseInsensitive) != nil {
+            readable = replaceRegex(#"(?i)(^|[^\n])(TIMESTAMPS:)"#, in: readable, with: "$1\n\n$2\n")
+        }
+        if readable.range(of: "http", options: .caseInsensitive) != nil {
+            readable = replaceRegex(#"(?<!\n) +(https?://)"#, in: readable, with: "\n$1")
+            readable = replaceRegex(#"([A-Za-z0-9\).])(https?://)"#, in: readable, with: "$1\n$2")
+        }
         readable = replaceRegex(
-            #"(?i)(^|[^\n])((?:LINKS|EPISODE LINKS|PODCAST INFO|SUPPORT & CONNECT|OUTLINE|CHAPTERS|RECOMMENDED PODCAST):)"#,
+            #"(^|[^\n])((?:\(\d{1,2}:\d{2}(?::\d{2})?\)|\d{1,2}:\d{2}(?::\d{2})? ?[–-]|\d{2}:\d{2}:\d{2}))"#,
             in: readable,
-            with: "$1\n\n$2\n"
+            with: "$1\n$2"
         )
-        readable = replaceRegex(#"(?i)(^|[^\n])(TIMESTAMPS:)"#, in: readable, with: "$1\n\n$2\n")
-        readable = replaceRegex(#"(?<!\n) +(https?://)"#, in: readable, with: "\n$1")
-        readable = replaceRegex(#"([A-Za-z0-9\).])(https?://)"#, in: readable, with: "$1\n$2")
-        readable = replaceRegex(#"(^|[^\n])(\(\d{1,2}:\d{2}(?::\d{2})?\))"#, in: readable, with: "$1\n$2")
-        readable = replaceRegex(#"(^|[^\n])(\d{1,2}:\d{2}(?::\d{2})? ?[–-])"#, in: readable, with: "$1\n$2")
-        readable = replaceRegex(#"(^|[^\n])(\d{2}:\d{2}:\d{2})"#, in: readable, with: "$1\n$2")
         readable = replaceRegex(#" *\n *"#, in: readable, with: "\n")
         readable = replaceRegex(#"\n{3,}"#, in: readable, with: "\n\n")
         readable = replaceRegex(#"(?i)((?:CHAPTERS|OUTLINE|TIMESTAMPS):)\n\n(\(?\d)"#, in: readable, with: "$1\n$2")
@@ -135,14 +167,23 @@ private extension RSSFeedParser {
 
     static func stripReadabilityBoilerplate(from text: String) -> String {
         var cleaned = trimTranscriptSections(in: text)
-        cleaned = replaceRegex(#"(?i)(^|\n)?Share this episode:\s*https?://\S+\s*"#, in: cleaned, with: "$1")
-        cleaned = replaceRegex(
-            #"(?i)\bPSA for AI builders:\s*Interested in alignment, governance, or AI safety\?\s*Learn more about the MATS [^.]+:\s*https?://\S+\.?\s*"#,
-            in: cleaned,
-            with: ""
-        )
+        if cleaned.range(of: "Share this episode:", options: .caseInsensitive) != nil {
+            cleaned = replaceRegex(#"(?i)(^|\n)?Share this episode:\s*https?://\S+\s*"#, in: cleaned, with: "$1")
+        }
+        if cleaned.range(of: "PSA for AI builders:", options: .caseInsensitive) != nil {
+            cleaned = replaceRegex(
+                #"(?i)\bPSA for AI builders:\s*Interested in alignment, governance, or AI safety\?\s*Learn more about the MATS [^.]+:\s*https?://\S+\.?\s*"#,
+                in: cleaned,
+                with: ""
+            )
+        }
         cleaned = trimTrailingSections(in: cleaned, markers: ["PRODUCED BY:", "SOCIAL LINKS:"])
         return cleaned
+    }
+
+    static func containsEpisodeSectionHeading(in text: String) -> Bool {
+        ["LINKS:", "EPISODE LINKS:", "PODCAST INFO:", "SUPPORT & CONNECT:", "OUTLINE:", "CHAPTERS:", "RECOMMENDED PODCAST:"]
+            .contains { text.range(of: $0, options: .caseInsensitive) != nil }
     }
 
     static func trimTranscriptSections(in text: String) -> String {
@@ -199,7 +240,7 @@ private extension RSSFeedParser {
     }
 
     static func replaceRegex(_ pattern: String, in text: String, with replacement: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        guard let regex = regularExpressionCache.expression(for: pattern) else {
             return text
         }
 
@@ -211,6 +252,10 @@ private extension RSSFeedParser {
     }
 
     static func decodeHTMLEntities(in text: String) -> String {
+        guard text.contains("&") else {
+            return text
+        }
+
         let namedEntities = [
             "&nbsp;": " ",
             "&amp;": "&",
@@ -310,9 +355,10 @@ private extension RSSFeedParser {
     }
 
     static func episodeDescription(from item: RSSFeedItem) -> String? {
-        [item.content?.encoded, item.iTunes?.summary, item.description]
-            .compactMap { Self.normalizedDescription(from: $0, preservingLineBreaks: true) }
-            .first
+        firstNormalizedDescription(
+            from: [item.content?.encoded, item.iTunes?.summary, item.description],
+            preservingLineBreaks: true
+        )
     }
 
     static func normalizedEnclosureURL(from enclosureURL: String?) -> String? {
@@ -336,7 +382,7 @@ private extension RSSFeedParser {
 
         let pattern = #"https://share\.transistor\.fm/e/[A-Za-z0-9]+(?:/[^\s"'<>]*)?"#
         guard
-            let regex = try? NSRegularExpression(pattern: pattern, options: []),
+            let regex = regularExpressionCache.expression(for: pattern),
             let match = regex.firstMatch(in: text, options: [], range: NSRange(text.startIndex..., in: text)),
             let range = Range(match.range, in: text)
         else {
@@ -346,5 +392,23 @@ private extension RSSFeedParser {
         return text[range]
             .replacingOccurrences(of: "&amp;", with: "&")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// `NSCache` synchronizes its own access, and cached regular expressions are immutable after creation.
+private final class RegularExpressionCache: @unchecked Sendable {
+    private let expressions = NSCache<NSString, NSRegularExpression>()
+
+    func expression(for pattern: String) -> NSRegularExpression? {
+        let cacheKey = pattern as NSString
+        if let cachedExpression = expressions.object(forKey: cacheKey) {
+            return cachedExpression
+        }
+
+        guard let expression = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+        expressions.setObject(expression, forKey: cacheKey)
+        return expression
     }
 }

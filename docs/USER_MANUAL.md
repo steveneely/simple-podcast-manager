@@ -6,7 +6,7 @@ Simple Podcast Manager downloads podcast episodes from RSS feeds and syncs them 
 
 Download the latest DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag the app to Applications.
 
-The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, allow it in System Settings > Privacy & Security.
+The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, follow Apple's guidance for [safely opening apps on your Mac](https://support.apple.com/en-us/102445) and allow it in System Settings > Privacy & Security.
 
 ## Prepare your MP3 player
 
@@ -24,7 +24,7 @@ The podcast and its latest episodes will appear in the app.
 
 Podcasts already in your library are marked `Added`. If a search fails, click `Try Again` or add the podcast using its RSS feed URL.
 
-After that first baseline, blue `new` text beside a podcast's episode count means its RSS feed has new episodes. The app starts without opening a podcast, so every podcast can display its new-episode count. Opening a podcast clears its count. A successful Sync also clears individual new episodes that were copied to the player or confirmed as already there.
+After that first baseline, blue `new` text beside a podcast's episode count means its RSS feed has new episodes. Selecting a podcast does not clear the indicator. It clears one episode at a time after that episode downloads successfully, or after a successful Sync copies it to the player or confirms that it is already there.
 
 By default, an orange `Inactive` label marks a podcast whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > Inactive Podcasts` to use three months, six months, one year, or turn this indicator off. Disabled podcasts, RSS feeds without trustworthy dates, and podcasts with a current refresh error are not marked inactive.
 
@@ -40,7 +40,7 @@ Use `File > Export Subscriptions…` to create an OPML file for another podcast 
 2. Click the download button beside each episode you want.
 3. Wait for the downloads to finish.
 
-If an episode is not already an MP3, the app needs `ffmpeg` to convert it. Choose an `ffmpeg` executable in Settings if prompted.
+If an episode is not already an MP3, the app needs [FFmpeg](https://www.ffmpeg.org/download.html) to convert it. Install FFmpeg, then choose its `ffmpeg` executable under `Settings > Advanced > ffmpeg Path`.
 
 If episode audio or artwork is available only over unencrypted HTTP, the app warns you first. You can allow that episode once or always allow HTTP podcast downloads in Settings.
 
@@ -115,4 +115,4 @@ Cleanup requires a publication date in a recognized Simple Podcast Manager filen
 
 ### A non-MP3 episode does not download
 
-Open Settings and choose an installed `ffmpeg` executable.
+Install [FFmpeg](https://www.ffmpeg.org/download.html), then choose its `ffmpeg` executable under `Settings > Advanced > ffmpeg Path`.

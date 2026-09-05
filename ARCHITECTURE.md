@@ -113,7 +113,7 @@ Expected runtime flow:
    - optionally eject after success
 9. Progress and result state are rendered in the UI.
 
-Podcast activity is separate from automatic downloads. Existing podcasts establish a no-badge baseline, only episodes ahead of a previously observed episode are normally considered new, explicitly opening a podcast marks its current episodes seen, and a fully successful sync acknowledges prepared episodes copied or already present. The sidebar appends blue new-episode text or an orange inactive label to each podcast's episode count; refresh errors take precedence. No podcast is implicitly opened at startup, after app-data restore, or when the selected podcast is removed. RSS feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
+Podcast activity is separate from automatic downloads. Existing podcasts establish a no-badge baseline, and only episodes ahead of a previously observed episode are normally considered new. Podcast selection does not change activity state. A successful manual or automatic download acknowledges that episode, and a fully successful sync acknowledges prepared episodes copied or already present. The sidebar appends blue new-episode text or an orange inactive label to each podcast's episode count; refresh errors take precedence. RSS feed URL changes establish a fresh baseline. Activity state is included in app-data backups.
 
 The plan shown to the user is the plan executed by the app.
 

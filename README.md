@@ -12,14 +12,14 @@ Plug in your player, click Sync, and you're done.
 
 Download the DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag `Simple Podcast Manager.app` to Applications.
 
-The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, allow it in System Settings > Privacy & Security.
+The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, follow Apple's guidance for [safely opening apps on your Mac](https://support.apple.com/en-us/102445) and allow it in System Settings > Privacy & Security.
 
 After the first install, enable automatic checks in Settings or use `Simple Podcast Manager > Check for Updates…` for an immediate check.
 
 ## What It Does
 
 - Find podcasts by title or creator, add them with RSS feed URLs, or import subscriptions from OPML.
-- Download episodes manually or automatically after feed refreshes, write player-friendly MP3 metadata with a genre that defaults to `Podcast` and can be customized or omitted, add podcast artwork, and convert non-MP3 audio with `ffmpeg` when needed.
+- Download episodes manually or automatically after feed refreshes, write player-friendly MP3 metadata with a genre that defaults to `Podcast` and can be customized or omitted, add podcast artwork, and convert non-MP3 audio with [FFmpeg](https://www.ffmpeg.org/download.html) when needed.
 - Review every copy and deletion before sync and confirm the complete plan will fit.
 - Optionally suggest app-managed episodes beyond a chosen per-podcast limit, with per-episode review before deletion.
 - Remember download and removal history.

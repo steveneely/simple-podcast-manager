@@ -16,7 +16,7 @@ Simple Podcast Manager makes only the connections needed to provide its features
 
 - When you search for a podcast, your search terms are sent directly to [Podcast Index](https://podcastindex.org). Podcast Index also receives ordinary connection information such as your IP address, the request time, and the app's name.
 - When podcasts are refreshed or episodes and artwork are downloaded, the app connects directly to the podcast publishers and hosting providers. Those services can receive ordinary connection information and see which files are requested.
-- When you check for updates, or enable automatic update checks, the app contacts Simple Podcast Manager's pages and releases hosted by GitHub. Anonymous system profiling is not enabled.
+- When you check for updates, or enable automatic update checks, the app contacts Simple Podcast Manager's pages and releases hosted by GitHub. See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) for details about GitHub's data practices. Anonymous system profiling is not enabled.
 
 These third-party services handle information under their own privacy policies. Simple Podcast Manager does not add tracking to these requests or receive reports about them.
 

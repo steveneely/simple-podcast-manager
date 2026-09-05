@@ -1,6 +1,4 @@
-# Simple Podcast Manager
-
-<img src="Packaging/AppIcon.png" alt="Simple Podcast Manager icon" width="96" align="right">
+# <img src="Packaging/AppIcon.png" alt="" width="40"> Simple Podcast Manager
 
 Simple Podcast Manager is a native macOS app that downloads podcast episodes from RSS feeds and syncs them to a standalone MP3 player.
 
@@ -16,7 +14,7 @@ After the first install, enable automatic update checks in Settings or use `Simp
 
 ## What It Does
 
-- Find podcasts by title or creator, add them with RSS feed URLs, or import subscriptions from OPML.
+- Find podcasts by title or creator, add them with RSS feed URLs, or import subscriptions from an OPML file—a standard format for transferring lists of podcast RSS feed URLs between apps.
 - Download episodes manually or automatically after feed refreshes, write player-friendly MP3 metadata with a genre that defaults to `Podcast` and can be customized or omitted, add podcast artwork, and convert non-MP3 audio with [FFmpeg](https://www.ffmpeg.org/download.html) when needed.
 - Review every copy and deletion before sync and confirm the complete plan will fit.
 - Optionally suggest app-managed episodes beyond a chosen per-podcast limit, with per-episode review before deletion.

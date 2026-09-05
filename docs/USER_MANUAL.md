@@ -30,7 +30,7 @@ By default, an orange `Inactive` label marks a podcast whose latest dated episod
 
 Select a podcast to reveal its Refresh, Edit, and Remove controls. Select it again to clear the selection.
 
-To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
+To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. OPML is a standard format for transferring lists of podcast RSS feed URLs between apps. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
 
 Use `File > Export Subscriptions…` to create an OPML file for another podcast app.
 

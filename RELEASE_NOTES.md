@@ -1,5 +1,4 @@
-# Simple Podcast Manager v1.19.1
+# Simple Podcast Manager v1.19.2
 
-- Makes buttons, menus, checkboxes, hover feedback, dialogs, and clickable controls consistent throughout the app.
-- Uses consistent podcast terminology across the interface and simplifies the Add Podcast dialog.
-- Improves labels, help text, and accessibility descriptions for compact controls.
+- Loads Podcasts with very large episode archives substantially faster.
+- Uses only the FFmpeg executable selected in Settings for non-MP3 conversion; FFmpeg must be installed separately.

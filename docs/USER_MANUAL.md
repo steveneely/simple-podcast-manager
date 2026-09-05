@@ -4,7 +4,7 @@ Simple Podcast Manager downloads podcast episodes from RSS feeds and syncs them 
 
 ## Install the app
 
-Download the latest DMG from the [Simple Podcast Manager website](https://steveneely.github.io/simple-podcast-manager/), open it, and drag the app to Applications.
+Download the latest DMG from [GitHub Releases](https://github.com/steveneely/simple-podcast-manager/releases/latest), open it, and drag the app to Applications.
 
 The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, follow Apple's guidance for [safely opening apps on your Mac](https://support.apple.com/en-us/102445) and allow it in System Settings > Privacy & Security.
 

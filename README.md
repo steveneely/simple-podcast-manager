@@ -8,9 +8,9 @@ Plug in your player, click Sync, and you're done.
 
 Download the latest DMG from [GitHub Releases](https://github.com/steveneely/simple-podcast-manager/releases/latest), open it, and drag `Simple Podcast Manager.app` to Applications.
 
-The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, follow Apple's guidance for [safely opening apps on your Mac](https://support.apple.com/en-us/102445) and allow it in System Settings > Privacy & Security.
+The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, allow it in System Settings > Privacy & Security.
 
-After the first install, enable automatic update checks in Settings or use `Simple Podcast Manager > Check for Updates…` to check immediately.
+After the first install, enable automatic updates in Settings or use `Simple Podcast Manager > Check for Updates…` to check immediately.
 
 ## What It Does
 

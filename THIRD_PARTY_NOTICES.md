@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Simple Podcast Manager includes third-party software. These components are licensed separately from Simple Podcast Manager.
+Simple Podcast Manager includes third-party software and can work with optional third-party tools. These components are licensed separately from Simple Podcast Manager.
 
 ## FeedKit
 
@@ -34,10 +34,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## FFmpeg
 
-Release builds may include an `ffmpeg` executable for audio conversion.
+Simple Podcast Manager does not include FFmpeg. It can invoke a user-installed `ffmpeg` executable to convert non-MP3 audio.
 
 - Project: https://ffmpeg.org/
 - License: FFmpeg is licensed under LGPL 2.1+ by default. Some builds can be GPL or non-redistributable depending on configuration.
-- Source/build information: release artifacts that bundle FFmpeg must include an `FFMPEG_SOURCE.txt` file in the app resources with the exact source or build recipe URL used for that bundled executable.
 
 Simple Podcast Manager runs FFmpeg as an external process and does not link FFmpeg libraries into the app.

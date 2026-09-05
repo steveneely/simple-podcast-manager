@@ -79,36 +79,6 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
-    func convertsNonMp3EpisodesWithBundledFfmpegWhenPathBlank() async throws {
-        let episode = Episode(
-            id: "ep-wav",
-            podcastTitle: "Example Podcast",
-            title: "Episode WAV",
-            enclosureURL: URL(string: "https://cdn.example.com/episode.wav")!,
-            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-        )
-        let bundledURL = URL(fileURLWithPath: "/Applications/Simple Podcast Manager.app/Contents/Resources/ffmpeg")
-        let commandRunner = CapturingCommandRunner(
-            result: CommandRunResult(terminationStatus: 0, standardOutput: "", standardError: "")
-        )
-        let service = MediaPreparationService(
-            downloadService: StubDownloadService(fileExtension: "wav"),
-            audioConversionService: FFmpegAudioConversionService(
-                commandRunner: commandRunner,
-                metadataTaggingService: CapturingMP3MetadataTaggingService(),
-                bundledExecutableURL: bundledURL
-            ),
-            workspaceProvider: StubWorkspaceProvider()
-        )
-
-        let result = try await service.prepareEpisodes([episode], settings: AppSettings())
-
-        #expect(result.preparedEpisodes.count == 1)
-        #expect(result.preparedEpisodes.first?.preparationAction == .convertedToMP3)
-        #expect(commandRunner.executableURLs == [bundledURL])
-    }
-
-    @Test
     func normalizesMp3MetadataAndIncludesArtworkWithoutFfmpeg() async throws {
         let artworkURL = URL(string: "https://cdn.example.com/artwork.png")!
         let episode = Episode(
@@ -131,8 +101,7 @@ struct MediaPreparationServiceTests {
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
-            metadataTaggingService: taggingService,
-            bundledExecutableURL: nil
+            metadataTaggingService: taggingService
         )
 
         let preparedEpisode = try await service.prepareAudio(
@@ -174,8 +143,7 @@ struct MediaPreparationServiceTests {
         try Data("audio".utf8).write(to: sourceFileURL)
         let taggingService = CapturingMP3MetadataTaggingService()
         let service = FFmpegAudioConversionService(
-            metadataTaggingService: taggingService,
-            bundledExecutableURL: nil
+            metadataTaggingService: taggingService
         )
 
         let preparedEpisode = try await service.prepareAudio(
@@ -209,8 +177,7 @@ struct MediaPreparationServiceTests {
         try Data("audio".utf8).write(to: sourceFileURL)
         let taggingService = CapturingMP3MetadataTaggingService()
         let service = FFmpegAudioConversionService(
-            metadataTaggingService: taggingService,
-            bundledExecutableURL: nil
+            metadataTaggingService: taggingService
         )
 
         _ = try await service.prepareAudio(
@@ -238,8 +205,7 @@ struct MediaPreparationServiceTests {
         try Data("audio".utf8).write(to: sourceFileURL)
         let taggingService = CapturingMP3MetadataTaggingService()
         let service = FFmpegAudioConversionService(
-            metadataTaggingService: taggingService,
-            bundledExecutableURL: nil
+            metadataTaggingService: taggingService
         )
 
         _ = try await service.prepareAudio(
@@ -273,8 +239,7 @@ struct MediaPreparationServiceTests {
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
-            metadataTaggingService: FailingMP3MetadataTaggingService(),
-            bundledExecutableURL: nil
+            metadataTaggingService: FailingMP3MetadataTaggingService()
         )
 
         do {
@@ -314,8 +279,7 @@ struct MediaPreparationServiceTests {
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: FailingArtworkPreparationService(),
-            metadataTaggingService: taggingService,
-            bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
+            metadataTaggingService: taggingService
         )
 
         let preparedEpisode = try await service.prepareAudio(
@@ -351,8 +315,7 @@ struct MediaPreparationServiceTests {
             artworkPreparationService: PermissionSensitiveArtworkPreparationService(
                 artworkFileURL: artworkFileURL
             ),
-            metadataTaggingService: CapturingMP3MetadataTaggingService(),
-            bundledExecutableURL: nil
+            metadataTaggingService: CapturingMP3MetadataTaggingService()
         )
 
         await #expect(throws: HTTPDataResourceLoadingError.insecureDownloadRequiresPermission) {
@@ -396,19 +359,19 @@ struct MediaPreparationServiceTests {
         let service = FFmpegAudioConversionService(
             commandRunner: commandRunner,
             artworkPreparationService: StubArtworkPreparationService(artworkFileURL: artworkFileURL),
-            metadataTaggingService: taggingService,
-            bundledExecutableURL: URL(fileURLWithPath: "/bin/ffmpeg")
+            metadataTaggingService: taggingService
         )
 
         let preparedEpisode = try await service.prepareAudio(
             for: episode,
             sourceFileURL: sourceFileURL,
             in: workspaceURL,
-            settings: AppSettings()
+            settings: AppSettings(ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg")
         )
 
         #expect(preparedEpisode.preparationAction == .convertedToMP3)
         #expect(preparedEpisode.preparationWarnings == nil)
+        #expect(commandRunner.executableURLs == [URL(fileURLWithPath: "/opt/homebrew/bin/ffmpeg")])
         #expect(commandRunner.arguments.count == 1)
         #expect(commandRunner.arguments.first == [
             "-y",

@@ -24,7 +24,6 @@ sparkle_framework="${repo_root}/.build/artifacts/sparkle/Sparkle/Sparkle.xcframe
 sparkle_generate_appcast="${repo_root}/.build/artifacts/sparkle/Sparkle/bin/generate_appcast"
 sparkle_changelog_generator="${repo_root}/scripts/generate-sparkle-changelog.py"
 updates_dir="${dist_dir}/updates"
-require_bundled_ffmpeg="${REQUIRE_BUNDLED_FFMPEG:-0}"
 
 rm -rf "$build_dir" "$dmg_path"
 mkdir -p "$macos_dir" "$resources_dir" "$frameworks_dir" "$dmg_root" "$dist_dir" "$background_dir" "$updates_dir"
@@ -50,34 +49,6 @@ fi
 
 if [[ -f "${repo_root}/Packaging/AppIcon.icns" ]]; then
   cp "${repo_root}/Packaging/AppIcon.icns" "${resources_dir}/AppIcon.icns"
-fi
-
-if [[ -z "${FFMPEG_PATH:-}" && "$require_bundled_ffmpeg" == "1" ]]; then
-  echo "Release builds must include ffmpeg." >&2
-  echo "Set FFMPEG_PATH and FFMPEG_SOURCE_URL to bundle a suitable native ffmpeg binary." >&2
-  exit 1
-fi
-
-if [[ -n "${FFMPEG_PATH:-}" ]]; then
-  if [[ ! -x "$FFMPEG_PATH" ]]; then
-    echo "FFMPEG_PATH must point to an executable ffmpeg binary: $FFMPEG_PATH" >&2
-    exit 1
-  fi
-
-  if [[ -z "${FFMPEG_SOURCE_URL:-}" ]]; then
-    echo "Set FFMPEG_SOURCE_URL to the exact source or build recipe URL for the bundled ffmpeg binary." >&2
-    exit 1
-  fi
-
-  cp "$FFMPEG_PATH" "${resources_dir}/ffmpeg"
-  chmod 755 "${resources_dir}/ffmpeg"
-  printf '%s\n' "$FFMPEG_SOURCE_URL" > "${resources_dir}/FFMPEG_SOURCE.txt"
-
-  if [[ -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then
-    codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID_APPLICATION" "${resources_dir}/ffmpeg"
-  else
-    codesign --force --sign - "${resources_dir}/ffmpeg"
-  fi
 fi
 
 if [[ -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then

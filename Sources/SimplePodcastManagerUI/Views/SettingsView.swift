@@ -206,8 +206,8 @@ public struct SettingsView: View {
 
                     SettingsSection(title: "Advanced") {
                         LabeledField(
-                            title: "ffmpeg Path",
-                            detail: "Optional. Needed only to convert non-MP3 podcast audio.",
+                            title: "FFmpeg Path",
+                            detail: "FFmpeg is not included with the app. Install it and select its executable to convert non-MP3 podcast audio.",
                             emphasizesTitle: true
                         ) {
                             chooserRow(
@@ -438,7 +438,7 @@ public struct SettingsView: View {
 
     private func chooseFFmpegExecutable() {
         let panel = NSOpenPanel()
-        panel.title = "Choose ffmpeg"
+        panel.title = "Choose FFmpeg"
         panel.prompt = "Choose"
         panel.message = "Select the ffmpeg executable."
         panel.canChooseFiles = true

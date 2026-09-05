@@ -270,7 +270,7 @@ All synced output on the device should be MP3.
 
 RSS metadata is authoritative. Podcast enclosure files may contain missing, stale, or placeholder ID3 tags because podcast apps normally display metadata from the RSS feed. Offline MP3 players cannot access that feed, so Simple Podcast Manager writes the RSS episode title and podcast title into a deterministic ID3v2.3 tag before syncing.
 
-Release builds may bundle `ffmpeg` at `Simple Podcast Manager.app/Contents/Resources/ffmpeg`. If the user sets a custom path in Settings, that path takes precedence. The app should surface missing `ffmpeg`, conversion, and metadata-writing failures clearly. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching or image conversion fails.
+Simple Podcast Manager does not bundle `ffmpeg`. Users who need non-MP3 conversion must install FFmpeg separately and select its executable in Settings. The app should surface missing `ffmpeg`, conversion, and metadata-writing failures clearly. Artwork preparation is best effort: audio preparation should continue without cover art if artwork fetching or image conversion fails.
 
 ## Update System
 

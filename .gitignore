@@ -7,7 +7,6 @@ DerivedData/
 .vscode/
 dist/
 Packaging/AppIcon.iconset/
-Packaging/ffmpeg/
 SpodcastManaagerURLCache/
 s-podcast-manager-url-cache/
 simple-podcast-manager-url-cache/

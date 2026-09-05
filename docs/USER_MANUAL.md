@@ -40,7 +40,7 @@ Use `File > Export Subscriptions…` to create an OPML file for another podcast 
 2. Click the download button beside each episode you want.
 3. Wait for the downloads to finish.
 
-If an episode is not already an MP3, the app needs [FFmpeg](https://www.ffmpeg.org/download.html) to convert it. Install FFmpeg, then choose its `ffmpeg` executable under `Settings > Advanced > ffmpeg Path`.
+The app does not include FFmpeg. If an episode is not already an MP3, install [FFmpeg](https://www.ffmpeg.org/download.html), then choose its `ffmpeg` executable under `Settings > Advanced > FFmpeg Path` so the app can convert it.
 
 If episode audio or artwork is available only over unencrypted HTTP, the app warns you first. You can allow that episode once or always allow HTTP podcast downloads in Settings.
 
@@ -115,4 +115,4 @@ Cleanup requires a publication date in a recognized Simple Podcast Manager filen
 
 ### A non-MP3 episode does not download
 
-Install [FFmpeg](https://www.ffmpeg.org/download.html), then choose its `ffmpeg` executable under `Settings > Advanced > ffmpeg Path`.
+Install [FFmpeg](https://www.ffmpeg.org/download.html), then choose its `ffmpeg` executable under `Settings > Advanced > FFmpeg Path`.

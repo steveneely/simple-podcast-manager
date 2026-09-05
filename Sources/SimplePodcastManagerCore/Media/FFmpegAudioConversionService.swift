@@ -4,18 +4,15 @@ public struct FFmpegAudioConversionService: AudioConversionService {
     private let commandRunner: any CommandRunning
     private let artworkPreparationService: any ArtworkPreparationService
     private let metadataTaggingService: any MP3MetadataTaggingService
-    private let bundledExecutableURL: URL?
 
     public init(
         commandRunner: any CommandRunning = ProcessCommandRunner(),
         artworkPreparationService: any ArtworkPreparationService = PodcastArtworkPreparationService(),
-        metadataTaggingService: any MP3MetadataTaggingService = ID3MP3MetadataTaggingService(),
-        bundledExecutableURL: URL? = Bundle.main.url(forResource: "ffmpeg", withExtension: nil)
+        metadataTaggingService: any MP3MetadataTaggingService = ID3MP3MetadataTaggingService()
     ) {
         self.commandRunner = commandRunner
         self.artworkPreparationService = artworkPreparationService
         self.metadataTaggingService = metadataTaggingService
-        self.bundledExecutableURL = bundledExecutableURL
     }
 
     public func prepareAudio(
@@ -103,11 +100,9 @@ public struct FFmpegAudioConversionService: AudioConversionService {
     }
 
     private func ffmpegExecutableURL(from settings: AppSettings) -> URL? {
-        if let configuredPath = settings.ffmpegExecutablePath?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !configuredPath.isEmpty {
-            return URL(fileURLWithPath: configuredPath, isDirectory: false)
-        }
-        return bundledExecutableURL
+        guard let configuredPath = settings.ffmpegExecutablePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !configuredPath.isEmpty else { return nil }
+        return URL(fileURLWithPath: configuredPath, isDirectory: false)
     }
 
     private func preparedArtwork(

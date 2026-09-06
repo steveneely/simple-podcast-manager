@@ -23,6 +23,8 @@ struct PodcastRefreshSummaryTests {
 
         #expect(summary.text == "120 checked · 3 episodes found · 1 still new · 2 downloaded")
         #expect(summary.parts.map(\.tone) == [.neutral, .discovery, .newEpisodes, .downloaded])
+        #expect(summary.counters.map(\.label) == ["new", "downloaded"])
+        #expect(summary.collapsedText == "1 new · 2 downloaded")
         #expect(summary.downloadedEpisodes.map(\.episodeTitle) == ["First", "Second"])
         #expect(summary.remainingNewEpisodes.map(\.episodeTitle) == ["Third"])
         #expect(summary.hasDetails)
@@ -87,6 +89,7 @@ struct PodcastRefreshSummaryTests {
         )
 
         #expect(summary.text == "120 checked · No episodes found")
+        #expect(summary.collapsedText == "Up to date")
         #expect(!summary.hasDetails)
     }
 
@@ -108,6 +111,7 @@ struct PodcastRefreshSummaryTests {
 
         #expect(summary.text == "Example Podcast · 1 episode found · 1 still new · 1 needs attention")
         #expect(summary.parts.map(\.tone) == [.neutral, .discovery, .newEpisodes, .warning])
+        #expect(summary.collapsedText == "1 new · 1 issue")
     }
 
     @Test
@@ -130,6 +134,8 @@ struct PodcastRefreshSummaryTests {
         let scope = PodcastRefreshDisplayScope.allPodcasts
         #expect(scope.progressText(PodcastRefreshProgress(completedCount: 34, totalCount: 120)) ==
             "Checking podcasts… 34 of 120")
+        #expect(scope.compactProgressText(PodcastRefreshProgress(completedCount: 34, totalCount: 120)) ==
+            "Checking 34 / 120")
     }
 
     private func download(_ title: String, podcast: String) -> PodcastRefreshEpisodeDetail {

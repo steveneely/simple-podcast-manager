@@ -160,6 +160,18 @@ enum PodcastRefreshDisplayScope: Equatable {
             "Checking \(title)…"
         }
     }
+
+    func compactProgressText(_ progress: PodcastRefreshProgress?) -> String {
+        switch self {
+        case .allPodcasts:
+            if let progress, progress.totalCount > 0 {
+                return "Checking \(progress.completedCount) / \(progress.totalCount)"
+            }
+            return "Checking podcasts…"
+        case .podcast:
+            return "Checking podcast…"
+        }
+    }
 }
 
 struct PodcastRefreshProgress: Equatable {
@@ -185,6 +197,45 @@ struct PodcastRefreshSummary: Equatable {
 
     var hasDetails: Bool {
         !downloadedEpisodes.isEmpty || !remainingNewEpisodes.isEmpty || !issues.isEmpty
+    }
+
+    var counters: [PodcastRefreshSummaryCounter] {
+        var counters: [PodcastRefreshSummaryCounter] = []
+        if !remainingNewEpisodes.isEmpty {
+            counters.append(PodcastRefreshSummaryCounter(
+                count: remainingNewEpisodes.count,
+                label: "new",
+                systemImage: "circle.fill",
+                tone: .newEpisodes,
+                accessibilityText: "\(remainingNewEpisodes.count) still new"
+            ))
+        }
+        if downloadedEpisodeCount > 0 {
+            counters.append(PodcastRefreshSummaryCounter(
+                count: downloadedEpisodeCount,
+                label: "downloaded",
+                systemImage: "arrow.down.circle.fill",
+                tone: .downloaded,
+                accessibilityText: "\(downloadedEpisodeCount) downloaded"
+            ))
+        }
+        if !issues.isEmpty {
+            counters.append(PodcastRefreshSummaryCounter(
+                count: issues.count,
+                label: issues.count == 1 ? "issue" : "issues",
+                systemImage: "exclamationmark.triangle.fill",
+                tone: .warning,
+                accessibilityText: issues.count == 1
+                    ? "1 needs attention"
+                    : "\(issues.count) need attention"
+            ))
+        }
+        return counters
+    }
+
+    var collapsedText: String {
+        guard !counters.isEmpty else { return "Up to date" }
+        return counters.map { "\($0.count) \($0.label)" }.joined(separator: " · ")
     }
 
     var parts: [PodcastRefreshSummaryPart] {
@@ -233,8 +284,17 @@ struct PodcastRefreshSummary: Equatable {
     }
 }
 
+struct PodcastRefreshSummaryCounter: Equatable, Identifiable {
+    var id: PodcastRefreshSummaryPart.Tone { tone }
+    let count: Int
+    let label: String
+    let systemImage: String
+    let tone: PodcastRefreshSummaryPart.Tone
+    let accessibilityText: String
+}
+
 struct PodcastRefreshSummaryPart: Equatable {
-    enum Tone: Equatable {
+    enum Tone: Hashable {
         case neutral
         case discovery
         case newEpisodes
@@ -499,40 +559,51 @@ struct PodcastSidebarView: View {
             switch refreshStatus {
             case let .refreshing(scope):
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(scope.progressText(refreshProgress))
-                        .lineLimit(1)
+                    ViewThatFits(in: .horizontal) {
+                        Text(scope.progressText(refreshProgress))
+                            .fixedSize(horizontal: true, vertical: false)
+                        Text(scope.compactProgressText(refreshProgress))
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                    .help(scope.progressText(refreshProgress))
                     ProgressView()
                         .progressViewStyle(.linear)
                         .controlSize(.small)
                 }
             case let .checked(scope, checkedPodcastCount, discoveredEpisodeCount):
-                refreshSummaryText(PodcastRefreshSummary(
-                    scope: scope,
-                    checkedPodcastCount: checkedPodcastCount,
-                    discoveredEpisodeCount: discoveredEpisodeCount,
-                    downloadedEpisodes: [],
-                    remainingNewEpisodes: [],
-                    issues: []
-                ))
-                .lineLimit(1)
+                Label("\(checkedPodcastCount) checked", systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+                    .help(PodcastRefreshSummary(
+                        scope: scope,
+                        checkedPodcastCount: checkedPodcastCount,
+                        discoveredEpisodeCount: discoveredEpisodeCount,
+                        downloadedEpisodes: [],
+                        remainingNewEpisodes: [],
+                        issues: []
+                    ).text)
             case let .completed(summary):
                 if !summary.hasDetails {
-                    refreshSummaryText(summary)
-                        .lineLimit(1)
+                    Label("Up to date", systemImage: "checkmark.circle")
+                        .foregroundStyle(.secondary)
                         .help(summary.text)
                 } else {
                     Button {
                         isShowingDownloadedEpisodes.toggle()
                     } label: {
                         HStack(spacing: 4) {
-                            refreshSummaryText(summary)
-                                .lineLimit(1)
+                            ViewThatFits(in: .horizontal) {
+                                refreshSummaryCounters(summary.counters, includesLabels: true)
+                                refreshSummaryCounters(summary.counters, includesLabels: false)
+                            }
                             Image(systemName: "chevron.down")
                                 .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Show refresh details")
+                    .help("\(summary.text). Show refresh details.")
+                    .accessibilityLabel(summary.text)
+                    .accessibilityHint("Show refresh details")
                     .popover(isPresented: $isShowingDownloadedEpisodes, arrowEdge: .bottom) {
                         refreshDetailsPopover(summary)
                     }
@@ -554,6 +625,20 @@ struct PodcastSidebarView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
+                    if summary.checkedPodcastCount != nil || summary.discoveredEpisodeCount != nil {
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let checkedPodcastCount = summary.checkedPodcastCount {
+                                Text("\(checkedPodcastCount) podcasts checked")
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let discoveredEpisodeCount = summary.discoveredEpisodeCount {
+                                Text(discoveredEpisodeCount == 1
+                                    ? "1 episode found"
+                                    : "\(discoveredEpisodeCount) episodes found")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                     if !summary.downloadedEpisodes.isEmpty {
                         refreshEpisodeSection(
                             "Downloaded",
@@ -621,26 +706,39 @@ struct PodcastSidebarView: View {
         }
     }
 
-    private func refreshSummaryText(_ summary: PodcastRefreshSummary) -> Text {
-        summary.parts.enumerated().reduce(Text("")) { result, indexedPart in
-            let (index, part) = indexedPart
-            let separator = index == 0 ? Text("") : Text(" · ").foregroundStyle(.secondary)
-            return result + separator + styledSummaryText(part)
+    private func refreshSummaryCounters(
+        _ counters: [PodcastRefreshSummaryCounter],
+        includesLabels: Bool
+    ) -> some View {
+        HStack(spacing: includesLabels ? 12 : 10) {
+            ForEach(counters) { counter in
+                HStack(spacing: 4) {
+                    Image(systemName: counter.systemImage)
+                    Text(includesLabels ? "\(counter.count) \(counter.label)" : "\(counter.count)")
+                        .monospacedDigit()
+                }
+                .foregroundStyle(summaryColor(for: counter.tone))
+                .fixedSize(horizontal: true, vertical: false)
+                .help(counter.accessibilityText)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(counter.accessibilityText)
+            }
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
-    private func styledSummaryText(_ part: PodcastRefreshSummaryPart) -> Text {
-        switch part.tone {
+    private func summaryColor(for tone: PodcastRefreshSummaryPart.Tone) -> Color {
+        switch tone {
         case .neutral:
-            Text(part.text).foregroundStyle(.secondary)
+            .secondary
         case .discovery:
-            Text(part.text).foregroundStyle(.primary)
+            .primary
         case .newEpisodes:
-            Text(part.text).foregroundStyle(Color.accentColor).bold()
+            .accentColor
         case .downloaded:
-            Text(part.text).foregroundStyle(.green)
+            .green
         case .warning:
-            Text(part.text).foregroundStyle(.orange).bold()
+            .orange
         }
     }
 

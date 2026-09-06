@@ -1,4 +1,5 @@
-# Simple Podcast Manager v1.19.2
+# Simple Podcast Manager v1.19.3
 
-- Loads Podcasts with very large episode archives substantially faster.
-- Uses only the FFmpeg executable selected in Settings for non-MP3 conversion; FFmpeg must be installed separately.
+- Adds a persistent, expandable podcast refresh summary with clear counts for episodes found, still new, downloaded, and needing attention.
+- Keeps active download progress beside Device while the lower-left footer reports library refresh progress and its final result.
+- Prevents automatic downloads from briefly flashing new badges and keeps badges and the summary synchronized after successful downloads.

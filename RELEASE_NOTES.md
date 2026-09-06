@@ -1,5 +1,5 @@
-# Simple Podcast Manager v1.19.1
+# Simple Podcast Manager v1.19.2
 
-- Makes buttons, menus, checkboxes, hover feedback, dialogs, and clickable controls consistent throughout the app.
-- Uses consistent podcast terminology across the interface and simplifies the Add Podcast dialog.
-- Improves labels, help text, and accessibility descriptions for compact controls.
+- Adds a persistent, expandable podcast refresh summary with clear counts for episodes found, still new, downloaded, and needing attention.
+- Keeps active download progress beside Device while the lower-left footer reports library refresh progress and its final result.
+- Prevents automatic downloads from briefly flashing new badges and keeps badges and the summary synchronized after successful downloads.

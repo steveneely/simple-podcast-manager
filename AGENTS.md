@@ -42,6 +42,8 @@ When changing UI:
 - add or update focused UI-facing tests for presentation and state behavior
 - inspect the running app when appearance or control semantics changed; use a packaged `.app` when bundle behavior matters
 
+Keep refresh and download feedback responsibilities distinct: the lower-left podcast footer shows library refresh progress and retains the expandable refresh outcome, while the status beside the Device section shows only active media preparation and downloads. In refresh summaries, use blue for still-new state, green for successful downloads, orange for warnings, and neutral text for checked and discovered counts. Avoid duplicating live download progress between the two locations, and do not rely on transient podcast-row badge changes to communicate large-library activity.
+
 Persisted identifiers are a compatibility boundary. Do not rename JSON keys, backup filenames, notification identifiers used externally, database migrations, or SQLite tables merely to match current terminology. Keep the legacy identifier behind a clearly named Swift API and document why it remains, or add and test an explicit migration.
 
 ## Critical Safety Rules

@@ -10,6 +10,7 @@ public final class PodcastPreviewViewModel {
     public private(set) var feedSummaries: [UUID: FeedSummary]
     public private(set) var isLoading: Bool
     public private(set) var lastErrorMessage: String?
+    private(set) var refreshProgress: PodcastRefreshProgress?
 
     private let service: any FeedService
     private let cacheStore: any FeedCacheStore
@@ -27,6 +28,7 @@ public final class PodcastPreviewViewModel {
         self.feedSummaries = [:]
         self.isLoading = false
         self.lastErrorMessage = nil
+        self.refreshProgress = nil
         self.episodesBySubscriptionID = [:]
         self.failuresBySubscriptionID = [:]
     }
@@ -50,11 +52,23 @@ public final class PodcastPreviewViewModel {
 
     public func refreshPreview(for subscriptions: [PodcastSubscription]) async {
         await loadCachedPreview(for: subscriptions)
+        let enabledCount = subscriptions.count(where: \.isEnabled)
+        refreshProgress = PodcastRefreshProgress(completedCount: 0, totalCount: enabledCount)
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            refreshProgress = nil
+        }
 
         do {
-            let result = try await service.fetchLatestEpisodes(for: subscriptions)
+            let result = try await service.fetchLatestEpisodes(for: subscriptions) { [weak self] completedCount, totalCount in
+                await MainActor.run {
+                    self?.refreshProgress = PodcastRefreshProgress(
+                        completedCount: completedCount,
+                        totalCount: totalCount
+                    )
+                }
+            }
             self.allEpisodes = result.allEpisodes
             self.failures = result.failures
             self.feedSummaries = Dictionary(uniqueKeysWithValues: result.feedSummaries.map { ($0.subscriptionID, $0) })
@@ -75,11 +89,23 @@ public final class PodcastPreviewViewModel {
 
     public func refreshPreview(forNewSubscriptions subscriptions: [PodcastSubscription]) async {
         guard !subscriptions.isEmpty else { return }
+        let enabledCount = subscriptions.count(where: \.isEnabled)
+        refreshProgress = PodcastRefreshProgress(completedCount: 0, totalCount: enabledCount)
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            refreshProgress = nil
+        }
 
         do {
-            let result = try await service.fetchLatestEpisodes(for: subscriptions)
+            let result = try await service.fetchLatestEpisodes(for: subscriptions) { [weak self] completedCount, totalCount in
+                await MainActor.run {
+                    self?.refreshProgress = PodcastRefreshProgress(
+                        completedCount: completedCount,
+                        totalCount: totalCount
+                    )
+                }
+            }
             replacePreviewData(for: Set(subscriptions.map(\.id)), with: result)
             self.lastErrorMessage = nil
         } catch {

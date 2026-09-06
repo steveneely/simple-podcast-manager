@@ -36,7 +36,7 @@ public struct MainView: View {
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedPodcastID = PodcastSelectionPolicy.initialSelection
     @State private var podcastRefreshStatus: PodcastRefreshStatus?
-    @State private var downloadedEpisodesForCurrentSummary: [PodcastRefreshDownloadedEpisode] = []
+    @State private var downloadedEpisodesForCurrentSummary: [PodcastRefreshEpisodeDetail] = []
     @State private var activeAutomaticDownloadOperations = 0
     @State private var podcastEditorPresentation: PodcastEditorPresentation?
     @State private var pendingPodcastDeletionConfirmation: PodcastDeletionConfirmation?
@@ -295,7 +295,7 @@ public struct MainView: View {
         let count = preparationPreviewViewModel.preparingEpisodeCount
         return DownloadStatusPresentation.text(
             count: count,
-            isAutomatic: podcastRefreshStatus?.isRefreshing == true
+            isAutomatic: podcastRefreshStatus?.isActive == true
                 || activeAutomaticDownloadOperations > 0
         )
     }
@@ -355,11 +355,15 @@ public struct MainView: View {
                     viewModel.replaceSettings(updatedSettings)
                 }
             ),
-            isRefreshing: podcastRefreshStatus?.isRefreshing == true,
+            isRefreshing: podcastRefreshStatus?.isActive == true,
             refreshStatus: podcastRefreshStatus,
+            refreshProgress: podcastPreviewViewModel.refreshProgress,
             episodeCount: { allEpisodes(for: $0).count },
             newEpisodeCount: { subscription in
-                subscription.isEnabled ? podcastActivityViewModel.newEpisodeCount(for: subscription.id) : 0
+                guard podcastRefreshStatus?.isActive != true else { return 0 }
+                return subscription.isEnabled
+                    ? podcastActivityViewModel.newEpisodeCount(for: subscription.id)
+                    : 0
             },
             isInactive: { subscription in
                 subscription.isEnabled
@@ -928,20 +932,21 @@ public struct MainView: View {
 
     private func showDownloadSummary(_ downloadedEpisodes: [Episode]) {
         guard !downloadedEpisodes.isEmpty else { return }
-        let newDownloads = downloadedEpisodes.map(PodcastRefreshDownloadedEpisode.init)
-        downloadedEpisodesForCurrentSummary = PodcastRefreshDownloadedEpisode.merging(
+        let newDownloads = downloadedEpisodes.map(PodcastRefreshEpisodeDetail.init)
+        downloadedEpisodesForCurrentSummary = PodcastRefreshEpisodeDetail.merging(
             downloadedEpisodesForCurrentSummary,
             with: newDownloads
         )
 
         switch podcastRefreshStatus {
-        case .refreshing:
+        case .refreshing, .checked:
             return
         case .completed(var summary):
             summary.scope = combinedDownloadSummaryScope(
                 existingScope: summary.scope,
                 downloadedEpisodes: downloadedEpisodesForCurrentSummary
             )
+            summary.recordDownloadedEpisodes(newDownloads)
             summary.downloadedEpisodes = downloadedEpisodesForCurrentSummary
             podcastRefreshStatus = .completed(summary)
         case nil:
@@ -950,16 +955,18 @@ public struct MainView: View {
                     existingScope: nil,
                     downloadedEpisodes: downloadedEpisodesForCurrentSummary
                 ),
+                checkedPodcastCount: nil,
                 discoveredEpisodeCount: nil,
                 downloadedEpisodes: downloadedEpisodesForCurrentSummary,
-                failedSubscriptionCount: 0
+                remainingNewEpisodes: [],
+                issues: []
             ))
         }
     }
 
     private func combinedDownloadSummaryScope(
         existingScope: PodcastRefreshDisplayScope?,
-        downloadedEpisodes: [PodcastRefreshDownloadedEpisode]
+        downloadedEpisodes: [PodcastRefreshEpisodeDetail]
     ) -> PodcastRefreshDisplayScope {
         if existingScope == .allPodcasts { return .allPodcasts }
 
@@ -1039,21 +1046,66 @@ public struct MainView: View {
         let displayScope = podcastRefreshDisplayScope(for: scope)
         downloadedEpisodesForCurrentSummary = []
         podcastRefreshStatus = .refreshing(displayScope)
-        let outcome = await podcastRefreshCoordinator.refresh(scope)
-        downloadedEpisodesForCurrentSummary = PodcastRefreshDownloadedEpisode.merging(
+        let outcome = await podcastRefreshCoordinator.refresh(scope) { checkedPodcastCount, discoveredEpisodeCount in
+            podcastRefreshStatus = .checked(
+                displayScope,
+                checkedPodcastCount: checkedPodcastCount,
+                discoveredEpisodeCount: discoveredEpisodeCount
+            )
+        }
+        downloadedEpisodesForCurrentSummary = PodcastRefreshEpisodeDetail.merging(
             downloadedEpisodesForCurrentSummary,
-            with: outcome.downloadedEpisodes.map(PodcastRefreshDownloadedEpisode.init)
+            with: outcome.downloadedEpisodes.map(PodcastRefreshEpisodeDetail.init)
         )
-        podcastRefreshStatus = .completed(PodcastRefreshSummary(
-            scope: displayScope,
-            discoveredEpisodeCount: outcome.discoveredEpisodeCount,
-            downloadedEpisodes: downloadedEpisodesForCurrentSummary,
-            failedSubscriptionCount: outcome.failedSubscriptionCount
+        podcastRefreshStatus = .completed(refreshSummary(
+            for: scope,
+            displayScope: displayScope,
+            outcome: outcome
         ))
         enqueueInsecureDownloadPermissions(for: outcome.episodesRequiringInsecureDownloadPermission)
         if outcome.attemptedAutomaticDownloads {
             rebuildSyncPlan()
         }
+    }
+
+    private func refreshSummary(
+        for scope: PodcastRefreshScope,
+        displayScope: PodcastRefreshDisplayScope,
+        outcome: PodcastRefreshOutcome
+    ) -> PodcastRefreshSummary {
+        let scopedPodcastIDs = Set(scope.podcasts.map(\.id))
+        let remainingNewEpisodes = podcastPreviewViewModel.allEpisodes.filter { episode in
+            guard let podcastID = episode.subscriptionID,
+                  scopedPodcastIDs.contains(podcastID) else { return false }
+            return podcastActivityViewModel.newEpisodeIDs(for: podcastID).contains(episode.id)
+        }
+
+        let refreshIssues = outcome.refreshFailures.enumerated().map { index, failure in
+            PodcastRefreshIssue(
+                id: "refresh|\(failure.subscriptionID.uuidString)|\(index)",
+                title: "Podcast refresh failed",
+                podcastTitle: failure.subscriptionTitle,
+                message: failure.message
+            )
+        }
+        let automaticDownloadIssues = outcome.automaticDownloadFailures.map { episode in
+            PodcastRefreshIssue(
+                id: "download|\(episode.subscriptionID?.uuidString ?? episode.sourceFeedURL.absoluteString)|\(episode.id)",
+                title: episode.title,
+                podcastTitle: episode.podcastTitle,
+                message: preparationPreviewViewModel.failure(for: episode)?.message
+                    ?? "The automatic download did not finish."
+            )
+        }
+
+        return PodcastRefreshSummary(
+            scope: displayScope,
+            checkedPodcastCount: outcome.checkedPodcastCount,
+            discoveredEpisodeCount: outcome.discoveredEpisodeCount,
+            downloadedEpisodes: downloadedEpisodesForCurrentSummary,
+            remainingNewEpisodes: remainingNewEpisodes.map(PodcastRefreshEpisodeDetail.init),
+            issues: refreshIssues + automaticDownloadIssues
+        )
     }
 
     private func podcastRefreshDisplayScope(for scope: PodcastRefreshScope) -> PodcastRefreshDisplayScope {

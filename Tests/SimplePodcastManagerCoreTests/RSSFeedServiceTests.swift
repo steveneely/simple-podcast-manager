@@ -504,10 +504,25 @@ struct RSSFeedServiceTests {
             cacheStore: InMemoryFeedCacheStore(),
             maximumConcurrentRefreshes: 2
         )
-        let result = try await service.fetchLatestEpisodes(for: subscriptions)
+        let progress = FeedProgressRecorder()
+        let result = try await service.fetchLatestEpisodes(for: subscriptions) { completedCount, totalCount in
+            await progress.record(completedCount: completedCount, totalCount: totalCount)
+        }
 
         #expect(result.allEpisodes.count == subscriptions.count)
         #expect(await session.maximumActiveRequestCount == 2)
+        #expect(await progress.completedCounts == [1, 2, 3, 4, 5])
+        #expect(await progress.totalCounts == [5, 5, 5, 5, 5])
+    }
+}
+
+private actor FeedProgressRecorder {
+    private(set) var completedCounts: [Int] = []
+    private(set) var totalCounts: [Int] = []
+
+    func record(completedCount: Int, totalCount: Int) {
+        completedCounts.append(completedCount)
+        totalCounts.append(totalCount)
     }
 }
 

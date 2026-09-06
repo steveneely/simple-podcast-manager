@@ -19,6 +19,13 @@ public struct RSSFeedService: FeedService {
     }
 
     public func fetchLatestEpisodes(for subscriptions: [PodcastSubscription]) async throws -> FeedFetchResult {
+        try await fetchLatestEpisodes(for: subscriptions) { _, _ in }
+    }
+
+    public func fetchLatestEpisodes(
+        for subscriptions: [PodcastSubscription],
+        progress: @escaping @Sendable (_ completedCount: Int, _ totalCount: Int) async -> Void
+    ) async throws -> FeedFetchResult {
         let enabledSubscriptions = subscriptions.filter(\.isEnabled)
         var nextSubscriptionIndex = 0
         var outcomes: [SubscriptionFetchOutcome] = []
@@ -44,6 +51,7 @@ public struct RSSFeedService: FeedService {
 
             while let outcome = await group.next() {
                 outcomes.append(outcome)
+                await progress(outcomes.count, enabledSubscriptions.count)
                 startNextRefreshIfNeeded()
             }
         }

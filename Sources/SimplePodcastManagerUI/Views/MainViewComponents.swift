@@ -148,54 +148,105 @@ enum PodcastRefreshDisplayScope: Equatable {
     case allPodcasts
     case podcast(String)
 
-    var progressText: String {
+    func progressText(_ progress: PodcastRefreshProgress?) -> String {
         switch self {
         case .allPodcasts:
-            "Checking podcasts…"
+            if let progress, progress.totalCount > 0 {
+                "Checking podcasts… \(progress.completedCount) of \(progress.totalCount)"
+            } else {
+                "Checking podcasts…"
+            }
         case let .podcast(title):
             "Checking \(title)…"
         }
     }
 }
 
+struct PodcastRefreshProgress: Equatable {
+    var completedCount: Int
+    var totalCount: Int
+}
+
 struct PodcastRefreshSummary: Equatable {
     var scope: PodcastRefreshDisplayScope
+    var checkedPodcastCount: Int?
     var discoveredEpisodeCount: Int?
-    var downloadedEpisodes: [PodcastRefreshDownloadedEpisode]
-    var failedSubscriptionCount: Int
+    var downloadedEpisodes: [PodcastRefreshEpisodeDetail]
+    var remainingNewEpisodes: [PodcastRefreshEpisodeDetail]
+    var issues: [PodcastRefreshIssue]
 
     var downloadedEpisodeCount: Int { downloadedEpisodes.count }
 
-    var text: String {
-        var parts: [String] = []
-        if let discoveredEpisodeCount {
-            parts.append(episodeText(discoveredEpisodeCount))
-        }
-        if discoveredEpisodeCount.map({ $0 > 0 }) == true || downloadedEpisodeCount > 0 {
-            parts.append("\(downloadedEpisodeCount) downloaded")
-        }
-        if failedSubscriptionCount > 0 {
-            let podcastLabel = failedSubscriptionCount == 1 ? "podcast" : "podcasts"
-            parts.append("\(failedSubscriptionCount) \(podcastLabel) failed")
-        }
+    mutating func recordDownloadedEpisodes(_ episodes: [PodcastRefreshEpisodeDetail]) {
+        downloadedEpisodes = PodcastRefreshEpisodeDetail.merging(downloadedEpisodes, with: episodes)
+        let downloadedEpisodeIDs = Set(episodes.map(\.id))
+        remainingNewEpisodes.removeAll { downloadedEpisodeIDs.contains($0.id) }
+    }
 
-        let result = parts.joined(separator: " · ")
-        switch scope {
-        case .allPodcasts:
-            return result
-        case let .podcast(title):
-            return "\(title): \(result)"
+    var hasDetails: Bool {
+        !downloadedEpisodes.isEmpty || !remainingNewEpisodes.isEmpty || !issues.isEmpty
+    }
+
+    var parts: [PodcastRefreshSummaryPart] {
+        var parts: [PodcastRefreshSummaryPart] = []
+        if case let .podcast(title) = scope {
+            parts.append(PodcastRefreshSummaryPart(text: title, tone: .neutral))
         }
+        if case .allPodcasts = scope, let checkedPodcastCount {
+            parts.append(PodcastRefreshSummaryPart(text: "\(checkedPodcastCount) checked", tone: .neutral))
+        }
+        if let discoveredEpisodeCount {
+            parts.append(PodcastRefreshSummaryPart(
+                text: episodeText(discoveredEpisodeCount),
+                tone: .discovery
+            ))
+        }
+        if !remainingNewEpisodes.isEmpty {
+            parts.append(PodcastRefreshSummaryPart(
+                text: "\(remainingNewEpisodes.count) still new",
+                tone: .newEpisodes
+            ))
+        }
+        if downloadedEpisodeCount > 0 {
+            parts.append(PodcastRefreshSummaryPart(
+                text: "\(downloadedEpisodeCount) downloaded",
+                tone: .downloaded
+            ))
+        }
+        if !issues.isEmpty {
+            parts.append(PodcastRefreshSummaryPart(
+                text: issues.count == 1 ? "1 needs attention" : "\(issues.count) need attention",
+                tone: .warning
+            ))
+        }
+        return parts
+    }
+
+    var text: String {
+        parts.map(\.text).joined(separator: " · ")
     }
 
     private func episodeText(_ discoveredEpisodeCount: Int) -> String {
-        guard discoveredEpisodeCount > 0 else { return "No new episodes" }
+        guard discoveredEpisodeCount > 0 else { return "No episodes found" }
         let episodeLabel = discoveredEpisodeCount == 1 ? "episode" : "episodes"
-        return "\(discoveredEpisodeCount) new \(episodeLabel)"
+        return "\(discoveredEpisodeCount) \(episodeLabel) found"
     }
 }
 
-struct PodcastRefreshDownloadedEpisode: Equatable, Identifiable {
+struct PodcastRefreshSummaryPart: Equatable {
+    enum Tone: Equatable {
+        case neutral
+        case discovery
+        case newEpisodes
+        case downloaded
+        case warning
+    }
+
+    let text: String
+    let tone: Tone
+}
+
+struct PodcastRefreshEpisodeDetail: Equatable, Identifiable {
     let id: String
     let episodeTitle: String
     let podcastTitle: String
@@ -208,21 +259,33 @@ struct PodcastRefreshDownloadedEpisode: Equatable, Identifiable {
     }
 
     static func merging(
-        _ existingEpisodes: [PodcastRefreshDownloadedEpisode],
-        with newEpisodes: [PodcastRefreshDownloadedEpisode]
-    ) -> [PodcastRefreshDownloadedEpisode] {
+        _ existingEpisodes: [PodcastRefreshEpisodeDetail],
+        with newEpisodes: [PodcastRefreshEpisodeDetail]
+    ) -> [PodcastRefreshEpisodeDetail] {
         var episodeIDs = Set(existingEpisodes.map(\.id))
         return existingEpisodes + newEpisodes.filter { episodeIDs.insert($0.id).inserted }
     }
 }
 
+struct PodcastRefreshIssue: Equatable, Identifiable {
+    let id: String
+    let title: String
+    let podcastTitle: String
+    let message: String
+}
+
 enum PodcastRefreshStatus: Equatable {
     case refreshing(PodcastRefreshDisplayScope)
+    case checked(PodcastRefreshDisplayScope, checkedPodcastCount: Int, discoveredEpisodeCount: Int)
     case completed(PodcastRefreshSummary)
 
-    var isRefreshing: Bool {
-        if case .refreshing = self { return true }
-        return false
+    var isActive: Bool {
+        switch self {
+        case .refreshing, .checked:
+            true
+        case .completed:
+            false
+        }
     }
 }
 
@@ -234,6 +297,7 @@ struct PodcastSidebarView: View {
     @Binding var sortOrder: PodcastSortOrder
     let isRefreshing: Bool
     let refreshStatus: PodcastRefreshStatus?
+    let refreshProgress: PodcastRefreshProgress?
     let episodeCount: (PodcastSubscription) -> Int
     let newEpisodeCount: (PodcastSubscription) -> Int
     let isInactive: (PodcastSubscription) -> Bool
@@ -435,15 +499,25 @@ struct PodcastSidebarView: View {
             switch refreshStatus {
             case let .refreshing(scope):
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(scope.progressText)
+                    Text(scope.progressText(refreshProgress))
                         .lineLimit(1)
                     ProgressView()
                         .progressViewStyle(.linear)
                         .controlSize(.small)
                 }
+            case let .checked(scope, checkedPodcastCount, discoveredEpisodeCount):
+                refreshSummaryText(PodcastRefreshSummary(
+                    scope: scope,
+                    checkedPodcastCount: checkedPodcastCount,
+                    discoveredEpisodeCount: discoveredEpisodeCount,
+                    downloadedEpisodes: [],
+                    remainingNewEpisodes: [],
+                    issues: []
+                ))
+                .lineLimit(1)
             case let .completed(summary):
-                if summary.downloadedEpisodes.isEmpty {
-                    Text(summary.text)
+                if !summary.hasDetails {
+                    refreshSummaryText(summary)
                         .lineLimit(1)
                         .help(summary.text)
                 } else {
@@ -451,16 +525,16 @@ struct PodcastSidebarView: View {
                         isShowingDownloadedEpisodes.toggle()
                     } label: {
                         HStack(spacing: 4) {
-                            Text(summary.text)
+                            refreshSummaryText(summary)
                                 .lineLimit(1)
                             Image(systemName: "chevron.down")
                                 .font(.caption2)
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("Show downloaded episodes")
+                    .help("Show refresh details")
                     .popover(isPresented: $isShowingDownloadedEpisodes, arrowEdge: .bottom) {
-                        downloadedEpisodesPopover(summary.downloadedEpisodes)
+                        refreshDetailsPopover(summary)
                     }
                 }
             case nil:
@@ -473,24 +547,48 @@ struct PodcastSidebarView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func downloadedEpisodesPopover(
-        _ downloadedEpisodes: [PodcastRefreshDownloadedEpisode]
-    ) -> some View {
+    private func refreshDetailsPopover(_ summary: PodcastRefreshSummary) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Downloaded Episodes")
+            Text("Refresh Details")
                 .font(.headline)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(downloadedEpisodes) { episode in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(episode.episodeTitle)
-                                .fontWeight(.medium)
-                            Text(episode.podcastTitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    if !summary.downloadedEpisodes.isEmpty {
+                        refreshEpisodeSection(
+                            "Downloaded",
+                            systemImage: "checkmark.circle.fill",
+                            color: .green,
+                            episodes: summary.downloadedEpisodes
+                        )
+                    }
+                    if !summary.remainingNewEpisodes.isEmpty {
+                        refreshEpisodeSection(
+                            "Still New",
+                            systemImage: "circle.fill",
+                            color: .accentColor,
+                            episodes: summary.remainingNewEpisodes
+                        )
+                    }
+                    if !summary.issues.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Needs Attention", systemImage: "exclamationmark.triangle.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.orange)
+                            ForEach(summary.issues) { issue in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(issue.title)
+                                        .fontWeight(.medium)
+                                    Text(issue.podcastTitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(issue.message)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -498,6 +596,52 @@ struct PodcastSidebarView: View {
         }
         .padding(14)
         .frame(width: 340, alignment: .leading)
+    }
+
+    private func refreshEpisodeSection(
+        _ title: String,
+        systemImage: String,
+        color: Color,
+        episodes: [PodcastRefreshEpisodeDetail]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(color)
+            ForEach(episodes) { episode in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(episode.episodeTitle)
+                        .fontWeight(.medium)
+                    Text(episode.podcastTitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func refreshSummaryText(_ summary: PodcastRefreshSummary) -> Text {
+        summary.parts.enumerated().reduce(Text("")) { result, indexedPart in
+            let (index, part) = indexedPart
+            let separator = index == 0 ? Text("") : Text(" · ").foregroundStyle(.secondary)
+            return result + separator + styledSummaryText(part)
+        }
+    }
+
+    private func styledSummaryText(_ part: PodcastRefreshSummaryPart) -> Text {
+        switch part.tone {
+        case .neutral:
+            Text(part.text).foregroundStyle(.secondary)
+        case .discovery:
+            Text(part.text).foregroundStyle(.primary)
+        case .newEpisodes:
+            Text(part.text).foregroundStyle(Color.accentColor).bold()
+        case .downloaded:
+            Text(part.text).foregroundStyle(.green)
+        case .warning:
+            Text(part.text).foregroundStyle(.orange).bold()
+        }
     }
 
     static func selection(

@@ -24,7 +24,9 @@ The podcast and its latest episodes will appear in the app.
 
 Podcasts already in your library are marked `Added`. If a search fails, click `Try Again` or add the podcast using its RSS feed URL.
 
-After that first baseline, blue `new` text beside a podcast's episode count means its RSS feed has new episodes. Selecting a podcast does not clear the indicator. It clears one episode at a time after that episode downloads successfully, or after a successful Sync copies it to the player or confirms that it is already there.
+After that first baseline, blue `new` text beside a podcast's episode count means its RSS feed has episodes that still need attention. Selecting a podcast does not clear the indicator. During a refresh, new indicators wait until automatic downloads finish so they do not flash briefly for episodes the app is already handling. The indicator clears one episode at a time after that episode downloads successfully, or after a successful Sync copies it to the player or confirms that it is already there.
+
+The lower-left corner of the Podcasts list reports library refresh progress, including how many podcasts have been checked. When the refresh finishes, it keeps a summary of how many podcasts were checked, how many episodes were found during that refresh, how many are still new, how many downloaded, and whether anything needs attention. A successful manual download immediately moves that episode from `still new` to `downloaded` in this summary. Click a summary with a disclosure arrow to review downloaded episodes, episodes that are still new, and refresh or download problems. Neutral `found` text describes only that refresh; blue `still new` matches the blue podcast badges, green marks completed downloads, and orange marks items needing attention.
 
 By default, an orange `Inactive` label marks a podcast whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > Inactive Podcasts` to use three months, six months, one year, or turn this indicator off. Disabled podcasts, RSS feeds without trustworthy dates, and podcasts with a current refresh error are not marked inactive.
 
@@ -51,6 +53,8 @@ New downloads use `Podcast` in the MP3's ID3 genre field by default. Change `Set
 Leave `Settings > Episodes > Automatic Downloads` set to `Off` for manual downloads, or choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new`. The limit applies separately to each included podcast after RSS feed refreshes. The first successful refresh records existing episodes without downloading them, so subscriptions do not create a backlog.
 
 Edit a podcast to change `Include in automatic downloads`. Turn off `Podcast enabled` to stop refreshing that podcast. Automatic downloads prepare episodes on the Mac; syncing starts only when you click `Sync`.
+
+While downloads are active, the progress beside the Device section reports only the current file preparation work. It disappears when that work finishes; use the persistent refresh summary in the lower-left corner to review the completed result.
 
 ## Limit episodes kept per podcast during Sync
 

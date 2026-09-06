@@ -41,9 +41,11 @@ struct PodcastRefreshCoordinatorTests {
         #expect(subscriptionLibrary.appliedFeedSummaries == [summary])
         #expect(!outcome.attemptedAutomaticDownloads)
         #expect(outcome.discoveredEpisodeCount == 0)
+        #expect(outcome.checkedPodcastCount == 1)
         #expect(outcome.downloadedEpisodeCount == 0)
         #expect(outcome.downloadedEpisodes.isEmpty)
-        #expect(outcome.failedSubscriptionCount == 1)
+        #expect(outcome.automaticDownloadFailures.isEmpty)
+        #expect(outcome.refreshFailures.map(\.subscriptionTitle) == [subscription.title])
     }
 
     @Test
@@ -80,7 +82,10 @@ struct PodcastRefreshCoordinatorTests {
             episodePreparation: preparation
         )
 
-        let outcome = await coordinator.refresh(.podcast(subscription))
+        var completedDiscovery: (checked: Int, discovered: Int)?
+        let outcome = await coordinator.refresh(.podcast(subscription)) { checkedCount, discoveredCount in
+            completedDiscovery = (checkedCount, discoveredCount)
+        }
 
         #expect(preview.subscriptionRefreshes == [subscription])
         #expect(activity.failedSubscriptionIDs.isEmpty)
@@ -93,7 +98,10 @@ struct PodcastRefreshCoordinatorTests {
         #expect(outcome.discoveredEpisodeCount == 2)
         #expect(outcome.downloadedEpisodeCount == 1)
         #expect(outcome.downloadedEpisodes == [downloadedEpisode])
-        #expect(outcome.failedSubscriptionCount == 0)
+        #expect(outcome.automaticDownloadFailures == [permissionEpisode])
+        #expect(outcome.refreshFailures.isEmpty)
+        #expect(completedDiscovery?.checked == 1)
+        #expect(completedDiscovery?.discovered == 2)
     }
 
     private func makeSubscription(number: Int) -> PodcastSubscription {

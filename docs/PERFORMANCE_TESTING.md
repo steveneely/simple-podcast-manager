@@ -2,23 +2,22 @@
 
 Performance work is measured at two levels: deterministic persisted-state benchmarks and packaged-app launch milestones.
 
-## Persisted-State Benchmark
+## SQLite Store Performance and Scale
 
-Run the two startup-state read benchmarks on an otherwise idle Mac:
-
-```bash
-SPM_RUN_PERFORMANCE_TESTS=1 ./scripts/swift-test.sh --filter StartupStateReadPerformanceTests
-```
-
-Compare the reported wall-clock averages for `testUnifiedStartupSnapshotRead` and `testPreviousSeparateStartupReads`. Run the command three times and use the median result from each test. These benchmarks use 2,000 prepared, downloaded, and removed records.
-
-Measure repeated episode-list lookup with 50 feeds and 5,000 cached episodes:
+Run the opt-in SQLite store tests on an otherwise idle Mac:
 
 ```bash
-SPM_RUN_PERFORMANCE_TESTS=1 ./scripts/swift-test.sh --filter indexedEpisodeLookupPerformanceComparison
+SPM_RUN_PERFORMANCE_TESTS=1 ./scripts/swift-test.sh --filter SQLiteEpisodeStorePerformanceTests
 ```
 
-The test prints the previous repeated-filter duration and the indexed lookup duration while verifying that both paths return identical counts.
+`testUnifiedStartupSnapshotRead` reports the wall-clock average for reading 2,000 prepared, downloaded, and removed records in one startup snapshot. Run the command three times and use the median result.
+
+The same opt-in run also checks two realistic large-state round trips without slowing routine development:
+
+- automatic-download state containing 40 podcasts and 16,000 observed episode IDs
+- download history containing 20,000 records followed by a one-record merge
+
+The normal test suite explicitly reports these tests as skipped unless `SPM_RUN_PERFORMANCE_TESTS=1` is set.
 
 ## Packaged-App Startup Milestones
 

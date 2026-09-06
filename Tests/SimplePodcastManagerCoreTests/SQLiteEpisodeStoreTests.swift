@@ -254,53 +254,6 @@ struct SQLiteEpisodeStoreTests {
         #expect(try reopenedStore.loadState() == original)
     }
 
-    @Test
-    func handlesLargeAutomaticDownloadState() throws {
-        let fixture = try Fixture()
-        defer { fixture.remove() }
-        let podcasts = (0..<40).map { podcastNumber in
-            AutomaticDownloadPodcastState(
-                subscriptionID: UUID(
-                    uuidString: String(format: "00000000-0000-0000-0000-%012d", podcastNumber + 1)
-                )!,
-                rssURL: URL(string: "https://example.com/feed-\(podcastNumber).xml")!,
-                observedEpisodeIDs: (0..<400).map { "podcast-\(podcastNumber)-episode-\($0)" },
-                pendingEpisodeIDs: ["podcast-\(podcastNumber)-episode-0"]
-            )
-        }
-        let state = AutomaticDownloadState(podcasts: podcasts)
-        try fixture.store.saveState(state)
-
-        let loaded = try fixture.store.loadState()
-        #expect(loaded.podcasts.count == 40)
-        #expect(loaded.podcasts.reduce(0) { $0 + $1.observedEpisodeIDs.count } == 16_000)
-
-        var updated = loaded
-        updated.podcasts[0].pendingEpisodeIDs.removeAll()
-        try fixture.store.saveState(updated)
-        #expect(try fixture.store.loadState() == updated)
-    }
-
-    @Test
-    func handlesLargeDownloadHistoryWithoutReplacingExistingRows() throws {
-        let fixture = try Fixture()
-        defer { fixture.remove() }
-
-        let records = (0..<20_000).map { fixture.records(number: $0).downloaded }
-        try fixture.store.saveDownloadedEpisodes(records)
-        let replacement = DownloadedEpisodeRecord(
-            subscriptionID: fixture.subscriptionID,
-            episodeID: "episode-19999",
-            episodeTitle: "Updated title",
-            preparationAction: .convertedToMP3,
-            downloadedAt: Date(timeIntervalSince1970: 30_000)
-        )
-        try fixture.store.mergeDownloadedEpisodes([replacement])
-
-        let loaded = try fixture.store.loadDownloadedEpisodes()
-        #expect(loaded.count == 20_000)
-        #expect(loaded.first(where: { $0.episodeID == "episode-19999" }) == replacement)
-    }
 }
 
 private struct Fixture {

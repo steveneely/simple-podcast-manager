@@ -308,9 +308,10 @@ struct PreparationPreviewViewModelTests {
         let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: workspaceURL) }
 
+        let startObserver = PreparationStartObserver()
         let viewModel = PreparationPreviewViewModel(
             service: MediaPreparationService(
-                downloadService: DelayedPreparationDownloadService(),
+                downloadService: ObservingPreparationDownloadService(observer: startObserver),
                 audioConversionService: StubPreparationAudioConversionService(),
                 workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL),
                 maximumConcurrentPreparations: 1
@@ -337,19 +338,13 @@ struct PreparationPreviewViewModelTests {
             )
         ]
 
-        let preparationTask = Task {
-            await viewModel.prepare(episodes, settings: AppSettings())
+        startObserver.onStart = { _ in
+            #expect(viewModel.preparingEpisodeCount == 2)
+            #expect(viewModel.isPreparing(episodes[0]))
+            #expect(viewModel.isPreparing(episodes[1]))
         }
 
-        while !viewModel.isPreparing {
-            await Task.yield()
-        }
-
-        #expect(viewModel.preparingEpisodeCount == 2)
-        #expect(viewModel.isPreparing(episodes[0]))
-        #expect(viewModel.isPreparing(episodes[1]))
-
-        await preparationTask.value
+        await viewModel.prepare(episodes, settings: AppSettings())
 
         #expect(!viewModel.isPreparing)
         #expect(viewModel.preparingEpisodeCount == 0)
@@ -363,10 +358,10 @@ struct PreparationPreviewViewModelTests {
         let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: workspaceURL) }
 
-        let downloadGate = PreparationDownloadGate()
+        let startObserver = PreparationStartObserver()
         let viewModel = PreparationPreviewViewModel(
             service: MediaPreparationService(
-                downloadService: SuspendedPreparationDownloadService(gate: downloadGate),
+                downloadService: ObservingPreparationDownloadService(observer: startObserver),
                 audioConversionService: StubPreparationAudioConversionService(),
                 workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL)
             ),
@@ -390,19 +385,12 @@ struct PreparationPreviewViewModelTests {
             sourceFeedURL: URL(string: "https://example.com/second.xml")!
         )
 
-        let preparationTask = Task {
-            await viewModel.prepare([firstPodcastEpisode], settings: AppSettings())
+        startObserver.onStart = { _ in
+            #expect(viewModel.isPreparing(firstPodcastEpisode))
+            #expect(!viewModel.isPreparing(secondPodcastEpisode))
         }
 
-        while !(await downloadGate.hasStarted) {
-            await Task.yield()
-        }
-
-        #expect(viewModel.isPreparing(firstPodcastEpisode))
-        #expect(!viewModel.isPreparing(secondPodcastEpisode))
-
-        await downloadGate.allowDownload()
-        await preparationTask.value
+        await viewModel.prepare([firstPodcastEpisode], settings: AppSettings())
 
         #expect(viewModel.preparedEpisode(for: firstPodcastEpisode) != nil)
         #expect(viewModel.preparedEpisode(for: secondPodcastEpisode) == nil)
@@ -416,9 +404,13 @@ struct PreparationPreviewViewModelTests {
         )
         defer { try? FileManager.default.removeItem(at: workspaceURL) }
 
+        let startObserver = PreparationStartObserver()
         let viewModel = PreparationPreviewViewModel(
             service: MediaPreparationService(
-                downloadService: CancellablePreparationDownloadService(cancelledEpisodeID: "cancel-me"),
+                downloadService: CancellablePreparationDownloadService(
+                    cancelledEpisodeID: "cancel-me",
+                    observer: startObserver
+                ),
                 audioConversionService: StubPreparationAudioConversionService(),
                 workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL)
             ),
@@ -442,15 +434,13 @@ struct PreparationPreviewViewModelTests {
             sourceFeedURL: URL(string: "https://example.com/another.xml")!
         )
 
-        let preparationTask = Task {
-            await viewModel.prepare([cancelledEpisode, completedEpisode], settings: AppSettings())
-        }
-        while !viewModel.isPreparing(cancelledEpisode) {
-            await Task.yield()
+        startObserver.onStart = { episode in
+            if episode.id == cancelledEpisode.id {
+                viewModel.cancelPreparation(for: cancelledEpisode)
+            }
         }
 
-        viewModel.cancelPreparation(for: cancelledEpisode)
-        await preparationTask.value
+        await viewModel.prepare([cancelledEpisode, completedEpisode], settings: AppSettings())
 
         #expect(!viewModel.isPreparing(cancelledEpisode))
         #expect(viewModel.preparedEpisode(for: cancelledEpisode) == nil)
@@ -562,24 +552,16 @@ private struct FailingPreparedMediaFileDeleter: PreparedMediaFileDeleting {
     }
 }
 
-private struct DelayedPreparationDownloadService: DownloadService {
-    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
-        try await Task.sleep(nanoseconds: 10_000_000)
-        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
-        let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
-        try Data("audio".utf8).write(to: fileURL)
-        return fileURL
-    }
-}
-
 private struct CancellablePreparationDownloadService: DownloadService {
     let cancelledEpisodeID: String
+    let observer: PreparationStartObserver
 
     func download(
         _ episode: Episode,
         into workspaceURL: URL,
         allowsInsecureHTTP: Bool
     ) async throws -> URL {
+        await observer.recordStart(of: episode)
         if episode.id == cancelledEpisodeID {
             try await Task.sleep(nanoseconds: 1_000_000_000)
         }
@@ -591,32 +573,24 @@ private struct CancellablePreparationDownloadService: DownloadService {
     }
 }
 
-private actor PreparationDownloadGate {
-    private var continuation: CheckedContinuation<Void, Never>?
-    private(set) var hasStarted = false
-
-    func waitForPermission() async {
-        hasStarted = true
-        await withCheckedContinuation { continuation in
-            self.continuation = continuation
-        }
-    }
-
-    func allowDownload() {
-        continuation?.resume()
-        continuation = nil
-    }
-}
-
-private struct SuspendedPreparationDownloadService: DownloadService {
-    let gate: PreparationDownloadGate
+private struct ObservingPreparationDownloadService: DownloadService {
+    let observer: PreparationStartObserver
 
     func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
-        await gate.waitForPermission()
+        await observer.recordStart(of: episode)
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).mp3")
         try Data("audio".utf8).write(to: fileURL)
         return fileURL
+    }
+}
+
+@MainActor
+private final class PreparationStartObserver: Sendable {
+    var onStart: ((Episode) -> Void)?
+
+    func recordStart(of episode: Episode) {
+        onStart?(episode)
     }
 }
 

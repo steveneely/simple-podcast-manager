@@ -447,7 +447,7 @@ struct MediaPreparationServiceTests {
         }
         let tracker = DownloadConcurrencyTracker()
         let service = MediaPreparationService(
-            downloadService: DelayedDownloadService(fileExtension: "mp3", tracker: tracker),
+            downloadService: GatedDownloadService(fileExtension: "mp3", tracker: tracker),
             audioConversionService: StubAudioConversionService(),
             workspaceProvider: StubWorkspaceProvider(),
             maximumConcurrentPreparations: 2
@@ -510,13 +510,12 @@ private struct StubDownloadService: DownloadService {
     }
 }
 
-private struct DelayedDownloadService: DownloadService {
+private struct GatedDownloadService: DownloadService {
     let fileExtension: String
     let tracker: DownloadConcurrencyTracker
 
     func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
         await tracker.start()
-        try await Task.sleep(nanoseconds: 10_000_000)
         await tracker.finish()
 
         let fileURL = workspaceURL.appendingPathComponent("\(episode.id).\(fileExtension)")
@@ -529,10 +528,23 @@ private struct DelayedDownloadService: DownloadService {
 private actor DownloadConcurrencyTracker {
     private var activeCount = 0
     private var maxActiveCount = 0
+    private var waitingStarts: [CheckedContinuation<Void, Never>] = []
+    private var initialPairStarted = false
 
-    func start() {
+    func start() async {
         activeCount += 1
         maxActiveCount = max(maxActiveCount, activeCount)
+        guard !initialPairStarted else { return }
+        if activeCount == 2 {
+            initialPairStarted = true
+            let continuations = waitingStarts
+            waitingStarts.removeAll()
+            continuations.forEach { $0.resume() }
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waitingStarts.append(continuation)
+        }
     }
 
     func finish() {

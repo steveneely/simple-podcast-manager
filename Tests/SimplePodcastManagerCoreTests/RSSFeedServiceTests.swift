@@ -497,7 +497,7 @@ struct RSSFeedServiceTests {
             let feedURL = URL(string: "https://example.com/parallel-\(index).xml")!
             return PodcastSubscription(title: "Podcast \(index)", rssURL: feedURL)
         }
-        let session = DelayedFeedSession()
+        let session = GatedFeedSession()
 
         let service = RSSFeedService(
             session: session,
@@ -621,16 +621,18 @@ private final class FeedURLStubStore: @unchecked Sendable {
 
 }
 
-private actor DelayedFeedSession: HTTPDataLoading {
+private actor GatedFeedSession: HTTPDataLoading {
     private var activeRequestCount = 0
     private(set) var maximumActiveRequestCount = 0
+    private var waitingRequests: [CheckedContinuation<Void, Never>] = []
+    private var initialPairStarted = false
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         activeRequestCount += 1
         maximumActiveRequestCount = max(maximumActiveRequestCount, activeRequestCount)
         defer { activeRequestCount -= 1 }
 
-        try await Task.sleep(for: .milliseconds(50))
+        await waitForInitialPair()
         let feedURL = try #require(request.url)
         let index = feedURL.deletingPathExtension().lastPathComponent.split(separator: "-").last ?? "0"
         let data = Data(
@@ -651,6 +653,20 @@ private actor DelayedFeedSession: HTTPDataLoading {
             HTTPURLResponse(url: feedURL, statusCode: 200, httpVersion: nil, headerFields: nil)
         )
         return (data, response)
+    }
+
+    private func waitForInitialPair() async {
+        guard !initialPairStarted else { return }
+        if activeRequestCount == 2 {
+            initialPairStarted = true
+            let continuations = waitingRequests
+            waitingRequests.removeAll()
+            continuations.forEach { $0.resume() }
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waitingRequests.append(continuation)
+        }
     }
 }
 

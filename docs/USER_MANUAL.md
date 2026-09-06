@@ -28,6 +28,8 @@ After that first baseline, blue `new` text beside a podcast's episode count mean
 
 The lower-left corner of the Podcasts list reports library refresh progress, including how many podcasts have been checked. When the refresh finishes, compact counters show episodes that are still new, completed downloads, and anything needing attention. The counters use short labels when space allows and automatically collapse to icons and numbers in a narrow window. A successful manual download immediately moves that episode from blue `new` to green `downloaded`. Click the counters to review the checked and found totals, downloaded episodes, episodes that are still new, and refresh or download problems. Orange marks items needing attention. When there is nothing to review, the footer simply says `Up to date`.
 
+The compact sort control beside `Podcasts` shows `Name` or `Updated` for the current sort field. Click that label to switch fields, or click its arrow to reverse the order. The app remembers both choices.
+
 By default, an orange `Inactive` label marks a podcast whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > Inactive Podcasts` to use three months, six months, one year, or turn this indicator off. Disabled podcasts, RSS feeds without trustworthy dates, and podcasts with a current refresh error are not marked inactive.
 
 Select a podcast to reveal its Refresh, Edit, and Remove controls. Select it again to clear the selection.

@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.19.4
+# Simple Podcast Manager v1.19.5
 
-- Replaces the long podcast refresh summary with compact, color-coded counters for new episodes, completed downloads, and issues.
-- Adapts the counters to narrow windows while keeping checked and found totals in the expandable details.
+- Continues the batch of UX/UI improvements with a compact podcast sort control that switches between name and recently updated order.
+- Adds a separate direction button for A–Z, Z–A, newest-first, and oldest-first sorting, and remembers the selection.

@@ -45,7 +45,7 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
 - `MainView`: primary single-window interface; shows device status and the last completed sync
-- `PodcastSidebarView`: podcast selection; remembered name or publication-recency sorting through a reversible column header and field menu; and grouped refresh, edit, and remove actions for the selected podcast
+- `PodcastSidebarView`: podcast selection; remembered name or publication-recency sorting through a compact split control with separate criterion and direction actions; and grouped refresh, edit, and remove actions for the selected podcast
 - `PodcastEditorView`: search for, add, and edit podcasts through Podcast Index or a direct RSS feed URL
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
 - `SettingsView`: app preferences, optional review-first device cleanup, device podcast folder, app data backup and restore

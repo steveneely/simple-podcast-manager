@@ -42,44 +42,6 @@ struct HoverIconButton: View {
     }
 }
 
-struct HoverIconMenu<Content: View>: View {
-    let systemName: String
-    let helpText: String
-    @ViewBuilder let content: Content
-
-    @State private var isHovered = false
-
-    init(
-        systemName: String,
-        helpText: String,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.systemName = systemName
-        self.helpText = helpText
-        self.content = content()
-    }
-
-    var body: some View {
-        Menu {
-            content
-        } label: {
-            HoverIconLabel(
-                systemName: systemName,
-                isHovered: isHovered,
-                isDestructive: false,
-                isDisabled: false
-            )
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .help(helpText)
-        .accessibilityLabel(helpText)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-}
-
 private struct HoverIconLabel: View {
     let systemName: String
     let isHovered: Bool

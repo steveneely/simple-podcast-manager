@@ -151,7 +151,7 @@ struct PodcastSidebarViewTests {
     }
 
     @Test
-    func columnHeaderReversesTheCurrentSortDirection() {
+    func directionButtonReversesTheCurrentSortDirection() {
         #expect(PodcastSidebarView.reversedSortOrder(.alphabetic) == .reverseAlphabetic)
         #expect(PodcastSidebarView.reversedSortOrder(.reverseAlphabetic) == .alphabetic)
         #expect(PodcastSidebarView.reversedSortOrder(.recentlyUpdated) == .leastRecentlyUpdated)
@@ -159,11 +159,19 @@ struct PodcastSidebarViewTests {
     }
 
     @Test
-    func choosingASortCriterionUsesItsNaturalDefaultDirection() {
-        #expect(PodcastSidebarView.defaultSortOrder(for: .name) == .alphabetic)
-        #expect(PodcastSidebarView.defaultSortOrder(for: .recentlyUpdated) == .recentlyUpdated)
-        #expect(PodcastSidebarView.sortCriterion(for: .reverseAlphabetic) == .name)
-        #expect(PodcastSidebarView.sortCriterion(for: .leastRecentlyUpdated) == .recentlyUpdated)
+    func changingSortCriterionUsesItsNaturalDefaultDirection() {
+        #expect(PodcastSidebarView.sortOrderAfterChangingCriterion(.alphabetic) == .recentlyUpdated)
+        #expect(PodcastSidebarView.sortOrderAfterChangingCriterion(.reverseAlphabetic) == .recentlyUpdated)
+        #expect(PodcastSidebarView.sortOrderAfterChangingCriterion(.recentlyUpdated) == .alphabetic)
+        #expect(PodcastSidebarView.sortOrderAfterChangingCriterion(.leastRecentlyUpdated) == .alphabetic)
+    }
+
+    @Test
+    func sortControlLabelsDescribeTheCurrentCriterion() {
+        #expect(PodcastSidebarView.sortCriterionTitle(for: .alphabetic) == "Name")
+        #expect(PodcastSidebarView.sortCriterionTitle(for: .reverseAlphabetic) == "Name")
+        #expect(PodcastSidebarView.sortCriterionTitle(for: .recentlyUpdated) == "Updated")
+        #expect(PodcastSidebarView.sortCriterionTitle(for: .leastRecentlyUpdated) == "Updated")
     }
 
     @Test

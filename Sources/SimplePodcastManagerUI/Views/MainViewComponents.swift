@@ -21,11 +21,6 @@ enum PodcastSidebarActivityStatus: Equatable {
     case inactive
 }
 
-enum PodcastSidebarSortCriterion: Hashable {
-    case name
-    case recentlyUpdated
-}
-
 enum DownloadStatusPresentation {
     static func text(count: Int, isAutomatic: Bool) -> String {
         if isAutomatic {
@@ -375,36 +370,23 @@ struct PodcastSidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Button {
-                    sortOrder = Self.reversedSortOrder(sortOrder)
-                } label: {
-                    HStack(spacing: 5) {
-                        Text("Podcasts")
-                            .font(.headline)
-                        Image(systemName: Self.sortDirectionIcon(for: sortOrder))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Self.sortDirectionHelpText(for: sortOrder))
-                .help(Self.sortDirectionHelpText(for: sortOrder))
+                Text("Podcasts")
+                    .font(.headline)
 
                 Spacer()
 
-                HoverIconMenu(
-                    systemName: "line.3.horizontal",
-                    helpText: "Choose podcast sort field"
-                ) {
-                    Picker("Sort by", selection: Binding(
-                        get: { Self.sortCriterion(for: sortOrder) },
-                        set: { sortOrder = Self.defaultSortOrder(for: $0) }
-                    )) {
-                        Text("Name").tag(PodcastSidebarSortCriterion.name)
-                        Text("Recently Updated").tag(PodcastSidebarSortCriterion.recentlyUpdated)
+                PodcastSortControl(
+                    criterionTitle: Self.sortCriterionTitle(for: sortOrder),
+                    criterionHelpText: Self.sortCriterionHelpText(for: sortOrder),
+                    directionSystemName: Self.sortDirectionIcon(for: sortOrder),
+                    directionHelpText: Self.sortDirectionHelpText(for: sortOrder),
+                    onChangeCriterion: {
+                        sortOrder = Self.sortOrderAfterChangingCriterion(sortOrder)
+                    },
+                    onReverseDirection: {
+                        sortOrder = Self.reversedSortOrder(sortOrder)
                     }
-                }
+                )
 
                 HoverIconButton(systemName: "plus", helpText: "Add podcast", action: onAdd)
 
@@ -810,21 +792,30 @@ struct PodcastSidebarView: View {
         }
     }
 
-    static func sortCriterion(for sortOrder: PodcastSortOrder) -> PodcastSidebarSortCriterion {
+    static func sortOrderAfterChangingCriterion(_ sortOrder: PodcastSortOrder) -> PodcastSortOrder {
         switch sortOrder {
         case .alphabetic, .reverseAlphabetic:
-            return .name
-        case .recentlyUpdated, .leastRecentlyUpdated:
             return .recentlyUpdated
+        case .recentlyUpdated, .leastRecentlyUpdated:
+            return .alphabetic
         }
     }
 
-    static func defaultSortOrder(for criterion: PodcastSidebarSortCriterion) -> PodcastSortOrder {
-        switch criterion {
-        case .name:
-            return .alphabetic
-        case .recentlyUpdated:
-            return .recentlyUpdated
+    static func sortCriterionTitle(for sortOrder: PodcastSortOrder) -> String {
+        switch sortOrder {
+        case .alphabetic, .reverseAlphabetic:
+            return "Name"
+        case .recentlyUpdated, .leastRecentlyUpdated:
+            return "Updated"
+        }
+    }
+
+    static func sortCriterionHelpText(for sortOrder: PodcastSortOrder) -> String {
+        switch sortOrder {
+        case .alphabetic, .reverseAlphabetic:
+            return "Sorted by name. Click to sort by recently updated."
+        case .recentlyUpdated, .leastRecentlyUpdated:
+            return "Sorted by recently updated. Click to sort by name."
         }
     }
 

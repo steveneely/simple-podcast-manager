@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.19.5
+# Simple Podcast Manager v1.19.6
 
-- Continues the batch of UX/UI improvements with a compact podcast sort control that switches between name and recently updated order.
-- Adds a separate direction button for A–Z, Z–A, newest-first, and oldest-first sorting, and remembers the selection.
+- Recognizes episodes already synced under a podcast's previous name after its producer changes the RSS title.
+- Prevents those renamed-podcast episodes from appearing unrelated or being copied to the MP3 player a second time.

@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.19.5</title>
-            <pubDate>Sun, 06 Sep 2026 08:35:07 -0600</pubDate>
-            <sparkle:version>98</sparkle:version>
-            <sparkle:shortVersionString>1.19.5</sparkle:shortVersionString>
+            <title>1.19.6</title>
+            <pubDate>Mon, 07 Sep 2026 08:41:34 -0600</pubDate>
+            <sparkle:version>99</sparkle:version>
+            <sparkle:shortVersionString>1.19.6</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,14 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="99" data-release-tag="v1.19.6">
+            <h2>v1.19.6</h2>
+            <ul>
+                <li>Recognizes episodes already synced under a podcast&#x27;s previous name after its producer changes the RSS title.</li>
+                <li>Prevents those renamed-podcast episodes from appearing unrelated or being copied to the MP3 player a second time.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="98" data-release-tag="v1.19.5">
             <h2>v1.19.5</h2>
             <ul>
@@ -639,7 +647,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.19.5/SimplePodcastManager-v1.19.5.dmg" length="7569260" type="application/octet-stream" sparkle:edSignature="LThYTs7mfNvXb7m9vO2LnTB146KU8HPnSd/E4zOqAO+eWAB3DZ/o8soj9K3MrtgcaCPET3i6A1PotmpA1AQ2AA=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.19.6/SimplePodcastManager-v1.19.6.dmg" length="7594572" type="application/octet-stream" sparkle:edSignature="zdpoYrZwwVt7DTv2iXEqZc8kstjnPSHeQZjqdNxtDtsJvwU4d2nhJ5xgKeRD/Q6buyTc3S+UXxKpH6iHNXilDg=="/>
         </item>
     </channel>
 </rss>

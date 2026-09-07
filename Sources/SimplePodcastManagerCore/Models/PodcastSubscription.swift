@@ -3,6 +3,7 @@ import Foundation
 public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
     public var id: UUID
     public var title: String
+    public var titleAliases: [String]
     public var rssURL: URL
     public var artworkURL: URL?
     public var description: String?
@@ -12,6 +13,7 @@ public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
     public init(
         id: UUID = UUID(),
         title: String,
+        titleAliases: [String] = [],
         rssURL: URL,
         artworkURL: URL? = nil,
         description: String? = nil,
@@ -20,6 +22,7 @@ public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
     ) {
         self.id = id
         self.title = title
+        self.titleAliases = titleAliases
         self.rssURL = rssURL
         self.artworkURL = artworkURL
         self.description = description
@@ -30,6 +33,7 @@ public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
     private enum CodingKeys: String, CodingKey {
         case id
         case title
+        case titleAliases
         case rssURL
         case artworkURL
         case description
@@ -41,6 +45,7 @@ public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
+        titleAliases = try container.decodeIfPresent([String].self, forKey: .titleAliases) ?? []
         rssURL = try container.decode(URL.self, forKey: .rssURL)
         artworkURL = try container.decodeIfPresent(URL.self, forKey: .artworkURL)
         description = try container.decodeIfPresent(String.self, forKey: .description)
@@ -49,5 +54,19 @@ public struct PodcastSubscription: Codable, Equatable, Sendable, Identifiable {
             Bool.self,
             forKey: .includesInAutomaticDownloads
         ) ?? true
+    }
+
+    public var currentAndPreviousTitles: [String] {
+        [title] + titleAliases
+    }
+
+    public mutating func updateTitleFromFeed(_ updatedTitle: String) {
+        guard title != updatedTitle else { return }
+
+        if !titleAliases.contains(where: { $0.caseInsensitiveCompare(title) == .orderedSame }) {
+            titleAliases.append(title)
+        }
+        titleAliases.removeAll { $0.caseInsensitiveCompare(updatedTitle) == .orderedSame }
+        title = updatedTitle
     }
 }

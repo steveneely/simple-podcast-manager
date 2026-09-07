@@ -16,9 +16,9 @@ struct SafetyValidatorTests {
     @Test
     func validatesUppercasePodcastDirectoryLayout() throws {
         let device = DeviceInfo(
-            name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/MUSIC", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/MUSIC", isDirectory: true)
         )
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
 
@@ -30,8 +30,8 @@ struct SafetyValidatorTests {
     @Test
     func rejectsPodcastDirectoryOutsideDeviceRoot() throws {
         let device = DeviceInfo(
-            name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
             podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/OTHER/Podcasts", isDirectory: true)
         )
         let validator = SafetyValidator()
@@ -44,9 +44,9 @@ struct SafetyValidatorTests {
     @Test
     func allowsConfiguredPodcastDirectoryInsideDeviceRoot() throws {
         let device = DeviceInfo(
-            name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Podcasts", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/Podcasts", isDirectory: true)
         )
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
 
@@ -59,7 +59,7 @@ struct SafetyValidatorTests {
     func allowsWritesInsideDevicePodcastDirectory() throws {
         let device = makeDeviceInfo()
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
-        let targetURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music/Accidental Tech Podcast/001.mp3")
+        let targetURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music/Accidental Tech Podcast/001.mp3")
 
         #expect(throws: Never.self) {
             try validator.validateWriteTarget(targetURL, on: device)
@@ -70,9 +70,9 @@ struct SafetyValidatorTests {
     func rejectsWritesOutsideDevicePodcastDirectory() throws {
         let device = makeDeviceInfo()
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
-        let targetURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Documents/001.mp3")
+        let targetURL = URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/Documents/001.mp3")
 
-        #expect(throws: SafetyValidationError.pathOutsideDevicePodcastDirectory(URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/Documents/001.mp3"))) {
+        #expect(throws: SafetyValidationError.pathOutsideDevicePodcastDirectory(URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/Documents/001.mp3"))) {
             try validator.validateWriteTarget(targetURL, on: device)
         }
     }
@@ -92,21 +92,21 @@ struct SafetyValidatorTests {
     func rejectsDeviceRootsOutsideVolumes() throws {
         let device = DeviceInfo(
             name: "Temp Device",
-            rootURL: URL(fileURLWithPath: "/tmp/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/tmp/WALKMAN/music", isDirectory: true)
+            rootURL: URL(fileURLWithPath: "/tmp/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/tmp/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
 
-        #expect(throws: SafetyValidationError.invalidDeviceRoot(URL(fileURLWithPath: "/tmp/WALKMAN", isDirectory: true))) {
+        #expect(throws: SafetyValidationError.invalidDeviceRoot(URL(fileURLWithPath: "/tmp/TEST-MP3-PLAYER", isDirectory: true))) {
             try validator.validateDevice(device)
         }
     }
 
     private func makeDeviceInfo() -> DeviceInfo {
         DeviceInfo(
-            name: "Sony Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
     }
 }

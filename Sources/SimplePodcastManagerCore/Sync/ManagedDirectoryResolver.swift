@@ -16,8 +16,10 @@ public struct ManagedDirectoryResolver: Sendable {
             return exactURL
         }
 
-        let matchingDirectories = candidateDirectories.filter {
-            EpisodeFileName.titlesMatch($0.lastPathComponent, subscription.title)
+        let matchingDirectories = candidateDirectories.filter { directoryURL in
+            subscription.currentAndPreviousTitles.contains {
+                EpisodeFileName.titlesMatch(directoryURL.lastPathComponent, $0)
+            }
         }
 
         if matchingDirectories.count == 1 {

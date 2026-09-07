@@ -133,7 +133,7 @@ public final class MainViewModel {
                 guard let summary = summariesByID[subscriptionID] else { continue }
 
                 if $0.podcastSubscriptions[index].title != summary.title {
-                    $0.podcastSubscriptions[index].title = summary.title
+                    $0.podcastSubscriptions[index].updateTitleFromFeed(summary.title)
                 }
 
                 if $0.podcastSubscriptions[index].artworkURL != summary.artworkURL {
@@ -232,7 +232,11 @@ public final class MainViewModel {
                 return
             }
 
-            $0.podcastSubscriptions[existingIndex] = updatedSubscription
+            var persistedSubscription = updatedSubscription
+            persistedSubscription.title = $0.podcastSubscriptions[existingIndex].title
+            persistedSubscription.titleAliases = $0.podcastSubscriptions[existingIndex].titleAliases
+            persistedSubscription.updateTitleFromFeed(updatedSubscription.title)
+            $0.podcastSubscriptions[existingIndex] = persistedSubscription
             $0.podcastSubscriptions.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
     }

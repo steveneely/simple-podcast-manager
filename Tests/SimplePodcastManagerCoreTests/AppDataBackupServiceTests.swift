@@ -229,7 +229,7 @@ struct AppDataBackupServiceTests {
                 fileStem: "2026-01-01 Old Episode",
                 episodeTitle: "Old Episode",
                 publicationDate: Date(timeIntervalSince1970: 0),
-                deviceName: "Walkman",
+                deviceName: "MP3 Player",
                 removedAt: Date(timeIntervalSince1970: 1)
             )
         ], to: supportURL.appending(path: "removed-episodes.json"))

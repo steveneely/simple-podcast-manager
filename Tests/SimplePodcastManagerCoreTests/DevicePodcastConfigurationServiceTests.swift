@@ -8,19 +8,19 @@ struct DevicePodcastConfigurationServiceTests {
         let fileSystem = RecordingDevicePodcastConfigurationFileSystem()
         let service = DevicePodcastConfigurationService(fileSystem: fileSystem)
         let device = DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
 
         let updatedDevice = try service.savePodcastDirectoryPath("Podcasts", on: device)
 
-        #expect(updatedDevice.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true))
+        #expect(updatedDevice.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcasts", isDirectory: true))
         #expect(fileSystem.createdDirectories == [
-            URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true).standardizedFileURL,
+            URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcasts", isDirectory: true).standardizedFileURL,
         ])
         #expect(fileSystem.writtenFiles.map(\.url) == [
-            URL(fileURLWithPath: "/Volumes/WALKMAN/.spmconfig", isDirectory: false).standardizedFileURL,
+            URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/.spmconfig", isDirectory: false).standardizedFileURL,
         ])
         #expect(fileSystem.writtenFiles.first?.contents == """
         [simple-podcast-manager]
@@ -34,9 +34,9 @@ struct DevicePodcastConfigurationServiceTests {
         let fileSystem = RecordingDevicePodcastConfigurationFileSystem()
         let service = DevicePodcastConfigurationService(fileSystem: fileSystem)
         let device = DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
 
         #expect(throws: DevicePodcastConfigurationError.invalidPodcastDirectoryPath("../Podcasts")) {
@@ -49,13 +49,13 @@ struct DevicePodcastConfigurationServiceTests {
     @Test
     func checkingForMissingPodcastDirectoryDoesNotWriteAnything() throws {
         let fileSystem = RecordingDevicePodcastConfigurationFileSystem(existingDirectories: [
-            URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true).standardizedFileURL,
+            URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true).standardizedFileURL,
         ])
         let service = DevicePodcastConfigurationService(fileSystem: fileSystem)
         let device = DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
 
         let exists = try service.podcastDirectoryExists("Podcasts", on: device)

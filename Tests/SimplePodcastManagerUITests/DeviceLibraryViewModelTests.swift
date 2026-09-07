@@ -21,9 +21,9 @@ struct DeviceLibraryViewModelTests {
             sourceFeedURL: subscription.rssURL
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let subscriptionDirectory = device.podcastDirectoryURL.appendingPathComponent(subscription.title, isDirectory: true)
         let currentEpisodeFile = subscriptionDirectory.appendingPathComponent(
@@ -61,9 +61,9 @@ struct DeviceLibraryViewModelTests {
             sourceFeedURL: subscription.rssURL
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let podcastDirectory = device.podcastDirectoryURL.appendingPathComponent(
             "Horspiel fur grosse Horer",
@@ -84,15 +84,127 @@ struct DeviceLibraryViewModelTests {
     }
 
     @Test
+    func associatesExistingDeviceEpisodeAfterPodcastTitleIsShortened() async throws {
+        let subscription = PodcastSubscription(
+            title: "The Cognitive Revolution",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "episode-guid",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "AI:AM Highlights: Recursive Self-Improvement, Rushed and Vibe-Coded?",
+            publicationDate: Date(timeIntervalSince1970: 1_788_000_000),
+            enclosureURL: URL(string: "https://example.com/episode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let device = DeviceInfo(
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
+        )
+        let previousPodcastTitle = "The Cognitive Revolution-AI Builders, Researchers, and Live Player Analysis"
+        let existingDirectory = device.podcastDirectoryURL.appendingPathComponent(previousPodcastTitle, isDirectory: true)
+        let existingFile = existingDirectory.appendingPathComponent(
+            "2026.08.29-AI-AM Highlights-Recursive Self-Improvement, Rushed and Vibe-Coded-(\(previousPodcastTitle)).mp3"
+        )
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [existingDirectory: [existingFile]],
+                directoriesByDirectory: [device.podcastDirectoryURL: [existingDirectory]]
+            )
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription], episodes: [episode])
+
+        #expect(viewModel.file(for: episode) == existingFile)
+        #expect(viewModel.unmatchedFiles(for: subscription, episodes: [episode]).isEmpty)
+    }
+
+    @Test
+    func associatesExistingDeviceEpisodeThroughPersistedPodcastTitleAlias() async throws {
+        let subscription = PodcastSubscription(
+            title: "Entirely New Name",
+            titleAliases: ["Original Podcast"],
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "episode-guid",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Episode Title",
+            publicationDate: Date(timeIntervalSince1970: 1_788_000_000),
+            enclosureURL: URL(string: "https://example.com/episode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let device = DeviceInfo(
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
+        )
+        let existingDirectory = device.podcastDirectoryURL.appendingPathComponent("Original Podcast", isDirectory: true)
+        let existingFile = existingDirectory.appendingPathComponent(
+            "2026.08.29-Episode Title-(Original Podcast).mp3"
+        )
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [existingDirectory: [existingFile]],
+                directoriesByDirectory: [device.podcastDirectoryURL: [existingDirectory]]
+            )
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription], episodes: [episode])
+
+        #expect(viewModel.file(for: episode) == existingFile)
+    }
+
+    @Test
+    func leavesAmbiguousRenamedPodcastEpisodeFilesUnmatched() async throws {
+        let subscription = PodcastSubscription(
+            title: "New Name",
+            titleAliases: ["Original Podcast", "Earlier Podcast"],
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "episode-guid",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Episode Title",
+            publicationDate: Date(timeIntervalSince1970: 1_788_000_000),
+            enclosureURL: URL(string: "https://example.com/episode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let device = DeviceInfo(
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
+        )
+        let existingDirectory = device.podcastDirectoryURL.appendingPathComponent("Original Podcast", isDirectory: true)
+        let firstFile = existingDirectory.appendingPathComponent("2026.08.29-Episode Title-(Original Podcast).mp3")
+        let secondFile = existingDirectory.appendingPathComponent("2026.08.29-Episode Title-(Earlier Podcast).mp3")
+        let viewModel = DeviceLibraryViewModel(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [existingDirectory: [firstFile, secondFile]],
+                directoriesByDirectory: [device.podcastDirectoryURL: [existingDirectory]]
+            )
+        )
+
+        await viewModel.refresh(device: device, subscriptions: [subscription], episodes: [episode])
+
+        #expect(viewModel.file(for: episode) == nil)
+        #expect(Set(viewModel.unmatchedFiles(for: subscription, episodes: [episode])) == Set([firstFile, secondFile]))
+    }
+
+    @Test
     func refreshOrdersDeviceFilesNewestToOldestWhenEpisodesMatch() async throws {
         let subscription = PodcastSubscription(
             title: "Connected",
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let oldFile = device.podcastDirectoryURL.appendingPathComponent("Connected/2026.04.20-Old Episode-(Connected).mp3")
         let newFile = device.podcastDirectoryURL.appendingPathComponent("Connected/2026.04.21-New Episode-(Connected).mp3")
@@ -121,9 +233,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let alphaFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Alpha.mp3")
         let zuluFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Zulu.mp3")
@@ -154,9 +266,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let realFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
         let sidecarFile = device.podcastDirectoryURL.appendingPathComponent("ATP/._2026.04.21-Episode-(ATP).mp3")
@@ -183,9 +295,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let managedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
         let unrelatedAudioFile = device.podcastDirectoryURL.appendingPathComponent("ATP/Favorite Song.mp3")
@@ -216,9 +328,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let actualDirectory = device.podcastDirectoryURL.appendingPathComponent(
             "Sean Carroll's Mindscape, Science, Society, Philosophy, Culture, Arts, and Ideas",
@@ -250,9 +362,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let managedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
         let otherPodcastFile = device.podcastDirectoryURL.appendingPathComponent("Old Podcast/random.mp3")
@@ -293,9 +405,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let unrelatedDirectory = device.podcastDirectoryURL.appendingPathComponent("Archive", isDirectory: true)
         let unrelatedFile = unrelatedDirectory.appendingPathComponent("Old Recording-(ATP).mp3")
@@ -320,9 +432,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let managedFile = device.podcastDirectoryURL.appendingPathComponent("ATP/2026.04.21-Episode-(ATP).mp3")
         let otherFile = device.podcastDirectoryURL.appendingPathComponent("Old Podcast/random.mp3")
@@ -356,9 +468,9 @@ struct DeviceLibraryViewModelTests {
     @Test
     func refreshInventoriesDeviceFilesOnceForMultipleSubscriptions() async throws {
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let subscriptions = [
             PodcastSubscription(title: "First", rssURL: URL(string: "https://example.com/first.xml")!),
@@ -393,9 +505,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let deviceLibrary = VirtualLargeDeviceLibrary(unrelatedFileCount: 12_000)
         let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
@@ -419,9 +531,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true)
         let managedFile = managedDirectory.appendingPathComponent("2026.04.21-Episode-(ATP).mp3")
@@ -445,9 +557,9 @@ struct DeviceLibraryViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("ATP", isDirectory: true)
         let managedFile = managedDirectory.appendingPathComponent("2026.04.21-Episode-(ATP).mp3")
@@ -468,9 +580,9 @@ struct DeviceLibraryViewModelTests {
     @Test
     func dismissingOtherAudioResultsHidesTheCompletedReview() async {
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let otherFile = device.podcastDirectoryURL.appendingPathComponent("Album/song.mp3")
         let viewModel = DeviceLibraryViewModel(
@@ -494,9 +606,9 @@ struct DeviceLibraryViewModelTests {
     @Test
     func cancellingOtherAudioReviewStopsTheRecursiveScan() async {
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let deviceLibrary = CancellationAwareDeviceLibrary()
         let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)
@@ -521,9 +633,9 @@ struct DeviceLibraryViewModelTests {
     @Test
     func refreshInventoriesDeviceOutsideMainThread() async {
         let device = DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let deviceLibrary = ThreadCapturingDeviceLibrary()
         let viewModel = DeviceLibraryViewModel(deviceLibrary: deviceLibrary)

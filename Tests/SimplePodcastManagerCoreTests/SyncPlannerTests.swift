@@ -588,6 +588,55 @@ struct SyncPlannerTests {
     }
 
     @Test
+    func skipsDuplicateCopyWhenPodcastTitleChangedAfterExistingDeviceCopy() throws {
+        let device = makeDevice()
+        let subscription = PodcastSubscription(
+            id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            title: "Entirely New Name",
+            titleAliases: ["Original Podcast"],
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = Episode(
+            id: "ep-1",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Episode Title",
+            publicationDate: Date(timeIntervalSince1970: 1_788_000_000),
+            enclosureURL: URL(string: "https://cdn.example.com/episode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let preparedEpisode = PreparedEpisode(
+            episode: episode,
+            sourceFileURL: URL(fileURLWithPath: "/tmp/current.mp3"),
+            preparedFileURL: URL(fileURLWithPath: "/tmp/2026.08.29-Episode Title-(Entirely New Name).mp3"),
+            preparationAction: .passthroughMP3
+        )
+        let existingDirectory = device.podcastDirectoryURL.appendingPathComponent("Original Podcast", isDirectory: true)
+        let existingFile = existingDirectory.appendingPathComponent(
+            "2026.08.29-Episode Title-(Original Podcast).mp3"
+        )
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(
+                filesByDirectory: [existingDirectory.standardizedFileURL.path: [existingFile]],
+                directoriesByDirectory: [device.podcastDirectoryURL.standardizedFileURL.path: [existingDirectory]]
+            )
+        )
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [subscription],
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions.contains(.skip(reason: "Already on device: Episode Title")))
+        #expect(!plan.actions.contains { action in
+            if case .copyToDevice = action { return true }
+            return false
+        })
+    }
+
+    @Test
     func enumeratesDeviceDirectoriesOnceWhenPlanningMultipleSubscriptions() throws {
         let device = makeDevice()
         let subscriptions = [
@@ -832,9 +881,9 @@ struct SyncPlannerTests {
 
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
     }
 

@@ -244,8 +244,42 @@ struct MainViewModelTests {
         ])
 
         #expect(viewModel.podcastSubscriptions.first?.title == "New Title")
+        #expect(viewModel.podcastSubscriptions.first?.titleAliases == ["Old Title"])
+        #expect(store.configuration.podcastSubscriptions.first?.titleAliases == ["Old Title"])
         #expect(viewModel.podcastSubscriptions.first?.artworkURL == URL(string: "https://example.com/artwork.jpg"))
         #expect(viewModel.podcastSubscriptions.first?.description == "Fresh feed description.")
+    }
+
+    @Test
+    func applyFeedSummariesKeepsDistinctPreviousPodcastTitlesWithoutDuplicatingThem() async throws {
+        let subscriptionID = UUID()
+        let store = InMemoryConfigurationStore(
+            configuration: AppConfiguration(
+                podcastSubscriptions: [
+                    PodcastSubscription(
+                        id: subscriptionID,
+                        title: "Original Podcast",
+                        rssURL: URL(string: "https://example.com/feed.xml")!
+                    )
+                ]
+            )
+        )
+        let viewModel = MainViewModel(store: store)
+        await viewModel.load()
+
+        viewModel.applyFeedSummaries([
+            FeedSummary(subscriptionID: subscriptionID, title: "Renamed Podcast")
+        ])
+        viewModel.applyFeedSummaries([
+            FeedSummary(subscriptionID: subscriptionID, title: "Original Podcast")
+        ])
+        viewModel.applyFeedSummaries([
+            FeedSummary(subscriptionID: subscriptionID, title: "Renamed Podcast")
+        ])
+
+        let subscription = try #require(viewModel.podcastSubscriptions.first)
+        #expect(subscription.title == "Renamed Podcast")
+        #expect(subscription.titleAliases == ["Original Podcast"])
     }
 
     @Test

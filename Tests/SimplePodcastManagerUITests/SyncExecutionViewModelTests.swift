@@ -8,9 +8,9 @@ struct SyncExecutionViewModelTests {
     @Test
     func syncUsesExecutorAndCapturesResult() async {
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let preparedEpisode = PreparedEpisode(
             episode: Episode(
@@ -51,9 +51,9 @@ struct SyncExecutionViewModelTests {
     @Test
     func clearLastResultResetsSyncState() async {
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let plan = SyncPlan(
             device: device,

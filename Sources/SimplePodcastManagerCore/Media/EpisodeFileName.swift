@@ -77,7 +77,71 @@ public enum EpisodeFileName {
             return false
         }
 
-        return titlesMatch(podcastTitle, subscription.title)
+        return subscription.currentAndPreviousTitles.contains {
+            titlesMatch(podcastTitle, $0)
+        }
+    }
+
+    public static func isConservativeMatch(
+        _ fileURL: URL,
+        for episode: Episode,
+        subscription: PodcastSubscription
+    ) -> Bool {
+        guard isManagedEpisodeFile(fileURL, for: subscription),
+              let metadata = parsedMetadata(from: fileURL),
+              let filePublicationDate = metadata.publicationDate,
+              let episodePublicationDate = episode.publicationDate else {
+            return false
+        }
+
+        guard dateFormatter.string(from: filePublicationDate) == dateFormatter.string(from: episodePublicationDate) else {
+            return false
+        }
+
+        return sanitizedComponent(metadata.episodeTitle)
+            .caseInsensitiveCompare(sanitizedComponent(episode.title)) == .orderedSame
+    }
+
+    public static func uniqueConservativeMatches(
+        in files: [URL],
+        to episodes: [Episode],
+        subscription: PodcastSubscription
+    ) -> [String: URL] {
+        let filesByStem = Dictionary(grouping: files) {
+            $0.deletingPathExtension().lastPathComponent
+        }
+        let exactFiles = Set(episodes.compactMap { episode -> URL? in
+            let candidates = filesByStem[fileStem(for: episode)] ?? []
+            return candidates.count == 1 ? candidates[0] : nil
+        })
+        let unmatchedFiles = files.filter { !exactFiles.contains($0) }
+        let unmatchedEpisodes = episodes.filter {
+            filesByStem[fileStem(for: $0)] == nil
+        }
+
+        var candidatesByEpisodeID: [String: [URL]] = [:]
+        var episodeIDsByCandidateFile: [URL: Set<String>] = [:]
+        for episode in unmatchedEpisodes {
+            let candidates = unmatchedFiles.filter {
+                isConservativeMatch($0, for: episode, subscription: subscription)
+            }
+            candidatesByEpisodeID[episode.id] = candidates
+            for candidate in candidates {
+                episodeIDsByCandidateFile[candidate, default: []].insert(episode.id)
+            }
+        }
+
+        var matches: [String: URL] = [:]
+        for episode in unmatchedEpisodes {
+            guard let candidates = candidatesByEpisodeID[episode.id],
+                  candidates.count == 1,
+                  let candidate = candidates.first,
+                  episodeIDsByCandidateFile[candidate]?.count == 1 else {
+                continue
+            }
+            matches[episode.id] = candidate
+        }
+        return matches
     }
 
     public static func parsedMetadata(fromFileStem fileStem: String) -> ParsedFileMetadata {

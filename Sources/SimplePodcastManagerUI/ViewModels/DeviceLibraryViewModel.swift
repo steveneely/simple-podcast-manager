@@ -20,6 +20,7 @@ public final class DeviceLibraryViewModel {
     private let safetyValidator: SafetyValidator
     private var filesBySubscriptionID: [UUID: [URL]]
     private var filesByEpisodeStemBySubscriptionID: [UUID: [String: URL]]
+    private var conservativelyMatchedFilesByEpisodeIDBySubscriptionID: [UUID: [String: URL]]
     private var latestRefreshID: UUID?
     private var latestOtherAudioReviewID: UUID?
     private var inventoryTask: Task<(ManagedDeviceLibraryInventory, Bool), Error>?
@@ -39,6 +40,7 @@ public final class DeviceLibraryViewModel {
         self.safetyValidator = safetyValidator
         self.filesBySubscriptionID = [:]
         self.filesByEpisodeStemBySubscriptionID = [:]
+        self.conservativelyMatchedFilesByEpisodeIDBySubscriptionID = [:]
         self.otherAudioFiles = []
         self.hasOtherAudioAvailable = false
         self.isReviewingOtherAudio = false
@@ -49,7 +51,11 @@ public final class DeviceLibraryViewModel {
         self.managedInventory = nil
     }
 
-    public func refresh(device: DeviceInfo?, subscriptions: [PodcastSubscription]) async {
+    public func refresh(
+        device: DeviceInfo?,
+        subscriptions: [PodcastSubscription],
+        episodes: [Episode] = []
+    ) async {
         inventoryTask?.cancel()
         cancelOtherAudioReview(clearResults: true)
         hasOtherAudioAvailable = false
@@ -59,6 +65,7 @@ public final class DeviceLibraryViewModel {
         guard let device else {
             filesBySubscriptionID = [:]
             filesByEpisodeStemBySubscriptionID = [:]
+            conservativelyMatchedFilesByEpisodeIDBySubscriptionID = [:]
             managedInventory = nil
             isRefreshingManagedInventory = false
             lastErrorMessage = nil
@@ -99,7 +106,7 @@ public final class DeviceLibraryViewModel {
             filesBySubscriptionID = Dictionary(uniqueKeysWithValues: subscriptions.map {
                 ($0.id, inventory.files(for: $0))
             })
-            rebuildFileIndex()
+            rebuildFileIndex(subscriptions: subscriptions, episodes: episodes)
             isRefreshingManagedInventory = false
             lastErrorMessage = nil
             inventoryTask = nil
@@ -109,6 +116,7 @@ public final class DeviceLibraryViewModel {
             guard latestRefreshID == refreshID else { return }
             filesBySubscriptionID = [:]
             filesByEpisodeStemBySubscriptionID = [:]
+            conservativelyMatchedFilesByEpisodeIDBySubscriptionID = [:]
             managedInventory = nil
             hasOtherAudioAvailable = false
             isRefreshingManagedInventory = false
@@ -203,13 +211,17 @@ public final class DeviceLibraryViewModel {
 
         let expectedFileStem = EpisodeFileName.fileStem(for: episode)
         return filesByEpisodeStemBySubscriptionID[subscriptionID]?[expectedFileStem]
+            ?? conservativelyMatchedFilesByEpisodeIDBySubscriptionID[subscriptionID]?[episode.id]
     }
 
     public var hasOtherAudio: Bool {
         !otherAudioFiles.isEmpty
     }
 
-    private func rebuildFileIndex() {
+    private func rebuildFileIndex(
+        subscriptions: [PodcastSubscription],
+        episodes: [Episode]
+    ) {
         filesByEpisodeStemBySubscriptionID = filesBySubscriptionID.mapValues { files in
             var filesByStem: [String: URL] = [:]
             for file in files where filesByStem[file.deletingPathExtension().lastPathComponent] == nil {
@@ -217,15 +229,33 @@ public final class DeviceLibraryViewModel {
             }
             return filesByStem
         }
+
+        conservativelyMatchedFilesByEpisodeIDBySubscriptionID = [:]
+        let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
+        let episodesBySubscriptionID = Dictionary(grouping: episodes.compactMap { episode -> (UUID, Episode)? in
+            guard let subscriptionID = episode.subscriptionID else { return nil }
+            return (subscriptionID, episode)
+        }, by: \.0).mapValues { $0.map(\.1) }
+
+        for (subscriptionID, subscriptionEpisodes) in episodesBySubscriptionID {
+            guard let subscription = subscriptionsByID[subscriptionID] else { continue }
+            let files = filesBySubscriptionID[subscriptionID] ?? []
+            conservativelyMatchedFilesByEpisodeIDBySubscriptionID[subscriptionID] =
+                EpisodeFileName.uniqueConservativeMatches(
+                    in: files,
+                    to: subscriptionEpisodes,
+                    subscription: subscription
+                )
+        }
     }
 
     public func unmatchedFiles(
         for subscription: PodcastSubscription,
         episodes: [Episode]
     ) -> [URL] {
-        let currentEpisodeFileStems = Set(episodes.map(EpisodeFileName.fileStem(for:)))
+        let matchedFiles = Set(episodes.compactMap(file(for:)))
         return files(for: subscription).filter {
-            !currentEpisodeFileStems.contains($0.deletingPathExtension().lastPathComponent)
+            !matchedFiles.contains($0)
         }
     }
 

@@ -62,6 +62,11 @@ public struct SyncPlanner: Sendable {
                 $0.deletingLastPathComponent().standardizedFileURL == managedDirectory.standardizedFileURL
                     && EpisodeFileName.isManagedEpisodeFile($0, for: subscription)
             }
+            let conservativeExistingFilesByEpisodeID = EpisodeFileName.uniqueConservativeMatches(
+                in: existingFiles,
+                to: preparedEpisodes.map(\.episode),
+                subscription: subscription
+            )
 
             var cleanupCandidateSizesByURL: [URL: Int64] = [:]
             if let maximumEpisodesPerPodcast {
@@ -111,6 +116,21 @@ public struct SyncPlanner: Sendable {
                         actions.append(.skip(reason: "Selected for removal from device: \(preparedEpisode.episode.title)"))
                     } else {
                         try verifyExistingCopy(existingFileURL, matches: preparedEpisode.preparedFileURL)
+                        actions.append(.skip(reason: "Already on device: \(preparedEpisode.episode.title)"))
+                    }
+                } else if let existingFileURL = conservativeExistingFilesByEpisodeID[preparedEpisode.episode.id] {
+                    let standardizedExistingURL = existingFileURL.standardizedFileURL
+                    if replacementTargets.contains(standardizedExistingURL) {
+                        try safetyValidator.validateWriteTarget(destinationURL, on: device)
+                        let fileSizeBytes = try storageInspector.fileSize(at: preparedEpisode.preparedFileURL)
+                        actions.append(.copyToDevice(
+                            sourceURL: preparedEpisode.preparedFileURL,
+                            destinationURL: destinationURL,
+                            fileSizeBytes: fileSizeBytes
+                        ))
+                    } else if selectedFileURLs.contains(standardizedExistingURL) {
+                        actions.append(.skip(reason: "Selected for removal from device: \(preparedEpisode.episode.title)"))
+                    } else {
                         actions.append(.skip(reason: "Already on device: \(preparedEpisode.episode.title)"))
                     }
                 } else {

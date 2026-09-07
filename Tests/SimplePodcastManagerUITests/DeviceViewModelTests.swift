@@ -11,9 +11,9 @@ struct DeviceViewModelTests {
             service: MockDeviceService(
                 devices: [
                     DeviceInfo(
-                        name: "WALKMAN",
-                        rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-                        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+                        name: "Test MP3 Player",
+                        rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+                        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
                     )
                 ]
             )
@@ -21,7 +21,7 @@ struct DeviceViewModelTests {
 
         await viewModel.refresh()
 
-        #expect(viewModel.selectedDevice?.name == "WALKMAN")
+        #expect(viewModel.selectedDevice?.name == "Test MP3 Player")
         #expect(viewModel.hasMultipleDevices == false)
     }
 
@@ -67,14 +67,14 @@ struct DeviceViewModelTests {
     @Test
     func replacesSelectedDeviceDetailsWithoutWaitingForRediscovery() async throws {
         let initialDevice = DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let updatedDevice = DeviceInfo(
-            name: "WALKMAN",
+            name: "Test MP3 Player",
             rootURL: initialDevice.rootURL,
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/Podcast", isDirectory: true)
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcast", isDirectory: true)
         )
         let viewModel = DeviceViewModel(service: MockDeviceService(devices: [initialDevice]))
         await viewModel.refresh()
@@ -87,9 +87,9 @@ struct DeviceViewModelTests {
     @Test
     func disconnectSelectedDeviceEjectsAndRefreshesDevices() async throws {
         let initialDevice = DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let service = RefreshingMockDeviceService(deviceLists: [[initialDevice], []])
         let ejector = RecordingDeviceEjector()
@@ -106,9 +106,9 @@ struct DeviceViewModelTests {
     @Test
     func disconnectSelectedDeviceSurfacesEjectError() async throws {
         let initialDevice = DeviceInfo(
-            name: "WALKMAN",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
         )
         let viewModel = DeviceViewModel(
             service: MockDeviceService(devices: [initialDevice]),
@@ -118,8 +118,8 @@ struct DeviceViewModelTests {
         await viewModel.refresh()
         await viewModel.disconnectSelectedDevice()
 
-        #expect(viewModel.selectedDevice?.name == "WALKMAN")
-        #expect(viewModel.lastErrorMessage == "Could not eject the device at /Volumes/WALKMAN.")
+        #expect(viewModel.selectedDevice?.name == "Test MP3 Player")
+        #expect(viewModel.lastErrorMessage == "Could not eject the device at /Volumes/TEST-MP3-PLAYER.")
     }
 
     @Test

@@ -37,6 +37,7 @@ struct JSONConfigurationStoreTests {
             podcastSubscriptions: [
                 PodcastSubscription(
                     title: "Accidental Tech Podcast",
+                    titleAliases: ["ATP"],
                     rssURL: URL(string: "https://atp.fm/rss")!
                 )
             ]
@@ -50,6 +51,36 @@ struct JSONConfigurationStoreTests {
         let loadedConfiguration = try store.loadConfiguration()
 
         #expect(loadedConfiguration == configuration)
+    }
+
+    @Test
+    func loadsPodcastSavedBeforeTitleAliasesWereIntroduced() throws {
+        let temporaryDirectoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fileURL = temporaryDirectoryURL.appendingPathComponent("config.json")
+        defer { try? FileManager.default.removeItem(at: temporaryDirectoryURL) }
+
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+        try #"""
+        {
+          "settings" : {},
+          "feedSubscriptions" : [
+            {
+              "id" : "11111111-1111-1111-1111-111111111111",
+              "title" : "Existing Podcast",
+              "rssURL" : "https:\/\/example.com\/feed.xml",
+              "isEnabled" : true,
+              "includesInAutomaticDownloads" : true
+            }
+          ]
+        }
+        """#.data(using: .utf8)!.write(to: fileURL)
+
+        let subscription = try #require(
+            JSONConfigurationStore(fileURL: fileURL).loadConfiguration().podcastSubscriptions.first
+        )
+
+        #expect(subscription.title == "Existing Podcast")
+        #expect(subscription.titleAliases.isEmpty)
     }
 
     @Test

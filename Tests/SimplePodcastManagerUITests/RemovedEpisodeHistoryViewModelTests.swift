@@ -19,20 +19,20 @@ struct RemovedEpisodeHistoryViewModelTests {
             enclosureURL: URL(string: "https://example.com/episode.mp3")!,
             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
         )
-        let deletedTargetURL = URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC/Example Podcast/2024.04.21-Episode 1-(Example Podcast).mp3")
+        let deletedTargetURL = URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC/Example Podcast/2024.04.21-Episode 1-(Example Podcast).mp3")
         let removedAt = Date(timeIntervalSince1970: 1_713_800_000)
 
         viewModel.recordDeletedEpisodes(
             deletedTargetURLs: [deletedTargetURL],
             filesBySubscriptionID: [subscriptionID: [deletedTargetURL]],
             episodesBySubscriptionID: [subscriptionID: [episode]],
-            deviceName: "WALKMAN",
+            deviceName: "Test MP3 Player",
             removedAt: removedAt
         )
 
         #expect(viewModel.removedRecord(for: episode)?.removedAt == removedAt)
         #expect(store.removedEpisodes.count == 1)
-        #expect(viewModel.removedRecord(for: episode)?.deviceName == "WALKMAN")
+        #expect(viewModel.removedRecord(for: episode)?.deviceName == "Test MP3 Player")
     }
 
     @Test
@@ -40,7 +40,7 @@ struct RemovedEpisodeHistoryViewModelTests {
         let subscriptionID = UUID(uuidString: "905B5061-7C79-4D27-8D70-331D714CE8DF")!
         let store = InMemoryRemovedEpisodeStore()
         let viewModel = RemovedEpisodeHistoryViewModel(store: store)
-        let deletedTargetURL = URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC/Example Podcast/2024.04.21-Episode 1-(Example Podcast).mp3")
+        let deletedTargetURL = URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC/Example Podcast/2024.04.21-Episode 1-(Example Podcast).mp3")
         let removedAt = Date(timeIntervalSince1970: 1_713_800_000)
         let laterLoadedEpisode = Episode(
             id: "different-feed-id",
@@ -56,14 +56,14 @@ struct RemovedEpisodeHistoryViewModelTests {
             deletedTargetURLs: [deletedTargetURL],
             filesBySubscriptionID: [subscriptionID: [deletedTargetURL]],
             episodesBySubscriptionID: [subscriptionID: []],
-            deviceName: "WALKMAN",
+            deviceName: "Test MP3 Player",
             removedAt: removedAt
         )
 
         #expect(store.removedEpisodes.count == 1)
         #expect(store.removedEpisodes.first?.episodeID == nil)
         #expect(store.removedEpisodes.first?.episodeTitle == "Episode 1")
-        #expect(store.removedEpisodes.first?.deviceName == "WALKMAN")
+        #expect(store.removedEpisodes.first?.deviceName == "Test MP3 Player")
         #expect(viewModel.removedRecord(for: laterLoadedEpisode)?.removedAt == removedAt)
     }
 
@@ -83,10 +83,10 @@ struct RemovedEpisodeHistoryViewModelTests {
         )
 
         viewModel.recordDeletedEpisodes(
-            deletedTargetURLs: [URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC/Example Podcast/Unknown.mp3")],
-            filesBySubscriptionID: [subscriptionID: [URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC/Example Podcast/Unknown.mp3")]],
+            deletedTargetURLs: [URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC/Example Podcast/Unknown.mp3")],
+            filesBySubscriptionID: [subscriptionID: [URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC/Example Podcast/Unknown.mp3")]],
             episodesBySubscriptionID: [subscriptionID: [episode]],
-            deviceName: "WALKMAN",
+            deviceName: "Test MP3 Player",
             removedAt: Date(timeIntervalSince1970: 1_713_800_000)
         )
 
@@ -109,7 +109,7 @@ struct RemovedEpisodeHistoryViewModelTests {
                 fileStem: "2026.05.20-David Sinclair's Transvulcania Victory, Cocodona Viewership Numbers, & the State of Live Streaming-(The Freetrail Podcast with Dylan Bowman)",
                 episodeTitle: "David Sinclair's Transvulcania Victory, Cocodona Viewership Numbers, & the State of Live Streaming",
                 publicationDate: deletedPublicationDate,
-                deviceName: "WALKMAN",
+                deviceName: "Test MP3 Player",
                 removedAt: removedAt
             )
         ]
@@ -144,13 +144,13 @@ struct RemovedEpisodeHistoryViewModelTests {
         )
         let store = InMemoryRemovedEpisodeStore()
         let viewModel = RemovedEpisodeHistoryViewModel(store: store)
-        let deletedTargetURL = URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC/The Freetrail Podcast with Dylan Bowman/2026.05.20-David Sinclair's Transvulcania Victory, Cocodona Viewership Numbers, & the State of Live Streaming-(The Freetrail Podcast with Dylan Bowman).mp3")
+        let deletedTargetURL = URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC/The Freetrail Podcast with Dylan Bowman/2026.05.20-David Sinclair's Transvulcania Victory, Cocodona Viewership Numbers, & the State of Live Streaming-(The Freetrail Podcast with Dylan Bowman).mp3")
 
         viewModel.recordDeletedEpisodes(
             deletedTargetURLs: [deletedTargetURL],
             filesBySubscriptionID: [subscriptionID: [deletedTargetURL]],
             episodesBySubscriptionID: [subscriptionID: [currentFeedEpisode]],
-            deviceName: "WALKMAN",
+            deviceName: "Test MP3 Player",
             removedAt: removedAt
         )
 

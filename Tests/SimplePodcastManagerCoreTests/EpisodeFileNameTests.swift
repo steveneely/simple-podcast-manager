@@ -57,4 +57,16 @@ struct EpisodeFileNameTests {
 
         #expect(EpisodeFileName.isManagedEpisodeFile(currentFile, for: subscription))
     }
+
+    @Test
+    func managedEpisodeMatchingRecognizesPreviousPodcastTitle() {
+        let subscription = PodcastSubscription(
+            title: "Entirely New Name",
+            titleAliases: ["Original Podcast"],
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let existingFile = URL(fileURLWithPath: "/music/Original Podcast/Episode-(Original Podcast).mp3")
+
+        #expect(EpisodeFileName.isManagedEpisodeFile(existingFile, for: subscription))
+    }
 }

@@ -227,9 +227,9 @@ private struct MigrationFixture {
         rssURL: URL(string: "https://example.com/feed.xml")!
     )
     let device = DeviceInfo(
-        name: "WALKMAN",
-        rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+        name: "Test MP3 Player",
+        rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+        podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
     )
 
     var managedFile: URL {

@@ -127,7 +127,7 @@ If the secure attempt fails, the UI asks before downloading over HTTP. A one-tim
 
 ## Podcast Subscriptions
 
-Subscriptions are RSS-first. The add/edit flow captures a feed URL, resolves title and artwork metadata from the feed, and stores the subscription.
+Subscriptions are RSS-first. The add/edit flow captures a feed URL, resolves title and artwork metadata from the feed, and stores the subscription. When an RSS refresh changes a podcast title, the current title is updated and the previous title is retained as an identity alias so existing app-managed device folders and filenames remain recognizable.
 
 New subscriptions default to a Podcast Index search. Search requests use the documented keyless HTTPS endpoint, are made only when the user submits a query, and use an ephemeral URL session without a response cache. Each request has a 15-second timeout and failures require an explicit user retry. Search results are discovery hints only: selecting a result supplies its RSS feed URL to the normal new-subscription flow, and the feed itself remains authoritative for stored title, artwork, description, and episodes. Results matching a subscription's normalized feed URL or title are marked as already added and cannot be selected. The persistence boundary also rejects common aliases of an existing web feed URL, including HTTP/HTTPS, default-port, trailing-slash, and fragment differences. HTTP search-result artwork is not loaded. Manual feed URL entry remains available when search is unavailable or a feed is absent from the index.
 
@@ -228,6 +228,8 @@ Every mutation must pass the safety boundaries below. Uncertain or malformed pat
 The app does not require manufacturer-specific identification beyond these rules.
 
 Automatic device refresh inventories only the immediate app-managed directory for each subscription. It does not collect unrelated audio. After that inventory, a constant-memory presence probe walks off the main actor and stops as soon as it finds one supported audio file outside the managed inventory. The resulting managed inventory is reused for episode status and sync-plan rebuilds until the device, configured podcast directory, or subscription set changes. External players can have slow storage, so inventory and planning filesystem reads run outside the main actor, obsolete work is cancelled, and closely spaced device-topology notifications are coalesced.
+
+Device episode status and sync planning prefer the exact filename generated from current RSS metadata. For files created before a podcast title change, they may fall back to a unique match within the resolved app-managed podcast directory using the publication day, episode title, and the subscription's current or previous titles. Ambiguous candidates remain unmatched. This compatibility matching only interprets inventory, prevents duplicate copies under a new title, and never renames, moves, or deletes a device file.
 
 The `Scan for Other Audio` button appears only when the presence probe finds a candidate. Choosing it opens a dedicated review sheet and starts a cancellable background operation that recursively inventories the configured podcast directory, excludes files from the current managed inventory, and reports progress without blocking the UI. Large result sets render lazily. Disconnecting, changing the configured directory, or refreshing the device invalidates the review.
 

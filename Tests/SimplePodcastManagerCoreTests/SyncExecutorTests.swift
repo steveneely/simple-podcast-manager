@@ -210,9 +210,9 @@ struct SyncExecutorTests {
 
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
     }
 }

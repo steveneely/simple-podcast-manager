@@ -7,20 +7,20 @@ struct MountedVolumeDeviceServiceTests {
     func detectsRemovableVolumeWithPodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
-                URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+                URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
             ]),
             metadataProvider: StubVolumeMetadataProvider(
                 resourceValues: [
-                    "/Volumes/WALKMAN": MountedVolumeResourceValues(
-                        volumeName: "WALKMAN",
+                    "/Volumes/TEST-MP3-PLAYER": MountedVolumeResourceValues(
+                        volumeName: "Test MP3 Player",
                         isDirectory: true,
                         isRemovable: true,
                         isEjectable: true
                     ),
                 ],
                 childDirectories: [
-                    "/Volumes/WALKMAN": [
-                        URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true)
+                    "/Volumes/TEST-MP3-PLAYER": [
+                        URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
                     ]
                 ]
             ),
@@ -30,28 +30,28 @@ struct MountedVolumeDeviceServiceTests {
         let devices = try service.discoverDevices()
 
         #expect(devices.count == 1)
-        #expect(devices.first?.name == "WALKMAN")
-        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/music", isDirectory: true))
+        #expect(devices.first?.name == "Test MP3 Player")
+        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true))
     }
 
     @Test
     func detectsRemovableVolumeWithUppercasePodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
-                URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+                URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
             ]),
             metadataProvider: StubVolumeMetadataProvider(
                 resourceValues: [
-                    "/Volumes/WALKMAN": MountedVolumeResourceValues(
-                        volumeName: "WALKMAN",
+                    "/Volumes/TEST-MP3-PLAYER": MountedVolumeResourceValues(
+                        volumeName: "Test MP3 Player",
                         isDirectory: true,
                         isRemovable: true,
                         isEjectable: true
                     ),
                 ],
                 childDirectories: [
-                    "/Volumes/WALKMAN": [
-                        URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true)
+                    "/Volumes/TEST-MP3-PLAYER": [
+                        URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC", isDirectory: true)
                     ]
                 ]
             ),
@@ -61,31 +61,31 @@ struct MountedVolumeDeviceServiceTests {
         let devices = try service.discoverDevices()
 
         #expect(devices.count == 1)
-        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true))
+        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC", isDirectory: true))
     }
 
     @Test
     func detectsConfiguredPodcastDirectoryFromDotfile() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
-                URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+                URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
             ]),
             metadataProvider: StubVolumeMetadataProvider(
                 resourceValues: [
-                    "/Volumes/WALKMAN": MountedVolumeResourceValues(
-                        volumeName: "WALKMAN",
+                    "/Volumes/TEST-MP3-PLAYER": MountedVolumeResourceValues(
+                        volumeName: "Test MP3 Player",
                         isDirectory: true,
                         isRemovable: true,
                         isEjectable: true
                     ),
                 ],
                 childDirectories: [
-                    "/Volumes/WALKMAN": [
-                        URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true)
+                    "/Volumes/TEST-MP3-PLAYER": [
+                        URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcasts", isDirectory: true)
                     ]
                 ],
                 fileContents: [
-                    "/Volumes/WALKMAN/.spmconfig": """
+                    "/Volumes/TEST-MP3-PLAYER/.spmconfig": """
                     [simple-podcast-manager]
                     podcast-dir: Podcasts
 
@@ -98,19 +98,19 @@ struct MountedVolumeDeviceServiceTests {
         let devices = try service.discoverDevices()
 
         #expect(devices.count == 1)
-        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/WALKMAN/Podcasts", isDirectory: true))
+        #expect(devices.first?.podcastDirectoryURL == URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcasts", isDirectory: true))
     }
 
     @Test
     func ignoresVolumesWithoutPodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [
-                URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
+                URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
             ]),
             metadataProvider: StubVolumeMetadataProvider(
                 resourceValues: [
-                    "/Volumes/WALKMAN": MountedVolumeResourceValues(
-                        volumeName: "WALKMAN",
+                    "/Volumes/TEST-MP3-PLAYER": MountedVolumeResourceValues(
+                        volumeName: "Test MP3 Player",
                         isDirectory: true,
                         isRemovable: true,
                         isEjectable: true

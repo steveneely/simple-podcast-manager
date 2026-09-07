@@ -8,9 +8,9 @@ struct SyncPlanViewModelTests {
     @Test
     func buildPlanProducesTypedActions() async {
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let preparedEpisode = PreparedEpisode(
             episode: Episode(
@@ -107,9 +107,9 @@ struct SyncPlanViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let preparedFileURL = URL(fileURLWithPath: "/tmp/2026.07.18-Episode-(Example Podcast).mp3")
         let preparedEpisode = PreparedEpisode(
@@ -253,9 +253,9 @@ struct SyncPlanViewModelTests {
     func buildPlanKeepsExcludedCleanupCandidateVisibleWithoutDeletingIt() async throws {
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
         let oldEpisodeURL = managedDirectory.appendingPathComponent("2026.01.01-Old Episode-(Example Podcast).mp3")
@@ -291,9 +291,9 @@ struct SyncPlanViewModelTests {
     @Test
     func buildPlanInspectsDeviceOutsideMainThread() async {
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let deviceLibrary = ThreadCapturingPlanDeviceLibrary()
         let viewModel = SyncPlanViewModel(planner: makeTestPlanner(deviceLibrary: deviceLibrary))
@@ -316,9 +316,9 @@ struct SyncPlanViewModelTests {
             rssURL: URL(string: "https://example.com/feed.xml")!
         )
         let device = DeviceInfo(
-            name: "SPM Test Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-WALKMAN/music", isDirectory: true)
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
         )
         let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(subscription.title, isDirectory: true)
         let managedFile = managedDirectory.appendingPathComponent(

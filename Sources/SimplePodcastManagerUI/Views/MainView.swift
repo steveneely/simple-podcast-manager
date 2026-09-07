@@ -1173,7 +1173,8 @@ public struct MainView: View {
     private func refreshDeviceLibrary() async {
         await deviceLibraryViewModel.refresh(
             device: deviceViewModel.selectedDevice,
-            subscriptions: viewModel.podcastSubscriptions
+            subscriptions: viewModel.podcastSubscriptions,
+            episodes: podcastPreviewViewModel.allEpisodes
         )
         pruneManualDeletionTargets()
         pruneOtherAudioDeletionTargets()

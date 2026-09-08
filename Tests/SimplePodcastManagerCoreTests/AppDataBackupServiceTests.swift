@@ -25,6 +25,7 @@ struct AppDataBackupServiceTests {
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "removed-episodes.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "automatic-downloads.json").path))
         #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "feed-activity.json").path))
+        #expect(FileManager.default.fileExists(atPath: backupURL.appending(path: "podcast-playlists.json").path))
         #expect(try AppJSONFile.load(
             [DownloadedEpisodeRecord].self,
             from: backupURL.appending(path: "downloaded-episodes.json"),
@@ -34,12 +35,13 @@ struct AppDataBackupServiceTests {
         let manifestData = try Data(contentsOf: backupURL.appending(path: "manifest.json"))
         let manifest = try JSONDecoder.iso8601Decoder.decode(AppDataBackupManifest.self, from: manifestData)
         #expect(manifest.appName == AppIdentity.displayName)
-        #expect(manifest.formatVersion == 1)
+        #expect(manifest.formatVersion == 2)
         #expect(manifest.files == [
             "automatic-downloads.json",
             "config.json",
             "downloaded-episodes.json",
             "feed-activity.json",
+            "podcast-playlists.json",
             "prepared-episodes.json",
             "removed-episodes.json",
         ])
@@ -84,6 +86,12 @@ struct AppDataBackupServiceTests {
             supportDirectoryURL: destinationSupportURL
         ).loadPodcastActivityState()
         #expect(restoredActivityState.podcasts.first?.newEpisodeIDs == ["episode-1"])
+        let restoredPlaylistLibrary = try SQLiteEpisodeStore(
+            fileURL: destinationSupportURL.appending(path: "episodes.sqlite3"),
+            supportDirectoryURL: destinationSupportURL
+        ).loadPodcastPlaylistLibrary()
+        #expect(restoredPlaylistLibrary.playlists.first?.name == "Commute")
+        #expect(restoredPlaylistLibrary.playlists.first?.entries.map(\.episode.id) == ["episode-1"])
         #expect(previousBackupURL != nil)
         #expect(FileManager.default.fileExists(atPath: previousBackupURL!.appending(path: "config.json").path))
     }
@@ -243,10 +251,11 @@ struct AppDataBackupServiceTests {
             ]),
             to: supportURL.appending(path: "automatic-downloads.json")
         )
-        try SQLiteEpisodeStore(
+        let episodeStore = SQLiteEpisodeStore(
             fileURL: supportURL.appending(path: "episodes.sqlite3"),
             supportDirectoryURL: supportURL
-        ).savePodcastActivityState(
+        )
+        try episodeStore.savePodcastActivityState(
             PodcastActivityState(podcasts: [
                 PodcastActivityEntry(
                     subscriptionID: subscriptionID,
@@ -257,6 +266,10 @@ struct AppDataBackupServiceTests {
                 )
             ])
         )
+        let playlistEntry = try #require(PodcastPlaylistEntry(episode: episode))
+        try episodeStore.savePodcastPlaylistLibrary(PodcastPlaylistLibrary(
+            playlists: [try PodcastPlaylist(name: "Commute", entries: [playlistEntry])]
+        ))
     }
 
     private func writeAlternateConfiguration(to supportURL: URL) throws {

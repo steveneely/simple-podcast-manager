@@ -6,6 +6,11 @@ import SimplePodcastManagerCore
 @MainActor
 struct PodcastSidebarViewTests {
     @Test
+    func libraryPickerOffersPodcastsAndPlaylists() {
+        #expect(PodcastLibraryMode.allCases.map(\.rawValue) == ["Podcasts", "Playlists"])
+    }
+
+    @Test
     func appStartsWithoutSelectingAPodcast() {
         #expect(PodcastSelectionPolicy.initialSelection == nil)
     }

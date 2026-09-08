@@ -32,7 +32,8 @@ struct SyncDialogView: View {
         guard !isSyncing, !isPlanning, let plan else { return false }
         return plan.actions.contains {
             switch $0 {
-            case .copyToDevice, .deleteFromDevice, .ejectDevice:
+            case .copyToDevice, .deleteFromDevice, .writePodcastPlaylist,
+                    .deletePodcastPlaylist, .ejectDevice:
                 return true
             case .skip:
                 return false
@@ -203,8 +204,9 @@ struct SyncDialogView: View {
                 let copyCount = plan.actions.count(where: { if case .copyToDevice = $0 { true } else { false } })
                 let deleteCount = plan.actions.count(where: { if case .deleteFromDevice = $0 { true } else { false } })
                 let skipCount = plan.actions.count(where: { if case .skip = $0 { true } else { false } })
+                let playlistCount = plan.actions.count(where: { if case .writePodcastPlaylist = $0 { true } else { false } })
 
-                Text("\(preparedEpisodeCount) episode\(preparedEpisodeCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) podcast\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete")
+                Text("\(preparedEpisodeCount) episode\(preparedEpisodeCount == 1 ? "" : "s") ready across \(enabledSubscriptionCount) podcast\(enabledSubscriptionCount == 1 ? "" : "s"), \(copyCount) to copy, \(skipCount) to skip, \(deleteCount) to delete, \(playlistCount) playlist\(playlistCount == 1 ? "" : "s") to update")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -367,7 +369,10 @@ enum SyncPresentation {
 
     static func resultSummary(_ result: SyncResult) -> String {
         let finishedText = result.finishedAt?.formatted(date: .omitted, time: .shortened) ?? "now"
-        return "Last run at \(finishedText): \(result.copiedCount) copied (\(formattedFileSize(result.copiedBytes))), \(result.deletedCount) deleted (\(formattedFileSize(result.deletedBytes))), \(result.skippedCount) skipped."
+        let playlistText = result.updatedPlaylistCount > 0 || result.deletedPlaylistCount > 0
+            ? ", \(result.updatedPlaylistCount) playlist\(result.updatedPlaylistCount == 1 ? "" : "s") updated, \(result.deletedPlaylistCount) old playlist\(result.deletedPlaylistCount == 1 ? "" : "s") removed"
+            : ""
+        return "Last run at \(finishedText): \(result.copiedCount) copied (\(formattedFileSize(result.copiedBytes))), \(result.deletedCount) deleted (\(formattedFileSize(result.deletedBytes))), \(result.skippedCount) skipped\(playlistText)."
     }
 
     static func formattedFileSize(_ bytes: Int64) -> String {
@@ -378,6 +383,8 @@ enum SyncPresentation {
         switch action {
         case .copyToDevice: "arrow.down.circle"
         case .deleteFromDevice: "trash"
+        case .writePodcastPlaylist: "music.note.list"
+        case .deletePodcastPlaylist: "trash"
         case .skip: "arrow.right"
         case .ejectDevice: "eject"
         }
@@ -385,8 +392,8 @@ enum SyncPresentation {
 
     static func iconColor(for action: SyncAction) -> Color {
         switch action {
-        case .deleteFromDevice: .red
-        case .copyToDevice: .accentColor
+        case .deleteFromDevice, .deletePodcastPlaylist: .red
+        case .copyToDevice, .writePodcastPlaylist: .accentColor
         case .skip, .ejectDevice: .secondary
         }
     }

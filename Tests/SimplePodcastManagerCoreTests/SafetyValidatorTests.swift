@@ -89,6 +89,32 @@ struct SafetyValidatorTests {
     }
 
     @Test
+    func allowsPlaylistOnlyAtPodcastDirectoryRoot() throws {
+        let device = makeDeviceInfo()
+        let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+
+        #expect(throws: Never.self) {
+            try validator.validatePodcastPlaylistTarget(playlistURL, on: device)
+        }
+    }
+
+    @Test
+    func rejectsNestedOrNonM3UPlaylistTargets() {
+        let device = makeDeviceInfo()
+        let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+        let nestedURL = device.podcastDirectoryURL.appendingPathComponent("Lists/Commute.m3u")
+        let wrongExtensionURL = device.podcastDirectoryURL.appendingPathComponent("Commute.txt")
+
+        #expect(throws: SafetyValidationError.invalidPodcastPlaylistTarget(nestedURL)) {
+            try validator.validatePodcastPlaylistTarget(nestedURL, on: device)
+        }
+        #expect(throws: SafetyValidationError.invalidPodcastPlaylistTarget(wrongExtensionURL)) {
+            try validator.validatePodcastPlaylistTarget(wrongExtensionURL, on: device)
+        }
+    }
+
+    @Test
     func rejectsDeviceRootsOutsideVolumes() throws {
         let device = DeviceInfo(
             name: "Temp Device",

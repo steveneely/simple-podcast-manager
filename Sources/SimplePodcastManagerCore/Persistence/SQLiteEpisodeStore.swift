@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, PodcastActivityStateStore, EpisodeStateStartupLoading, @unchecked Sendable {
+public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, PodcastActivityStateStore, PodcastPlaylistStore, EpisodeStateStartupLoading, @unchecked Sendable {
     public static let shared = SQLiteEpisodeStore()
 
     public let fileURL: URL
@@ -94,6 +94,19 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         }
     }
 
+    public func loadPodcastPlaylistLibrary() throws -> PodcastPlaylistLibrary {
+        let queue = try databaseQueue()
+        return try queue.read(Self.loadPodcastPlaylistLibrary)
+    }
+
+    public func savePodcastPlaylistLibrary(_ library: PodcastPlaylistLibrary) throws {
+        let data = try AppJSONCoding.makeEncoder().encode(library)
+        let queue = try databaseQueue()
+        try queue.write { database in
+            try Self.savePodcastPlaylistLibrary(data, database: database)
+        }
+    }
+
     func loadAllAppData() throws -> SQLiteAppData {
         let queue = try databaseQueue()
         return try queue.read { database in
@@ -102,7 +115,8 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                 downloadedEpisodes: Self.loadRecords(DownloadedEpisodeRecord.self, from: .downloaded, database: database),
                 removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database),
                 automaticDownloadState: Self.loadAutomaticDownloadState(database: database),
-                podcastActivityState: Self.loadPodcastActivityState(database: database)
+                podcastActivityState: Self.loadPodcastActivityState(database: database),
+                podcastPlaylistLibrary: try Self.loadPodcastPlaylistLibrary(database)
             )
         }
     }
@@ -112,7 +126,8 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         downloadedEpisodes: [DownloadedEpisodeRecord],
         removedEpisodes: [RemovedEpisodeRecord],
         automaticDownloadState: AutomaticDownloadState,
-        podcastActivityState: PodcastActivityState
+        podcastActivityState: PodcastActivityState,
+        podcastPlaylistLibrary: PodcastPlaylistLibrary
     ) throws {
         let queue = try databaseQueue()
         try queue.write { database in
@@ -121,7 +136,32 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
             try Self.replaceRows(try removedEpisodes.map(Self.removedRow), in: .removed, database: database)
             try Self.saveAutomaticDownloadState(automaticDownloadState, database: database)
             try Self.savePodcastActivityState(podcastActivityState, database: database)
+            try Self.savePodcastPlaylistLibrary(
+                AppJSONCoding.makeEncoder().encode(podcastPlaylistLibrary),
+                database: database
+            )
         }
+    }
+
+    private static func loadPodcastPlaylistLibrary(_ database: Database) throws -> PodcastPlaylistLibrary {
+        guard let data = try Data.fetchOne(
+            database,
+            sql: "SELECT libraryJSON FROM podcastPlaylistLibrary WHERE singletonID = 1"
+        ) else {
+            return PodcastPlaylistLibrary()
+        }
+        return try AppJSONCoding.makeDecoder().decode(PodcastPlaylistLibrary.self, from: data)
+    }
+
+    private static func savePodcastPlaylistLibrary(_ data: Data, database: Database) throws {
+        try database.execute(
+            sql: """
+                INSERT INTO podcastPlaylistLibrary (singletonID, libraryJSON)
+                VALUES (1, ?)
+                ON CONFLICT(singletonID) DO UPDATE SET libraryJSON = excluded.libraryJSON
+                """,
+            arguments: [data]
+        )
     }
 
     public static func defaultFileURL(fileManager: FileManager = .default) -> URL {
@@ -230,6 +270,14 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
                     subscriptionID TEXT NOT NULL,
                     episodeID TEXT NOT NULL,
                     PRIMARY KEY (subscriptionID, episodeID)
+                );
+                """)
+        }
+        migrator.registerMigration("podcast-playlists-v1") { database in
+            try database.execute(sql: """
+                CREATE TABLE podcastPlaylistLibrary (
+                    singletonID INTEGER PRIMARY KEY NOT NULL CHECK (singletonID = 1),
+                    libraryJSON BLOB NOT NULL
                 );
                 """)
         }
@@ -636,19 +684,22 @@ struct SQLiteAppData: Equatable, Sendable {
     var removedEpisodes: [RemovedEpisodeRecord]
     var automaticDownloadState: AutomaticDownloadState
     var podcastActivityState: PodcastActivityState
+    var podcastPlaylistLibrary: PodcastPlaylistLibrary
 
     init(
         preparedEpisodes: [PreparedEpisode],
         downloadedEpisodes: [DownloadedEpisodeRecord],
         removedEpisodes: [RemovedEpisodeRecord],
         automaticDownloadState: AutomaticDownloadState,
-        podcastActivityState: PodcastActivityState
+        podcastActivityState: PodcastActivityState,
+        podcastPlaylistLibrary: PodcastPlaylistLibrary
     ) {
         self.preparedEpisodes = preparedEpisodes
         self.downloadedEpisodes = downloadedEpisodes
         self.removedEpisodes = removedEpisodes
         self.automaticDownloadState = automaticDownloadState
         self.podcastActivityState = podcastActivityState
+        self.podcastPlaylistLibrary = podcastPlaylistLibrary
     }
 }
 

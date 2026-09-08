@@ -6,11 +6,13 @@ public struct SyncExecutor: Sendable, SyncExecuting {
     private let safetyValidator: SafetyValidator
     private let deletionService: DeviceFileDeletionService
     private let ejector: any DeviceEjecting
+    private let playlistFileWriter: any PodcastPlaylistFileWriting
 
     public init(
         fileSystem: any FileSystemOperating = LocalFileSystem(),
         storageInspector: any SyncStorageInspecting = LocalSyncStorageInspector(),
         safetyValidator: SafetyValidator = SafetyValidator(),
+        playlistFileWriter: any PodcastPlaylistFileWriting = LocalPodcastPlaylistFileWriter(),
         ejector: any DeviceEjecting = DiskUtilityDeviceEjector()
     ) {
         self.fileSystem = fileSystem
@@ -20,6 +22,7 @@ public struct SyncExecutor: Sendable, SyncExecuting {
             fileSystem: fileSystem,
             safetyValidator: safetyValidator
         )
+        self.playlistFileWriter = playlistFileWriter
         self.ejector = ejector
     }
 
@@ -67,6 +70,14 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                 try deletionService.deleteManagedFile(at: targetURL, on: plan.device)
                 result.deletedCount += 1
                 result.deletedBytes += fileSizeBytes
+
+            case .writePodcastPlaylist(let destinationURL, let contents, _):
+                try playlistFileWriter.write(contents, to: destinationURL)
+                result.updatedPlaylistCount += 1
+
+            case .deletePodcastPlaylist(let targetURL):
+                try playlistFileWriter.removeItemIfPresent(at: targetURL)
+                result.deletedPlaylistCount += 1
 
             case .ejectDevice:
                 try ejector.eject(device: plan.device)

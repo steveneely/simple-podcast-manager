@@ -53,6 +53,13 @@ struct MountedVolumeDeviceServiceTests {
                     "/Volumes/TEST-MP3-PLAYER": [
                         URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/MUSIC", isDirectory: true)
                     ]
+                ],
+                fileContents: [
+                    "/Volumes/TEST-MP3-PLAYER/.spmconfig": """
+                    [simple-podcast-manager]
+                    podcast-dir: music
+
+                    """
                 ]
             ),
             safetyValidator: SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
@@ -180,7 +187,9 @@ private struct StubVolumeMetadataProvider: VolumeMetadataProviding {
 
     func directoryExists(at url: URL) -> Bool {
         childDirectories[url.deletingLastPathComponent().standardizedFileURL.path]?
-            .contains(url.standardizedFileURL) == true
+            .contains(where: {
+                $0.standardizedFileURL.path.caseInsensitiveCompare(url.standardizedFileURL.path) == .orderedSame
+            }) == true
     }
 
     func childDirectories(in url: URL) throws -> [URL] {

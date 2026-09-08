@@ -8,6 +8,8 @@ public struct SyncResult: Equatable, Sendable {
     public var deletedCount: Int
     public var deletedBytes: Int64
     public var skippedCount: Int
+    public var updatedPlaylistCount: Int
+    public var deletedPlaylistCount: Int
     public var ejected: Bool
 
     public init(
@@ -18,6 +20,8 @@ public struct SyncResult: Equatable, Sendable {
         deletedCount: Int = 0,
         deletedBytes: Int64 = 0,
         skippedCount: Int = 0,
+        updatedPlaylistCount: Int = 0,
+        deletedPlaylistCount: Int = 0,
         ejected: Bool = false
     ) {
         self.startedAt = startedAt
@@ -27,6 +31,8 @@ public struct SyncResult: Equatable, Sendable {
         self.deletedCount = deletedCount
         self.deletedBytes = deletedBytes
         self.skippedCount = skippedCount
+        self.updatedPlaylistCount = updatedPlaylistCount
+        self.deletedPlaylistCount = deletedPlaylistCount
         self.ejected = ejected
     }
 }

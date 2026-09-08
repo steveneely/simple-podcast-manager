@@ -38,12 +38,27 @@ public struct SafetyValidator: Sendable {
         try validateWriteTarget(targetURL, on: device)
     }
 
+    public func validatePodcastPlaylistTarget(_ targetURL: URL, on device: DeviceInfo) throws {
+        try validateWriteTarget(targetURL, on: device)
+        let canonicalTargetURL = canonicalFileURL(targetURL)
+        let canonicalPodcastDirectoryURL = canonicalDirectoryURL(device.podcastDirectoryURL)
+        guard canonicalTargetURL.deletingLastPathComponent() == canonicalPodcastDirectoryURL.standardizedFileURL,
+              canonicalTargetURL.pathExtension.lowercased() == "m3u",
+              !canonicalTargetURL.lastPathComponent.hasPrefix("._") else {
+            throw SafetyValidationError.invalidPodcastPlaylistTarget(canonicalTargetURL)
+        }
+    }
+
     public func validate(_ action: SyncAction, on device: DeviceInfo) throws {
         switch action {
         case .copyToDevice(_, let destinationURL, _):
             try validateWriteTarget(destinationURL, on: device)
         case .deleteFromDevice(let targetURL, _):
             try validateDeleteTarget(targetURL, on: device)
+        case .writePodcastPlaylist(let destinationURL, _, _):
+            try validatePodcastPlaylistTarget(destinationURL, on: device)
+        case .deletePodcastPlaylist(let targetURL):
+            try validatePodcastPlaylistTarget(targetURL, on: device)
         case .ejectDevice(let deviceRootURL):
             let canonicalDeviceRootURL = canonicalDirectoryURL(device.rootURL)
             let canonicalActionRootURL = canonicalDirectoryURL(deviceRootURL)

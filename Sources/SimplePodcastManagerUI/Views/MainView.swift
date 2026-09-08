@@ -24,6 +24,7 @@ public struct MainView: View {
     @State private var preparationPreviewViewModel: PreparationPreviewViewModel
     @State private var automaticDownloadViewModel: AutomaticDownloadViewModel
     @State private var podcastActivityViewModel: PodcastActivityViewModel
+    @State private var podcastPlaylistViewModel: PodcastPlaylistViewModel
     private let podcastRefreshCoordinator: PodcastRefreshCoordinator
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
@@ -35,10 +36,17 @@ public struct MainView: View {
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedPodcastID = PodcastSelectionPolicy.initialSelection
+    @State private var selectedPlaylistID: PodcastPlaylist.ID?
+    @State private var libraryMode = PodcastLibraryMode.podcasts
     @State private var podcastRefreshStatus: PodcastRefreshStatus?
     @State private var downloadedEpisodesForCurrentSummary: [PodcastRefreshEpisodeDetail] = []
     @State private var activeAutomaticDownloadOperations = 0
     @State private var podcastEditorPresentation: PodcastEditorPresentation?
+    @State private var podcastPlaylistEditorPresentation: PodcastPlaylistEditorPresentation?
+    @State private var pendingPodcastPlaylistDeletion: PodcastPlaylist?
+    @State private var pendingPlaylistDownload: PendingPlaylistDownload?
+    @State private var pendingPlaylistLocalDownloadDeletion: PendingPlaylistEpisodeAction?
+    @State private var pendingPlaylistDeviceRemoval: PendingPlaylistEpisodeAction?
     @State private var pendingPodcastDeletionConfirmation: PodcastDeletionConfirmation?
     @State private var isShowingSettings = false
     @State private var isShowingSyncDialog = false
@@ -58,6 +66,7 @@ public struct MainView: View {
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
     @State private var insecureDownloadEpisode: Episode?
     @State private var insecureDownloadQueue: [Episode] = []
+    @State private var pendingPlaylistAdditionAfterInsecureDownload: PendingPlaylistDownload?
     @State private var temporarilyAllowedInsecureArtworkURLs: Set<URL> = []
     @State private var deviceTopologyRefreshTask: Task<Void, Never>?
 
@@ -71,6 +80,7 @@ public struct MainView: View {
         let preparationPreviewViewModel = PreparationPreviewViewModel()
         let automaticDownloadViewModel = AutomaticDownloadViewModel()
         let podcastActivityViewModel = PodcastActivityViewModel()
+        let podcastPlaylistViewModel = PodcastPlaylistViewModel()
         self._viewModel = State(initialValue: viewModel)
         self._deviceViewModel = State(initialValue: DeviceViewModel())
         self._deviceLibraryViewModel = State(initialValue: DeviceLibraryViewModel())
@@ -78,6 +88,7 @@ public struct MainView: View {
         self._preparationPreviewViewModel = State(initialValue: preparationPreviewViewModel)
         self._automaticDownloadViewModel = State(initialValue: automaticDownloadViewModel)
         self._podcastActivityViewModel = State(initialValue: podcastActivityViewModel)
+        self._podcastPlaylistViewModel = State(initialValue: podcastPlaylistViewModel)
         self.podcastRefreshCoordinator = PodcastRefreshCoordinator(
             podcastPreview: podcastPreviewViewModel,
             podcastLibrary: viewModel,
@@ -97,7 +108,7 @@ public struct MainView: View {
         VStack(alignment: .leading, spacing: 16) {
             deviceSection
 
-            if viewModel.hasPodcasts {
+            if viewModel.hasPodcasts || !podcastPlaylistViewModel.playlists.isEmpty {
                 librarySection
             } else {
                 VStack(spacing: 16) {
@@ -158,8 +169,12 @@ public struct MainView: View {
             }
             async let cachedPreview: Void = loadCachedPodcastPreviewForStartup()
             async let persistedState: Void = loadPersistedEpisodeStateForStartup()
+            async let playlists: Void = podcastPlaylistViewModel.load()
             async let devices: Void = loadDevicesForStartup()
-            _ = await (cachedPreview, persistedState)
+            _ = await (cachedPreview, persistedState, playlists)
+            if selectedPlaylistID == nil {
+                selectedPlaylistID = podcastPlaylistViewModel.playlists.first?.id
+            }
 
             async let refreshedFeeds: Void = refreshPodcastsForStartup()
             await devices
@@ -174,6 +189,20 @@ public struct MainView: View {
                 existingSubscriptions: viewModel.podcastSubscriptions
             ) { updatedDraft in
                 try await savePodcast(updatedDraft)
+            }
+        }
+        .sheet(item: $podcastPlaylistEditorPresentation) { presentation in
+            PodcastPlaylistEditorView(
+                title: presentation.playlistID == nil ? "New Playlist" : "Rename Playlist",
+                initialName: presentation.initialName
+            ) { name in
+                if let playlistID = presentation.playlistID {
+                    try podcastPlaylistViewModel.renamePlaylist(id: playlistID, to: name)
+                } else {
+                    selectedPlaylistID = try podcastPlaylistViewModel.createPlaylist(named: name)
+                    libraryMode = .playlists
+                }
+                rebuildSyncPlan()
             }
         }
         .sheet(isPresented: $isShowingSettings) {
@@ -218,6 +247,9 @@ public struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPodcast)) { _ in
             presentNewPodcastEditor()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPlaylist)) { _ in
+            presentNewPlaylistEditor()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
             isShowingSettings = true
         }
@@ -226,6 +258,12 @@ public struct MainView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerImportSubscriptions)) { _ in
             openOPMLSubscriptionImport()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerShowPodcasts)) { _ in
+            libraryMode = .podcasts
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerShowPlaylists)) { _ in
+            libraryMode = .playlists
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in
             handleDeviceTopologyChange()
@@ -261,6 +299,20 @@ public struct MainView: View {
         } message: { confirmation in
             Text(confirmation.message)
         }
+        .modifier(PodcastPlaylistAlertsModifier(
+            pendingPlaylistDeletion: $pendingPodcastPlaylistDeletion,
+            pendingDownload: $pendingPlaylistDownload,
+            pendingLocalDownloadDeletion: $pendingPlaylistLocalDownloadDeletion,
+            pendingDeviceRemoval: $pendingPlaylistDeviceRemoval,
+            onDeletePlaylist: deletePodcastPlaylist,
+            onDownloadAndAdd: downloadAndAddToPlaylist,
+            onDeleteLocalDownload: { deleteLocalDownloadAndPlaylistMembership($0.episode) },
+            onRemoveFromDevice: { request in
+                if let deviceFileURL = request.deviceFileURL {
+                    toggleDeletionSelection(for: deviceFileURL)
+                }
+            }
+        ))
         .alert("Delete Selected Other Audio?", isPresented: $isShowingOtherAudioDeletionConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete Files", role: .destructive) {
@@ -332,9 +384,16 @@ public struct MainView: View {
 
     private var librarySection: some View {
         HSplitView {
-            podcastSidebar
+            librarySidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
-            episodeDetailSection
+            Group {
+                switch libraryMode {
+                case .podcasts:
+                    episodeDetailSection
+                case .playlists:
+                    podcastPlaylistDetailSection
+                }
+            }
                 .frame(minWidth: 420)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -342,9 +401,31 @@ public struct MainView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    @ViewBuilder
+    private var librarySidebar: some View {
+        switch libraryMode {
+        case .podcasts:
+            podcastSidebar
+        case .playlists:
+            PodcastPlaylistSidebarView(
+                playlists: podcastPlaylistViewModel.playlists,
+                libraryMode: $libraryMode,
+                selectedPlaylistID: $selectedPlaylistID,
+                onAdd: presentNewPlaylistEditor,
+                onEdit: { playlist in
+                    podcastPlaylistEditorPresentation = PodcastPlaylistEditorPresentation(playlist: playlist)
+                },
+                onDelete: { playlist in
+                    pendingPodcastPlaylistDeletion = playlist
+                }
+            )
+        }
+    }
+
     private var podcastSidebar: some View {
         PodcastSidebarView(
             subscriptions: viewModel.podcastSubscriptions,
+            libraryMode: $libraryMode,
             selectedPodcastID: $selectedPodcastID,
             sortOrder: Binding(
                 get: { viewModel.settings.podcastSortOrder },
@@ -484,8 +565,39 @@ public struct MainView: View {
         .padding(14)
     }
 
+    private var podcastPlaylistDetailSection: some View {
+        PodcastPlaylistDetailView(
+            playlist: podcastPlaylistViewModel.playlist(id: selectedPlaylistID),
+            isOnDevice: { deviceLibraryViewModel.file(for: $0) != nil },
+            isDownloaded: { preparationPreviewViewModel.preparedEpisode(for: $0) != nil },
+            onAddPlaylist: presentNewPlaylistEditor,
+            onMove: { sourceIndexes, destinationIndex in
+                guard let selectedPlaylistID else { return }
+                do {
+                    try podcastPlaylistViewModel.moveEntries(
+                        in: selectedPlaylistID,
+                        from: sourceIndexes,
+                        to: destinationIndex
+                    )
+                    rebuildSyncPlan()
+                } catch {}
+            },
+            onRemove: { entry in
+                guard let selectedPlaylistID else { return }
+                do {
+                    try podcastPlaylistViewModel.remove(entry.id, from: selectedPlaylistID)
+                    rebuildSyncPlan()
+                } catch {}
+            }
+        )
+    }
+
     private func presentNewPodcastEditor() {
         podcastEditorPresentation = PodcastEditorPresentation(draft: PodcastDraft())
+    }
+
+    private func presentNewPlaylistEditor() {
+        podcastPlaylistEditorPresentation = PodcastPlaylistEditorPresentation()
     }
 
     @ViewBuilder
@@ -618,17 +730,15 @@ public struct MainView: View {
             isSelectedForDeviceRemoval: isSelectedForDeviceRemoval,
             isPrepared: status.preparedEpisode != nil,
             isPreparing: preparationPreviewViewModel.isPreparing(episode),
+            playlists: podcastPlaylistViewModel.playlists,
             onToggleDetails: { toggleEpisodeDetails(for: episode) },
             onToggleDeviceRemoval: {
                 if let deviceFileURL {
-                    toggleDeletionSelection(for: deviceFileURL)
+                    requestDeviceRemoval(for: episode, deviceFileURL: deviceFileURL)
                 }
             },
             onRemoveDownload: {
-                Task {
-                    await preparationPreviewViewModel.removePreparedEpisode(for: episode)
-                    rebuildSyncPlan()
-                }
+                requestLocalDownloadDeletion(for: episode)
             },
             onCancelDownload: {
                 preparationPreviewViewModel.cancelPreparation(for: episode)
@@ -646,8 +756,121 @@ public struct MainView: View {
                     rebuildSyncPlan()
                 }
             },
+            onTogglePlaylist: { playlist in
+                togglePlaylistMembership(for: episode, playlist: playlist)
+            },
             details: { episodeDetails(for: episode, status: status) }
         )
+    }
+
+    private func togglePlaylistMembership(for episode: Episode, playlist: PodcastPlaylist) {
+        do {
+            if playlist.contains(episode) {
+                try podcastPlaylistViewModel.remove(episode, from: playlist.id)
+                rebuildSyncPlan()
+                return
+            }
+
+            let isAvailable = preparationPreviewViewModel.preparedEpisode(for: episode) != nil
+                || deviceLibraryViewModel.file(for: episode) != nil
+            if isAvailable {
+                try podcastPlaylistViewModel.add(episode, to: playlist.id)
+                rebuildSyncPlan()
+            } else {
+                pendingPlaylistDownload = PendingPlaylistDownload(
+                    episode: episode,
+                    playlistID: playlist.id,
+                    playlistName: playlist.name
+                )
+            }
+        } catch {}
+    }
+
+    private func downloadAndAddToPlaylist(_ request: PendingPlaylistDownload) {
+        pendingPlaylistDownload = nil
+        Task {
+            await preparationPreviewViewModel.prepare([request.episode], settings: viewModel.settings)
+            guard preparationPreviewViewModel.preparedEpisode(for: request.episode) != nil else {
+                if preparationPreviewViewModel.requiresInsecureDownloadPermission(for: request.episode) {
+                    pendingPlaylistAdditionAfterInsecureDownload = request
+                    enqueueInsecureDownloadPermissions(for: [request.episode])
+                }
+                return
+            }
+            do {
+                try podcastPlaylistViewModel.add(request.episode, to: request.playlistID)
+            } catch {
+                return
+            }
+            let downloadedEpisodes = successfullyDownloadedEpisodes(from: [request.episode])
+            await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+            await podcastActivityViewModel.acknowledge(downloadedEpisodes)
+            showDownloadSummary(downloadedEpisodes)
+            rebuildSyncPlan()
+        }
+    }
+
+    private func requestLocalDownloadDeletion(for episode: Episode) {
+        let playlists = podcastPlaylistViewModel.playlists(containing: episode)
+        if !playlists.isEmpty, deviceLibraryViewModel.file(for: episode) == nil {
+            pendingPlaylistLocalDownloadDeletion = PendingPlaylistEpisodeAction(
+                episode: episode,
+                playlists: playlists,
+                deviceFileURL: nil
+            )
+            return
+        }
+        deleteLocalDownload(episode)
+    }
+
+    private func deleteLocalDownload(_ episode: Episode) {
+        Task {
+            await preparationPreviewViewModel.removePreparedEpisode(for: episode)
+            rebuildSyncPlan()
+        }
+    }
+
+    private func deleteLocalDownloadAndPlaylistMembership(_ episode: Episode) {
+        pendingPlaylistLocalDownloadDeletion = nil
+        Task {
+            await preparationPreviewViewModel.removePreparedEpisode(for: episode)
+            guard preparationPreviewViewModel.preparedEpisode(for: episode) == nil else { return }
+            do {
+                try podcastPlaylistViewModel.removeFromAllPlaylists(episode)
+            } catch {
+                return
+            }
+            rebuildSyncPlan()
+        }
+    }
+
+    private func requestDeviceRemoval(for episode: Episode, deviceFileURL: URL) {
+        let standardizedURL = deviceFileURL.standardizedFileURL
+        if manuallySelectedDeletionTargets.contains(standardizedURL) {
+            toggleDeletionSelection(for: deviceFileURL)
+            return
+        }
+        let playlists = podcastPlaylistViewModel.playlists(containing: episode)
+        if playlists.isEmpty {
+            toggleDeletionSelection(for: deviceFileURL)
+        } else {
+            pendingPlaylistDeviceRemoval = PendingPlaylistEpisodeAction(
+                episode: episode,
+                playlists: playlists,
+                deviceFileURL: deviceFileURL
+            )
+        }
+    }
+
+    private func deletePodcastPlaylist(_ playlist: PodcastPlaylist) {
+        pendingPodcastPlaylistDeletion = nil
+        do {
+            try podcastPlaylistViewModel.deletePlaylist(id: playlist.id)
+            if selectedPlaylistID == playlist.id {
+                selectedPlaylistID = podcastPlaylistViewModel.playlists.first?.id
+            }
+            rebuildSyncPlan()
+        } catch {}
     }
 
     private func retryInsecureDownload(_ episode: Episode, alwaysAllow: Bool) {
@@ -668,6 +891,12 @@ public struct MainView: View {
 
         Task {
             await preparationPreviewViewModel.prepare(requestedEpisodes, settings: requestedSettings)
+            if let pendingRequest = pendingPlaylistAdditionAfterInsecureDownload,
+               requestedEpisodes.contains(where: { $0.id == pendingRequest.episode.id }),
+               preparationPreviewViewModel.preparedEpisode(for: pendingRequest.episode) != nil {
+                try? podcastPlaylistViewModel.add(pendingRequest.episode, to: pendingRequest.playlistID)
+                pendingPlaylistAdditionAfterInsecureDownload = nil
+            }
             let downloadedEpisodes = successfullyDownloadedEpisodes(from: requestedEpisodes)
             await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
             await podcastActivityViewModel.acknowledge(downloadedEpisodes)
@@ -689,6 +918,10 @@ public struct MainView: View {
     }
 
     private func finishInsecureDownloadPrompt() {
+        if let insecureDownloadEpisode,
+           pendingPlaylistAdditionAfterInsecureDownload?.episode.id == insecureDownloadEpisode.id {
+            pendingPlaylistAdditionAfterInsecureDownload = nil
+        }
         insecureDownloadEpisode = nil
         showNextInsecureDownloadPrompt()
     }
@@ -1165,6 +1398,7 @@ public struct MainView: View {
                 cleanupPolicy: viewModel.settings.deviceCleanupPolicy,
                 excludedCleanupTargets: excludedCleanupDeletionTargets,
                 managedInventory: deviceLibraryViewModel.managedInventory,
+                podcastPlaylistLibrary: podcastPlaylistViewModel.library,
                 ejectAfterSync: isEjectAfterSyncEnabled
             )
         }
@@ -1339,7 +1573,9 @@ public struct MainView: View {
     private func reloadAppData() async {
         await viewModel.load()
         await loadPersistedEpisodeStateForStartup(forceReload: true)
+        await podcastPlaylistViewModel.load()
         selectedPodcastID = PodcastSelectionPolicy.initialSelection
+        selectedPlaylistID = podcastPlaylistViewModel.playlists.first?.id
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
         visibleEpisodeCountsByPodcastID = [:]
@@ -1354,10 +1590,14 @@ public struct MainView: View {
         let localDownloadCount = preparationPreviewViewModel.preparedEpisodes.count { preparedEpisode in
             preparedEpisode.episode.subscriptionID.map(subscriptionIDs.contains) == true
         }
+        let playlistEntryCount = podcastPlaylistViewModel.playlists.reduce(into: 0) { count, playlist in
+            count += playlist.entries.count { subscriptionIDs.contains($0.id.subscriptionID) }
+        }
 
         pendingPodcastDeletionConfirmation = PodcastDeletionConfirmation(
             subscriptions: subscriptions,
-            localDownloadCount: localDownloadCount
+            localDownloadCount: localDownloadCount,
+            playlistEntryCount: playlistEntryCount
         )
     }
 
@@ -1370,6 +1610,11 @@ public struct MainView: View {
         guard await preparationPreviewViewModel.removeDownloads(
             forSubscriptionIDs: subscriptionIDs
         ) else { return }
+        do {
+            try podcastPlaylistViewModel.removeEntries(forSubscriptionIDs: subscriptionIDs)
+        } catch {
+            return
+        }
 
         let offsets = IndexSet(
             viewModel.podcastSubscriptions.indices.filter { index in
@@ -1520,11 +1765,20 @@ public struct MainView: View {
             ?? preparationPreviewViewModel.lastErrorMessage
             ?? automaticDownloadViewModel.lastErrorMessage
             ?? podcastActivityViewModel.lastErrorMessage
+            ?? podcastPlaylistViewModel.lastErrorMessage
             ?? removedEpisodeHistoryViewModel.lastErrorMessage
     }
 
     private func runSync() async {
+        let syncingDeviceID = deviceViewModel.selectedDevice?.id
         let preparedEpisodesBeforeSync = preparationPreviewViewModel.preparedEpisodes
+        let playlistEpisodeIDsByDeviceURL = Dictionary(
+            uniqueKeysWithValues: podcastPlaylistViewModel.playlists.flatMap(\.entries).compactMap {
+                entry -> (URL, PodcastPlaylistEpisodeID)? in
+                guard let fileURL = deviceLibraryViewModel.file(for: entry.episode) else { return nil }
+                return (fileURL.standardizedFileURL, entry.id)
+            }
+        )
         let alreadyOnDeviceFilesByEpisodeKey = Dictionary(uniqueKeysWithValues: preparedEpisodesBeforeSync.compactMap { prepared -> (PodcastActivityEpisodeKey, URL)? in
             guard let deviceFileURL = deviceLibraryViewModel.file(for: prepared.episode),
                   let episodeKey = PodcastActivityEpisodeKey(episode: prepared.episode)
@@ -1544,6 +1798,15 @@ public struct MainView: View {
         if syncExecutionViewModel.lastErrorMessage == nil,
            syncExecutionViewModel.lastResult != nil {
             replacementTargets = []
+            if let completedPlan = syncExecutionViewModel.lastPlan {
+                let removedPlaylistEpisodeIDs = Set(completedPlan.removalTargetURLs.compactMap {
+                    playlistEpisodeIDsByDeviceURL[$0.standardizedFileURL]
+                })
+                try? podcastPlaylistViewModel.removeFromAllPlaylists(entryIDs: removedPlaylistEpisodeIDs)
+            }
+            if let syncingDeviceID {
+                try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(deviceID: syncingDeviceID)
+            }
         }
 
         if syncExecutionViewModel.lastErrorMessage == nil,
@@ -1827,6 +2090,93 @@ public struct MainView: View {
         return String(filePath.dropFirst(podcastDirectoryPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
+}
+
+struct PendingPlaylistDownload {
+    let episode: Episode
+    let playlistID: PodcastPlaylist.ID
+    let playlistName: String
+}
+
+struct PendingPlaylistEpisodeAction {
+    let episode: Episode
+    let playlists: [PodcastPlaylist]
+    let deviceFileURL: URL?
+
+    var playlistDescription: String {
+        switch playlists.count {
+        case 0:
+            return "no playlists"
+        case 1:
+            return "“\(playlists[0].name)”"
+        case 2:
+            return "“\(playlists[0].name)” and “\(playlists[1].name)”"
+        default:
+            return "\(playlists.count) playlists"
+        }
+    }
+}
+
+private struct PodcastPlaylistAlertsModifier: ViewModifier {
+    @Binding var pendingPlaylistDeletion: PodcastPlaylist?
+    @Binding var pendingDownload: PendingPlaylistDownload?
+    @Binding var pendingLocalDownloadDeletion: PendingPlaylistEpisodeAction?
+    @Binding var pendingDeviceRemoval: PendingPlaylistEpisodeAction?
+    let onDeletePlaylist: (PodcastPlaylist) -> Void
+    let onDownloadAndAdd: (PendingPlaylistDownload) -> Void
+    let onDeleteLocalDownload: (PendingPlaylistEpisodeAction) -> Void
+    let onRemoveFromDevice: (PendingPlaylistEpisodeAction) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert(
+                "Delete Playlist?",
+                isPresented: isPresenting($pendingPlaylistDeletion),
+                presenting: pendingPlaylistDeletion
+            ) { playlist in
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Playlist", role: .destructive) { onDeletePlaylist(playlist) }
+            } message: { playlist in
+                Text("Delete “\(playlist.name)”? Its episodes and downloads will not be deleted.")
+            }
+            .alert(
+                "Download Episode?",
+                isPresented: isPresenting($pendingDownload),
+                presenting: pendingDownload
+            ) { request in
+                Button("Cancel", role: .cancel) {}
+                Button("Download and Add") { onDownloadAndAdd(request) }
+            } message: { request in
+                Text("“\(request.episode.title)” must be downloaded before it can be added to “\(request.playlistName).”")
+            }
+            .alert(
+                "Delete Download?",
+                isPresented: isPresenting($pendingLocalDownloadDeletion),
+                presenting: pendingLocalDownloadDeletion
+            ) { request in
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Download", role: .destructive) { onDeleteLocalDownload(request) }
+            } message: { request in
+                Text("“\(request.episode.title)” is in \(request.playlistDescription). Deleting its only available download will also remove it from those playlists.")
+            }
+            .alert(
+                "Remove Episode from MP3 Player?",
+                isPresented: isPresenting($pendingDeviceRemoval),
+                presenting: pendingDeviceRemoval
+            ) { request in
+                Button("Cancel", role: .cancel) {}
+                Button("Remove", role: .destructive) { onRemoveFromDevice(request) }
+            } message: { request in
+                Text("“\(request.episode.title)” is in \(request.playlistDescription). A successful sync will remove it from the MP3 player and those playlists.")
+            }
+    }
+
+    private func isPresenting<Value>(_ binding: Binding<Value?>) -> Binding<Bool> {
+        Binding(
+            get: { binding.wrappedValue != nil },
+            set: { if !$0 { binding.wrappedValue = nil } }
+        )
+    }
 }
 
 private struct EpisodeStatus {

@@ -4,6 +4,25 @@ import Testing
 
 struct SQLiteEpisodeStoreTests {
     @Test
+    func savesAndLoadsPodcastPlaylistLibrary() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let episode = fixture.records(number: 1).prepared.episode
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
+        let library = PodcastPlaylistLibrary(
+            playlists: [playlist],
+            deviceStates: [
+                "device": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Commute.m3u"])
+            ]
+        )
+
+        try fixture.store.savePodcastPlaylistLibrary(library)
+
+        #expect(try fixture.store.loadPodcastPlaylistLibrary() == library)
+    }
+
+    @Test
     func savesLoadsAndMergesEpisodeState() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

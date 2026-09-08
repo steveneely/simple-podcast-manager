@@ -2,6 +2,7 @@ import Foundation
 
 public struct SyncPlanner: Sendable {
     private let inventoryBuilder: ManagedDeviceLibraryInventoryBuilder
+    private let deviceLibrary: any DeviceLibraryInspecting
     private let storageInspector: any SyncStorageInspecting
     private let safetyValidator: SafetyValidator
 
@@ -10,6 +11,7 @@ public struct SyncPlanner: Sendable {
         storageInspector: any SyncStorageInspecting = LocalSyncStorageInspector(),
         safetyValidator: SafetyValidator = SafetyValidator()
     ) {
+        self.deviceLibrary = deviceLibrary
         self.inventoryBuilder = ManagedDeviceLibraryInventoryBuilder(deviceLibrary: deviceLibrary)
         self.storageInspector = storageInspector
         self.safetyValidator = safetyValidator
@@ -24,6 +26,7 @@ public struct SyncPlanner: Sendable {
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
         managedInventory: ManagedDeviceLibraryInventory? = nil,
+        podcastPlaylistLibrary: PodcastPlaylistLibrary = PodcastPlaylistLibrary(),
         ejectAfterSync: Bool
     ) throws -> SyncPlan {
         try Task.checkCancellation()
@@ -70,12 +73,23 @@ public struct SyncPlanner: Sendable {
 
             var cleanupCandidateSizesByURL: [URL: Int64] = [:]
             if let maximumEpisodesPerPodcast {
+                let protectedFileURLs = protectedDeviceFileURLs(
+                    for: subscription,
+                    existingFiles: existingFiles,
+                    podcastPlaylistLibrary: podcastPlaylistLibrary
+                )
+                let protectedEpisodeIDs = Set(podcastPlaylistLibrary.playlists
+                    .flatMap(\.entries)
+                    .filter { $0.id.subscriptionID == subscription.id }
+                    .map(\.id))
                 let subscriptionCleanupCandidates = try makeCleanupCandidates(
                     existingFiles: existingFiles,
                     preparedEpisodes: preparedEpisodes,
                     managedDirectory: managedDirectory,
                     subscription: subscription,
                     manualDeleteTargets: explicitDeleteTargets,
+                    protectedFileURLs: protectedFileURLs,
+                    protectedEpisodeIDs: protectedEpisodeIDs,
                     maximumEpisodesPerPodcast: maximumEpisodesPerPodcast,
                     device: device
                 )
@@ -158,6 +172,15 @@ public struct SyncPlanner: Sendable {
             }
         }
 
+        actions.append(contentsOf: try makePodcastPlaylistActions(
+            library: podcastPlaylistLibrary,
+            device: device,
+            subscriptions: subscriptions,
+            preparedEpisodes: preparedEpisodes,
+            deviceInventory: deviceInventory,
+            mediaActions: actions
+        ))
+
         if ejectAfterSync {
             actions.append(.ejectDevice(deviceRootURL: device.rootURL))
         }
@@ -187,6 +210,8 @@ public struct SyncPlanner: Sendable {
         managedDirectory: URL,
         subscription: PodcastSubscription,
         manualDeleteTargets: Set<URL>,
+        protectedFileURLs: Set<URL>,
+        protectedEpisodeIDs: Set<PodcastPlaylistEpisodeID>,
         maximumEpisodesPerPodcast: Int,
         device: DeviceInfo
     ) throws -> [DeviceCleanupCandidate] {
@@ -195,6 +220,7 @@ public struct SyncPlanner: Sendable {
         for fileURL in existingFiles {
             let standardizedURL = fileURL.standardizedFileURL
             guard !manualDeleteTargets.contains(standardizedURL),
+                  !protectedFileURLs.contains(standardizedURL),
                   let metadata = EpisodeFileName.parsedMetadata(from: fileURL),
                   let publicationDate = metadata.publicationDate else {
                 continue
@@ -208,6 +234,10 @@ public struct SyncPlanner: Sendable {
         }
 
         for preparedEpisode in preparedEpisodes {
+            if let episodeID = PodcastPlaylistEpisodeID(episode: preparedEpisode.episode),
+               protectedEpisodeIDs.contains(episodeID) {
+                continue
+            }
             let destinationURL = managedDirectory.appendingPathComponent(
                 preparedEpisode.preparedFileURL.lastPathComponent,
                 isDirectory: false
@@ -246,6 +276,118 @@ public struct SyncPlanner: Sendable {
                 fileSizeBytes: try storageInspector.fileSize(at: entry.targetURL)
             )
         }
+    }
+
+    private func protectedDeviceFileURLs(
+        for subscription: PodcastSubscription,
+        existingFiles: [URL],
+        podcastPlaylistLibrary: PodcastPlaylistLibrary
+    ) -> Set<URL> {
+        let protectedEpisodes = podcastPlaylistLibrary.playlists.flatMap(\.entries).filter {
+            $0.id.subscriptionID == subscription.id
+        }.map(\.episode)
+        guard !protectedEpisodes.isEmpty else { return [] }
+
+        let conservativeMatches = EpisodeFileName.uniqueConservativeMatches(
+            in: existingFiles,
+            to: protectedEpisodes,
+            subscription: subscription
+        )
+        var protectedURLs: Set<URL> = []
+        for episode in protectedEpisodes {
+            if let exactMatch = existingFiles.first(where: {
+                EpisodeFileName.fileStem(for: episode) == $0.deletingPathExtension().lastPathComponent
+            }) {
+                protectedURLs.insert(exactMatch.standardizedFileURL)
+            } else if let conservativeMatch = conservativeMatches[episode.id] {
+                protectedURLs.insert(conservativeMatch.standardizedFileURL)
+            }
+        }
+        return protectedURLs
+    }
+
+    private func makePodcastPlaylistActions(
+        library: PodcastPlaylistLibrary,
+        device: DeviceInfo,
+        subscriptions: [PodcastSubscription],
+        preparedEpisodes: [PreparedEpisode],
+        deviceInventory: ManagedDeviceLibraryInventory,
+        mediaActions: [SyncAction]
+    ) throws -> [SyncAction] {
+        guard !library.playlists.isEmpty || library.deviceStates[device.id] != nil else { return [] }
+        let encoder = M3UPlaylistEncoder()
+        let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
+        let plannedDeletionURLs = Set(mediaActions.compactMap { action -> URL? in
+            guard case .deleteFromDevice(let targetURL, _) = action else { return nil }
+            return targetURL.standardizedFileURL
+        })
+        let plannedCopyURLsByEpisodeID = Dictionary(uniqueKeysWithValues: preparedEpisodes.compactMap { prepared -> (PodcastPlaylistEpisodeID, URL)? in
+            guard let entryID = PodcastPlaylistEpisodeID(episode: prepared.episode),
+                  let copyAction = mediaActions.first(where: { action in
+                      guard case .copyToDevice(let sourceURL, _, _) = action else { return false }
+                      return sourceURL.standardizedFileURL == prepared.preparedFileURL.standardizedFileURL
+                  }),
+                  case .copyToDevice(_, let destinationURL, _) = copyAction else { return nil }
+            return (entryID, destinationURL)
+        })
+        let deviceState = library.deviceStates[device.id] ?? PodcastPlaylistDeviceState()
+        let activePlaylistFileNames = Set(library.playlists.map {
+            PodcastPlaylistName.normalized($0.deviceFileName)
+        })
+        let rootFiles = try deviceLibrary.files(in: device.podcastDirectoryURL)
+        let existingFileNames = Set(rootFiles.map {
+            PodcastPlaylistName.normalized($0.lastPathComponent)
+        })
+        let ownedFileNames = Set(deviceState.ownedDeviceFileNames.map(PodcastPlaylistName.normalized))
+        var playlistActions: [SyncAction] = []
+
+        for playlist in library.playlists {
+            try Task.checkCancellation()
+            let destinationURL = device.podcastDirectoryURL.appendingPathComponent(
+                playlist.deviceFileName,
+                isDirectory: false
+            )
+            try safetyValidator.validatePodcastPlaylistTarget(destinationURL, on: device)
+            let normalizedFileName = PodcastPlaylistName.normalized(playlist.deviceFileName)
+            if existingFileNames.contains(normalizedFileName),
+               !ownedFileNames.contains(normalizedFileName) {
+                throw PodcastPlaylistPlanningError.fileNameCollision(destinationURL)
+            }
+
+            let episodeFileURLs = playlist.entries.compactMap { entry -> URL? in
+                if let plannedCopyURL = plannedCopyURLsByEpisodeID[entry.id] {
+                    return plannedCopyURL
+                }
+                guard let subscription = subscriptionsByID[entry.id.subscriptionID] else { return nil }
+                let existingFiles = deviceInventory.files(for: subscription)
+                let exactMatch = existingFiles.first {
+                    EpisodeFileName.fileStem(for: entry.episode) == $0.deletingPathExtension().lastPathComponent
+                }
+                let matchedURL = exactMatch ?? EpisodeFileName.uniqueConservativeMatches(
+                    in: existingFiles,
+                    to: [entry.episode],
+                    subscription: subscription
+                )[entry.episode.id]
+                guard let matchedURL,
+                      !plannedDeletionURLs.contains(matchedURL.standardizedFileURL) else { return nil }
+                return matchedURL
+            }
+            let contents = try encoder.encode(fileURLs: episodeFileURLs, on: device)
+            playlistActions.append(.writePodcastPlaylist(
+                destinationURL: destinationURL,
+                contents: contents,
+                episodeCount: episodeFileURLs.count
+            ))
+        }
+
+        for fileName in deviceState.pendingDeletedDeviceFileNames
+            .filter({ !activePlaylistFileNames.contains(PodcastPlaylistName.normalized($0)) })
+            .sorted() {
+            let targetURL = device.podcastDirectoryURL.appendingPathComponent(fileName, isDirectory: false)
+            try safetyValidator.validatePodcastPlaylistTarget(targetURL, on: device)
+            playlistActions.append(.deletePodcastPlaylist(targetURL: targetURL))
+        }
+        return playlistActions
     }
 
     private struct CleanupRetentionEntry {
@@ -293,5 +435,16 @@ public struct SyncPlanner: Sendable {
         let deletionActions = actions.filter { if case .deleteFromDevice = $0 { true } else { false } }
         let remainingActions = actions.filter { if case .deleteFromDevice = $0 { false } else { true } }
         return deletionActions + remainingActions
+    }
+}
+
+public enum PodcastPlaylistPlanningError: LocalizedError, Equatable, Sendable {
+    case fileNameCollision(URL)
+
+    public var errorDescription: String? {
+        switch self {
+        case .fileNameCollision(let url):
+            "SPM won’t replace the existing playlist \(url.lastPathComponent) because it did not create that file. Rename the playlist in SPM and try again."
+        }
     }
 }

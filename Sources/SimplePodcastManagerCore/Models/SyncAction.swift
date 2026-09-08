@@ -3,6 +3,8 @@ import Foundation
 public enum SyncAction: Equatable, Sendable {
     case copyToDevice(sourceURL: URL, destinationURL: URL, fileSizeBytes: Int64)
     case deleteFromDevice(targetURL: URL, fileSizeBytes: Int64)
+    case writePodcastPlaylist(destinationURL: URL, contents: Data, episodeCount: Int)
+    case deletePodcastPlaylist(targetURL: URL)
     case ejectDevice(deviceRootURL: URL)
     case skip(reason: String)
 
@@ -10,7 +12,9 @@ public enum SyncAction: Equatable, Sendable {
         switch self {
         case .copyToDevice(_, _, let fileSizeBytes), .deleteFromDevice(_, let fileSizeBytes):
             return fileSizeBytes
-        case .ejectDevice, .skip:
+        case .writePodcastPlaylist(_, let contents, _):
+            return Int64(contents.count)
+        case .deletePodcastPlaylist, .ejectDevice, .skip:
             return nil
         }
     }
@@ -21,6 +25,10 @@ public enum SyncAction: Equatable, Sendable {
             return "Copy to device: \(podcastLabel(for: destinationURL)) / \(destinationURL.lastPathComponent)"
         case .deleteFromDevice(let targetURL, _):
             return "Delete old episode: \(podcastLabel(for: targetURL)) / \(targetURL.lastPathComponent)"
+        case .writePodcastPlaylist(let destinationURL, _, let episodeCount):
+            return "Update playlist: \(destinationURL.deletingPathExtension().lastPathComponent) — \(episodeCount) episode\(episodeCount == 1 ? "" : "s")"
+        case .deletePodcastPlaylist(let targetURL):
+            return "Remove playlist: \(targetURL.deletingPathExtension().lastPathComponent)"
         case .ejectDevice:
             return "Eject device when finished"
         case .skip(let reason):

@@ -35,6 +35,7 @@ public final class SyncPlanViewModel {
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
         managedInventory: ManagedDeviceLibraryInventory? = nil,
+        podcastPlaylistLibrary: PodcastPlaylistLibrary = PodcastPlaylistLibrary(),
         ejectAfterSync: Bool
     ) async {
         planningTask?.cancel()
@@ -70,6 +71,7 @@ public final class SyncPlanViewModel {
                     cleanupPolicy: cleanupPolicy,
                     excludedCleanupTargets: excludedCleanupTargets,
                     managedInventory: managedInventory,
+                    podcastPlaylistLibrary: podcastPlaylistLibrary,
                     ejectAfterSync: ejectAfterSync
                 )
             }

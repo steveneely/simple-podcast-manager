@@ -63,18 +63,28 @@ public struct MountedVolumeDeviceService: DeviceService {
         let configuredPath = configuredPodcastDirectoryPath(in: rootURL)
             ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath
         let configuredURL = rootURL.appending(path: configuredPath, directoryHint: .isDirectory)
+        if let existingURL = resolvedExistingDirectoryURL(for: configuredPath, in: rootURL) {
+            return existingURL
+        }
         if metadataProvider.directoryExists(at: configuredURL) {
             return configuredURL.standardizedFileURL
         }
 
-        if configuredPath.caseInsensitiveCompare(DevicePodcastConfiguration.defaultPodcastDirectoryPath) == .orderedSame,
-           let childDirectory = try? metadataProvider.childDirectories(in: rootURL).first(where: {
-               $0.lastPathComponent.caseInsensitiveCompare(DevicePodcastConfiguration.defaultPodcastDirectoryPath) == .orderedSame
-           }) {
-            return childDirectory.standardizedFileURL
-        }
-
         return nil
+    }
+
+    private func resolvedExistingDirectoryURL(for relativePath: String, in rootURL: URL) -> URL? {
+        var currentURL = rootURL
+        for component in relativePath.split(separator: "/").map(String.init) {
+            guard let childDirectories = try? metadataProvider.childDirectories(in: currentURL),
+                  let matchingDirectory = childDirectories.first(where: {
+                      $0.lastPathComponent.caseInsensitiveCompare(component) == .orderedSame
+                  }) else {
+                return nil
+            }
+            currentURL = matchingDirectory.standardizedFileURL
+        }
+        return currentURL
     }
 
     private func configuredPodcastDirectoryPath(in rootURL: URL) -> String? {

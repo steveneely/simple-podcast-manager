@@ -42,6 +42,11 @@ struct SimplePodcastManagerDesktopApp: App {
                 }
                 .keyboardShortcut("n", modifiers: [.command])
 
+                Button("Add Playlist…") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerAddPlaylist, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+
                 Divider()
 
                 Button("Import Podcasts…") {
@@ -72,6 +77,19 @@ struct SimplePodcastManagerDesktopApp: App {
                     NotificationCenter.default.post(name: .simplePodcastManagerOpenSettings, object: nil)
                 }
                 .keyboardShortcut(",", modifiers: [.command])
+            }
+            CommandGroup(after: .sidebar) {
+                Divider()
+
+                Button("Show Podcasts") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerShowPodcasts, object: nil)
+                }
+                .keyboardShortcut("1", modifiers: [.command])
+
+                Button("Show Playlists") {
+                    NotificationCenter.default.post(name: .simplePodcastManagerShowPlaylists, object: nil)
+                }
+                .keyboardShortcut("2", modifiers: [.command])
             }
         }
     }

@@ -6,6 +6,7 @@ public enum SafetyValidationError: LocalizedError, Equatable, Sendable {
     case pathOutsideDevicePodcastDirectory(URL)
     case pathOutsideDeviceRoot(URL)
     case macTrashPathNotAllowed(URL)
+    case invalidPodcastPlaylistTarget(URL)
 
     public var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ public enum SafetyValidationError: LocalizedError, Equatable, Sendable {
             return "The proposed action is outside the selected device, so SPM will not perform it: \(url.path)."
         case .macTrashPathNotAllowed(let url):
             return "SPM will not change files in the Mac Trash: \(url.path)."
+        case .invalidPodcastPlaylistTarget(let url):
+            return "The proposed playlist is not a direct .m3u file in the configured Podcast folder: \(url.path)."
         }
     }
 }

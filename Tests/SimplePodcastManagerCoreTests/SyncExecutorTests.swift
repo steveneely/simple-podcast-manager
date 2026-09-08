@@ -208,6 +208,32 @@ struct SyncExecutorTests {
         }
     }
 
+    @Test
+    func executesPlaylistWritesAndOwnedDeletesBeforeEject() throws {
+        let device = makeDevice()
+        let writer = RecordingPodcastPlaylistFileWriter()
+        let ejector = RecordingDeviceEjector()
+        let executor = makeTestExecutor(playlistFileWriter: writer, ejector: ejector)
+        let currentURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let oldURL = device.podcastDirectoryURL.appendingPathComponent("Old Name.m3u")
+        let contents = Data("#EXTM3U\n".utf8)
+
+        let result = try executor.execute(plan: SyncPlan(
+            device: device,
+            actions: [
+                .writePodcastPlaylist(destinationURL: currentURL, contents: contents, episodeCount: 0),
+                .deletePodcastPlaylist(targetURL: oldURL),
+                .ejectDevice(deviceRootURL: device.rootURL),
+            ]
+        ))
+
+        #expect(writer.writes == [.init(data: contents, destinationURL: currentURL)])
+        #expect(writer.removedURLs == [oldURL])
+        #expect(result.updatedPlaylistCount == 1)
+        #expect(result.deletedPlaylistCount == 1)
+        #expect(ejector.didEject)
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "SPM Test MP3 Player",
@@ -301,6 +327,24 @@ private final class RecordingDeviceEjector: DeviceEjecting, @unchecked Sendable 
 
     func eject(device: DeviceInfo) throws {
         didEject = true
+    }
+}
+
+private final class RecordingPodcastPlaylistFileWriter: PodcastPlaylistFileWriting, @unchecked Sendable {
+    struct Write: Equatable {
+        var data: Data
+        var destinationURL: URL
+    }
+
+    private(set) var writes: [Write] = []
+    private(set) var removedURLs: [URL] = []
+
+    func write(_ data: Data, to destinationURL: URL) throws {
+        writes.append(Write(data: data, destinationURL: destinationURL))
+    }
+
+    func removeItemIfPresent(at targetURL: URL) throws {
+        removedURLs.append(targetURL)
     }
 }
 

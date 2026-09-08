@@ -22,7 +22,9 @@ extension SyncStorageInspecting {
                     fileSizeBytes,
                     to: availableCapacity
                 )
-            case .skip, .ejectDevice:
+            case .writePodcastPlaylist(_, let contents, _):
+                requiredCapacity = addingCapacity(Int64(contents.count), to: requiredCapacity)
+            case .deletePodcastPlaylist, .skip, .ejectDevice:
                 break
             }
         }

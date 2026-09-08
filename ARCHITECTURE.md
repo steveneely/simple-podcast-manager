@@ -44,7 +44,7 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 ### UI Layer
 
 - `SimplePodcastManagerApp`: app lifecycle and main window setup
-- `MainView`: primary single-window interface; shows device status and the last completed sync
+- `MainView`: primary single-window interface; switches between Podcasts and manual Playlists, and shows device status and the last completed sync
 - `PodcastSidebarView`: podcast selection; remembered name or publication-recency sorting through a compact split control with separate criterion and direction actions; and grouped refresh, edit, and remove actions for the selected podcast
 - `PodcastEditorView`: search for, add, and edit podcasts through Podcast Index or a direct RSS feed URL
 - `OPMLImportReviewView`: review standard OPML subscriptions before adding them
@@ -55,6 +55,7 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 - `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
 - `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
 - `PodcastActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
+- `PodcastPlaylistViewModel`: create, rename, delete, order, and persist manual playlists and their per-device file ownership state
 - `SyncPlanViewModel`: build the full-device plan shown before execution
 - `SyncExecutionViewModel`: execute the selected plan and expose progress in the sync dialog
 - `DeviceViewModel`: monitor device availability and selected target
@@ -74,8 +75,8 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 - `DownloadService`: download episode media into the app's local media workspace
 - `AudioConversionService`: convert unsupported input to MP3 using `ffmpeg`
 - `DeviceService`: discover mounted devices, validate target paths, optionally eject
-- `SyncPlanner`: calculate copy, skip, selected per-podcast retention cleanup, manual delete, and eject actions; verify the complete plan fits; and order selected deletions before copies
-- `SyncExecutor`: perform scoped copies and deletes on the device
+- `SyncPlanner`: calculate copy, skip, selected per-podcast retention cleanup, manual delete, manual playlist write/delete, and eject actions; verify the complete plan fits; and order selected deletions before copies
+- `SyncExecutor`: perform scoped media copies/deletes and SPM-owned playlist writes/deletes on the device
 - `SafetyValidator`: verify all device paths before any mutation
 
 ### Domain Models
@@ -89,6 +90,7 @@ The core domain models are:
 - `SyncPlan`
 - `AppSettings`
 - `SyncResult`
+- `PodcastPlaylist` and `PodcastPlaylistLibrary`
 
 ## Data Flow
 
@@ -102,14 +104,16 @@ Expected runtime flow:
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
-   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-podcast retention limit
+   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-podcast retention limit; playlist membership protects an episode from this cleanup
    - exclude any cleanup candidates the user unchecked in the current review
    - when an existing device copy has an unexpected size, offer an in-dialog recovery action that selects that exact app-managed file for deletion and recopies the prepared episode in the same reviewed plan; refresh the dialog with the replacement plan and a persistent ready confirmation on success, or keep it open with the specific planning failure on error
    - build a `SyncPlan`
-   - show planned copies, skips, deletions, and optional eject
+   - build UTF-8 M3U files from the projected post-sync device contents, using Walkman-compatible root-relative backslash paths
+   - show planned copies, skips, deletions, playlist updates, and optional eject
 8. `SyncExecutionViewModel` executes the plan:
    - copy prepared MP3 files
    - delete selected app-managed device files
+   - write or remove only validated SPM-owned playlist files directly under the configured podcast directory
    - optionally eject after success
 9. Progress and result state are rendered in the UI.
 
@@ -187,6 +191,7 @@ Small configuration data remains in `config.json`. Growing episode state is stor
 - removal history
 - automatic-download baselines and pending episodes
 - podcast activity, including observed and new episode IDs
+- manual playlists, ordered episode snapshots, and per-device playlist ownership/tombstones
 
 Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
 
@@ -194,7 +199,15 @@ Startup reads prepared episodes, download history, removal history, automatic-do
 
 On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. Automatic-download state uses a separate one-time import so upgrades from development builds can retain `automatic-downloads.json`. Import markers are written only after every source file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
 
-App data backups remain format-version-1 JSON directories. They include configuration, prepared/download/removal records, automatic-download state, and podcast activity. Restore accepts older format-version-1 backups where newer state files are absent, validates the complete backup before changing live data, and writes all episode state in one database transaction.
+New app data backups are format-version-2 JSON directories. They include configuration, prepared/download/removal records, automatic-download state, podcast activity, and manual playlists. Restore still accepts format-version-1 backups, treating the absent playlist file as an empty library, validates the complete backup before changing live data, and writes all episode state in one database transaction.
+
+## Manual Playlists
+
+M1 playlists are explicitly curated by the user. An episode can be added only when a prepared local file or matching device copy exists. If neither exists, the UI offers to download it and commits membership only after preparation succeeds. Removing the last available local copy warns that the episode will also leave every playlist; removing a device copy warns before staging that removal. Successful device deletion removes the corresponding membership, while deleting only the local preparation after a successful sync preserves membership because the device copy remains usable.
+
+Playlist entries keep a snapshot of episode identity and metadata so they survive feed refreshes. Their ordering is user controlled through direct row dragging. Episodes are added from podcast episode rows; unavailable choices continue through the same download-before-membership confirmation. During sync, the planner resolves each entry to a planned copy or an existing exact/conservative device match and omits entries that will not exist after the plan. A playlist member is extra to, rather than counted within, the automatic per-podcast retention limit.
+
+Each playlist is encoded as UTF-8 extended M3U at `[configured podcast directory]/<playlist-name>.m3u`. Entries use device-root-relative paths with backslashes, matching the tested Sony NW-E394 behavior. SPM records exact playlist filenames it created for each device. Renames and deletions leave durable tombstones until a successful sync removes the old file. An unrelated same-named playlist causes planning to stop instead of being overwritten.
 
 ## Automatic Downloads
 
@@ -257,6 +270,8 @@ Delete behavior:
 - only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation
 - never bulk-delete by loose pattern matching
 - prefer exact planned file URLs over directory-wide operations
+- playlist membership excludes an episode from automatic retention cleanup, but never blocks an explicit user-selected deletion
+- remove a playlist entry after its explicitly deleted device file is successfully removed
 
 ## Audio Conversion
 

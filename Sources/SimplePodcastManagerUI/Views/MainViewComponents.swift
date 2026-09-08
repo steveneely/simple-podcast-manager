@@ -348,6 +348,7 @@ struct PodcastSidebarView: View {
     @State private var isShowingDownloadedEpisodes = false
 
     let subscriptions: [PodcastSubscription]
+    @Binding var libraryMode: PodcastLibraryMode
     @Binding var selectedPodcastID: PodcastSubscription.ID?
     @Binding var sortOrder: PodcastSortOrder
     let isRefreshing: Bool
@@ -370,8 +371,7 @@ struct PodcastSidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Podcasts")
-                    .font(.headline)
+                PodcastLibraryModePicker(selection: $libraryMode)
 
                 Spacer()
 

@@ -25,11 +25,13 @@ func makeTestPlanner(
 func makeTestExecutor(
     fileSystem: any FileSystemOperating = LocalFileSystem(),
     storageInspector: any SyncStorageInspecting = TestSyncStorageInspector(),
+    playlistFileWriter: any PodcastPlaylistFileWriting = LocalPodcastPlaylistFileWriter(),
     ejector: any DeviceEjecting = DiskUtilityDeviceEjector()
 ) -> SyncExecutor {
     SyncExecutor(
         fileSystem: fileSystem,
         storageInspector: storageInspector,
+        playlistFileWriter: playlistFileWriter,
         ejector: ejector
     )
 }

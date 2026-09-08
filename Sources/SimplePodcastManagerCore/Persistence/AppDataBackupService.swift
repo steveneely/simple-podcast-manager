@@ -78,7 +78,8 @@ public struct AppDataBackupService {
             downloadedEpisodes: appData.downloadedEpisodes,
             removedEpisodes: appData.removedEpisodes,
             automaticDownloadState: appData.automaticDownloadState,
-            podcastActivityState: appData.podcastActivityState
+            podcastActivityState: appData.podcastActivityState,
+            podcastPlaylistLibrary: appData.podcastPlaylistLibrary
         )
     }
 
@@ -106,6 +107,11 @@ public struct AppDataBackupService {
                 PodcastActivityState.self,
                 fileName: "feed-activity.json",
                 defaultValue: PodcastActivityState()
+            ),
+            podcastPlaylistLibrary: decode(
+                PodcastPlaylistLibrary.self,
+                fileName: "podcast-playlists.json",
+                defaultValue: PodcastPlaylistLibrary()
             )
         )
     }
@@ -117,7 +123,8 @@ public struct AppDataBackupService {
             downloadedEpisodes: snapshot.downloadedEpisodes,
             removedEpisodes: snapshot.removedEpisodes,
             automaticDownloadState: snapshot.automaticDownloadState,
-            podcastActivityState: snapshot.podcastActivityState
+            podcastActivityState: snapshot.podcastActivityState,
+            podcastPlaylistLibrary: snapshot.podcastPlaylistLibrary
         )
 
         let configurationURL = supportDirectoryURL.appending(path: "config.json", directoryHint: .notDirectory)
@@ -145,11 +152,12 @@ public struct AppDataBackupService {
         try write(snapshot.removedEpisodes, fileName: "removed-episodes.json", to: directoryURL)
         try write(snapshot.automaticDownloadState, fileName: "automatic-downloads.json", to: directoryURL)
         try write(snapshot.podcastActivityState, fileName: "feed-activity.json", to: directoryURL)
+        try write(snapshot.podcastPlaylistLibrary, fileName: "podcast-playlists.json", to: directoryURL)
         includedFiles.formUnion(Self.stateFileNames)
 
         let manifest = AppDataBackupManifest(
             appName: AppIdentity.displayName,
-            formatVersion: 1,
+            formatVersion: 2,
             exportedAt: exportedAt,
             files: includedFiles.sorted()
         )
@@ -203,7 +211,7 @@ public struct AppDataBackupService {
         guard manifest.appName == AppIdentity.displayName else {
             throw AppDataBackupError.invalidManifest
         }
-        guard manifest.formatVersion == 1 else {
+        guard manifest.formatVersion == 1 || manifest.formatVersion == 2 else {
             throw AppDataBackupError.unsupportedVersion(manifest.formatVersion)
         }
         guard Set(manifest.files).count == manifest.files.count else {
@@ -234,6 +242,8 @@ public struct AppDataBackupService {
             _ = try AppJSONCoding.makeDecoder().decode(AutomaticDownloadState.self, from: data)
         case "feed-activity.json":
             _ = try AppJSONCoding.makeDecoder().decode(PodcastActivityState.self, from: data)
+        case "podcast-playlists.json":
+            _ = try AppJSONCoding.makeDecoder().decode(PodcastPlaylistLibrary.self, from: data)
         default:
             throw AppDataBackupError.unknownFiles([fileName])
         }
@@ -246,6 +256,7 @@ public struct AppDataBackupService {
         "removed-episodes.json",
         "automatic-downloads.json",
         "feed-activity.json",
+        "podcast-playlists.json",
     ]
     private static let backedUpFileNames = stateFileNames.union(["config.json"])
 
@@ -266,6 +277,7 @@ private struct AppDataSnapshot {
     var removedEpisodes: [RemovedEpisodeRecord]
     var automaticDownloadState: AutomaticDownloadState
     var podcastActivityState: PodcastActivityState
+    var podcastPlaylistLibrary: PodcastPlaylistLibrary
 
     var hasData: Bool {
         configurationData != nil
@@ -274,6 +286,8 @@ private struct AppDataSnapshot {
             || !removedEpisodes.isEmpty
             || !automaticDownloadState.podcasts.isEmpty
             || !podcastActivityState.podcasts.isEmpty
+            || !podcastPlaylistLibrary.playlists.isEmpty
+            || !podcastPlaylistLibrary.deviceStates.isEmpty
     }
 }
 

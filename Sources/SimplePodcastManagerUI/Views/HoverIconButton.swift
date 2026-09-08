@@ -42,7 +42,7 @@ struct HoverIconButton: View {
     }
 }
 
-private struct HoverIconLabel: View {
+struct HoverIconLabel: View {
     let systemName: String
     let isHovered: Bool
     let isDestructive: Bool
@@ -92,5 +92,42 @@ private struct HoverIconLabel: View {
             return Color.red.opacity(0.28)
         }
         return Color(NSColor.separatorColor)
+    }
+}
+
+struct HoverIconMenu<Content: View>: View {
+    let systemName: String
+    let helpText: String
+    @ViewBuilder let content: Content
+
+    @State private var isHovered = false
+
+    init(
+        systemName: String,
+        helpText: String,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.systemName = systemName
+        self.helpText = helpText
+        self.content = content()
+    }
+
+    var body: some View {
+        Menu {
+            content
+        } label: {
+            HoverIconLabel(
+                systemName: systemName,
+                isHovered: isHovered,
+                isDestructive: false,
+                isDisabled: false
+            )
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(helpText)
+        .accessibilityLabel(helpText)
+        .onHover { isHovered = $0 }
     }
 }

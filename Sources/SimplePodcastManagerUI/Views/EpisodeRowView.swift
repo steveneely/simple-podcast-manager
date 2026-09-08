@@ -14,11 +14,13 @@ struct EpisodeRowView<Details: View>: View {
     let isSelectedForDeviceRemoval: Bool
     let isPrepared: Bool
     let isPreparing: Bool
+    let playlists: [PodcastPlaylist]
     let onToggleDetails: () -> Void
     let onToggleDeviceRemoval: () -> Void
     let onRemoveDownload: () -> Void
     let onCancelDownload: () -> Void
     let onDownload: () -> Void
+    let onTogglePlaylist: (PodcastPlaylist) -> Void
     @ViewBuilder let details: Details
 
     var body: some View {
@@ -94,6 +96,22 @@ struct EpisodeRowView<Details: View>: View {
                 }
 
                 Spacer()
+
+                if !playlists.isEmpty {
+                    HoverIconMenu(systemName: "text.badge.plus", helpText: "Add to playlist") {
+                        ForEach(playlists) { playlist in
+                            Button {
+                                onTogglePlaylist(playlist)
+                            } label: {
+                                if playlist.contains(episode) {
+                                    Label(playlist.name, systemImage: "checkmark")
+                                } else {
+                                    Text(playlist.name)
+                                }
+                            }
+                        }
+                    }
+                }
 
                 if isPrepared {
                     HoverIconButton(

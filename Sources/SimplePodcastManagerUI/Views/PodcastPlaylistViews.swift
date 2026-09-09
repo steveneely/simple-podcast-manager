@@ -317,8 +317,6 @@ struct PodcastPlaylistDetailView: View {
     let onPinAutomatic: (PodcastPlaylistEntry) -> Void
     let onExcludeAutomatic: (PodcastPlaylistEntry) -> Void
 
-    @StateObject private var dragCursorController = PodcastPlaylistDragCursorController()
-
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let playlist {
@@ -382,12 +380,6 @@ struct PodcastPlaylistDetailView: View {
             }
         }
         .padding(14)
-        .onAppear {
-            dragCursorController.startMonitoring()
-        }
-        .onDisappear {
-            dragCursorController.stopMonitoring()
-        }
     }
 
     private func statusText(for episode: Episode) -> String {
@@ -421,7 +413,7 @@ struct PodcastPlaylistDetailView: View {
 
     private func explicitEpisodeRow(_ entry: PodcastPlaylistEntry) -> some View {
         HStack(spacing: 10) {
-            PodcastPlaylistDragHandle(onHover: dragCursorController.setHovering)
+            PodcastPlaylistDragHandle()
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(entry.episode.title)
@@ -474,67 +466,10 @@ struct PodcastPlaylistDetailView: View {
 }
 
 private struct PodcastPlaylistDragHandle: View {
-    let onHover: (Bool) -> Void
-
     var body: some View {
         Image(systemName: "line.3.horizontal")
             .foregroundStyle(.tertiary)
             .help("Drag to reorder")
             .accessibilityLabel("Drag to reorder")
-            .onHover(perform: onHover)
-    }
-}
-
-@MainActor
-private final class PodcastPlaylistDragCursorController: ObservableObject {
-    private var eventMonitor: Any?
-    private var isHovering = false
-    private var isDragging = false
-
-    func startMonitoring() {
-        guard eventMonitor == nil else { return }
-        eventMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.leftMouseDown, .leftMouseUp]
-        ) { [weak self] event in
-            self?.handle(event.type)
-            return event
-        }
-    }
-
-    func stopMonitoring() {
-        if let eventMonitor {
-            NSEvent.removeMonitor(eventMonitor)
-            self.eventMonitor = nil
-        }
-        isHovering = false
-        isDragging = false
-        NSCursor.arrow.set()
-    }
-
-    func setHovering(_ isHovering: Bool) {
-        self.isHovering = isHovering
-        updateCursor()
-    }
-
-    private func handle(_ eventType: NSEvent.EventType) {
-        switch eventType {
-        case .leftMouseDown where isHovering:
-            isDragging = true
-        case .leftMouseUp:
-            isDragging = false
-        default:
-            return
-        }
-        updateCursor()
-    }
-
-    private func updateCursor() {
-        if isDragging {
-            NSCursor.closedHand.set()
-        } else if isHovering {
-            NSCursor.openHand.set()
-        } else {
-            NSCursor.arrow.set()
-        }
     }
 }

@@ -87,6 +87,29 @@ struct PodcastSearchViewModelTests {
         #expect(viewModel.lastErrorMessage == nil)
         #expect(!viewModel.isSearching)
     }
+
+    @Test
+    func cancellingSearchPreservesCompletedQueryAndResults() async {
+        let result = PodcastSearchResult(
+            title: "Example Podcast",
+            feedURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let viewModel = PodcastSearchViewModel(
+            searcher: RecordingPodcastSearcher(
+                recorder: PodcastSearchRecorder(),
+                outcome: .success([result])
+            )
+        )
+        viewModel.query = "Example"
+        await viewModel.search()
+
+        viewModel.cancelSearch()
+
+        #expect(viewModel.query == "Example")
+        #expect(viewModel.results == [result])
+        #expect(viewModel.hasSearched)
+        #expect(!viewModel.isSearching)
+    }
 }
 
 private struct RecordingPodcastSearcher: PodcastSearching {

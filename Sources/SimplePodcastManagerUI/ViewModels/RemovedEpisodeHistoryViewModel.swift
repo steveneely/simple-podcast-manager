@@ -22,26 +22,6 @@ public final class RemovedEpisodeHistoryViewModel {
         self.recordsByFileStem = [:]
     }
 
-    public func load() async {
-        do {
-            let store = self.store
-            removedEpisodes = try await Task.detached {
-                try store.loadRemovedEpisodes()
-            }.value
-                .sorted { lhs, rhs in
-                    if lhs.removedAt != rhs.removedAt {
-                        return lhs.removedAt > rhs.removedAt
-                    }
-                    return lhs.episodeTitle.localizedCaseInsensitiveCompare(rhs.episodeTitle) == .orderedAscending
-                }
-            rebuildIndexes()
-            hasLoadedRemovedEpisodes = true
-            lastErrorMessage = nil
-        } catch {
-            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
     public func applyPersistedState(_ removedEpisodes: [RemovedEpisodeRecord]) {
         self.removedEpisodes = removedEpisodes.sorted { lhs, rhs in
             if lhs.removedAt != rhs.removedAt { return lhs.removedAt > rhs.removedAt }

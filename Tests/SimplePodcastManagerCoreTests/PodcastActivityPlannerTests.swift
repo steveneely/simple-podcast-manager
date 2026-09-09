@@ -35,22 +35,22 @@ struct PodcastActivityPlannerTests {
     func archiveExpansionDoesNotCountOldEpisodesAndMissingCurrentEpisodesLoseTheirBadge() {
         let subscription = makeSubscription()
         let initial = state(observed: ["3", "2"], new: ["3"], newestDay: 3)
-        let expanded = PodcastActivityPlanner.updating(
+        let expanded = PodcastActivityPlanner.update(
             initial,
             subscriptions: [subscription],
             episodes: [episode("3", day: 3), episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: []
-        )
+        ).state
         #expect(expanded.podcasts[0].newEpisodeIDs == ["3"])
 
-        let disappeared = PodcastActivityPlanner.updating(
+        let disappeared = PodcastActivityPlanner.update(
             expanded,
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: []
-        )
+        ).state
         #expect(disappeared.podcasts[0].newEpisodeIDs.isEmpty)
     }
 
@@ -58,13 +58,13 @@ struct PodcastActivityPlannerTests {
     func failedRefreshDoesNotAdvanceStateAndNextSuccessfulRefreshAccumulatesNewBadges() {
         let subscription = makeSubscription()
         let initial = state(observed: ["1"], newestDay: 1)
-        let failed = PodcastActivityPlanner.updating(
+        let failed = PodcastActivityPlanner.update(
             initial,
             subscriptions: [subscription],
             episodes: [episode("2", day: 2), episode("1", day: 1)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: [subscriptionID]
-        )
+        ).state
         #expect(failed == initial)
 
         let openUpdate = PodcastActivityPlanner.update(
@@ -90,13 +90,13 @@ struct PodcastActivityPlannerTests {
             title: "Show",
             rssURL: URL(string: "https://example.com/changed.xml")!
         )
-        let reset = PodcastActivityPlanner.updating(
+        let reset = PodcastActivityPlanner.update(
             initial,
             subscriptions: [changedSubscription],
             episodes: [episode("9", day: 9, feedURL: changedSubscription.rssURL)],
             refreshedSubscriptionIDs: [subscriptionID],
             failedSubscriptionIDs: []
-        )
+        ).state
         #expect(reset.podcasts[0].newEpisodeIDs.isEmpty)
         #expect(reset.podcasts[0].observedEpisodeIDs == ["9"])
     }

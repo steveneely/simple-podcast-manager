@@ -234,6 +234,63 @@ struct SyncExecutorTests {
         #expect(ejector.didEject)
     }
 
+    @Test
+    func preservesCompletedDeletionsWhenCopyFailsAndDoesNotEject() throws {
+        let device = makeDevice()
+        let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/old.mp3")
+        let deletion = SyncAction.deleteFromDevice(targetURL: target, fileSizeBytes: 10)
+        let fileSystem = RecordingFileSystem(existingURLs: [target], directoryContents: [:], failCopiesLeavingPartialFile: true)
+        let ejector = RecordingDeviceEjector()
+        let plan = SyncPlan(device: device, actions: [
+            deletion,
+            .copyToDevice(sourceURL: URL(fileURLWithPath: "/tmp/new.mp3"), destinationURL: device.podcastDirectoryURL.appendingPathComponent("Podcast/new.mp3"), fileSizeBytes: 20),
+            .ejectDevice(deviceRootURL: device.rootURL)
+        ])
+        do {
+            _ = try makeTestExecutor(fileSystem: fileSystem, ejector: ejector).execute(plan: plan)
+            Issue.record("Expected a partial failure")
+        } catch let failure as SyncExecutionFailure {
+            #expect(failure.result.completedActions == [deletion])
+            #expect(failure.result.deletedTargetURLs == [target])
+            #expect(failure.result.deletedCount == 1)
+            #expect(failure.result.copiedCount == 0)
+            #expect(failure.result.finishedAt != nil)
+            #expect(!ejector.didEject)
+        }
+    }
+
+    @Test
+    func preservesCopiedFilesWhenEjectFails() throws {
+        let device = makeDevice()
+        let copy = SyncAction.copyToDevice(sourceURL: URL(fileURLWithPath: "/tmp/new.mp3"), destinationURL: device.podcastDirectoryURL.appendingPathComponent("Podcast/new.mp3"), fileSizeBytes: 20)
+        let executor = makeTestExecutor(fileSystem: RecordingFileSystem(existingURLs: [], directoryContents: [:]), ejector: FailingDeviceEjector())
+        do {
+            _ = try executor.execute(plan: SyncPlan(device: device, actions: [copy, .ejectDevice(deviceRootURL: device.rootURL)]))
+            Issue.record("Expected eject failure")
+        } catch let failure as SyncExecutionFailure {
+            #expect(failure.result.completedActions == [copy])
+            #expect(failure.result.copiedCount == 1)
+            #expect(failure.result.copiedBytes == 20)
+            #expect(!failure.result.ejected)
+        }
+    }
+
+    @Test
+    func recordsAudioDeletionEvenWhenMetadataCleanupFails() throws {
+        let device = makeDevice()
+        let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/old.mp3")
+        let sidecar = target.deletingLastPathComponent().appendingPathComponent("._old.mp3")
+        let deletion = SyncAction.deleteFromDevice(targetURL: target, fileSizeBytes: 10)
+        let fileSystem = RecordingFileSystem(existingURLs: [target, sidecar], directoryContents: [:], failedRemovalURL: sidecar)
+        do {
+            _ = try makeTestExecutor(fileSystem: fileSystem).execute(plan: SyncPlan(device: device, actions: [deletion]))
+            Issue.record("Expected metadata failure")
+        } catch let failure as SyncExecutionFailure {
+            #expect(failure.result.deletedTargetURLs == [target])
+            #expect(failure.result.deletedBytes == 10)
+        }
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "SPM Test MP3 Player",
@@ -251,6 +308,7 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
 
     private var existingURLs: Set<URL>
     private var directoryContents: [String: Set<URL>]
+    private let failedRemovalURL: URL?
     private let failCopiesLeavingPartialFile: Bool
 
     private(set) var createdDirectories: [URL] = []
@@ -260,13 +318,15 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
     init(
         existingURLs: [URL],
         directoryContents: [String: [URL]],
-        failCopiesLeavingPartialFile: Bool = false
+        failCopiesLeavingPartialFile: Bool = false,
+        failedRemovalURL: URL? = nil
     ) {
         self.existingURLs = Set(existingURLs.map(\.standardizedFileURL))
         self.directoryContents = directoryContents.reduce(into: [:]) { result, entry in
             result[entry.key] = Set(entry.value.map(\.standardizedFileURL))
         }
         self.failCopiesLeavingPartialFile = failCopiesLeavingPartialFile
+        self.failedRemovalURL = failedRemovalURL
     }
 
     func fileExists(at url: URL) -> Bool {
@@ -294,6 +354,7 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
     }
 
     func removeItem(at url: URL) throws {
+        if url == failedRemovalURL { throw TestCopyError.failed }
         let standardizedURL = url.standardizedFileURL
         removedItems.append(standardizedURL)
         existingURLs.remove(standardizedURL)
@@ -358,4 +419,8 @@ private final class SyncProgressCollector: @unchecked Sendable {
     var values: [SyncExecutionProgress] {
         updates
     }
+}
+
+private struct FailingDeviceEjector: DeviceEjecting {
+    func eject(device: DeviceInfo) throws { throw SyncExecutionError.ejectFailed(device.rootURL.path) }
 }

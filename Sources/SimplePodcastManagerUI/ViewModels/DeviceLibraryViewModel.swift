@@ -188,10 +188,6 @@ public final class DeviceLibraryViewModel {
         cancelOtherAudioReview(clearResults: false)
     }
 
-    public func dismissOtherAudioResults() {
-        cancelOtherAudioReview(clearResults: true)
-    }
-
     public func cancelAllWork() {
         latestRefreshID = nil
         inventoryTask?.cancel()

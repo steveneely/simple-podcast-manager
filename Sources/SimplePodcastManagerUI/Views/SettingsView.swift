@@ -24,12 +24,15 @@ public struct SettingsView: View {
     private let selectedDeviceRootURL: URL?
     private let savedAppearancePreference: AppearancePreference
     private let podcastSortOrder: PodcastSortOrder
+    private let ejectDeviceAfterSync: Bool
+    private let deleteDownloadedEpisodesAfterSync: Bool
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let makePodcastDirectoryMigrationPlan: (String?) throws -> DevicePodcastDirectoryMigrationPlan?
     private let onSave: (AppSettings, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void
     private let onAppearancePreferencePreview: (AppearancePreference) -> Void
     private let onAutomaticallyChecksForUpdatesChange: (Bool) -> Void
     private let onBackUpAppData: () -> Void
+    private let canRestoreAppData: Bool
     private let onRestoreAppData: () -> Void
     private let showsUpdateSettings: Bool
 
@@ -52,6 +55,7 @@ public struct SettingsView: View {
         onAppearancePreferencePreview: @escaping (AppearancePreference) -> Void = { _ in },
         onAutomaticallyChecksForUpdatesChange: @escaping (Bool) -> Void = { _ in },
         onBackUpAppData: @escaping () -> Void = {},
+        canRestoreAppData: Bool = true,
         onRestoreAppData: @escaping () -> Void = {}
     ) {
         self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
@@ -71,12 +75,15 @@ public struct SettingsView: View {
         self.selectedDeviceRootURL = selectedDeviceRootURL
         self.savedAppearancePreference = settings.appearancePreference
         self.podcastSortOrder = settings.podcastSortOrder
+        self.ejectDeviceAfterSync = settings.ejectDeviceAfterSync
+        self.deleteDownloadedEpisodesAfterSync = settings.deleteDownloadedEpisodesAfterSync
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
         self.makePodcastDirectoryMigrationPlan = makePodcastDirectoryMigrationPlan
         self.onSave = onSave
         self.onAppearancePreferencePreview = onAppearancePreferencePreview
         self.onAutomaticallyChecksForUpdatesChange = onAutomaticallyChecksForUpdatesChange
         self.onBackUpAppData = onBackUpAppData
+        self.canRestoreAppData = canRestoreAppData
         self.onRestoreAppData = onRestoreAppData
         self.showsUpdateSettings = automaticallyChecksForUpdates != nil
     }
@@ -243,6 +250,8 @@ public struct SettingsView: View {
                             Button("Restore…", systemImage: "arrow.counterclockwise") {
                                 onRestoreAppData()
                             }
+                            .disabled(!canRestoreAppData)
+                            .help(canRestoreAppData ? "Restore podcasts, settings, and episode history" : "Wait for refreshes, downloads, and sync to finish before restoring app data")
                         }
                     }
 
@@ -358,6 +367,8 @@ public struct SettingsView: View {
                 mp3Genre: normalizedMP3Genre,
                 automaticDownloadLimit: automaticDownloadLimit,
                 deviceCleanupPolicy: deviceCleanupPolicy,
+                ejectDeviceAfterSync: ejectDeviceAfterSync,
+                deleteDownloadedEpisodesAfterSync: deleteDownloadedEpisodesAfterSync,
                 inactivePodcastThreshold: inactivePodcastThreshold,
                 podcastSortOrder: podcastSortOrder
             ),

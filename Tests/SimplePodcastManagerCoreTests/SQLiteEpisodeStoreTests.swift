@@ -79,7 +79,7 @@ struct SQLiteEpisodeStoreTests {
         try fixture.store.saveState(automaticDownloadState)
         try fixture.store.savePodcastActivityState(podcastActivityState)
 
-        let snapshot = try fixture.store.loadStartupSnapshot()
+        let snapshot = try fixture.store.loadEpisodeStateSnapshot()
 
         #expect(snapshot.preparedEpisodes == [records.prepared])
         #expect(snapshot.downloadedEpisodes == [records.downloaded])

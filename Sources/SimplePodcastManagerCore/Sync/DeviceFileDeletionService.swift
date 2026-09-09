@@ -13,8 +13,9 @@ public struct DeviceFileDeletionService: Sendable {
         self.safetyValidator = safetyValidator
     }
 
-    public func deleteExplicitFile(at targetURL: URL, on device: DeviceInfo) throws {
+    public func deleteExplicitFile(at targetURL: URL, on device: DeviceInfo, onFileDeleted: () -> Void = {}) throws {
         try deleteValidatedFile(at: targetURL, on: device)
+        onFileDeleted()
 
         let sidecarURL = targetURL.deletingLastPathComponent()
             .appendingPathComponent("._" + targetURL.lastPathComponent, isDirectory: false)
@@ -23,8 +24,8 @@ public struct DeviceFileDeletionService: Sendable {
         }
     }
 
-    public func deleteManagedFile(at targetURL: URL, on device: DeviceInfo) throws {
-        try deleteExplicitFile(at: targetURL, on: device)
+    public func deleteManagedFile(at targetURL: URL, on device: DeviceInfo, onFileDeleted: () -> Void = {}) throws {
+        try deleteExplicitFile(at: targetURL, on: device, onFileDeleted: onFileDeleted)
         try removeEmptyManagedDirectory(containing: targetURL, on: device)
     }
 

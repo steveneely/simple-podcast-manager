@@ -71,7 +71,7 @@ public struct AppDataBackupService {
             try validate(fileName: "config.json", at: configurationURL)
         }
 
-        let appData = try episodeStore.loadAllAppData()
+        let appData = try episodeStore.loadEpisodeStateSnapshot()
         return AppDataSnapshot(
             configurationData: configurationData,
             preparedEpisodes: appData.preparedEpisodes,

@@ -81,6 +81,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var mp3Genre: String
     public var automaticDownloadLimit: AutomaticDownloadLimit
     public var deviceCleanupPolicy: DeviceCleanupPolicy
+    public var ejectDeviceAfterSync: Bool
+    public var deleteDownloadedEpisodesAfterSync: Bool
     public var inactivePodcastThreshold: InactivePodcastThreshold
     public var podcastSortOrder: PodcastSortOrder
 
@@ -92,6 +94,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mp3Genre: String = AppSettings.defaultMP3Genre,
         automaticDownloadLimit: AutomaticDownloadLimit = .off,
         deviceCleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
+        ejectDeviceAfterSync: Bool = true,
+        deleteDownloadedEpisodesAfterSync: Bool = true,
         inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths,
         podcastSortOrder: PodcastSortOrder = .alphabetic
     ) {
@@ -102,6 +106,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.mp3Genre = mp3Genre
         self.automaticDownloadLimit = automaticDownloadLimit
         self.deviceCleanupPolicy = deviceCleanupPolicy
+        self.ejectDeviceAfterSync = ejectDeviceAfterSync
+        self.deleteDownloadedEpisodesAfterSync = deleteDownloadedEpisodesAfterSync
         self.inactivePodcastThreshold = inactivePodcastThreshold
         self.podcastSortOrder = podcastSortOrder
     }
@@ -115,6 +121,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case mp3Genre
         case automaticDownloadLimit
         case deviceCleanupPolicy
+        case ejectDeviceAfterSync
+        case deleteDownloadedEpisodesAfterSync
         case inactivePodcastThreshold
         // Keep the established JSON key so existing settings remain readable.
         case podcastSortOrder = "showSortOrder"
@@ -140,6 +148,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
             DeviceCleanupPolicy.self,
             forKey: .deviceCleanupPolicy
         ) ?? DeviceCleanupPolicy()
+        ejectDeviceAfterSync = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .ejectDeviceAfterSync
+        ) ?? true
+        deleteDownloadedEpisodesAfterSync = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .deleteDownloadedEpisodesAfterSync
+        ) ?? true
         inactivePodcastThreshold = try container.decodeIfPresent(
             InactivePodcastThreshold.self,
             forKey: .inactivePodcastThreshold
@@ -159,6 +175,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(mp3Genre, forKey: .mp3Genre)
         try container.encode(automaticDownloadLimit, forKey: .automaticDownloadLimit)
         try container.encode(deviceCleanupPolicy, forKey: .deviceCleanupPolicy)
+        try container.encode(ejectDeviceAfterSync, forKey: .ejectDeviceAfterSync)
+        try container.encode(deleteDownloadedEpisodesAfterSync, forKey: .deleteDownloadedEpisodesAfterSync)
         try container.encode(inactivePodcastThreshold, forKey: .inactivePodcastThreshold)
         try container.encode(podcastSortOrder, forKey: .podcastSortOrder)
     }

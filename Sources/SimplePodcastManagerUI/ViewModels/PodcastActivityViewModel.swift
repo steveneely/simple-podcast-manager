@@ -16,18 +16,6 @@ public final class PodcastActivityViewModel {
         self.persistence = PodcastActivityPersistence(store: store)
     }
 
-    public func load() async {
-        do {
-            state = try await persistence.load()
-            rebuildIndex()
-            lastErrorMessage = nil
-            hasLoadedState = true
-        } catch {
-            state = PodcastActivityState()
-            lastErrorMessage = error.localizedDescription
-        }
-    }
-
     public func applyPersistedState(_ state: PodcastActivityState) {
         self.state = state
         rebuildIndex()
@@ -103,6 +91,5 @@ private actor PodcastActivityPersistence {
         self.store = store
     }
 
-    func load() throws -> PodcastActivityState { try store.loadPodcastActivityState() }
     func save(_ state: PodcastActivityState) throws { try store.savePodcastActivityState(state) }
 }

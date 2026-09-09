@@ -20,6 +20,7 @@ struct SyncDialogView: View {
     @Binding var ejectAfterSync: Bool
     @Binding var deleteDownloadsAfterSync: Bool
     let onEjectAfterSyncChange: () -> Void
+    let onDeleteDownloadsAfterSyncChange: () -> Void
     let onToggleCleanupDeletion: (URL) -> Void
     let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
@@ -76,6 +77,9 @@ struct SyncDialogView: View {
 
                 Toggle("Delete downloaded episodes when finished", isOn: $deleteDownloadsAfterSync)
                     .toggleStyle(.checkbox)
+                    .onChange(of: deleteDownloadsAfterSync) {
+                        onDeleteDownloadsAfterSyncChange()
+                    }
 
                 if let progress, isSyncing {
                     SyncProgressView(progress: progress)
@@ -86,6 +90,21 @@ struct SyncDialogView: View {
                         title: planningErrorTitle ?? "Cannot Start Sync",
                         message: planningErrorMessage
                     )
+                }
+
+                if let lastErrorMessage {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Sync Stopped", systemImage: "exclamationmark.triangle")
+                            .font(.headline)
+                            .foregroundStyle(.orange)
+                        Text(lastErrorMessage)
+                            .font(.caption)
+                        if let lastResult {
+                            Text(SyncPresentation.resultSummary(lastResult))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
                 if isReplacementPlanReady {

@@ -11,6 +11,7 @@ public struct SyncResult: Equatable, Sendable {
     public var updatedPlaylistCount: Int
     public var deletedPlaylistCount: Int
     public var ejected: Bool
+    public var completedActions: [SyncAction]
 
     public init(
         startedAt: Date = Date(),
@@ -22,7 +23,8 @@ public struct SyncResult: Equatable, Sendable {
         skippedCount: Int = 0,
         updatedPlaylistCount: Int = 0,
         deletedPlaylistCount: Int = 0,
-        ejected: Bool = false
+        ejected: Bool = false,
+        completedActions: [SyncAction] = []
     ) {
         self.startedAt = startedAt
         self.finishedAt = finishedAt
@@ -34,5 +36,13 @@ public struct SyncResult: Equatable, Sendable {
         self.updatedPlaylistCount = updatedPlaylistCount
         self.deletedPlaylistCount = deletedPlaylistCount
         self.ejected = ejected
+        self.completedActions = completedActions
+    }
+
+    public var deletedTargetURLs: [URL] {
+        completedActions.compactMap {
+            guard case .deleteFromDevice(let targetURL, _) = $0 else { return nil }
+            return targetURL
+        }
     }
 }

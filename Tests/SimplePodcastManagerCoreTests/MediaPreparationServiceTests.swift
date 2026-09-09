@@ -18,12 +18,11 @@ struct MediaPreparationServiceTests {
             workspaceProvider: StubWorkspaceProvider()
         )
 
-        let result = try await service.prepareEpisodes([episode], settings: AppSettings())
+        let result = await service.prepareEpisode(episode, settings: AppSettings())
 
-        #expect(result.preparedEpisodes.count == 1)
-        #expect(result.preparedEpisodes.first?.preparationAction == .passthroughMP3)
-        #expect(result.preparedEpisodes.first?.preparedAt.timeIntervalSince1970 ?? 0 > 0)
-        #expect(result.failures.isEmpty)
+        guard case .prepared(let prepared) = result else { Issue.record("Expected prepared audio"); return }
+        #expect(prepared.preparationAction == .passthroughMP3)
+        #expect(prepared.preparedAt.timeIntervalSince1970 > 0)
     }
 
     @Test
@@ -43,10 +42,10 @@ struct MediaPreparationServiceTests {
             workspaceProvider: FixedWorkspaceProvider(workspaceURL: workspaceURL)
         )
 
-        let result = try await service.prepareEpisodes([episode], settings: AppSettings())
+        let result = await service.prepareEpisode(episode, settings: AppSettings())
 
-        #expect(result.preparedEpisodes.isEmpty)
-        #expect(result.failures.count == 1)
+        guard case .failed(let failure) = result else { Issue.record("Expected conversion failure"); return }
+        #expect(failure.message == AudioConversionError.ffmpegNotConfigured.localizedDescription)
         #expect(!FileManager.default.fileExists(atPath: workspaceURL.appendingPathComponent("ep-m4a.m4a").path))
     }
 
@@ -68,14 +67,14 @@ struct MediaPreparationServiceTests {
             workspaceProvider: StubWorkspaceProvider()
         )
 
-        let result = try await service.prepareEpisodes(
-            [episode],
+        let result = await service.prepareEpisode(
+            episode,
             settings: AppSettings(ffmpegExecutablePath: "/opt/homebrew/bin/ffmpeg")
         )
 
-        #expect(result.preparedEpisodes.count == 1)
-        #expect(result.preparedEpisodes.first?.preparationAction == .convertedToMP3)
-        #expect(result.preparedEpisodes.first?.preparedFileURL.pathExtension == "mp3")
+        guard case .prepared(let prepared) = result else { Issue.record("Expected prepared audio"); return }
+        #expect(prepared.preparationAction == .convertedToMP3)
+        #expect(prepared.preparedFileURL.pathExtension == "mp3")
     }
 
     @Test
@@ -386,80 +385,6 @@ struct MediaPreparationServiceTests {
     }
 
     @Test
-    func reportsPreparationProgressAcrossEpisodes() async throws {
-        let firstEpisode = Episode(
-            id: "ep-1",
-            podcastTitle: "Example Podcast",
-            title: "Episode 1",
-            enclosureURL: URL(string: "https://cdn.example.com/episode1.mp3")!,
-            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-        )
-        let secondEpisode = Episode(
-            id: "ep-2",
-            podcastTitle: "Example Podcast",
-            title: "Episode 2",
-            enclosureURL: URL(string: "https://cdn.example.com/episode2.mp3")!,
-            sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-        )
-        let service = MediaPreparationService(
-            downloadService: StubDownloadService(fileExtension: "mp3"),
-            audioConversionService: StubAudioConversionService(),
-            workspaceProvider: StubWorkspaceProvider()
-        )
-
-        let collector = ProgressCollector()
-        _ = try await service.prepareEpisodes(
-            [firstEpisode, secondEpisode],
-            settings: AppSettings(),
-            progress: { collector.append($0) }
-        )
-        let progressUpdates = collector.values
-
-        #expect(progressUpdates.contains(PreparationProgress(
-            totalCount: 2,
-            completedCount: 0,
-            currentEpisodeID: "ep-1",
-            currentEpisodeTitle: "Episode 1",
-            activeEpisodeIDs: ["ep-1"],
-            activeEpisodeTitles: ["Episode 1"]
-        )))
-        #expect(progressUpdates.contains(PreparationProgress(
-            totalCount: 2,
-            completedCount: 0,
-            currentEpisodeID: "ep-1",
-            currentEpisodeTitle: "Episode 1",
-            activeEpisodeIDs: ["ep-1", "ep-2"],
-            activeEpisodeTitles: ["Episode 1", "Episode 2"]
-        )))
-        #expect(progressUpdates.last == PreparationProgress(totalCount: 2, completedCount: 2))
-    }
-
-    @Test
-    func preparesEpisodesWithBoundedParallelism() async throws {
-        let episodes = (1...4).map { index in
-            Episode(
-                id: "ep-\(index)",
-                podcastTitle: "Example Podcast",
-                title: "Episode \(index)",
-                enclosureURL: URL(string: "https://cdn.example.com/episode\(index).mp3")!,
-                sourceFeedURL: URL(string: "https://example.com/feed.xml")!
-            )
-        }
-        let tracker = DownloadConcurrencyTracker()
-        let service = MediaPreparationService(
-            downloadService: GatedDownloadService(fileExtension: "mp3", tracker: tracker),
-            audioConversionService: StubAudioConversionService(),
-            workspaceProvider: StubWorkspaceProvider(),
-            maximumConcurrentPreparations: 2
-        )
-
-        let result = try await service.prepareEpisodes(episodes, settings: AppSettings())
-
-        #expect(result.preparedEpisodes.count == 4)
-        #expect(await tracker.maximumActiveCount == 2)
-    }
-
-    @Test
     func reportsPermissionRequirementAndForwardsSavedInsecureDownloadChoice() async throws {
         let episode = Episode(
             id: "http-episode",
@@ -474,15 +399,15 @@ struct MediaPreparationServiceTests {
             workspaceProvider: StubWorkspaceProvider()
         )
 
-        let blockedResult = try await service.prepareEpisodes([episode], settings: AppSettings())
-        let allowedResult = try await service.prepareEpisodes(
-            [episode],
+        let blockedResult = await service.prepareEpisode(episode, settings: AppSettings())
+        let allowedResult = await service.prepareEpisode(
+            episode,
             settings: AppSettings(allowsInsecureDownloads: true)
         )
 
-        #expect(blockedResult.failures.first?.reason == .insecureDownloadRequiresPermission)
-        #expect(allowedResult.preparedEpisodes.count == 1)
-        #expect(allowedResult.failures.isEmpty)
+        guard case .failed(let failure) = blockedResult else { Issue.record("Expected permission request"); return }
+        #expect(failure.reason == .insecureDownloadRequiresPermission)
+        guard case .prepared = allowedResult else { Issue.record("Expected approved download"); return }
     }
 }
 
@@ -510,51 +435,9 @@ private struct StubDownloadService: DownloadService {
     }
 }
 
-private struct GatedDownloadService: DownloadService {
-    let fileExtension: String
-    let tracker: DownloadConcurrencyTracker
 
-    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
-        await tracker.start()
-        await tracker.finish()
 
-        let fileURL = workspaceURL.appendingPathComponent("\(episode.id).\(fileExtension)")
-        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
-        try Data("audio".utf8).write(to: fileURL)
-        return fileURL
-    }
-}
 
-private actor DownloadConcurrencyTracker {
-    private var activeCount = 0
-    private var maxActiveCount = 0
-    private var waitingStarts: [CheckedContinuation<Void, Never>] = []
-    private var initialPairStarted = false
-
-    func start() async {
-        activeCount += 1
-        maxActiveCount = max(maxActiveCount, activeCount)
-        guard !initialPairStarted else { return }
-        if activeCount == 2 {
-            initialPairStarted = true
-            let continuations = waitingStarts
-            waitingStarts.removeAll()
-            continuations.forEach { $0.resume() }
-            return
-        }
-        await withCheckedContinuation { continuation in
-            waitingStarts.append(continuation)
-        }
-    }
-
-    func finish() {
-        activeCount -= 1
-    }
-
-    var maximumActiveCount: Int {
-        maxActiveCount
-    }
-}
 
 private struct StubAudioConversionService: AudioConversionService {
     func prepareAudio(for episode: Episode, sourceFileURL: URL, in workspaceURL: URL, settings: AppSettings) async throws -> PreparedEpisode {
@@ -692,22 +575,5 @@ private struct PermissionSensitiveArtworkPreparationService: ArtworkPreparationS
             throw HTTPDataResourceLoadingError.insecureDownloadRequiresPermission
         }
         return artworkFileURL
-    }
-}
-
-private final class ProgressCollector: @unchecked Sendable {
-    private let lock = NSLock()
-    private var progressUpdates: [PreparationProgress] = []
-
-    func append(_ progress: PreparationProgress) {
-        lock.lock()
-        defer { lock.unlock() }
-        progressUpdates.append(progress)
-    }
-
-    var values: [PreparationProgress] {
-        lock.lock()
-        defer { lock.unlock() }
-        return progressUpdates
     }
 }

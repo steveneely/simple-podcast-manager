@@ -152,7 +152,8 @@ struct MainViewModelTests {
                 deviceCleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 10),
                 ejectDeviceAfterSync: false,
                 deleteDownloadedEpisodesAfterSync: false,
-                podcastSortOrder: .reverseAlphabetic
+                podcastSortOrder: .reverseAlphabetic,
+                showsPlaylistsBeta: true
             )
         )
 
@@ -166,6 +167,7 @@ struct MainViewModelTests {
         #expect(!viewModel.settings.ejectDeviceAfterSync)
         #expect(!viewModel.settings.deleteDownloadedEpisodesAfterSync)
         #expect(viewModel.settings.podcastSortOrder == .reverseAlphabetic)
+        #expect(viewModel.settings.showsPlaylistsBeta)
         #expect(store.configuration.settings == viewModel.settings)
     }
 

@@ -85,6 +85,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var deleteDownloadedEpisodesAfterSync: Bool
     public var inactivePodcastThreshold: InactivePodcastThreshold
     public var podcastSortOrder: PodcastSortOrder
+    public var showsPlaylistsBeta: Bool
 
     public init(
         ffmpegExecutablePath: String? = nil,
@@ -97,7 +98,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         ejectDeviceAfterSync: Bool = true,
         deleteDownloadedEpisodesAfterSync: Bool = true,
         inactivePodcastThreshold: InactivePodcastThreshold = .sixMonths,
-        podcastSortOrder: PodcastSortOrder = .alphabetic
+        podcastSortOrder: PodcastSortOrder = .alphabetic,
+        showsPlaylistsBeta: Bool = false
     ) {
         self.ffmpegExecutablePath = ffmpegExecutablePath
         self.appearancePreference = appearancePreference
@@ -110,6 +112,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.deleteDownloadedEpisodesAfterSync = deleteDownloadedEpisodesAfterSync
         self.inactivePodcastThreshold = inactivePodcastThreshold
         self.podcastSortOrder = podcastSortOrder
+        self.showsPlaylistsBeta = showsPlaylistsBeta
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -124,6 +127,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case ejectDeviceAfterSync
         case deleteDownloadedEpisodesAfterSync
         case inactivePodcastThreshold
+        case showsPlaylistsBeta
         // Keep the established JSON key so existing settings remain readable.
         case podcastSortOrder = "showSortOrder"
     }
@@ -164,6 +168,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
             PodcastSortOrder.self,
             forKey: .podcastSortOrder
         ) ?? .alphabetic
+        showsPlaylistsBeta = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .showsPlaylistsBeta
+        ) ?? false
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -179,5 +187,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try container.encode(deleteDownloadedEpisodesAfterSync, forKey: .deleteDownloadedEpisodesAfterSync)
         try container.encode(inactivePodcastThreshold, forKey: .inactivePodcastThreshold)
         try container.encode(podcastSortOrder, forKey: .podcastSortOrder)
+        try container.encode(showsPlaylistsBeta, forKey: .showsPlaylistsBeta)
     }
 }

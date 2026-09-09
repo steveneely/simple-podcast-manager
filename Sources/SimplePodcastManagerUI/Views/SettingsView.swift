@@ -13,6 +13,7 @@ public struct SettingsView: View {
     @State private var automaticDownloadLimit: AutomaticDownloadLimit
     @State private var deviceCleanupPolicy: DeviceCleanupPolicy
     @State private var inactivePodcastThreshold: InactivePodcastThreshold
+    @State private var showsPlaylistsBeta: Bool
     @State private var podcastDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
@@ -68,6 +69,7 @@ public struct SettingsView: View {
         self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
         self._deviceCleanupPolicy = State(initialValue: settings.deviceCleanupPolicy)
         self._inactivePodcastThreshold = State(initialValue: settings.inactivePodcastThreshold)
+        self._showsPlaylistsBeta = State(initialValue: settings.showsPlaylistsBeta)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
@@ -255,6 +257,17 @@ public struct SettingsView: View {
                         }
                     }
 
+                    SettingsSection(title: "Beta Features") {
+                        LabeledField(
+                            title: "Playlists",
+                            detail: "Create playlists for compatible MP3 players and optionally add downloaded episodes automatically. Hiding Playlists does not delete them; existing playlists continue to be maintained during sync.",
+                            emphasizesTitle: true
+                        ) {
+                            Toggle("Show Playlists", isOn: $showsPlaylistsBeta)
+                                .toggleStyle(.checkbox)
+                        }
+                    }
+
                     if let errorMessage {
                         Text(errorMessage)
                             .font(.footnote)
@@ -370,7 +383,8 @@ public struct SettingsView: View {
                 ejectDeviceAfterSync: ejectDeviceAfterSync,
                 deleteDownloadedEpisodesAfterSync: deleteDownloadedEpisodesAfterSync,
                 inactivePodcastThreshold: inactivePodcastThreshold,
-                podcastSortOrder: podcastSortOrder
+                podcastSortOrder: podcastSortOrder,
+                showsPlaylistsBeta: showsPlaylistsBeta
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates,

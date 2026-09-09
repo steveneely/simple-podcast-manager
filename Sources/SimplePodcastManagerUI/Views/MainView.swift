@@ -123,7 +123,8 @@ public struct MainView: View {
         VStack(alignment: .leading, spacing: 16) {
             deviceSection
 
-            if viewModel.hasPodcasts || !podcastPlaylistViewModel.playlists.isEmpty {
+            if viewModel.hasPodcasts
+                || (viewModel.settings.showsPlaylistsBeta && !podcastPlaylistViewModel.playlists.isEmpty) {
                 librarySection
                     .disabled(!hasLoadedEpisodeState)
             } else {
@@ -280,6 +281,7 @@ public struct MainView: View {
             presentNewPodcastEditor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPlaylist)) { _ in
+            guard viewModel.settings.showsPlaylistsBeta else { return }
             presentNewPlaylistEditor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
@@ -295,6 +297,7 @@ public struct MainView: View {
             libraryMode = .podcasts
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerShowPlaylists)) { _ in
+            guard viewModel.settings.showsPlaylistsBeta else { return }
             libraryMode = .playlists
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in
@@ -419,11 +422,10 @@ public struct MainView: View {
             librarySidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
             Group {
-                switch libraryMode {
-                case .podcasts:
-                    episodeDetailSection
-                case .playlists:
+                if libraryMode == .playlists, viewModel.settings.showsPlaylistsBeta {
                     podcastPlaylistDetailSection
+                } else {
+                    episodeDetailSection
                 }
             }
                 .frame(minWidth: 420)
@@ -435,10 +437,7 @@ public struct MainView: View {
 
     @ViewBuilder
     private var librarySidebar: some View {
-        switch libraryMode {
-        case .podcasts:
-            podcastSidebar
-        case .playlists:
+        if libraryMode == .playlists, viewModel.settings.showsPlaylistsBeta {
             PodcastPlaylistSidebarView(
                 playlists: podcastPlaylistViewModel.playlists,
                 libraryMode: $libraryMode,
@@ -453,6 +452,8 @@ public struct MainView: View {
                 episodeCounts: podcastPlaylistPresentationViewModel.presentation
                     .episodeCountsByPlaylistID
             )
+        } else {
+            podcastSidebar
         }
     }
 
@@ -460,6 +461,7 @@ public struct MainView: View {
         PodcastSidebarView(
             subscriptions: viewModel.podcastSubscriptions,
             libraryMode: $libraryMode,
+            showsPlaylistsBeta: viewModel.settings.showsPlaylistsBeta,
             selectedPodcastID: $selectedPodcastID,
             sortOrder: Binding(
                 get: { viewModel.settings.podcastSortOrder },
@@ -663,6 +665,7 @@ public struct MainView: View {
     }
 
     private func presentNewPlaylistEditor() {
+        guard viewModel.settings.showsPlaylistsBeta else { return }
         podcastPlaylistEditorPresentation = PodcastPlaylistEditorPresentation()
     }
 
@@ -801,7 +804,9 @@ public struct MainView: View {
             isSelectedForDeviceRemoval: isSelectedForDeviceRemoval,
             isPrepared: status.preparedEpisode != nil,
             isPreparing: preparationPreviewViewModel.isPreparing(episode),
-            playlists: podcastPlaylistViewModel.playlists,
+            playlists: viewModel.settings.showsPlaylistsBeta
+                ? podcastPlaylistViewModel.playlists
+                : [],
             onToggleDetails: { toggleEpisodeDetails(for: episode) },
             onToggleDeviceRemoval: {
                 if let deviceFileURL {
@@ -835,6 +840,7 @@ public struct MainView: View {
     }
 
     private func togglePlaylistMembership(for episode: Episode, playlist: PodcastPlaylist) {
+        guard viewModel.settings.showsPlaylistsBeta else { return }
         do {
             if playlist.contains(episode) {
                 try podcastPlaylistViewModel.remove(episode, from: playlist.id)
@@ -2170,6 +2176,9 @@ public struct MainView: View {
 
         let previousAutomaticDownloadLimit = viewModel.settings.automaticDownloadLimit
         viewModel.replaceSettings(updatedSettings)
+        if !updatedSettings.showsPlaylistsBeta {
+            libraryMode = .podcasts
+        }
         Task {
             await automaticDownloadViewModel.applyPreferences(
                 subscriptions: viewModel.podcastSubscriptions,

@@ -207,7 +207,7 @@ New app data backups are format-version-2 JSON directories. They include configu
 
 ## Playlists
 
-Playlists use one flexible model rather than separate manual and smart types. Every playlist can contain explicitly added episodes in a user-controlled order and can optionally add matching episodes automatically. The new-playlist and edit-playlist sheets can enable or disable automatic additions without creating a separate playlist type or affecting explicit entries.
+Playlists are temporarily exposed as an opt-in beta through **Settings → Beta Features → Show Playlists**. The setting defaults off and controls playlist navigation, episode actions, menus, and shortcuts. Hiding the beta does not delete definitions or stop maintaining existing playlists during sync; this prevents hidden data loss and stale device playlists. Playlists use one flexible model rather than separate manual and smart types. Every playlist can contain explicitly added episodes in a user-controlled order and can optionally add matching episodes automatically. The new-playlist and edit-playlist sheets can enable or disable automatic additions without creating a separate playlist type or affecting explicit entries.
 
 An episode can be explicitly added only when a prepared local file or matching device copy exists. If neither exists, the UI offers to download it and commits membership only after preparation succeeds. Removing the last available local copy warns that the episode will also leave every playlist; removing a device copy warns before staging that removal. Successful device deletion removes the corresponding explicit membership, while deleting only the local preparation after a successful sync preserves membership because the device copy remains usable.
 

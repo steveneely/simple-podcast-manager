@@ -34,7 +34,8 @@ struct JSONConfigurationStoreTests {
                 ejectDeviceAfterSync: false,
                 deleteDownloadedEpisodesAfterSync: false,
                 inactivePodcastThreshold: .oneYear,
-                podcastSortOrder: .leastRecentlyUpdated
+                podcastSortOrder: .leastRecentlyUpdated,
+                showsPlaylistsBeta: true
             ),
             podcastSubscriptions: [
                 PodcastSubscription(
@@ -131,6 +132,7 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.deleteDownloadedEpisodesAfterSync)
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
         #expect(configuration.settings.podcastSortOrder == .alphabetic)
+        #expect(!configuration.settings.showsPlaylistsBeta)
         #expect(configuration.podcastSubscriptions.isEmpty)
     }
 

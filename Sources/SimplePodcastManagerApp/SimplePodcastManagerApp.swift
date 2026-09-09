@@ -42,10 +42,12 @@ struct SimplePodcastManagerDesktopApp: App {
                 }
                 .keyboardShortcut("n", modifiers: [.command])
 
-                Button("Add Playlist…") {
-                    NotificationCenter.default.post(name: .simplePodcastManagerAddPlaylist, object: nil)
+                if viewModel.settings.showsPlaylistsBeta {
+                    Button("Add Playlist…") {
+                        NotificationCenter.default.post(name: .simplePodcastManagerAddPlaylist, object: nil)
+                    }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
                 }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
 
                 Divider()
 
@@ -79,17 +81,19 @@ struct SimplePodcastManagerDesktopApp: App {
                 .keyboardShortcut(",", modifiers: [.command])
             }
             CommandGroup(after: .sidebar) {
-                Divider()
+                if viewModel.settings.showsPlaylistsBeta {
+                    Divider()
 
-                Button("Show Podcasts") {
-                    NotificationCenter.default.post(name: .simplePodcastManagerShowPodcasts, object: nil)
-                }
-                .keyboardShortcut("1", modifiers: [.command])
+                    Button("Show Podcasts") {
+                        NotificationCenter.default.post(name: .simplePodcastManagerShowPodcasts, object: nil)
+                    }
+                    .keyboardShortcut("1", modifiers: [.command])
 
-                Button("Show Playlists") {
-                    NotificationCenter.default.post(name: .simplePodcastManagerShowPlaylists, object: nil)
+                    Button("Show Playlists") {
+                        NotificationCenter.default.post(name: .simplePodcastManagerShowPlaylists, object: nil)
+                    }
+                    .keyboardShortcut("2", modifiers: [.command])
                 }
-                .keyboardShortcut("2", modifiers: [.command])
             }
         }
     }

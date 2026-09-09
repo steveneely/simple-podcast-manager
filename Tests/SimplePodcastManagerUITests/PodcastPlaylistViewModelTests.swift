@@ -225,6 +225,60 @@ struct PodcastPlaylistViewModelTests {
     }
 
     @Test
+    func deletedProtectedEpisodeIsRemovedAndExcludedFromAutomaticPlaylists() async throws {
+        let podcastID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let episode = makeEpisode(id: "kept", title: "Kept", day: 1)
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let manuallyAddedPlaylist = try PodcastPlaylist(
+            name: "Keep",
+            entries: [entry]
+        )
+        let automaticPlaylist = try PodcastPlaylist(
+            name: "News",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([podcastID])
+            )
+        )
+        let store = InMemoryPodcastPlaylistStore(
+            library: PodcastPlaylistLibrary(
+                playlists: [manuallyAddedPlaylist, automaticPlaylist]
+            )
+        )
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+        let deviceFileURL = URL(
+            fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music/Example Podcast/2026.09.01-Kept-(Example Podcast).mp3"
+        )
+        let candidate = PlaylistProtectedCleanupCandidate(
+            targetURL: deviceFileURL,
+            episode: episode,
+            publicationDate: try #require(episode.publicationDate),
+            fileSizeBytes: 10,
+            playlistNames: ["Keep", "News"]
+        )
+
+        try viewModel.removeDeletedPlaylistEpisodes([candidate])
+
+        #expect(viewModel.playlist(id: manuallyAddedPlaylist.id)?.entries.isEmpty == true)
+        let updatedAutomaticPlaylist = try #require(viewModel.playlist(id: automaticPlaylist.id))
+        let expectedExclusions: Set<PodcastPlaylistAutomaticExclusion> = [
+            PodcastPlaylistAutomaticExclusion(
+                subscriptionID: podcastID,
+                episodeFileStem: EpisodeFileName.fileStem(for: episode)
+            ),
+            PodcastPlaylistAutomaticExclusion(
+                subscriptionID: podcastID,
+                episodeFileStem: deviceFileURL.deletingPathExtension().lastPathComponent
+            ),
+        ]
+        #expect(updatedAutomaticPlaylist.automaticExclusions == expectedExclusions)
+        #expect(PodcastPlaylistResolver.entries(
+            for: updatedAutomaticPlaylist,
+            from: [episode]
+        ).automatic.isEmpty)
+    }
+
+    @Test
     func excludesAnAutomaticEpisodeWithoutRemovingItsDownload() async throws {
         let playlist = try PodcastPlaylist(
             name: "Everything",

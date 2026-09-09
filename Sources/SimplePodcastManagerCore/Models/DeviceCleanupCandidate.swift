@@ -27,6 +27,30 @@ public struct DeviceCleanupCandidate: Equatable, Sendable, Identifiable {
     }
 }
 
+public struct PlaylistProtectedCleanupCandidate: Equatable, Sendable, Identifiable {
+    public var id: URL { targetURL.standardizedFileURL }
+
+    public var targetURL: URL
+    public var episode: Episode
+    public var publicationDate: Date
+    public var fileSizeBytes: Int64
+    public var playlistNames: [String]
+
+    public init(
+        targetURL: URL,
+        episode: Episode,
+        publicationDate: Date,
+        fileSizeBytes: Int64,
+        playlistNames: [String]
+    ) {
+        self.targetURL = targetURL
+        self.episode = episode
+        self.publicationDate = publicationDate
+        self.fileSizeBytes = fileSizeBytes
+        self.playlistNames = playlistNames
+    }
+}
+
 public enum DeviceCleanupPolicyError: LocalizedError, Equatable, Sendable {
     case invalidMaximumEpisodesPerPodcast(Int)
 

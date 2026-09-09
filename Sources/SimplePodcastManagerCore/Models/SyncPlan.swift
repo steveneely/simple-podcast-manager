@@ -4,15 +4,18 @@ public struct SyncPlan: Equatable, Sendable {
     public var device: DeviceInfo
     public var actions: [SyncAction]
     public var cleanupCandidates: [DeviceCleanupCandidate]
+    public var playlistProtectedCleanupCandidates: [PlaylistProtectedCleanupCandidate]
 
     public init(
         device: DeviceInfo,
         actions: [SyncAction] = [],
-        cleanupCandidates: [DeviceCleanupCandidate] = []
+        cleanupCandidates: [DeviceCleanupCandidate] = [],
+        playlistProtectedCleanupCandidates: [PlaylistProtectedCleanupCandidate] = []
     ) {
         self.device = device
         self.actions = actions
         self.cleanupCandidates = cleanupCandidates
+        self.playlistProtectedCleanupCandidates = playlistProtectedCleanupCandidates
     }
 
     /// Device files that remain absent after this plan completes.

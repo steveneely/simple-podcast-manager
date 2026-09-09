@@ -227,6 +227,7 @@ struct SyncPlannerTests {
         #expect(plan.actions.filter { if case .deleteFromDevice = $0 { true } else { false } }.count == 3)
         #expect(!plan.cleanupCandidates.map(\.targetURL).contains(missingDateURL))
         #expect(!plan.cleanupCandidates.map(\.targetURL).contains(unrelatedAudioURL))
+        #expect(plan.playlistProtectedCleanupCandidates.isEmpty)
     }
 
     @Test
@@ -1300,6 +1301,32 @@ struct SyncPlannerTests {
 
         #expect(plan.cleanupCandidates.map(\.targetURL) == [unprotectedURLs[0]])
         #expect(!plan.actions.contains(.deleteFromDevice(targetURL: protectedURL, fileSizeBytes: 1)))
+        #expect(plan.playlistProtectedCleanupCandidates.map(\.targetURL) == [protectedURL])
+        #expect(plan.playlistProtectedCleanupCandidates.first?.episode.id == protectedEpisode.id)
+        #expect(plan.playlistProtectedCleanupCandidates.first?.playlistNames == ["Keep"])
+
+        let deletionPlan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [incoming],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
+            selectedPlaylistProtectedDeletionTargets: [protectedURL],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            ejectAfterSync: false
+        )
+
+        #expect(deletionPlan.playlistProtectedCleanupCandidates.map(\.targetURL) == [protectedURL])
+        #expect(deletionPlan.actions.contains(
+            .deleteFromDevice(targetURL: protectedURL, fileSizeBytes: 1)
+        ))
+        guard let playlistAction = deletionPlan.actions.first(where: {
+            if case .writePodcastPlaylist = $0 { return true }
+            return false
+        }), case .writePodcastPlaylist(_, let contents, _) = playlistAction else {
+            Issue.record("Expected the playlist to be rewritten")
+            return
+        }
+        #expect(!String(decoding: contents, as: UTF8.self).contains(protectedURL.lastPathComponent))
     }
 
     @Test

@@ -209,6 +209,40 @@ public final class PodcastPlaylistViewModel {
         try persist(updatedLibrary)
     }
 
+    public func removeDeletedPlaylistEpisodes(
+        _ candidates: [PlaylistProtectedCleanupCandidate]
+    ) throws {
+        guard !candidates.isEmpty else { return }
+        var candidatesByID: [PodcastPlaylistEpisodeID: (episode: Episode, targetURL: URL)] = [:]
+        for candidate in candidates {
+            guard let entryID = PodcastPlaylistEpisodeID(episode: candidate.episode),
+                  candidatesByID[entryID] == nil else { continue }
+            candidatesByID[entryID] = (candidate.episode, candidate.targetURL)
+        }
+        guard !candidatesByID.isEmpty else { return }
+
+        var updatedLibrary = library
+        for index in updatedLibrary.playlists.indices {
+            updatedLibrary.playlists[index].entries.removeAll {
+                candidatesByID[$0.id] != nil
+            }
+            guard let automaticRule = updatedLibrary.playlists[index].automaticRule else { continue }
+            for (_, candidate) in candidatesByID
+                where automaticRuleIncludes(automaticRule, episode: candidate.episode, in: updatedLibrary) {
+                updatedLibrary.playlists[index].automaticExclusions.formUnion(
+                    automaticExclusions(
+                        for: candidate.episode,
+                        deviceFileURL: candidate.targetURL
+                    )
+                )
+            }
+        }
+        updatedLibrary.recentlyDownloadedEntries.removeAll {
+            candidatesByID[$0.id] != nil
+        }
+        try persist(updatedLibrary)
+    }
+
     public func recordDownloadedEpisodes(_ episodes: [Episode]) throws {
         guard isLoaded else { return }
         var seenEntryIDs: Set<PodcastPlaylistEpisodeID> = []
@@ -340,6 +374,23 @@ public final class PodcastPlaylistViewModel {
             ))
         }
         return exclusions
+    }
+
+    private func automaticRuleIncludes(
+        _ rule: PodcastPlaylistAutomaticRule,
+        episode: Episode,
+        in library: PodcastPlaylistLibrary
+    ) -> Bool {
+        guard let subscriptionID = episode.subscriptionID else { return false }
+        switch rule.source {
+        case .allPodcasts:
+            return true
+        case .selectedPodcasts(let includedPodcastIDs):
+            return includedPodcastIDs.contains(subscriptionID)
+        case .recentlyDownloaded:
+            guard let entryID = PodcastPlaylistEpisodeID(episode: episode) else { return false }
+            return library.recentlyDownloadedEntries.contains { $0.id == entryID }
+        }
     }
 
     private func persist(_ updatedLibrary: PodcastPlaylistLibrary) throws {

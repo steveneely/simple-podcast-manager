@@ -22,6 +22,7 @@ struct SyncDialogView: View {
     let onEjectAfterSyncChange: () -> Void
     let onDeleteDownloadsAfterSyncChange: () -> Void
     let onToggleCleanupDeletion: (URL) -> Void
+    let onTogglePlaylistProtectedDeletion: (URL) -> Void
     let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
 
@@ -121,6 +122,10 @@ struct SyncDialogView: View {
                     cleanupReview
                 }
 
+                if plan?.playlistProtectedCleanupCandidates.isEmpty == false {
+                    playlistProtectedCleanupReview
+                }
+
                 if plan?.actions.isEmpty == false {
                     plannedActions
                 }
@@ -212,6 +217,61 @@ struct SyncDialogView: View {
             }
             .frame(maxHeight: 150)
         }
+    }
+
+    private var playlistProtectedCleanupReview: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Older Episodes Kept by Playlists")
+                .font(.headline)
+            Text("These episodes would normally be removed by your cleanup settings, but they are being kept because they appear in playlists. Select any episodes you no longer want to keep.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(plan?.playlistProtectedCleanupCandidates ?? []) { candidate in
+                        Toggle(
+                            isOn: Binding(
+                                get: {
+                                    plannedDeletionTargets.contains(
+                                        candidate.targetURL.standardizedFileURL
+                                    )
+                                },
+                                set: { _ in
+                                    onTogglePlaylistProtectedDeletion(candidate.targetURL)
+                                }
+                            )
+                        ) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(candidate.episode.title)
+                                        .lineLimit(1)
+                                    Text("\(candidate.episode.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Text("Kept by \(playlistDescription(candidate.playlistNames))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
+                                    .font(.caption)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(.checkbox)
+                    }
+                }
+            }
+            .frame(maxHeight: 150)
+        }
+    }
+
+    private func playlistDescription(_ names: [String]) -> String {
+        names.map { "“\($0)”" }.formatted(.list(type: .and))
     }
 
     private var planSummary: some View {

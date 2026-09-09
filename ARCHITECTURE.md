@@ -107,8 +107,9 @@ Expected runtime flow:
 6. The user clicks `Sync`.
 7. `SyncPlanViewModel` builds the full-device plan:
    - validate device
-   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-podcast retention limit; playlist membership protects an episode from this cleanup
+   - combine dated app-managed device episodes with dated episodes planned for copy, then identify existing files beyond the configured per-podcast retention limit; explicit playlist membership protects an episode from this cleanup
    - exclude any cleanup candidates the user unchecked in the current review
+   - separately show older episodes kept beyond the retention limit by playlists; leave them unselected unless the user explicitly chooses to delete both the device file and its playlist membership
    - when an existing device copy has an unexpected size, offer an in-dialog recovery action that selects that exact app-managed file for deletion and recopies the prepared episode in the same reviewed plan; refresh the dialog with the replacement plan and a persistent ready confirmation on success, or keep it open with the specific planning failure on error
    - build a `SyncPlan`
    - build UTF-8 M3U files from the projected post-sync device contents, using Walkman-compatible root-relative backslash paths
@@ -212,6 +213,8 @@ An episode can be explicitly added only when a prepared local file or matching d
 
 Explicit entries keep a snapshot of episode identity and metadata so they survive feed refreshes. Their ordering is user controlled through direct row dragging. Episodes are added from podcast episode rows; unavailable choices continue through the same download-before-membership confirmation. An explicit entry protects its device file from automatic retention cleanup. Each automatically added row has a pin action that promotes the episode to this manually added, ordered section, where it no longer counts toward the automatic limit.
 
+When explicit playlist protection keeps an older device episode beyond the configured per-Podcast cleanup limit, the Sync review shows it under **Older Episodes Kept by Playlists**. This section is absent when there are no qualifying protected episodes, including when no playlists exist. Its entries are unselected by default. Selecting one adds its exact validated device file to the reviewed deletion plan; only a completed deletion removes explicit membership and adds automatic-rule exclusions so the episode cannot immediately return. Cancellation and failed deletions leave playlist state unchanged.
+
 The playlist editor exposes one automatic rule: choose one or more Podcasts whose downloaded episodes should be included, with an optional latest-episode count. The app display resolves current feed episodes that are downloaded locally or matched on the selected device, plus read-only snapshots of older app-managed device files outside the current RSS window. Those entries appear after explicit entries, newest first across the combined Podcast selection, and remain subject to retention cleanup. A limit restricts how many automatic entries participate. Removing an automatic entry records a stable Podcast-and-file-stem exclusion so it does not immediately return, while explicitly adding it again clears that exclusion. Removing a selected Podcast removes it and its exclusions from the rule without broadening an empty selection to all Podcasts.
 
 Earlier development builds briefly exposed All Podcasts, Recently Downloaded, and device-sync-based automatic sources. Their persisted identifiers and download history remain decodable so existing local test data is not lost, but the editor no longer offers those rule types. During sync, the planner resolves explicit entries to planned copies or existing exact/conservative device matches, then independently resolves automatic rules against projected post-sync device files. Planned deletions are excluded, planned copies are included, explicit and automatic results are deduplicated, and unavailable entries are omitted.
@@ -279,8 +282,9 @@ Delete behavior:
 - only delete other audio inside the configured podcast directory after explicit per-file user selection and confirmation
 - never bulk-delete by loose pattern matching
 - prefer exact planned file URLs over directory-wide operations
-- playlist membership excludes an episode from automatic retention cleanup, but never blocks an explicit user-selected deletion
-- remove a playlist entry after its explicitly deleted device file is successfully removed
+- explicit playlist membership excludes an episode from automatic retention cleanup, but never blocks an explicit user-selected deletion
+- surface playlist-protected retention candidates separately and leave them unselected by default
+- remove playlist membership and record applicable automatic exclusions only after the protected device file is successfully removed
 
 ## Audio Conversion
 

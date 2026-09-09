@@ -25,6 +25,7 @@ public struct SyncPlanner: Sendable {
         replacementTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
+        selectedPlaylistProtectedDeletionTargets: Set<URL> = [],
         managedInventory: ManagedDeviceLibraryInventory? = nil,
         podcastPlaylistLibrary: PodcastPlaylistLibrary = PodcastPlaylistLibrary(),
         ejectAfterSync: Bool
@@ -36,6 +37,7 @@ public struct SyncPlanner: Sendable {
 
         var actions: [SyncAction] = []
         var cleanupCandidates: [DeviceCleanupCandidate] = []
+        var playlistProtectedCleanupCandidates: [PlaylistProtectedCleanupCandidate] = []
         var plannedDeletionTargets: Set<URL> = []
 
         let preparedBySubscription = Dictionary(grouping: preparedEpisodes.compactMap { preparedEpisode -> (UUID, PreparedEpisode)? in
@@ -44,7 +46,12 @@ public struct SyncPlanner: Sendable {
         }, by: { $0.0 })
         let manualDeleteTargets = Set(manualDeleteTargets.map(\.standardizedFileURL))
         let replacementTargets = Set(replacementTargets.map(\.standardizedFileURL))
-        let explicitDeleteTargets = manualDeleteTargets.union(replacementTargets)
+        let selectedPlaylistProtectedDeletionTargets = Set(
+            selectedPlaylistProtectedDeletionTargets.map(\.standardizedFileURL)
+        )
+        let explicitDeleteTargets = manualDeleteTargets
+            .union(replacementTargets)
+            .union(selectedPlaylistProtectedDeletionTargets)
         let excludedCleanupTargets = Set(excludedCleanupTargets.map(\.standardizedFileURL))
         let deviceInventory: ManagedDeviceLibraryInventory
         if let managedInventory,
@@ -77,27 +84,31 @@ public struct SyncPlanner: Sendable {
                     for: subscription,
                     podcastPlaylistLibrary: podcastPlaylistLibrary
                 )
-                let protectedFileURLs = protectedDeviceFileURLs(
+                let protectedFilesByURL = protectedDeviceFilesByURL(
                     existingFiles: existingFiles,
                     protectedEntries: protectedEntries,
                     subscription: subscription
                 )
-                let protectedEpisodeIDs = Set(protectedEntries.map(\.id))
-                let subscriptionCleanupCandidates = try makeCleanupCandidates(
+                let protectedEpisodeIDs = Set(protectedEntries.map(\.entry.id))
+                let cleanupReview = try makeCleanupReview(
                     existingFiles: existingFiles,
                     preparedEpisodes: preparedEpisodes,
                     managedDirectory: managedDirectory,
                     subscription: subscription,
                     manualDeleteTargets: explicitDeleteTargets,
-                    protectedFileURLs: protectedFileURLs,
+                    replacementTargets: replacementTargets,
+                    protectedFilesByURL: protectedFilesByURL,
                     protectedEpisodeIDs: protectedEpisodeIDs,
                     maximumEpisodesPerPodcast: maximumEpisodesPerPodcast,
                     device: device
                 )
-                for candidate in subscriptionCleanupCandidates {
+                for candidate in cleanupReview.cleanupCandidates {
                     cleanupCandidateSizesByURL[candidate.targetURL.standardizedFileURL] = candidate.fileSizeBytes
                     cleanupCandidates.append(candidate)
                 }
+                playlistProtectedCleanupCandidates.append(
+                    contentsOf: cleanupReview.playlistProtectedCandidates
+                )
             }
 
             let selectedFiles = existingFiles
@@ -191,7 +202,10 @@ public struct SyncPlanner: Sendable {
         return SyncPlan(
             device: device,
             actions: orderedActions,
-            cleanupCandidates: cleanupCandidates.sorted(by: cleanupCandidateSort)
+            cleanupCandidates: cleanupCandidates.sorted(by: cleanupCandidateSort),
+            playlistProtectedCleanupCandidates: playlistProtectedCleanupCandidates.sorted(
+                by: playlistProtectedCleanupCandidateSort
+            )
         )
     }
 
@@ -205,23 +219,24 @@ public struct SyncPlanner: Sendable {
         return maximumEpisodesPerPodcast
     }
 
-    private func makeCleanupCandidates(
+    private func makeCleanupReview(
         existingFiles: [URL],
         preparedEpisodes: [PreparedEpisode],
         managedDirectory: URL,
         subscription: PodcastSubscription,
         manualDeleteTargets: Set<URL>,
-        protectedFileURLs: Set<URL>,
+        replacementTargets: Set<URL>,
+        protectedFilesByURL: [URL: ProtectedPlaylistEntry],
         protectedEpisodeIDs: Set<PodcastPlaylistEpisodeID>,
         maximumEpisodesPerPodcast: Int,
         device: DeviceInfo
-    ) throws -> [DeviceCleanupCandidate] {
+    ) throws -> CleanupReview {
         var retentionEntriesByURL: [URL: CleanupRetentionEntry] = [:]
 
         for fileURL in existingFiles {
             let standardizedURL = fileURL.standardizedFileURL
             guard !manualDeleteTargets.contains(standardizedURL),
-                  !protectedFileURLs.contains(standardizedURL),
+                  protectedFilesByURL[standardizedURL] == nil,
                   let metadata = EpisodeFileName.parsedMetadata(from: fileURL),
                   let publicationDate = metadata.publicationDate else {
                 continue
@@ -258,7 +273,7 @@ public struct SyncPlanner: Sendable {
         }
 
         let orderedEntries = retentionEntriesByURL.values.sorted(by: CleanupRetentionEntry.isNewer)
-        guard orderedEntries.count > maximumEpisodesPerPodcast else { return [] }
+        guard orderedEntries.count >= maximumEpisodesPerPodcast else { return CleanupReview() }
         let oldestRetainedDate = orderedEntries[maximumEpisodesPerPodcast - 1].publicationDate
         let excessExistingEpisodes = orderedEntries
             .dropFirst(maximumEpisodesPerPodcast)
@@ -266,7 +281,7 @@ public struct SyncPlanner: Sendable {
                 entry.existsOnDevice && entry.publicationDate < oldestRetainedDate
             }
 
-        return try excessExistingEpisodes.map { entry in
+        let cleanupCandidates = try excessExistingEpisodes.map { entry in
             try safetyValidator.validateDeleteTarget(entry.targetURL, on: device)
             return DeviceCleanupCandidate(
                 targetURL: entry.targetURL,
@@ -277,56 +292,104 @@ public struct SyncPlanner: Sendable {
                 fileSizeBytes: try storageInspector.fileSize(at: entry.targetURL)
             )
         }
+
+        let playlistProtectedCandidates = try protectedFilesByURL.compactMap {
+            fileURL, protectedEntry -> PlaylistProtectedCleanupCandidate? in
+            guard !replacementTargets.contains(fileURL),
+                  let metadata = EpisodeFileName.parsedMetadata(from: fileURL),
+                  let publicationDate = metadata.publicationDate,
+                  publicationDate < oldestRetainedDate else { return nil }
+            try safetyValidator.validateDeleteTarget(fileURL, on: device)
+            return PlaylistProtectedCleanupCandidate(
+                targetURL: fileURL,
+                episode: protectedEntry.entry.episode,
+                publicationDate: publicationDate,
+                fileSizeBytes: try storageInspector.fileSize(at: fileURL),
+                playlistNames: protectedEntry.playlistNames
+            )
+        }
+
+        return CleanupReview(
+            cleanupCandidates: cleanupCandidates,
+            playlistProtectedCandidates: playlistProtectedCandidates
+        )
     }
 
     private func protectedPlaylistEntries(
         for subscription: PodcastSubscription,
         podcastPlaylistLibrary: PodcastPlaylistLibrary
-    ) -> [PodcastPlaylistEntry] {
-        let explicitEntries = podcastPlaylistLibrary.playlists
-            .flatMap(\.entries)
+    ) -> [ProtectedPlaylistEntry] {
         let recentlyDownloadedEpisodes = podcastPlaylistLibrary.recentlyDownloadedEntries.map(\.episode)
-        let automaticallyAddedEntries: [PodcastPlaylistEntry] = podcastPlaylistLibrary.playlists.flatMap {
-            playlist -> [PodcastPlaylistEntry] in
-            guard playlist.automaticRule?.source == .recentlyDownloaded else { return [] }
-            return PodcastPlaylistResolver.entries(
-                for: playlist,
-                from: recentlyDownloadedEpisodes,
-                recentlyDownloadedEntries: podcastPlaylistLibrary.recentlyDownloadedEntries
-            ).automatic
+        var entriesByID: [PodcastPlaylistEpisodeID: (PodcastPlaylistEntry, Set<String>)] = [:]
+
+        for playlist in podcastPlaylistLibrary.playlists {
+            var entries = playlist.entries
+            if playlist.automaticRule?.source == .recentlyDownloaded {
+                entries.append(contentsOf: PodcastPlaylistResolver.entries(
+                    for: playlist,
+                    from: recentlyDownloadedEpisodes,
+                    recentlyDownloadedEntries: podcastPlaylistLibrary.recentlyDownloadedEntries
+                ).automatic)
+            }
+            for entry in entries where entry.id.subscriptionID == subscription.id {
+                let existing = entriesByID[entry.id]
+                entriesByID[entry.id] = (
+                    existing?.0 ?? entry,
+                    (existing?.1 ?? []).union([playlist.name])
+                )
+            }
         }
-        var entriesByID: [PodcastPlaylistEpisodeID: PodcastPlaylistEntry] = [:]
-        for entry in explicitEntries + automaticallyAddedEntries
-            where entry.id.subscriptionID == subscription.id {
-            entriesByID[entry.id] = entry
+
+        return entriesByID.values.map { entry, playlistNames in
+            ProtectedPlaylistEntry(
+                entry: entry,
+                playlistNames: playlistNames.sorted {
+                    $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+                }
+            )
         }
-        return Array(entriesByID.values)
     }
 
-    private func protectedDeviceFileURLs(
+    private func protectedDeviceFilesByURL(
         existingFiles: [URL],
-        protectedEntries: [PodcastPlaylistEntry],
+        protectedEntries: [ProtectedPlaylistEntry],
         subscription: PodcastSubscription
-    ) -> Set<URL> {
-        let protectedEpisodes = protectedEntries.map(\.episode)
-        guard !protectedEpisodes.isEmpty else { return [] }
+    ) -> [URL: ProtectedPlaylistEntry] {
+        let protectedEpisodes = protectedEntries.map(\.entry.episode)
+        guard !protectedEpisodes.isEmpty else { return [:] }
 
         let conservativeMatches = EpisodeFileName.uniqueConservativeMatches(
             in: existingFiles,
             to: protectedEpisodes,
             subscription: subscription
         )
-        var protectedURLs: Set<URL> = []
-        for episode in protectedEpisodes {
+        var protectedEntriesByURL: [URL: ProtectedPlaylistEntry] = [:]
+        for protectedEntry in protectedEntries {
+            let episode = protectedEntry.entry.episode
+            let matchedURL: URL?
             if let exactMatch = existingFiles.first(where: {
                 EpisodeFileName.fileStem(for: episode) == $0.deletingPathExtension().lastPathComponent
             }) {
-                protectedURLs.insert(exactMatch.standardizedFileURL)
+                matchedURL = exactMatch
             } else if let conservativeMatch = conservativeMatches[episode.id] {
-                protectedURLs.insert(conservativeMatch.standardizedFileURL)
+                matchedURL = conservativeMatch
+            } else {
+                matchedURL = nil
+            }
+            guard let matchedURL else { continue }
+            let standardizedURL = matchedURL.standardizedFileURL
+            if let existing = protectedEntriesByURL[standardizedURL] {
+                protectedEntriesByURL[standardizedURL] = ProtectedPlaylistEntry(
+                    entry: existing.entry,
+                    playlistNames: Array(Set(existing.playlistNames + protectedEntry.playlistNames)).sorted {
+                        $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+                    }
+                )
+            } else {
+                protectedEntriesByURL[standardizedURL] = protectedEntry
             }
         }
-        return protectedURLs
+        return protectedEntriesByURL
     }
 
     private func makePodcastPlaylistActions(
@@ -538,6 +601,16 @@ public struct SyncPlanner: Sendable {
         }
     }
 
+    private struct CleanupReview {
+        var cleanupCandidates: [DeviceCleanupCandidate] = []
+        var playlistProtectedCandidates: [PlaylistProtectedCleanupCandidate] = []
+    }
+
+    private struct ProtectedPlaylistEntry {
+        var entry: PodcastPlaylistEntry
+        var playlistNames: [String]
+    }
+
     private struct CleanupRetentionEntry {
         var targetURL: URL
         var episodeTitle: String
@@ -565,6 +638,23 @@ public struct SyncPlanner: Sendable {
             return lhs.podcastTitle.localizedCaseInsensitiveCompare(rhs.podcastTitle) == .orderedAscending
         }
         return lhs.episodeTitle.localizedCaseInsensitiveCompare(rhs.episodeTitle) == .orderedAscending
+    }
+
+    private func playlistProtectedCleanupCandidateSort(
+        _ lhs: PlaylistProtectedCleanupCandidate,
+        _ rhs: PlaylistProtectedCleanupCandidate
+    ) -> Bool {
+        if lhs.publicationDate != rhs.publicationDate {
+            return lhs.publicationDate < rhs.publicationDate
+        }
+        if lhs.episode.podcastTitle != rhs.episode.podcastTitle {
+            return lhs.episode.podcastTitle.localizedCaseInsensitiveCompare(
+                rhs.episode.podcastTitle
+            ) == .orderedAscending
+        }
+        return lhs.episode.title.localizedCaseInsensitiveCompare(
+            rhs.episode.title
+        ) == .orderedAscending
     }
 
     private func verifyExistingCopy(_ deviceURL: URL, matches preparedURL: URL) throws {

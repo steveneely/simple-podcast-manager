@@ -62,6 +62,7 @@ public struct MainView: View {
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
     @State private var replacementTargets: Set<URL> = []
     @State private var excludedCleanupDeletionTargets: Set<URL> = []
+    @State private var selectedPlaylistProtectedDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var isShowingOtherAudioReview = false
@@ -770,6 +771,7 @@ public struct MainView: View {
             },
             onDeleteDownloadsAfterSyncChange: saveSyncPreferences,
             onToggleCleanupDeletion: toggleCleanupDeletionSelection,
+            onTogglePlaylistProtectedDeletion: togglePlaylistProtectedDeletionSelection,
             onReplaceIncompleteCopy: selectIncompleteCopyForReplacement,
             onSync: { Task { await runSync() } }
         )
@@ -1486,6 +1488,7 @@ public struct MainView: View {
                 replacementTargets: replacementTargets,
                 cleanupPolicy: viewModel.settings.deviceCleanupPolicy,
                 excludedCleanupTargets: excludedCleanupDeletionTargets,
+                selectedPlaylistProtectedDeletionTargets: selectedPlaylistProtectedDeletionTargets,
                 managedInventory: deviceLibraryViewModel.managedInventory,
                 podcastPlaylistLibrary: podcastPlaylistViewModel.library,
                 ejectAfterSync: isEjectAfterSyncEnabled
@@ -1911,12 +1914,15 @@ public struct MainView: View {
         guard hasLoadedEpisodeState, !isRestoringAppData else { return }
         let syncingDeviceID = deviceViewModel.selectedDevice?.id
         let playlistEpisodeIDsByDeviceURL = Dictionary(
-            uniqueKeysWithValues: podcastPlaylistViewModel.playlists.flatMap(\.entries).compactMap {
+            podcastPlaylistViewModel.playlists.flatMap(\.entries).compactMap {
                 entry -> (URL, PodcastPlaylistEpisodeID)? in
                 guard let fileURL = deviceLibraryViewModel.file(for: entry.episode) else { return nil }
                 return (fileURL.standardizedFileURL, entry.id)
-            }
+            },
+            uniquingKeysWith: { first, _ in first }
         )
+        let playlistProtectedCandidates = syncPlanViewModel.plan?
+            .playlistProtectedCleanupCandidates ?? []
         let workflow = SyncWorkflow(
             execution: syncExecutionViewModel,
             preparation: preparationPreviewViewModel,
@@ -1932,9 +1938,19 @@ public struct MainView: View {
         )
 
         if let result = syncExecutionViewModel.lastResult {
+            let deletedTargetURLs = Set(result.deletedTargetURLs.map(\.standardizedFileURL))
+            let deletedPlaylistProtectedCandidates = playlistProtectedCandidates.filter {
+                deletedTargetURLs.contains($0.targetURL.standardizedFileURL)
+            }
+            try? podcastPlaylistViewModel.removeDeletedPlaylistEpisodes(
+                deletedPlaylistProtectedCandidates
+            )
+            let handledEntryIDs = Set(deletedPlaylistProtectedCandidates.compactMap {
+                PodcastPlaylistEpisodeID(episode: $0.episode)
+            })
             let removedPlaylistEpisodeIDs = Set(result.deletedTargetURLs.compactMap {
                 playlistEpisodeIDsByDeviceURL[$0.standardizedFileURL]
-            })
+            }).subtracting(handledEntryIDs)
             try? podcastPlaylistViewModel.removeFromAllPlaylists(entryIDs: removedPlaylistEpisodeIDs)
         }
 
@@ -1954,6 +1970,7 @@ public struct MainView: View {
     private func openSyncDialog() {
         syncExecutionViewModel.clearLastResult()
         excludedCleanupDeletionTargets = []
+        selectedPlaylistProtectedDeletionTargets = []
         replacementTargets = []
         rebuildSyncPlan()
         isShowingSyncDialog = true
@@ -2021,6 +2038,7 @@ public struct MainView: View {
         replacementTargets.insert(fileURL)
         manuallySelectedDeletionTargets.remove(fileURL)
         excludedCleanupDeletionTargets.remove(fileURL)
+        selectedPlaylistProtectedDeletionTargets.remove(fileURL)
         rebuildSyncPlan()
     }
 
@@ -2036,6 +2054,22 @@ public struct MainView: View {
             manuallySelectedDeletionTargets.remove(fileURL)
         } else {
             excludedCleanupDeletionTargets.remove(fileURL)
+        }
+        rebuildSyncPlan()
+    }
+
+    private func togglePlaylistProtectedDeletionSelection(for fileURL: URL) {
+        let fileURL = fileURL.standardizedFileURL
+        let isCurrentlySelected = syncPlanViewModel.plan?.actions.contains(where: { action in
+            guard case .deleteFromDevice(let targetURL, _) = action else { return false }
+            return targetURL.standardizedFileURL == fileURL
+        }) == true
+
+        if isCurrentlySelected {
+            selectedPlaylistProtectedDeletionTargets.remove(fileURL)
+            manuallySelectedDeletionTargets.remove(fileURL)
+        } else {
+            selectedPlaylistProtectedDeletionTargets.insert(fileURL)
         }
         rebuildSyncPlan()
     }

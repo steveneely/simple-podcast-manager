@@ -34,6 +34,7 @@ public final class SyncPlanViewModel {
         replacementTargets: Set<URL> = [],
         cleanupPolicy: DeviceCleanupPolicy = DeviceCleanupPolicy(),
         excludedCleanupTargets: Set<URL> = [],
+        selectedPlaylistProtectedDeletionTargets: Set<URL> = [],
         managedInventory: ManagedDeviceLibraryInventory? = nil,
         podcastPlaylistLibrary: PodcastPlaylistLibrary = PodcastPlaylistLibrary(),
         ejectAfterSync: Bool
@@ -70,6 +71,7 @@ public final class SyncPlanViewModel {
                     replacementTargets: replacementTargets,
                     cleanupPolicy: cleanupPolicy,
                     excludedCleanupTargets: excludedCleanupTargets,
+                    selectedPlaylistProtectedDeletionTargets: selectedPlaylistProtectedDeletionTargets,
                     managedInventory: managedInventory,
                     podcastPlaylistLibrary: podcastPlaylistLibrary,
                     ejectAfterSync: ejectAfterSync

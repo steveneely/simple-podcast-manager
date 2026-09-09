@@ -310,8 +310,10 @@ public final class PodcastPlaylistViewModel {
     }
 
     private func validate(_ rule: PodcastPlaylistAutomaticRule) throws {
-        if case .selectedPodcasts(let includedPodcastIDs) = rule.source,
-           includedPodcastIDs.isEmpty {
+        guard case .selectedPodcasts(let includedPodcastIDs) = rule.source else {
+            throw PodcastPlaylistError.unsupportedAutomaticPlaylistSource
+        }
+        if includedPodcastIDs.isEmpty {
             throw PodcastPlaylistError.automaticPlaylistNeedsPodcast
         }
         if let maximumEpisodeCount = rule.maximumEpisodeCount,

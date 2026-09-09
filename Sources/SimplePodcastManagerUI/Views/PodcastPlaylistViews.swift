@@ -38,12 +38,6 @@ struct PodcastPlaylistEditorPresentation: Identifiable {
     }
 }
 
-private enum PodcastPlaylistAutomaticSourceChoice: Hashable {
-    case allPodcasts
-    case selectedPodcasts
-    case recentlyDownloaded
-}
-
 struct PodcastPlaylistEditorView: View {
     let title: String
     let initialName: String
@@ -55,7 +49,6 @@ struct PodcastPlaylistEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
     @State private var automaticallyAddsEpisodes: Bool
-    @State private var automaticSourceChoice: PodcastPlaylistAutomaticSourceChoice
     @State private var selectedPodcastIDs: Set<PodcastSubscription.ID>
     @State private var limitsEpisodeCount: Bool
     @State private var maximumEpisodeCount: Int
@@ -79,13 +72,10 @@ struct PodcastPlaylistEditorView: View {
         self._automaticallyAddsEpisodes = State(initialValue: initialAutomaticRule != nil)
         switch initialAutomaticRule?.source {
         case .selectedPodcasts(let includedPodcastIDs):
-            self._automaticSourceChoice = State(initialValue: .selectedPodcasts)
             self._selectedPodcastIDs = State(initialValue: includedPodcastIDs)
-        case .recentlyDownloaded:
-            self._automaticSourceChoice = State(initialValue: .recentlyDownloaded)
-            self._selectedPodcastIDs = State(initialValue: [])
-        case .allPodcasts, nil:
-            self._automaticSourceChoice = State(initialValue: .allPodcasts)
+        case .allPodcasts:
+            self._selectedPodcastIDs = State(initialValue: Set(podcasts.map(\.id)))
+        case .recentlyDownloaded, nil:
             self._selectedPodcastIDs = State(initialValue: [])
         }
         self._limitsEpisodeCount = State(initialValue: initialAutomaticRule?.maximumEpisodeCount != nil)
@@ -133,43 +123,38 @@ struct PodcastPlaylistEditorView: View {
                 .foregroundStyle(.secondary)
 
             if automaticallyAddsEpisodes {
-                Picker("Episodes", selection: $automaticSourceChoice) {
-                    Text("All Podcasts").tag(PodcastPlaylistAutomaticSourceChoice.allPodcasts)
-                    Text("Selected Podcasts").tag(PodcastPlaylistAutomaticSourceChoice.selectedPodcasts)
-                    Text("Recently Downloaded").tag(PodcastPlaylistAutomaticSourceChoice.recentlyDownloaded)
-                }
-                .pickerStyle(.radioGroup)
+                if podcasts.isEmpty {
+                    Text("Add a Podcast before selecting Podcasts for automatic additions.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Podcasts")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
 
-                if automaticSourceChoice == .selectedPodcasts {
-                    if podcasts.isEmpty {
-                        Text("Add a Podcast before selecting Podcasts for automatic additions.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(podcasts) { podcast in
-                                    Toggle(
-                                        podcast.title,
-                                        isOn: Binding(
-                                            get: { selectedPodcastIDs.contains(podcast.id) },
-                                            set: { isSelected in
-                                                if isSelected {
-                                                    selectedPodcastIDs.insert(podcast.id)
-                                                } else {
-                                                    selectedPodcastIDs.remove(podcast.id)
-                                                }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(podcasts) { podcast in
+                                Toggle(
+                                    podcast.title,
+                                    isOn: Binding(
+                                        get: { selectedPodcastIDs.contains(podcast.id) },
+                                        set: { isSelected in
+                                            if isSelected {
+                                                selectedPodcastIDs.insert(podcast.id)
+                                            } else {
+                                                selectedPodcastIDs.remove(podcast.id)
                                             }
-                                        )
+                                        }
                                     )
-                                }
+                                )
                             }
                         }
-                        .frame(maxHeight: 150)
-                        .padding(10)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .frame(maxHeight: 150)
+                    .padding(10)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
                 Toggle("Limit automatically added episodes", isOn: $limitsEpisodeCount)
@@ -186,27 +171,15 @@ struct PodcastPlaylistEditorView: View {
     }
 
     private var automaticAdditionsDescription: String {
-        if automaticallyAddsEpisodes, automaticSourceChoice == .recentlyDownloaded {
-            return "Adds episodes when they finish downloading on this Mac. They remain in the playlist until you remove them."
-        }
-        return "Matching episodes are added when they are downloaded or already on your MP3 player. You can still add and reorder other episodes yourself."
+        "Downloaded episodes from the selected Podcasts are added automatically. You can still add and reorder other episodes yourself."
     }
 
     private func save() {
         do {
             let automaticRule: PodcastPlaylistAutomaticRule?
             if automaticallyAddsEpisodes {
-                let source: PodcastPlaylistAutomaticSource
-                switch automaticSourceChoice {
-                case .allPodcasts:
-                    source = .allPodcasts
-                case .selectedPodcasts:
-                    source = .selectedPodcasts(selectedPodcastIDs)
-                case .recentlyDownloaded:
-                    source = .recentlyDownloaded
-                }
                 automaticRule = PodcastPlaylistAutomaticRule(
-                    source: source,
+                    source: .selectedPodcasts(selectedPodcastIDs),
                     maximumEpisodeCount: limitsEpisodeCount ? maximumEpisodeCount : nil
                 )
             } else {
@@ -341,6 +314,7 @@ struct PodcastPlaylistDetailView: View {
     let onAddPlaylist: () -> Void
     let onMove: (IndexSet, Int) -> Void
     let onRemoveExplicit: (PodcastPlaylistEntry) -> Void
+    let onPinAutomatic: (PodcastPlaylistEntry) -> Void
     let onExcludeAutomatic: (PodcastPlaylistEntry) -> Void
 
     @StateObject private var dragCursorController = PodcastPlaylistDragCursorController()
@@ -377,7 +351,7 @@ struct PodcastPlaylistDetailView: View {
                 } else {
                     List {
                         if !entries.explicit.isEmpty {
-                            Section(entries.automatic.isEmpty ? "Episodes" : "Added Episodes") {
+                            Section(entries.automatic.isEmpty ? "Episodes" : "Manually Added") {
                                 ForEach(entries.explicit) { entry in
                                     explicitEpisodeRow(entry)
                                 }
@@ -482,6 +456,14 @@ struct PodcastPlaylistDetailView: View {
                     .foregroundStyle(isOnDevice(entry.episode) ? .green : .secondary)
             }
             Spacer()
+            let canPin = isDownloaded(entry.episode) || isOnDevice(entry.episode)
+            HoverIconButton(
+                systemName: "pin",
+                helpText: canPin
+                    ? "Pin as manually added"
+                    : "Download this episode before pinning",
+                isDisabled: !canPin
+            ) { onPinAutomatic(entry) }
             HoverIconButton(
                 systemName: "minus.circle",
                 helpText: "Keep this episode out of the playlist"

@@ -188,6 +188,43 @@ struct PodcastPlaylistViewModelTests {
     }
 
     @Test
+    func pinningAnAutomaticEpisodeMovesItOutsideTheAutomaticLimit() async throws {
+        let podcastID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let pinnedEpisode = makeEpisode(id: "newest", title: "Newest", day: 2)
+        let nextAutomaticEpisode = makeEpisode(id: "next", title: "Next", day: 1)
+        let playlist = try PodcastPlaylist(
+            name: "Latest",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([podcastID]),
+                maximumEpisodeCount: 1
+            )
+        )
+        let store = InMemoryPodcastPlaylistStore(
+            library: PodcastPlaylistLibrary(playlists: [playlist])
+        )
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+
+        let initialEntries = PodcastPlaylistResolver.entries(
+            for: playlist,
+            from: [nextAutomaticEpisode, pinnedEpisode]
+        )
+        #expect(initialEntries.explicit.isEmpty)
+        #expect(initialEntries.automatic.map(\.episode.id) == ["newest"])
+
+        try viewModel.add(pinnedEpisode, to: playlist.id)
+
+        let updatedPlaylist = try #require(viewModel.playlist(id: playlist.id))
+        let updatedEntries = PodcastPlaylistResolver.entries(
+            for: updatedPlaylist,
+            from: [nextAutomaticEpisode, pinnedEpisode]
+        )
+        #expect(updatedEntries.explicit.map(\.episode.id) == ["newest"])
+        #expect(updatedEntries.automatic.map(\.episode.id) == ["next"])
+        #expect(updatedEntries.all.map(\.episode.id) == ["newest", "next"])
+    }
+
+    @Test
     func excludesAnAutomaticEpisodeWithoutRemovingItsDownload() async throws {
         let playlist = try PodcastPlaylist(
             name: "Everything",
@@ -239,6 +276,25 @@ struct PodcastPlaylistViewModelTests {
     }
 
     @Test
+    func newPlaylistsRejectLegacyAutomaticSources() async {
+        let store = InMemoryPodcastPlaylistStore()
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+
+        for source in [
+            PodcastPlaylistAutomaticSource.allPodcasts,
+            PodcastPlaylistAutomaticSource.recentlyDownloaded,
+        ] {
+            #expect(throws: PodcastPlaylistError.unsupportedAutomaticPlaylistSource) {
+                try viewModel.createPlaylist(
+                    named: "Unsupported \(source)",
+                    automaticRule: PodcastPlaylistAutomaticRule(source: source)
+                )
+            }
+        }
+    }
+
+    @Test
     func deletingLastSelectedPodcastLeavesAutomaticRuleScopedToNoPodcasts() async throws {
         let podcastID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let playlist = try PodcastPlaylist(
@@ -256,12 +312,15 @@ struct PodcastPlaylistViewModelTests {
         #expect(viewModel.playlist(id: playlist.id)?.automaticRule?.source == .selectedPodcasts([]))
     }
 
-    private func makeEpisode(id: String, title: String) -> Episode {
+    private func makeEpisode(id: String, title: String, day: Int? = nil) -> Episode {
         Episode(
             id: id,
             subscriptionID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             podcastTitle: "Example Podcast",
             title: title,
+            publicationDate: day.flatMap {
+                ISO8601DateFormatter().date(from: "2026-09-\(String(format: "%02d", $0))T00:00:00Z")
+            },
             enclosureURL: URL(string: "https://example.com/\(id).mp3")!,
             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
         )

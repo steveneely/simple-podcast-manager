@@ -307,6 +307,7 @@ public enum PodcastPlaylistError: LocalizedError, Equatable, Sendable {
     case duplicateName
     case missingEpisodeIdentity
     case automaticPlaylistNeedsPodcast
+    case unsupportedAutomaticPlaylistSource
     case invalidAutomaticPlaylistLimit
 
     public var errorDescription: String? {
@@ -323,6 +324,8 @@ public enum PodcastPlaylistError: LocalizedError, Equatable, Sendable {
             "That episode can’t be added to a playlist because it isn’t associated with a Podcast."
         case .automaticPlaylistNeedsPodcast:
             "Select at least one Podcast to add episodes automatically."
+        case .unsupportedAutomaticPlaylistSource:
+            "This older automatic playlist rule must be replaced by selecting Podcasts."
         case .invalidAutomaticPlaylistLimit:
             "The automatic episode limit must be greater than zero."
         }

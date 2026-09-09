@@ -629,6 +629,20 @@ public struct MainView: View {
                     rebuildSyncPlan()
                 } catch {}
             },
+            onPinAutomatic: { entry in
+                guard let selectedPlaylistID else { return }
+                let deviceFileURL = playlistDeviceFileURL(for: entry.episode)
+                guard preparationPreviewViewModel.preparedEpisode(for: entry.episode) != nil
+                        || deviceFileURL != nil else { return }
+                do {
+                    try podcastPlaylistViewModel.add(
+                        entry.episode,
+                        to: selectedPlaylistID,
+                        deviceFileURL: deviceFileURL
+                    )
+                    rebuildSyncPlan()
+                } catch {}
+            },
             onExcludeAutomatic: { entry in
                 guard let selectedPlaylistID else { return }
                 do {

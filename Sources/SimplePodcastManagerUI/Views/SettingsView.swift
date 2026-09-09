@@ -243,6 +243,17 @@ public struct SettingsView: View {
                         }
                     }
 
+                    SettingsSection(title: "Beta Features") {
+                        LabeledField(
+                            title: "Playlists",
+                            detail: "Create playlists for compatible MP3 players and optionally add downloaded episodes automatically. Hiding Playlists does not delete them; existing playlists continue to be maintained during sync.",
+                            emphasizesTitle: true
+                        ) {
+                            Toggle("Show Playlists", isOn: $showsPlaylistsBeta)
+                                .toggleStyle(.checkbox)
+                        }
+                    }
+
                     SettingsSection(title: "App Data") {
                         HStack(spacing: 8) {
                             Button("Back Up…", systemImage: "archivebox") {
@@ -254,17 +265,6 @@ public struct SettingsView: View {
                             }
                             .disabled(!canRestoreAppData)
                             .help(canRestoreAppData ? "Restore podcasts, settings, and episode history" : "Wait for refreshes, downloads, and sync to finish before restoring app data")
-                        }
-                    }
-
-                    SettingsSection(title: "Beta Features") {
-                        LabeledField(
-                            title: "Playlists",
-                            detail: "Create playlists for compatible MP3 players and optionally add downloaded episodes automatically. Hiding Playlists does not delete them; existing playlists continue to be maintained during sync.",
-                            emphasizesTitle: true
-                        ) {
-                            Toggle("Show Playlists", isOn: $showsPlaylistsBeta)
-                                .toggleStyle(.checkbox)
                         }
                     }
 

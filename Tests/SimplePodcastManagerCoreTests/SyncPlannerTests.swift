@@ -912,6 +912,310 @@ struct SyncPlannerTests {
     }
 
     @Test
+    func playlistCombinesExplicitAndAutomaticProjectedDeviceContents() throws {
+        let device = makeDevice()
+        let includedPodcast = makeSubscription()
+        let excludedPodcast = PodcastSubscription(
+            id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            title: "Other Podcast",
+            rssURL: URL(string: "https://example.com/other.xml")!
+        )
+        let includedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Example Podcast",
+            isDirectory: true
+        )
+        let excludedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Other Podcast",
+            isDirectory: true
+        )
+        let oldestURL = includedDirectory.appendingPathComponent(
+            "2026.09.01-Oldest-(Example Podcast).mp3"
+        )
+        let deletedURL = includedDirectory.appendingPathComponent(
+            "2026.09.03-Deleted-(Example Podcast).mp3"
+        )
+        let excludedURL = excludedDirectory.appendingPathComponent(
+            "2026.09.06-Excluded-(Other Podcast).mp3"
+        )
+        var incoming = makePreparedEpisode(
+            id: "incoming",
+            title: "Incoming",
+            preparedFileName: "2026.09.05-Incoming-(Example Podcast).mp3"
+        )
+        incoming.episode.publicationDate = ISO8601DateFormatter().date(
+            from: "2026-09-05T00:00:00Z"
+        )
+        let explicitlyAddedEpisode = Episode(
+            id: "explicit",
+            subscriptionID: excludedPodcast.id,
+            podcastTitle: excludedPodcast.title,
+            title: "Excluded",
+            publicationDate: ISO8601DateFormatter().date(from: "2026-09-06T00:00:00Z"),
+            enclosureURL: URL(string: "https://example.com/explicit.mp3")!,
+            sourceFeedURL: excludedPodcast.rssURL
+        )
+        let playlist = try PodcastPlaylist(
+            name: "News",
+            entries: [try #require(PodcastPlaylistEntry(episode: explicitlyAddedEpisode))],
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([includedPodcast.id]),
+                maximumEpisodeCount: 2
+            )
+        )
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            includedDirectory.path: [oldestURL, deletedURL],
+            excludedDirectory.path: [excludedURL],
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [incoming],
+            subscriptions: [includedPodcast, excludedPodcast],
+            manualDeleteTargets: [deletedURL],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            ejectAfterSync: false
+        )
+
+        guard let playlistAction = plan.actions.first(where: {
+            if case .writePodcastPlaylist = $0 { return true }
+            return false
+        }), case .writePodcastPlaylist(_, let contents, let episodeCount) = playlistAction else {
+            Issue.record("Expected a playlist write")
+            return
+        }
+        #expect(episodeCount == 3)
+        #expect(String(decoding: contents, as: UTF8.self) == """
+        #EXTM3U
+        \\music\\Other Podcast\\2026.09.06-Excluded-(Other Podcast).mp3
+        \\music\\Example Podcast\\2026.09.05-Incoming-(Example Podcast).mp3
+        \\music\\Example Podcast\\2026.09.01-Oldest-(Example Podcast).mp3
+
+        """)
+    }
+
+    @Test
+    func recentlyDownloadedPlaylistContainsOnlyRecordedDownloads() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Example Podcast",
+            isDirectory: true
+        )
+        let existingURL = managedDirectory.appendingPathComponent(
+            "2026.09.01-Existing-(Example Podcast).mp3"
+        )
+        let incoming = makePreparedEpisode(
+            id: "incoming",
+            title: "Incoming",
+            preparedFileName: "2026.09.07-Incoming-(Example Podcast).mp3"
+        )
+        let playlist = try PodcastPlaylist(
+            name: "Fresh from Sync",
+            automaticRule: PodcastPlaylistAutomaticRule(source: .recentlyDownloaded)
+        )
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            managedDirectory.path: [existingURL]
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [incoming],
+            subscriptions: [subscription],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(
+                playlists: [playlist],
+                recentlyDownloadedEntries: [
+                    try #require(PodcastPlaylistEntry(episode: incoming.episode))
+                ]
+            ),
+            ejectAfterSync: false
+        )
+
+        guard let playlistAction = plan.actions.first(where: {
+            if case .writePodcastPlaylist = $0 { return true }
+            return false
+        }), case .writePodcastPlaylist(_, let contents, let episodeCount) = playlistAction else {
+            Issue.record("Expected a playlist write")
+            return
+        }
+        let playlistContents = String(decoding: contents, as: UTF8.self)
+        #expect(episodeCount == 1)
+        #expect(playlistContents.contains(incoming.preparedFileURL.lastPathComponent))
+        #expect(!playlistContents.contains(existingURL.lastPathComponent))
+    }
+
+    @Test
+    func automaticPlaylistExclusionsAndLimitApplyAfterExplicitEntries() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Example Podcast",
+            isDirectory: true
+        )
+        let oldestURL = managedDirectory.appendingPathComponent(
+            "2026.09.01-Oldest-(Example Podcast).mp3"
+        )
+        let excludedURL = managedDirectory.appendingPathComponent(
+            "2026.09.02-Excluded-(Example Podcast).mp3"
+        )
+        let explicitURL = managedDirectory.appendingPathComponent(
+            "2026.09.03-Explicit-(Example Podcast).mp3"
+        )
+        let explicitEpisode = Episode(
+            id: "explicit",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Explicit",
+            publicationDate: ISO8601DateFormatter().date(from: "2026-09-03T00:00:00Z"),
+            enclosureURL: URL(string: "https://example.com/explicit.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let excludedEpisode = Episode(
+            id: "excluded",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Excluded",
+            publicationDate: ISO8601DateFormatter().date(from: "2026-09-02T00:00:00Z"),
+            enclosureURL: URL(string: "https://example.com/excluded.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let playlist = try PodcastPlaylist(
+            name: "Mixed",
+            entries: [try #require(PodcastPlaylistEntry(episode: explicitEpisode))],
+            automaticRule: PodcastPlaylistAutomaticRule(maximumEpisodeCount: 1),
+            automaticExclusions: [try #require(
+                PodcastPlaylistAutomaticExclusion(episode: excludedEpisode)
+            )]
+        )
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            managedDirectory.path: [oldestURL, excludedURL, explicitURL]
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            ejectAfterSync: false
+        )
+
+        guard let playlistAction = plan.actions.first(where: {
+            if case .writePodcastPlaylist = $0 { return true }
+            return false
+        }), case .writePodcastPlaylist(_, let contents, let episodeCount) = playlistAction else {
+            Issue.record("Expected a playlist write")
+            return
+        }
+        #expect(episodeCount == 2)
+        #expect(String(decoding: contents, as: UTF8.self) == """
+        #EXTM3U
+        \\music\\Example Podcast\\2026.09.03-Explicit-(Example Podcast).mp3
+        \\music\\Example Podcast\\2026.09.01-Oldest-(Example Podcast).mp3
+
+        """)
+    }
+
+    @Test
+    func automaticEntriesReflectCleanupWithoutProtectingEveryEpisode() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Example Podcast",
+            isDirectory: true
+        )
+        let olderURL = managedDirectory.appendingPathComponent(
+            "2026.09.01-Older-(Example Podcast).mp3"
+        )
+        let newerURL = managedDirectory.appendingPathComponent(
+            "2026.09.02-Newer-(Example Podcast).mp3"
+        )
+        let newestURL = managedDirectory.appendingPathComponent(
+            "2026.09.03-Newest-(Example Podcast).mp3"
+        )
+        let latestURL = managedDirectory.appendingPathComponent(
+            "2026.09.04-Latest-(Example Podcast).mp3"
+        )
+        let playlist = try PodcastPlaylist(
+            name: "All Episodes",
+            automaticRule: PodcastPlaylistAutomaticRule()
+        )
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            managedDirectory.path: [olderURL, newerURL, newestURL, latestURL]
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.cleanupCandidates.map(\.targetURL) == [olderURL])
+        guard let playlistAction = plan.actions.first(where: {
+            if case .writePodcastPlaylist = $0 { return true }
+            return false
+        }), case .writePodcastPlaylist(_, let contents, let episodeCount) = playlistAction else {
+            Issue.record("Expected a playlist write")
+            return
+        }
+        #expect(episodeCount == 3)
+        #expect(String(decoding: contents, as: UTF8.self).contains(newerURL.lastPathComponent))
+        #expect(String(decoding: contents, as: UTF8.self).contains(newestURL.lastPathComponent))
+        #expect(String(decoding: contents, as: UTF8.self).contains(latestURL.lastPathComponent))
+        #expect(!String(decoding: contents, as: UTF8.self).contains(olderURL.lastPathComponent))
+    }
+
+    @Test
+    func recentlyDownloadedEntryRemainsProtectedUntilTheUserRemovesIt() throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            "Example Podcast",
+            isDirectory: true
+        )
+        let olderURL = managedDirectory.appendingPathComponent(
+            "2026.09.01-Older-(Example Podcast).mp3"
+        )
+        let newerURLs = (2...4).map { day in
+            managedDirectory.appendingPathComponent(
+                "2026.09.0\(day)-Episode \(day)-(Example Podcast).mp3"
+            )
+        }
+        let olderEpisode = Episode(
+            id: "older",
+            subscriptionID: subscription.id,
+            podcastTitle: subscription.title,
+            title: "Older",
+            publicationDate: ISO8601DateFormatter().date(from: "2026-09-01T00:00:00Z"),
+            enclosureURL: URL(string: "https://example.com/older.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let recentEntry = try #require(PodcastPlaylistEntry(episode: olderEpisode))
+        let playlist = try PodcastPlaylist(
+            name: "Recently Downloaded",
+            automaticRule: PodcastPlaylistAutomaticRule(source: .recentlyDownloaded)
+        )
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            managedDirectory.path: [olderURL] + newerURLs
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(
+                playlists: [playlist],
+                recentlyDownloadedEntries: [recentEntry]
+            ),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.cleanupCandidates.isEmpty)
+    }
+
+    @Test
     func refusesToOverwritePlaylistThatSPMDoesNotOwn() throws {
         let device = makeDevice()
         let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")

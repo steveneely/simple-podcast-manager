@@ -73,15 +73,16 @@ public struct SyncPlanner: Sendable {
 
             var cleanupCandidateSizesByURL: [URL: Int64] = [:]
             if let maximumEpisodesPerPodcast {
-                let protectedFileURLs = protectedDeviceFileURLs(
+                let protectedEntries = protectedPlaylistEntries(
                     for: subscription,
-                    existingFiles: existingFiles,
                     podcastPlaylistLibrary: podcastPlaylistLibrary
                 )
-                let protectedEpisodeIDs = Set(podcastPlaylistLibrary.playlists
-                    .flatMap(\.entries)
-                    .filter { $0.id.subscriptionID == subscription.id }
-                    .map(\.id))
+                let protectedFileURLs = protectedDeviceFileURLs(
+                    existingFiles: existingFiles,
+                    protectedEntries: protectedEntries,
+                    subscription: subscription
+                )
+                let protectedEpisodeIDs = Set(protectedEntries.map(\.id))
                 let subscriptionCleanupCandidates = try makeCleanupCandidates(
                     existingFiles: existingFiles,
                     preparedEpisodes: preparedEpisodes,
@@ -278,14 +279,36 @@ public struct SyncPlanner: Sendable {
         }
     }
 
-    private func protectedDeviceFileURLs(
+    private func protectedPlaylistEntries(
         for subscription: PodcastSubscription,
-        existingFiles: [URL],
         podcastPlaylistLibrary: PodcastPlaylistLibrary
+    ) -> [PodcastPlaylistEntry] {
+        let explicitEntries = podcastPlaylistLibrary.playlists
+            .flatMap(\.entries)
+        let recentlyDownloadedEpisodes = podcastPlaylistLibrary.recentlyDownloadedEntries.map(\.episode)
+        let automaticallyAddedEntries: [PodcastPlaylistEntry] = podcastPlaylistLibrary.playlists.flatMap {
+            playlist -> [PodcastPlaylistEntry] in
+            guard playlist.automaticRule?.source == .recentlyDownloaded else { return [] }
+            return PodcastPlaylistResolver.entries(
+                for: playlist,
+                from: recentlyDownloadedEpisodes,
+                recentlyDownloadedEntries: podcastPlaylistLibrary.recentlyDownloadedEntries
+            ).automatic
+        }
+        var entriesByID: [PodcastPlaylistEpisodeID: PodcastPlaylistEntry] = [:]
+        for entry in explicitEntries + automaticallyAddedEntries
+            where entry.id.subscriptionID == subscription.id {
+            entriesByID[entry.id] = entry
+        }
+        return Array(entriesByID.values)
+    }
+
+    private func protectedDeviceFileURLs(
+        existingFiles: [URL],
+        protectedEntries: [PodcastPlaylistEntry],
+        subscription: PodcastSubscription
     ) -> Set<URL> {
-        let protectedEpisodes = podcastPlaylistLibrary.playlists.flatMap(\.entries).filter {
-            $0.id.subscriptionID == subscription.id
-        }.map(\.episode)
+        let protectedEpisodes = protectedEntries.map(\.episode)
         guard !protectedEpisodes.isEmpty else { return [] }
 
         let conservativeMatches = EpisodeFileName.uniqueConservativeMatches(
@@ -354,7 +377,7 @@ public struct SyncPlanner: Sendable {
                 throw PodcastPlaylistPlanningError.fileNameCollision(destinationURL)
             }
 
-            let episodeFileURLs = playlist.entries.compactMap { entry -> URL? in
+            let explicitFileURLs = playlist.entries.compactMap { entry -> URL? in
                 if let plannedCopyURL = plannedCopyURLsByEpisodeID[entry.id] {
                     return plannedCopyURL
                 }
@@ -372,6 +395,18 @@ public struct SyncPlanner: Sendable {
                       !plannedDeletionURLs.contains(matchedURL.standardizedFileURL) else { return nil }
                 return matchedURL
             }
+            let explicitStandardizedURLs = Set(explicitFileURLs.map(\.standardizedFileURL))
+            let automaticFileURLs = automaticPlaylistFileURLs(
+                playlist: playlist,
+                excluding: explicitStandardizedURLs,
+                subscriptions: subscriptions,
+                preparedEpisodes: preparedEpisodes,
+                recentlyDownloadedEntries: library.recentlyDownloadedEntries,
+                plannedCopyURLsByEpisodeID: plannedCopyURLsByEpisodeID,
+                plannedDeletionURLs: plannedDeletionURLs,
+                deviceInventory: deviceInventory
+            )
+            let episodeFileURLs = explicitFileURLs + automaticFileURLs
             let contents = try encoder.encode(fileURLs: episodeFileURLs, on: device)
             playlistActions.append(.writePodcastPlaylist(
                 destinationURL: destinationURL,
@@ -388,6 +423,119 @@ public struct SyncPlanner: Sendable {
             playlistActions.append(.deletePodcastPlaylist(targetURL: targetURL))
         }
         return playlistActions
+    }
+
+    private func automaticPlaylistFileURLs(
+        playlist: PodcastPlaylist,
+        excluding explicitFileURLs: Set<URL>,
+        subscriptions: [PodcastSubscription],
+        preparedEpisodes: [PreparedEpisode],
+        recentlyDownloadedEntries: [PodcastPlaylistEntry],
+        plannedCopyURLsByEpisodeID: [PodcastPlaylistEpisodeID: URL],
+        plannedDeletionURLs: Set<URL>,
+        deviceInventory: ManagedDeviceLibraryInventory
+    ) -> [URL] {
+        guard let rule = playlist.automaticRule else { return [] }
+
+        if rule.source == .recentlyDownloaded {
+            let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
+            var includedURLs: Set<URL> = []
+            var fileURLs: [URL] = []
+            for entry in recentlyDownloadedEntries {
+                guard let exclusion = PodcastPlaylistAutomaticExclusion(episode: entry.episode),
+                      !playlist.automaticExclusions.contains(exclusion) else { continue }
+
+                let fileURL: URL?
+                if let plannedCopyURL = plannedCopyURLsByEpisodeID[entry.id] {
+                    fileURL = plannedCopyURL
+                } else if let subscription = subscriptionsByID[entry.id.subscriptionID] {
+                    let existingFiles = deviceInventory.files(for: subscription)
+                    fileURL = existingFiles.first {
+                        EpisodeFileName.fileStem(for: entry.episode)
+                            == $0.deletingPathExtension().lastPathComponent
+                    } ?? EpisodeFileName.uniqueConservativeMatches(
+                        in: existingFiles,
+                        to: [entry.episode],
+                        subscription: subscription
+                    )[entry.episode.id]
+                } else {
+                    fileURL = nil
+                }
+
+                guard let fileURL else { continue }
+                let standardizedURL = fileURL.standardizedFileURL
+                guard !explicitFileURLs.contains(standardizedURL),
+                      !plannedDeletionURLs.contains(standardizedURL),
+                      includedURLs.insert(standardizedURL).inserted else { continue }
+                fileURLs.append(fileURL)
+            }
+            if let maximumEpisodeCount = rule.maximumEpisodeCount {
+                guard maximumEpisodeCount > 0 else { return [] }
+                return Array(fileURLs.prefix(maximumEpisodeCount))
+            }
+            return fileURLs
+        }
+
+        var candidatesByURL: [URL: AutomaticPlaylistFileCandidate] = [:]
+
+        for subscription in subscriptions where rule.source.includesPodcast(subscription.id) {
+            for fileURL in deviceInventory.files(for: subscription) {
+                let standardizedURL = fileURL.standardizedFileURL
+                let exclusion = PodcastPlaylistAutomaticExclusion(
+                    subscriptionID: subscription.id,
+                    episodeFileStem: fileURL.deletingPathExtension().lastPathComponent
+                )
+                guard !explicitFileURLs.contains(standardizedURL),
+                      !plannedDeletionURLs.contains(standardizedURL),
+                      !playlist.automaticExclusions.contains(exclusion) else { continue }
+                candidatesByURL[standardizedURL] = AutomaticPlaylistFileCandidate(
+                    fileURL: fileURL,
+                    publicationDate: EpisodeFileName.publicationDate(from: fileURL)
+                )
+            }
+        }
+
+        for preparedEpisode in preparedEpisodes {
+            guard let entryID = PodcastPlaylistEpisodeID(episode: preparedEpisode.episode),
+                  rule.source.includesPodcast(entryID.subscriptionID),
+                  let plannedCopyURL = plannedCopyURLsByEpisodeID[entryID],
+                  let exclusion = PodcastPlaylistAutomaticExclusion(episode: preparedEpisode.episode),
+                  !playlist.automaticExclusions.contains(exclusion) else { continue }
+            let standardizedURL = plannedCopyURL.standardizedFileURL
+            guard !explicitFileURLs.contains(standardizedURL) else { continue }
+            candidatesByURL[standardizedURL] = AutomaticPlaylistFileCandidate(
+                fileURL: plannedCopyURL,
+                publicationDate: preparedEpisode.episode.publicationDate
+                    ?? EpisodeFileName.publicationDate(from: plannedCopyURL)
+            )
+        }
+
+        let sortedCandidates = candidatesByURL.values.sorted(by: AutomaticPlaylistFileCandidate.isNewer)
+        guard let maximumEpisodeCount = rule.maximumEpisodeCount else {
+            return sortedCandidates.map(\.fileURL)
+        }
+        guard maximumEpisodeCount > 0 else { return [] }
+        return sortedCandidates.prefix(maximumEpisodeCount).map(\.fileURL)
+    }
+
+    private struct AutomaticPlaylistFileCandidate {
+        var fileURL: URL
+        var publicationDate: Date?
+
+        static func isNewer(_ lhs: Self, _ rhs: Self) -> Bool {
+            switch (lhs.publicationDate, rhs.publicationDate) {
+            case let (lhsDate?, rhsDate?) where lhsDate != rhsDate:
+                return lhsDate > rhsDate
+            case (.some, .none):
+                return true
+            case (.none, .some):
+                return false
+            default:
+                return lhs.fileURL.lastPathComponent.localizedCaseInsensitiveCompare(
+                    rhs.fileURL.lastPathComponent
+                ) == .orderedAscending
+            }
+        }
     }
 
     private struct CleanupRetentionEntry {

@@ -8,13 +8,29 @@ struct SQLiteEpisodeStoreTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let episode = fixture.records(number: 1).prepared.episode
+        let subscriptionID = try #require(episode.subscriptionID)
         let entry = try #require(PodcastPlaylistEntry(episode: episode))
         let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
+        let automaticPlaylist = try PodcastPlaylist(
+            name: "Latest",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([subscriptionID]),
+                maximumEpisodeCount: 12
+            )
+        )
+        let recentlyDownloadedPlaylist = try PodcastPlaylist(
+            name: "Recently Downloaded",
+            automaticRule: PodcastPlaylistAutomaticRule(source: .recentlyDownloaded)
+        )
         let library = PodcastPlaylistLibrary(
-            playlists: [playlist],
+            playlists: [playlist, automaticPlaylist, recentlyDownloadedPlaylist],
             deviceStates: [
-                "device": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Commute.m3u"])
-            ]
+                "device": PodcastPlaylistDeviceState(
+                    ownedDeviceFileNames: ["Commute.m3u"],
+                    mostRecentSyncEntries: [entry]
+                )
+            ],
+            recentlyDownloadedEntries: [entry]
         )
 
         try fixture.store.savePodcastPlaylistLibrary(library)

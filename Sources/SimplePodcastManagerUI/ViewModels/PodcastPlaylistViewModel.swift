@@ -36,9 +36,15 @@ public final class PodcastPlaylistViewModel {
     }
 
     @discardableResult
-    public func createPlaylist(named name: String) throws -> PodcastPlaylist.ID {
+    public func createPlaylist(
+        named name: String,
+        automaticRule: PodcastPlaylistAutomaticRule? = nil
+    ) throws -> PodcastPlaylist.ID {
         var updatedLibrary = library
-        let playlist = try PodcastPlaylist(name: name)
+        if let automaticRule {
+            try validate(automaticRule)
+        }
+        let playlist = try PodcastPlaylist(name: name, automaticRule: automaticRule)
         try ensureUniqueName(playlist.name, excluding: nil, in: updatedLibrary.playlists)
         updatedLibrary.playlists.append(playlist)
         try persist(updatedLibrary)
@@ -48,20 +54,22 @@ public final class PodcastPlaylistViewModel {
     public func renamePlaylist(id: PodcastPlaylist.ID, to name: String) throws {
         var updatedLibrary = library
         guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == id }) else { return }
-        let validatedName = try PodcastPlaylistName.validated(name)
-        try ensureUniqueName(validatedName, excluding: id, in: updatedLibrary.playlists)
-        guard updatedLibrary.playlists[index].name != validatedName else { return }
+        guard try applyName(name, toPlaylistAt: index, in: &updatedLibrary) else { return }
+        try persist(updatedLibrary)
+    }
 
-        let previousFileName = updatedLibrary.playlists[index].deviceFileName
-        let updatedFileName = PodcastPlaylistName.deviceFileName(for: validatedName)
-        if previousFileName != updatedFileName {
-            for deviceID in Array(updatedLibrary.deviceStates.keys) {
-                guard updatedLibrary.deviceStates[deviceID]?.ownedDeviceFileNames.contains(previousFileName) == true else { continue }
-                updatedLibrary.deviceStates[deviceID]?.pendingDeletedDeviceFileNames.insert(previousFileName)
-            }
+    public func updatePlaylist(
+        id: PodcastPlaylist.ID,
+        name: String,
+        automaticRule: PodcastPlaylistAutomaticRule?
+    ) throws {
+        if let automaticRule {
+            try validate(automaticRule)
         }
-        updatedLibrary.playlists[index].name = validatedName
-        updatedLibrary.playlists[index].deviceFileName = updatedFileName
+        var updatedLibrary = library
+        guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == id }) else { return }
+        try applyName(name, toPlaylistAt: index, in: &updatedLibrary)
+        updatedLibrary.playlists[index].automaticRule = automaticRule
         try persist(updatedLibrary)
     }
 
@@ -76,7 +84,11 @@ public final class PodcastPlaylistViewModel {
         try persist(updatedLibrary)
     }
 
-    public func add(_ episode: Episode, to playlistID: PodcastPlaylist.ID) throws {
+    public func add(
+        _ episode: Episode,
+        to playlistID: PodcastPlaylist.ID,
+        deviceFileURL: URL? = nil
+    ) throws {
         guard let entry = PodcastPlaylistEntry(episode: episode) else {
             throw PodcastPlaylistError.missingEpisodeIdentity
         }
@@ -84,6 +96,9 @@ public final class PodcastPlaylistViewModel {
         guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }) else { return }
         guard !updatedLibrary.playlists[index].entries.contains(where: { $0.id == entry.id }) else { return }
         updatedLibrary.playlists[index].entries.append(entry)
+        for exclusion in automaticExclusions(for: episode, deviceFileURL: deviceFileURL) {
+            updatedLibrary.playlists[index].automaticExclusions.remove(exclusion)
+        }
         try persist(updatedLibrary)
     }
 
@@ -99,14 +114,30 @@ public final class PodcastPlaylistViewModel {
         try persist(updatedLibrary)
     }
 
+    public func excludeAutomaticEpisode(
+        _ episode: Episode,
+        from playlistID: PodcastPlaylist.ID,
+        deviceFileURL: URL? = nil
+    ) throws {
+        let exclusions = automaticExclusions(for: episode, deviceFileURL: deviceFileURL)
+        guard !exclusions.isEmpty else {
+            throw PodcastPlaylistError.missingEpisodeIdentity
+        }
+        var updatedLibrary = library
+        guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }),
+              updatedLibrary.playlists[index].automaticRule != nil else { return }
+        updatedLibrary.playlists[index].automaticExclusions.formUnion(exclusions)
+        try persist(updatedLibrary)
+    }
+
     public func moveEntry(
         in playlistID: PodcastPlaylist.ID,
         from sourceIndex: Int,
         to destinationIndex: Int
     ) throws {
         var updatedLibrary = library
-        guard let playlistIndex = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }),
-              updatedLibrary.playlists[playlistIndex].entries.indices.contains(sourceIndex) else { return }
+        guard let playlistIndex = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        guard updatedLibrary.playlists[playlistIndex].entries.indices.contains(sourceIndex) else { return }
         let entry = updatedLibrary.playlists[playlistIndex].entries.remove(at: sourceIndex)
         let insertionIndex = min(max(destinationIndex, 0), updatedLibrary.playlists[playlistIndex].entries.count)
         updatedLibrary.playlists[playlistIndex].entries.insert(entry, at: insertionIndex)
@@ -144,6 +175,21 @@ public final class PodcastPlaylistViewModel {
             updatedLibrary.playlists[index].entries.removeAll {
                 subscriptionIDs.contains($0.id.subscriptionID)
             }
+            updatedLibrary.playlists[index].automaticExclusions = updatedLibrary.playlists[index]
+                .automaticExclusions.filter { !subscriptionIDs.contains($0.subscriptionID) }
+            guard var automaticRule = updatedLibrary.playlists[index].automaticRule,
+                  case .selectedPodcasts(var includedPodcastIDs) = automaticRule.source else { continue }
+            includedPodcastIDs.subtract(subscriptionIDs)
+            automaticRule.source = .selectedPodcasts(includedPodcastIDs)
+            updatedLibrary.playlists[index].automaticRule = automaticRule
+        }
+        for deviceID in Array(updatedLibrary.deviceStates.keys) {
+            updatedLibrary.deviceStates[deviceID]?.mostRecentSyncEntries.removeAll {
+                subscriptionIDs.contains($0.id.subscriptionID)
+            }
+        }
+        updatedLibrary.recentlyDownloadedEntries.removeAll {
+            subscriptionIDs.contains($0.id.subscriptionID)
         }
         try persist(updatedLibrary)
     }
@@ -159,11 +205,57 @@ public final class PodcastPlaylistViewModel {
         for index in updatedLibrary.playlists.indices {
             updatedLibrary.playlists[index].entries.removeAll { entryIDs.contains($0.id) }
         }
+        updatedLibrary.recentlyDownloadedEntries.removeAll { entryIDs.contains($0.id) }
+        try persist(updatedLibrary)
+    }
+
+    public func recordDownloadedEpisodes(_ episodes: [Episode]) throws {
+        guard isLoaded else { return }
+        var seenEntryIDs: Set<PodcastPlaylistEpisodeID> = []
+        let newEntries = episodes.compactMap { episode -> PodcastPlaylistEntry? in
+            guard let entry = PodcastPlaylistEntry(episode: episode),
+                  seenEntryIDs.insert(entry.id).inserted else { return nil }
+            return entry
+        }
+        guard !newEntries.isEmpty else { return }
+
+        var updatedLibrary = library
+        let newEntryIDs = Set(newEntries.map(\.id))
+        updatedLibrary.recentlyDownloadedEntries.removeAll { newEntryIDs.contains($0.id) }
+        updatedLibrary.recentlyDownloadedEntries.insert(contentsOf: newEntries, at: 0)
+        try persist(updatedLibrary)
+    }
+
+    public func seedRecentlyDownloadedEpisodes(_ episodes: [Episode]) throws {
+        guard isLoaded else { return }
+        let knownEntryIDs = Set(library.recentlyDownloadedEntries.map(\.id))
+        var seenEntryIDs = knownEntryIDs
+        let missingEntries = episodes.compactMap { episode -> PodcastPlaylistEntry? in
+            guard let entry = PodcastPlaylistEntry(episode: episode),
+                  seenEntryIDs.insert(entry.id).inserted else { return nil }
+            return entry
+        }
+        guard !missingEntries.isEmpty else { return }
+
+        var updatedLibrary = library
+        updatedLibrary.recentlyDownloadedEntries.append(contentsOf: missingEntries)
         try persist(updatedLibrary)
     }
 
     public func playlists(containing episode: Episode) -> [PodcastPlaylist] {
-        library.playlists.filter { $0.contains(episode) }
+        guard let entryID = PodcastPlaylistEpisodeID(episode: episode) else { return [] }
+        let recentlyDownloadedEpisodes = library.recentlyDownloadedEntries.map(\.episode)
+        return library.playlists.filter { playlist in
+            if playlist.contains(episode) {
+                return true
+            }
+            guard playlist.automaticRule?.source == .recentlyDownloaded else { return false }
+            return PodcastPlaylistResolver.entries(
+                for: playlist,
+                from: recentlyDownloadedEpisodes,
+                recentlyDownloadedEntries: library.recentlyDownloadedEntries
+            ).automatic.contains { $0.id == entryID }
+        }
     }
 
     public func playlist(id: PodcastPlaylist.ID?) -> PodcastPlaylist? {
@@ -191,6 +283,61 @@ public final class PodcastPlaylistViewModel {
         }) {
             throw PodcastPlaylistError.duplicateName
         }
+    }
+
+    @discardableResult
+    private func applyName(
+        _ name: String,
+        toPlaylistAt index: Int,
+        in library: inout PodcastPlaylistLibrary
+    ) throws -> Bool {
+        let playlistID = library.playlists[index].id
+        let validatedName = try PodcastPlaylistName.validated(name)
+        try ensureUniqueName(validatedName, excluding: playlistID, in: library.playlists)
+        guard library.playlists[index].name != validatedName else { return false }
+
+        let previousFileName = library.playlists[index].deviceFileName
+        let updatedFileName = PodcastPlaylistName.deviceFileName(for: validatedName)
+        if previousFileName != updatedFileName {
+            for deviceID in Array(library.deviceStates.keys) {
+                guard library.deviceStates[deviceID]?.ownedDeviceFileNames.contains(previousFileName) == true else { continue }
+                library.deviceStates[deviceID]?.pendingDeletedDeviceFileNames.insert(previousFileName)
+            }
+        }
+        library.playlists[index].name = validatedName
+        library.playlists[index].deviceFileName = updatedFileName
+        return true
+    }
+
+    private func validate(_ rule: PodcastPlaylistAutomaticRule) throws {
+        if case .selectedPodcasts(let includedPodcastIDs) = rule.source,
+           includedPodcastIDs.isEmpty {
+            throw PodcastPlaylistError.automaticPlaylistNeedsPodcast
+        }
+        if let maximumEpisodeCount = rule.maximumEpisodeCount,
+           maximumEpisodeCount <= 0 {
+            throw PodcastPlaylistError.invalidAutomaticPlaylistLimit
+        }
+    }
+
+    private func automaticExclusions(
+        for episode: Episode,
+        deviceFileURL: URL?
+    ) -> Set<PodcastPlaylistAutomaticExclusion> {
+        guard let subscriptionID = episode.subscriptionID else { return [] }
+        var exclusions: Set<PodcastPlaylistAutomaticExclusion> = [
+            PodcastPlaylistAutomaticExclusion(
+                subscriptionID: subscriptionID,
+                episodeFileStem: EpisodeFileName.fileStem(for: episode)
+            )
+        ]
+        if let deviceFileURL {
+            exclusions.insert(PodcastPlaylistAutomaticExclusion(
+                subscriptionID: subscriptionID,
+                episodeFileStem: deviceFileURL.deletingPathExtension().lastPathComponent
+            ))
+        }
+        return exclusions
     }
 
     private func persist(_ updatedLibrary: PodcastPlaylistLibrary) throws {

@@ -289,6 +289,68 @@ struct SyncPlanViewModelTests {
     }
 
     @Test
+    func disabledPlaylistsAreExcludedFromSyncAndCleanupProtection() async throws {
+        let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let subscription = PodcastSubscription(
+            id: subscriptionID,
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "SPM Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/music", isDirectory: true)
+        )
+        let managedDirectory = device.podcastDirectoryURL.appendingPathComponent(
+            subscription.title,
+            isDirectory: true
+        )
+        let playlistEpisode = Episode(
+            id: "playlist-episode",
+            subscriptionID: subscriptionID,
+            podcastTitle: subscription.title,
+            title: "Playlist Episode",
+            publicationDate: ISO8601DateFormatter().date(from: "2026-01-01T00:00:00Z"),
+            enclosureURL: URL(string: "https://example.com/playlist-episode.mp3")!,
+            sourceFeedURL: subscription.rssURL
+        )
+        let playlistEpisodeURL = managedDirectory.appendingPathComponent(
+            EpisodeFileName.fileName(for: playlistEpisode, fileExtension: "mp3")
+        )
+        let newerEpisodeURLs = (2...4).map { day in
+            managedDirectory.appendingPathComponent(
+                "2026.01.0\(day)-Episode \(day)-(Example Podcast).mp3"
+            )
+        }
+        let playlistEntry = try #require(PodcastPlaylistEntry(episode: playlistEpisode))
+        let playlist = try PodcastPlaylist(name: "Keep", entries: [playlistEntry])
+        let viewModel = SyncPlanViewModel(planner: makeTestPlanner(
+            deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [
+                managedDirectory.path: [playlistEpisodeURL] + newerEpisodeURLs,
+            ])
+        ))
+
+        await viewModel.buildPlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            arePlaylistsEnabled: false,
+            ejectAfterSync: false
+        )
+
+        let plan = try #require(viewModel.plan)
+        #expect(plan.cleanupCandidates.map(\.targetURL) == [playlistEpisodeURL])
+        #expect(plan.playlistProtectedCleanupCandidates.isEmpty)
+        #expect(!plan.actions.contains { action in
+            if case .writePodcastPlaylist = action { return true }
+            if case .deletePodcastPlaylist = action { return true }
+            return false
+        })
+    }
+
+    @Test
     func buildPlanInspectsDeviceOutsideMainThread() async {
         let device = DeviceInfo(
             name: "SPM Test MP3 Player",

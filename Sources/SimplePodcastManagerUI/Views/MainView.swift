@@ -191,7 +191,6 @@ public struct MainView: View {
             async let playlists: Void = podcastPlaylistViewModel.load()
             async let devices: Void = loadDevicesForStartup()
             _ = await (cachedPreview, persistedState, playlists)
-            seedRecentlyDownloadedPlaylistHistory()
             if selectedPlaylistID == nil {
                 selectedPlaylistID = podcastPlaylistViewModel.playlists.first?.id
             }
@@ -1244,9 +1243,14 @@ public struct MainView: View {
         episodes.filter { preparationPreviewViewModel.preparedEpisode(for: $0) != nil }
     }
 
+    private func recordDownloadedEpisodesForPlaylists(_ episodes: [Episode]) {
+        guard viewModel.settings.showsPlaylistsBeta else { return }
+        try? podcastPlaylistViewModel.recordDownloadedEpisodes(episodes)
+    }
+
     private func showDownloadSummary(_ downloadedEpisodes: [Episode]) {
         guard !downloadedEpisodes.isEmpty else { return }
-        try? podcastPlaylistViewModel.recordDownloadedEpisodes(downloadedEpisodes)
+        recordDownloadedEpisodesForPlaylists(downloadedEpisodes)
         let newDownloads = downloadedEpisodes.map(PodcastRefreshEpisodeDetail.init)
         downloadedEpisodesForCurrentSummary = PodcastRefreshEpisodeDetail.merging(
             downloadedEpisodesForCurrentSummary,
@@ -1348,13 +1352,6 @@ public struct MainView: View {
         startupPerformanceTracker.mark("devices discovered")
     }
 
-    private func seedRecentlyDownloadedPlaylistHistory() {
-        let downloadedEpisodes = preparationPreviewViewModel.preparedEpisodes
-            .sorted { $0.preparedAt > $1.preparedAt }
-            .map(\.episode)
-        try? podcastPlaylistViewModel.seedRecentlyDownloadedEpisodes(downloadedEpisodes)
-    }
-
     private func refreshPodcastsForStartup() async {
         guard viewModel.hasPodcasts else { return }
         await refreshPodcastPreview()
@@ -1385,7 +1382,7 @@ public struct MainView: View {
             downloadedEpisodesForCurrentSummary,
             with: outcome.downloadedEpisodes.map(PodcastRefreshEpisodeDetail.init)
         )
-        try? podcastPlaylistViewModel.recordDownloadedEpisodes(outcome.downloadedEpisodes)
+        recordDownloadedEpisodesForPlaylists(outcome.downloadedEpisodes)
         podcastRefreshStatus = .completed(refreshSummary(
             for: scope,
             displayScope: displayScope,
@@ -1497,6 +1494,7 @@ public struct MainView: View {
                 selectedPlaylistProtectedDeletionTargets: selectedPlaylistProtectedDeletionTargets,
                 managedInventory: deviceLibraryViewModel.managedInventory,
                 podcastPlaylistLibrary: podcastPlaylistViewModel.library,
+                arePlaylistsEnabled: viewModel.settings.showsPlaylistsBeta,
                 ejectAfterSync: isEjectAfterSyncEnabled
             )
             refreshPodcastPlaylistPresentation()
@@ -1707,7 +1705,6 @@ public struct MainView: View {
         excludedCleanupDeletionTargets = []
         syncExecutionViewModel.clearLastResult()
         await podcastPlaylistViewModel.load()
-        seedRecentlyDownloadedPlaylistHistory()
         selectedPodcastID = PodcastSelectionPolicy.initialSelection
         selectedPlaylistID = podcastPlaylistViewModel.playlists.first?.id
         manuallySelectedDeletionTargets = []
@@ -1962,7 +1959,7 @@ public struct MainView: View {
 
         if succeeded {
             replacementTargets = []
-            if let syncingDeviceID {
+            if viewModel.settings.showsPlaylistsBeta, let syncingDeviceID {
                 try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(deviceID: syncingDeviceID)
             }
         }
@@ -2175,9 +2172,14 @@ public struct MainView: View {
         }
 
         let previousAutomaticDownloadLimit = viewModel.settings.automaticDownloadLimit
+        let werePlaylistsEnabled = viewModel.settings.showsPlaylistsBeta
         viewModel.replaceSettings(updatedSettings)
         if !updatedSettings.showsPlaylistsBeta {
             libraryMode = .podcasts
+            selectedPlaylistProtectedDeletionTargets = []
+        }
+        if werePlaylistsEnabled != updatedSettings.showsPlaylistsBeta {
+            rebuildSyncPlan()
         }
         Task {
             await automaticDownloadViewModel.applyPreferences(

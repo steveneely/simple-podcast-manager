@@ -246,7 +246,7 @@ public struct SettingsView: View {
                     SettingsSection(title: "Beta Features") {
                         LabeledField(
                             title: "Playlists",
-                            detail: "Create playlists for compatible MP3 players and optionally add downloaded episodes automatically. Disabling Playlists does not delete them; existing playlists continue to be maintained during sync.",
+                            detail: "Create playlists for compatible MP3 players and optionally add downloaded episodes automatically. Disabling Playlists preserves their definitions but stops syncing them and protecting their episodes from cleanup. Existing playlist files on MP3 players are left unchanged.",
                             emphasizesTitle: true
                         ) {
                             Toggle("Enable Playlists", isOn: $showsPlaylistsBeta)

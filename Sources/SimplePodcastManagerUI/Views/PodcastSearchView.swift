@@ -2,18 +2,18 @@ import SimplePodcastManagerCore
 import SwiftUI
 
 struct PodcastSearchView: View {
-    @State private var viewModel: PodcastSearchViewModel
+    @Bindable private var viewModel: PodcastSearchViewModel
     @State private var searchTask: Task<Void, Never>?
     @Binding private var selectedResult: PodcastSearchResult?
     @FocusState private var isSearchFieldFocused: Bool
     private let subscriptionMatcher: PodcastSearchSubscriptionMatcher
 
     init(
-        searcher: any PodcastSearching,
+        viewModel: PodcastSearchViewModel,
         existingSubscriptions: [PodcastSubscription],
         selectedResult: Binding<PodcastSearchResult?>
     ) {
-        self._viewModel = State(initialValue: PodcastSearchViewModel(searcher: searcher))
+        self.viewModel = viewModel
         self._selectedResult = selectedResult
         self.subscriptionMatcher = PodcastSearchSubscriptionMatcher(
             subscriptions: existingSubscriptions

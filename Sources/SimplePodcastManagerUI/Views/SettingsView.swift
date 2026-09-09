@@ -24,6 +24,8 @@ public struct SettingsView: View {
     private let selectedDeviceRootURL: URL?
     private let savedAppearancePreference: AppearancePreference
     private let podcastSortOrder: PodcastSortOrder
+    private let ejectDeviceAfterSync: Bool
+    private let deleteDownloadedEpisodesAfterSync: Bool
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let makePodcastDirectoryMigrationPlan: (String?) throws -> DevicePodcastDirectoryMigrationPlan?
     private let onSave: (AppSettings, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void
@@ -71,6 +73,8 @@ public struct SettingsView: View {
         self.selectedDeviceRootURL = selectedDeviceRootURL
         self.savedAppearancePreference = settings.appearancePreference
         self.podcastSortOrder = settings.podcastSortOrder
+        self.ejectDeviceAfterSync = settings.ejectDeviceAfterSync
+        self.deleteDownloadedEpisodesAfterSync = settings.deleteDownloadedEpisodesAfterSync
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
         self.makePodcastDirectoryMigrationPlan = makePodcastDirectoryMigrationPlan
         self.onSave = onSave
@@ -358,6 +362,8 @@ public struct SettingsView: View {
                 mp3Genre: normalizedMP3Genre,
                 automaticDownloadLimit: automaticDownloadLimit,
                 deviceCleanupPolicy: deviceCleanupPolicy,
+                ejectDeviceAfterSync: ejectDeviceAfterSync,
+                deleteDownloadedEpisodesAfterSync: deleteDownloadedEpisodesAfterSync,
                 inactivePodcastThreshold: inactivePodcastThreshold,
                 podcastSortOrder: podcastSortOrder
             ),

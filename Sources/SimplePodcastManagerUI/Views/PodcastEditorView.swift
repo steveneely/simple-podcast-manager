@@ -9,10 +9,11 @@ public struct PodcastEditorView: View {
     @State private var isSaving = false
     @State private var addMethod: AddMethod
     @State private var selectedSearchResult: PodcastSearchResult?
+    @State private var searchViewModel: PodcastSearchViewModel
+    @State private var rssFeedURLString: String
     @FocusState private var focusedField: Field?
     private let title: String
     private let initialDraft: PodcastDraft
-    private let podcastSearcher: any PodcastSearching
     private let existingSubscriptions: [PodcastSubscription]
     private let onSave: @Sendable (PodcastDraft) async throws -> Void
 
@@ -20,7 +21,7 @@ public struct PodcastEditorView: View {
         case rssURL
     }
 
-    private enum AddMethod: String, CaseIterable, Identifiable {
+    enum AddMethod: String, CaseIterable, Identifiable {
         case search
         case rssFeedURL
 
@@ -38,7 +39,10 @@ public struct PodcastEditorView: View {
         self.initialDraft = draft
         self._draft = State(initialValue: draft)
         self._addMethod = State(initialValue: draft.id == nil ? .search : .rssFeedURL)
-        self.podcastSearcher = podcastSearcher
+        self._searchViewModel = State(
+            initialValue: PodcastSearchViewModel(searcher: podcastSearcher)
+        )
+        self._rssFeedURLString = State(initialValue: draft.rssURLString)
         self.existingSubscriptions = existingSubscriptions
         self.onSave = onSave
     }
@@ -60,7 +64,7 @@ public struct PodcastEditorView: View {
 
                     if addMethod == .search {
                         PodcastSearchView(
-                            searcher: podcastSearcher,
+                            viewModel: searchViewModel,
                             existingSubscriptions: existingSubscriptions,
                             selectedResult: $selectedSearchResult
                         )
@@ -104,18 +108,24 @@ public struct PodcastEditorView: View {
         )
         .onAppear {
             draft = initialDraft
+            rssFeedURLString = initialDraft.rssURLString
             focusedField = nil
         }
         .onChange(of: addMethod) { _, addMethod in
             errorMessage = nil
-            selectedSearchResult = nil
-            draft.rssURLString = ""
+            draft.rssURLString = Self.activeRSSURLString(
+                for: addMethod,
+                selectedSearchResult: selectedSearchResult,
+                rssFeedURLString: rssFeedURLString
+            )
             if addMethod == .rssFeedURL {
                 focusedField = .rssURL
             }
         }
         .onChange(of: selectedSearchResult) { _, selectedSearchResult in
-            draft.rssURLString = selectedSearchResult?.feedURL.absoluteString ?? ""
+            if addMethod == .search {
+                draft.rssURLString = selectedSearchResult?.feedURL.absoluteString ?? ""
+            }
             errorMessage = nil
         }
     }
@@ -125,7 +135,7 @@ public struct PodcastEditorView: View {
             title: "RSS Feed URL",
             detail: "Paste the podcast's RSS feed address."
         ) {
-            TextField("https://example.com/feed.xml", text: $draft.rssURLString)
+            TextField("https://example.com/feed.xml", text: rssFeedURLBinding)
                 .focused($focusedField, equals: .rssURL)
                 .inputFieldStyle(isFocused: focusedField == .rssURL)
         }
@@ -145,6 +155,31 @@ public struct PodcastEditorView: View {
             Text("The app reads podcast details and episodes directly from this feed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private var rssFeedURLBinding: Binding<String> {
+        Binding(
+            get: { rssFeedURLString },
+            set: { updatedURLString in
+                rssFeedURLString = updatedURLString
+                if addMethod == .rssFeedURL {
+                    draft.rssURLString = updatedURLString
+                }
+            }
+        )
+    }
+
+    static func activeRSSURLString(
+        for addMethod: AddMethod,
+        selectedSearchResult: PodcastSearchResult?,
+        rssFeedURLString: String
+    ) -> String {
+        switch addMethod {
+        case .search:
+            selectedSearchResult?.feedURL.absoluteString ?? ""
+        case .rssFeedURL:
+            rssFeedURLString
         }
     }
 

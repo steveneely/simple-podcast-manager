@@ -72,6 +72,12 @@ public struct MainView: View {
         let automaticDownloadViewModel = AutomaticDownloadViewModel()
         let podcastActivityViewModel = PodcastActivityViewModel()
         self._viewModel = State(initialValue: viewModel)
+        self._isEjectAfterSyncEnabled = State(
+            initialValue: viewModel.settings.ejectDeviceAfterSync
+        )
+        self._isDeleteDownloadedAfterSyncEnabled = State(
+            initialValue: viewModel.settings.deleteDownloadedEpisodesAfterSync
+        )
         self._deviceViewModel = State(initialValue: DeviceViewModel())
         self._deviceLibraryViewModel = State(initialValue: DeviceLibraryViewModel())
         self._podcastPreviewViewModel = State(initialValue: podcastPreviewViewModel)
@@ -156,6 +162,7 @@ public struct MainView: View {
                 appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
                 startupPerformanceTracker.mark("configuration loaded")
             }
+            loadSyncPreferences()
             async let cachedPreview: Void = loadCachedPodcastPreviewForStartup()
             async let persistedState: Void = loadPersistedEpisodeStateForStartup()
             async let devices: Void = loadDevicesForStartup()
@@ -587,7 +594,11 @@ public struct MainView: View {
             isPresented: $isShowingSyncDialog,
             ejectAfterSync: $isEjectAfterSyncEnabled,
             deleteDownloadsAfterSync: $isDeleteDownloadedAfterSyncEnabled,
-            onEjectAfterSyncChange: rebuildSyncPlan,
+            onEjectAfterSyncChange: {
+                saveSyncPreferences()
+                rebuildSyncPlan()
+            },
+            onDeleteDownloadsAfterSyncChange: saveSyncPreferences,
             onToggleCleanupDeletion: toggleCleanupDeletionSelection,
             onReplaceIncompleteCopy: selectIncompleteCopyForReplacement,
             onSync: { Task { await runSync() } }
@@ -1338,6 +1349,7 @@ public struct MainView: View {
 
     private func reloadAppData() async {
         await viewModel.load()
+        loadSyncPreferences()
         await loadPersistedEpisodeStateForStartup(forceReload: true)
         selectedPodcastID = PodcastSelectionPolicy.initialSelection
         manuallySelectedDeletionTargets = []
@@ -1586,12 +1598,22 @@ public struct MainView: View {
 
     private func openSyncDialog() {
         syncExecutionViewModel.clearLastResult()
-        isEjectAfterSyncEnabled = true
-        isDeleteDownloadedAfterSyncEnabled = true
         excludedCleanupDeletionTargets = []
         replacementTargets = []
         rebuildSyncPlan()
         isShowingSyncDialog = true
+    }
+
+    private func loadSyncPreferences() {
+        isEjectAfterSyncEnabled = viewModel.settings.ejectDeviceAfterSync
+        isDeleteDownloadedAfterSyncEnabled = viewModel.settings.deleteDownloadedEpisodesAfterSync
+    }
+
+    private func saveSyncPreferences() {
+        var settings = viewModel.settings
+        settings.ejectDeviceAfterSync = isEjectAfterSyncEnabled
+        settings.deleteDownloadedEpisodesAfterSync = isDeleteDownloadedAfterSyncEnabled
+        viewModel.replaceSettings(settings)
     }
 
     private func removedEpisodeLabel(for record: RemovedEpisodeRecord) -> String {

@@ -20,6 +20,7 @@ struct SyncDialogView: View {
     @Binding var ejectAfterSync: Bool
     @Binding var deleteDownloadsAfterSync: Bool
     let onEjectAfterSyncChange: () -> Void
+    let onDeleteDownloadsAfterSyncChange: () -> Void
     let onToggleCleanupDeletion: (URL) -> Void
     let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
@@ -75,6 +76,9 @@ struct SyncDialogView: View {
 
                 Toggle("Delete downloaded episodes when finished", isOn: $deleteDownloadsAfterSync)
                     .toggleStyle(.checkbox)
+                    .onChange(of: deleteDownloadsAfterSync) {
+                        onDeleteDownloadsAfterSyncChange()
+                    }
 
                 if let progress, isSyncing {
                     SyncProgressView(progress: progress)

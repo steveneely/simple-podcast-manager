@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.19.6
+# Simple Podcast Manager v1.19.7
 
-- Recognizes episodes already synced under a podcast's previous name after its producer changes the RSS title.
-- Prevents those renamed-podcast episodes from appearing unrelated or being copied to the MP3 player a second time.
+- Remembers whether to eject the MP3 player and delete downloaded episodes after syncing.
+- Keeps podcast search terms, results, selections, and manually entered RSS Feed URLs when switching Add Podcast methods.

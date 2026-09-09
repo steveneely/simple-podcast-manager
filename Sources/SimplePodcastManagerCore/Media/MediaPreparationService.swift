@@ -4,105 +4,26 @@ public struct MediaPreparationService: Sendable {
     private let downloadService: any DownloadService
     private let audioConversionService: any AudioConversionService
     private let workspaceProvider: any MediaWorkspaceProviding
-    private let maximumConcurrentPreparations: Int
 
     public init(
         downloadService: any DownloadService = URLSessionDownloadService(),
         audioConversionService: any AudioConversionService = FFmpegAudioConversionService(),
-        workspaceProvider: any MediaWorkspaceProviding = PersistentMediaWorkspaceProvider(),
-        maximumConcurrentPreparations: Int = 3
+        workspaceProvider: any MediaWorkspaceProviding = PersistentMediaWorkspaceProvider()
     ) {
         self.downloadService = downloadService
         self.audioConversionService = audioConversionService
         self.workspaceProvider = workspaceProvider
-        self.maximumConcurrentPreparations = max(1, maximumConcurrentPreparations)
     }
 
-    public func prepareEpisodes(
-        _ episodes: [Episode],
-        settings: AppSettings,
-        progress: (@Sendable (PreparationProgress) -> Void)? = nil
-    ) async throws -> MediaPreparationResult {
-        let workspaceURL = try workspaceProvider.makeWorkspace()
-        var preparedEpisodes: [PreparedEpisode] = []
-        var failures: [PreparationFailure] = []
-        var completedCount = 0
-        var nextEpisodeIndex = 0
-        var activeEpisodes: [String: String] = [:]
-
-        await withTaskGroup(of: EpisodePreparationOutcome.self) { group in
-            func reportProgress() {
-                let activeEpisodeIDs = activeEpisodes.keys.sorted {
-                    (activeEpisodes[$0] ?? "").localizedCaseInsensitiveCompare(activeEpisodes[$1] ?? "") == .orderedAscending
-                }
-                let activeEpisodeTitles = activeEpisodeIDs.compactMap { activeEpisodes[$0] }
-                progress?(
-                    PreparationProgress(
-                        totalCount: episodes.count,
-                        completedCount: completedCount,
-                        currentEpisodeID: activeEpisodeIDs.first,
-                        currentEpisodeTitle: activeEpisodeTitles.first,
-                        activeEpisodeIDs: activeEpisodeIDs,
-                        activeEpisodeTitles: activeEpisodeTitles
-                    )
-                )
-            }
-
-            func startNextEpisodeIfNeeded() {
-                guard nextEpisodeIndex < episodes.count else { return }
-                guard activeEpisodes.count < maximumConcurrentPreparations else { return }
-
-                let episode = episodes[nextEpisodeIndex]
-                nextEpisodeIndex += 1
-                activeEpisodes[episode.id] = episode.title
-                reportProgress()
-
-                group.addTask {
-                    await prepareEpisode(episode, workspaceURL: workspaceURL, settings: settings)
-                }
-            }
-
-            for _ in 0..<min(maximumConcurrentPreparations, episodes.count) {
-                startNextEpisodeIfNeeded()
-            }
-
-            while let outcome = await group.next() {
-                activeEpisodes.removeValue(forKey: outcome.episodeID)
-
-                switch outcome.result {
-                case .success(let preparedEpisode):
-                    preparedEpisodes.append(preparedEpisode)
-                case .failure(let failure):
-                    failures.append(failure)
-                case .cancelled:
-                    break
-                }
-
-                completedCount += 1
-                startNextEpisodeIfNeeded()
-                reportProgress()
-            }
-        }
-
-        return MediaPreparationResult(
-            preparedEpisodes: preparedEpisodes.sorted {
-                $0.episode.title.localizedCaseInsensitiveCompare($1.episode.title) == .orderedAscending
-            },
-            failures: failures.sorted {
-                $0.episodeTitle.localizedCaseInsensitiveCompare($1.episodeTitle) == .orderedAscending
-            }
-        )
-    }
-
-    private func prepareEpisode(
+    public func prepareEpisode(
         _ episode: Episode,
-        workspaceURL: URL,
         settings: AppSettings
-    ) async -> EpisodePreparationOutcome {
+    ) async -> MediaPreparationResult {
         var downloadedFileURL: URL?
         var preparedFileURL: URL?
         do {
             try Task.checkCancellation()
+            let workspaceURL = try workspaceProvider.makeWorkspace()
             let sourceFileURL = try await downloadService.download(
                 episode,
                 into: workspaceURL,
@@ -118,7 +39,7 @@ public struct MediaPreparationService: Sendable {
             )
             preparedFileURL = preparedEpisode.preparedFileURL
             try Task.checkCancellation()
-            return EpisodePreparationOutcome(episodeID: episode.id, result: .success(preparedEpisode))
+            return .prepared(preparedEpisode)
         } catch is CancellationError {
             if let preparedFileURL, preparedFileURL != downloadedFileURL {
                 try? FileManager.default.removeItem(at: preparedFileURL)
@@ -126,22 +47,20 @@ public struct MediaPreparationService: Sendable {
             if let downloadedFileURL {
                 try? FileManager.default.removeItem(at: downloadedFileURL)
             }
-            return EpisodePreparationOutcome(episodeID: episode.id, result: .cancelled)
+            return .cancelled
         } catch {
             // A failed preparation should not leave an incomplete local download behind.
             if let downloadedFileURL {
                 try? FileManager.default.removeItem(at: downloadedFileURL)
             }
-            return EpisodePreparationOutcome(
-                episodeID: episode.id,
-                result: .failure(
-                    PreparationFailure(
-                        episode: episode,
-                        message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription,
-                        reason: requiresInsecureDownloadPermission(error)
-                            ? .insecureDownloadRequiresPermission
-                            : .other
-                    )
+            if Task.isCancelled { return .cancelled }
+            return .failed(
+                PreparationFailure(
+                    episode: episode,
+                    message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription,
+                    reason: requiresInsecureDownloadPermission(error)
+                        ? .insecureDownloadRequiresPermission
+                        : .other
                 )
             )
         }
@@ -151,15 +70,4 @@ public struct MediaPreparationService: Sendable {
         error as? DownloadServiceError == .insecureDownloadRequiresPermission
             || error as? HTTPDataResourceLoadingError == .insecureDownloadRequiresPermission
     }
-}
-
-private struct EpisodePreparationOutcome: Sendable {
-    var episodeID: String
-    var result: EpisodePreparationResult
-}
-
-private enum EpisodePreparationResult: Sendable {
-    case success(PreparedEpisode)
-    case failure(PreparationFailure)
-    case cancelled
 }

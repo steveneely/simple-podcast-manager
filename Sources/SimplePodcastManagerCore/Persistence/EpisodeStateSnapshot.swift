@@ -1,6 +1,6 @@
 import Foundation
 
-public struct EpisodeStateStartupSnapshot: Sendable {
+public struct EpisodeStateSnapshot: Sendable {
     public let preparedEpisodes: [PreparedEpisode]
     public let downloadedEpisodes: [DownloadedEpisodeRecord]
     public let removedEpisodes: [RemovedEpisodeRecord]
@@ -22,6 +22,6 @@ public struct EpisodeStateStartupSnapshot: Sendable {
     }
 }
 
-public protocol EpisodeStateStartupLoading: Sendable {
-    func loadStartupSnapshot() throws -> EpisodeStateStartupSnapshot
+public protocol EpisodeStateLoading: Sendable {
+    func loadEpisodeStateSnapshot() throws -> EpisodeStateSnapshot
 }

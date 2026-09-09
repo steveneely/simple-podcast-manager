@@ -66,7 +66,7 @@ struct PreparationPreviewViewModelTests {
             store: store
         )
 
-        await viewModel.loadPersistedPreparedEpisodes()
+        try await viewModel.applyPersistedState(preparedEpisodes: store.preparedEpisodes, downloadedEpisodes: [])
 
         #expect(viewModel.hasLoadedPreparedEpisodes)
         #expect(viewModel.preparedEpisodes == [preparedEpisode])
@@ -100,7 +100,7 @@ struct PreparationPreviewViewModelTests {
             sourceFeedURL: URL(string: "https://example.com/feed.xml")!
         )
 
-        await viewModel.loadPersistedPreparedEpisodes()
+        try await viewModel.applyPersistedState(preparedEpisodes: [], downloadedEpisodes: [downloadedRecord])
 
         #expect(viewModel.downloadedRecord(for: episode) == downloadedRecord)
     }
@@ -149,9 +149,9 @@ struct PreparationPreviewViewModelTests {
             store: store,
             downloadedEpisodeStore: downloadedStore
         )
-        await viewModel.loadPersistedPreparedEpisodes()
+        try await viewModel.applyPersistedState(preparedEpisodes: store.preparedEpisodes, downloadedEpisodes: downloadedStore.downloadedEpisodes)
 
-        await viewModel.removeAllPreparedEpisodes()
+        await viewModel.removePreparedEpisodes(viewModel.preparedEpisodes)
 
         #expect(viewModel.preparedEpisodes.isEmpty)
         #expect(!downloadedStore.downloadedEpisodes.isEmpty)
@@ -204,7 +204,7 @@ struct PreparationPreviewViewModelTests {
             preparedStore: preparedStore,
             downloadedStore: downloadedStore
         )
-        await viewModel.loadPersistedPreparedEpisodes()
+        try await viewModel.applyPersistedState(preparedEpisodes: preparedStore.preparedEpisodes, downloadedEpisodes: downloadedStore.downloadedEpisodes)
 
         let didRemoveDownloads = await viewModel.removeDownloads(
             forSubscriptionIDs: [removedSubscriptionID]
@@ -248,7 +248,7 @@ struct PreparationPreviewViewModelTests {
             downloadedEpisodeStore: downloadedStore,
             fileDeleter: FailingPreparedMediaFileDeleter()
         )
-        await viewModel.loadPersistedPreparedEpisodes()
+        try await viewModel.applyPersistedState(preparedEpisodes: preparedStore.preparedEpisodes, downloadedEpisodes: downloadedStore.downloadedEpisodes)
 
         let didRemoveDownloads = await viewModel.removeDownloads(
             forSubscriptionIDs: [subscriptionID]
@@ -294,9 +294,9 @@ struct PreparationPreviewViewModelTests {
             downloadedEpisodeStore: InMemoryDownloadedEpisodeStore(),
             fileDeleter: FailingPreparedMediaFileDeleter()
         )
-        await viewModel.loadPersistedPreparedEpisodes()
+        try await viewModel.applyPersistedState(preparedEpisodes: store.preparedEpisodes, downloadedEpisodes: [])
 
-        await viewModel.removeAllPreparedEpisodes()
+        await viewModel.removePreparedEpisodes(viewModel.preparedEpisodes)
 
         #expect(viewModel.preparedEpisodes == [preparedEpisode])
         #expect(store.preparedEpisodes == [preparedEpisode])
@@ -313,8 +313,7 @@ struct PreparationPreviewViewModelTests {
             service: MediaPreparationService(
                 downloadService: ObservingPreparationDownloadService(observer: startObserver),
                 audioConversionService: StubPreparationAudioConversionService(),
-                workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL),
-                maximumConcurrentPreparations: 1
+                workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspaceURL)
             ),
             store: InMemoryPreparedEpisodeStore(),
             downloadedEpisodeStore: InMemoryDownloadedEpisodeStore()
@@ -484,6 +483,63 @@ struct PreparationPreviewViewModelTests {
         #expect(viewModel.failure(for: secondPodcastEpisode) == nil)
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func queueSharesItsLimitAcrossRequestsAndPublishesCompletionBeforeSlowDownloads() async throws {
+        let gate = GatedPreparationDownloadService()
+        let preparedStore = InMemoryPreparedEpisodeStore()
+        let downloadedStore = InMemoryDownloadedEpisodeStore()
+        let model = PreparationPreviewViewModel(
+            service: MediaPreparationService(downloadService: gate, audioConversionService: StubPreparationAudioConversionService(), workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: FileManager.default.temporaryDirectory)),
+            store: preparedStore, downloadedEpisodeStore: downloadedStore
+        )
+        let episodes = (1...5).map { makeEpisode(id: "queue-\($0)", subscriptionID: UUID()) }
+        let first = Task { await model.prepare(Array(episodes.prefix(3)), settings: AppSettings()) }
+        await gate.waitForStarts(3)
+        let second = Task { await model.prepare(Array(episodes.suffix(2)), settings: AppSettings()) }
+        while model.preparingEpisodeCount != 5 { await Task.yield() }
+        #expect(gate.startedIDs.count == 3)
+
+        gate.finish(episodes[1].id)
+        await gate.waitForStarts(4)
+        #expect(model.preparedEpisode(for: episodes[1]) != nil)
+        #expect(model.downloadedRecord(for: episodes[1]) != nil)
+        #expect(preparedStore.preparedEpisodes.map(\.episode.id) == [episodes[1].id])
+        #expect(downloadedStore.downloadedEpisodes.map(\.episodeID) == [episodes[1].id])
+        #expect(model.isPreparing(episodes[0]))
+        #expect(!model.isPreparing(episodes[1]))
+
+        gate.finish(episodes[0].id)
+        await gate.waitForStarts(5)
+        for episode in [episodes[2], episodes[3], episodes[4]] { gate.finish(episode.id) }
+        await first.value
+        await second.value
+        #expect(gate.maximumActiveCount == 3)
+        #expect(model.preparedEpisodes.count == 5)
+        #expect(!model.isPreparing)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func queuedCancellationNeverStartsAndDuplicateRequestsShareOneDownload() async {
+        let gate = GatedPreparationDownloadService()
+        let model = PreparationPreviewViewModel(
+            service: MediaPreparationService(downloadService: gate, audioConversionService: StubPreparationAudioConversionService(), workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: FileManager.default.temporaryDirectory)),
+            store: InMemoryPreparedEpisodeStore(), downloadedEpisodeStore: InMemoryDownloadedEpisodeStore()
+        )
+        let episodes = (1...4).map { makeEpisode(id: "cancel-queue-\($0)", subscriptionID: UUID()) }
+        let first = Task { await model.prepare(episodes, settings: AppSettings()) }
+        await gate.waitForStarts(3)
+        model.cancelPreparation(for: episodes[3])
+        #expect(!model.isPreparing(episodes[3]))
+        let duplicate = Task { await model.prepare([episodes[0], episodes[0]], settings: AppSettings()) }
+        for episode in episodes.prefix(3) { gate.finish(episode.id) }
+        await first.value
+        await duplicate.value
+        #expect(gate.startedIDs == episodes.prefix(3).map(\.id))
+        #expect(model.preparedEpisodes.count == 3)
+        #expect(model.failure(for: episodes[3]) == nil)
+        #expect(model.downloadedRecord(for: episodes[3]) == nil)
+    }
+
     private func makeEpisode(id: String, subscriptionID: UUID) -> Episode {
         Episode(
             id: id,
@@ -642,5 +698,38 @@ private final class InMemoryDownloadedEpisodeStore: DownloadedEpisodeStore, @unc
 
     func saveDownloadedEpisodes(_ downloadedEpisodes: [DownloadedEpisodeRecord]) throws {
         self.downloadedEpisodes = downloadedEpisodes
+    }
+}
+
+@MainActor
+private final class GatedPreparationDownloadService: DownloadService {
+    private let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    private var pending: [String: CheckedContinuation<URL, any Error>] = [:]
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+    private(set) var startedIDs: [String] = []
+    private(set) var maximumActiveCount = 0
+
+    func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                pending[episode.id] = continuation
+                startedIDs.append(episode.id)
+                maximumActiveCount = max(maximumActiveCount, pending.count)
+                let ready = waiters.filter { startedIDs.count >= $0.0 }
+                waiters.removeAll { startedIDs.count >= $0.0 }
+                for (_, waiter) in ready { waiter.resume() }
+            }
+        } onCancel: {
+            Task { @MainActor in self.pending.removeValue(forKey: episode.id)?.resume(throwing: CancellationError()) }
+        }
+    }
+
+    func waitForStarts(_ count: Int) async {
+        if startedIDs.count >= count { return }
+        await withCheckedContinuation { waiters.append((count, $0)) }
+    }
+
+    func finish(_ id: String) {
+        pending.removeValue(forKey: id)?.resume(returning: root.appendingPathComponent("\(id).mp3"))
     }
 }

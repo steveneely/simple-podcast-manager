@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, PodcastActivityStateStore, EpisodeStateStartupLoading, @unchecked Sendable {
+public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeStore, RemovedEpisodeStore, AutomaticDownloadStateStore, PodcastActivityStateStore, EpisodeStateLoading, @unchecked Sendable {
     public static let shared = SQLiteEpisodeStore()
 
     public let fileURL: URL
@@ -74,10 +74,10 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         return try queue.read(Self.loadPodcastActivityState)
     }
 
-    public func loadStartupSnapshot() throws -> EpisodeStateStartupSnapshot {
+    public func loadEpisodeStateSnapshot() throws -> EpisodeStateSnapshot {
         let queue = try databaseQueue()
         return try queue.read { database in
-            try EpisodeStateStartupSnapshot(
+            try EpisodeStateSnapshot(
                 preparedEpisodes: Self.loadRecords(PreparedEpisode.self, from: .prepared, database: database),
                 downloadedEpisodes: Self.loadRecords(DownloadedEpisodeRecord.self, from: .downloaded, database: database),
                 removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database),
@@ -91,19 +91,6 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
         let queue = try databaseQueue()
         try queue.write { database in
             try Self.savePodcastActivityState(state, database: database)
-        }
-    }
-
-    func loadAllAppData() throws -> SQLiteAppData {
-        let queue = try databaseQueue()
-        return try queue.read { database in
-            try SQLiteAppData(
-                preparedEpisodes: Self.loadRecords(PreparedEpisode.self, from: .prepared, database: database),
-                downloadedEpisodes: Self.loadRecords(DownloadedEpisodeRecord.self, from: .downloaded, database: database),
-                removedEpisodes: Self.loadRecords(RemovedEpisodeRecord.self, from: .removed, database: database),
-                automaticDownloadState: Self.loadAutomaticDownloadState(database: database),
-                podcastActivityState: Self.loadPodcastActivityState(database: database)
-            )
         }
     }
 
@@ -628,28 +615,6 @@ public final class SQLiteEpisodeStore: PreparedEpisodeStore, DownloadedEpisodeSt
 
     private static let legacyImportKey = "legacyEpisodeJSONImport"
     private static let legacyAutomaticDownloadImportKey = "legacyAutomaticDownloadJSONImport"
-}
-
-struct SQLiteAppData: Equatable, Sendable {
-    var preparedEpisodes: [PreparedEpisode]
-    var downloadedEpisodes: [DownloadedEpisodeRecord]
-    var removedEpisodes: [RemovedEpisodeRecord]
-    var automaticDownloadState: AutomaticDownloadState
-    var podcastActivityState: PodcastActivityState
-
-    init(
-        preparedEpisodes: [PreparedEpisode],
-        downloadedEpisodes: [DownloadedEpisodeRecord],
-        removedEpisodes: [RemovedEpisodeRecord],
-        automaticDownloadState: AutomaticDownloadState,
-        podcastActivityState: PodcastActivityState
-    ) {
-        self.preparedEpisodes = preparedEpisodes
-        self.downloadedEpisodes = downloadedEpisodes
-        self.removedEpisodes = removedEpisodes
-        self.automaticDownloadState = automaticDownloadState
-        self.podcastActivityState = podcastActivityState
-    }
 }
 
 private enum SQLitePodcastActivityStateError: Error {

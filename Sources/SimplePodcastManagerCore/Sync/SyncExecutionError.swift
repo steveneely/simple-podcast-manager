@@ -1,5 +1,18 @@
 import Foundation
 
+/// Retains completed device actions when a later action fails.
+public struct SyncExecutionFailure: LocalizedError {
+    public let result: SyncResult
+    public let underlyingError: any Error
+
+    public init(result: SyncResult, underlyingError: any Error) {
+        self.result = result
+        self.underlyingError = underlyingError
+    }
+
+    public var errorDescription: String? { underlyingError.localizedDescription }
+}
+
 public enum SyncExecutionError: LocalizedError, Equatable, Sendable {
     case destinationAlreadyExists(URL)
     case copyFailed(fileName: String, partialFileMayRemain: Bool, detail: String)

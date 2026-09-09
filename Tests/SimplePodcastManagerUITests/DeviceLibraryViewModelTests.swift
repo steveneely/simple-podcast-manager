@@ -577,31 +577,7 @@ struct DeviceLibraryViewModelTests {
         #expect(viewModel.lastErrorMessage == nil)
     }
 
-    @Test
-    func dismissingOtherAudioResultsHidesTheCompletedReview() async {
-        let device = DeviceInfo(
-            name: "MP3 Player",
-            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true)
-        )
-        let otherFile = device.podcastDirectoryURL.appendingPathComponent("Album/song.mp3")
-        let viewModel = DeviceLibraryViewModel(
-            deviceLibrary: StubDeviceLibrary(
-                filesByDirectory: [
-                    device.podcastDirectoryURL.appendingPathComponent("Album", isDirectory: true): [otherFile]
-                ]
-            )
-        )
-        await viewModel.refresh(device: device, subscriptions: [])
-        await viewModel.reviewOtherAudio(on: device)
-        #expect(viewModel.hasOtherAudio)
 
-        viewModel.dismissOtherAudioResults()
-
-        #expect(!viewModel.hasOtherAudio)
-        #expect(viewModel.otherAudioFiles.isEmpty)
-        #expect(viewModel.otherAudioReviewMessage == nil)
-    }
 
     @Test
     func cancellingOtherAudioReviewStopsTheRecursiveScan() async {

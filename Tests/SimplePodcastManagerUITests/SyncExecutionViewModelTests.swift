@@ -69,6 +69,35 @@ struct SyncExecutionViewModelTests {
         #expect(viewModel.lastErrorMessage == nil)
         #expect(viewModel.lastPlan == nil)
     }
+    @Test
+    func failedRetryClearsEarlierSuccessAndCapturesOnlyCurrentPartialResult() async {
+        let device = DeviceInfo(name: "Test", rootURL: URL(fileURLWithPath: "/Volumes/TEST"), podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST/music"))
+        let plan = SyncPlan(device: device, actions: [.skip(reason: "Present")])
+        let partial = SyncResult(deletedCount: 1, completedActions: [.deleteFromDevice(targetURL: device.podcastDirectoryURL.appendingPathComponent("Podcast/old.mp3"), fileSizeBytes: 1)])
+        let executor = SequenceSyncExecutor(results: [
+            .success(SyncResult(copiedCount: 3)),
+            .failure(SyncExecutionFailure(result: partial, underlyingError: CocoaError(.fileWriteUnknown))),
+            .failure(CocoaError(.fileWriteUnknown)),
+            .success(SyncResult(copiedCount: 1))
+        ])
+        let model = SyncExecutionViewModel(executor: executor)
+        await model.sync(plan: plan)
+        #expect(model.lastResult?.copiedCount == 3)
+        await model.sync(plan: plan)
+        #expect(model.lastResult == partial)
+        #expect(model.lastErrorMessage != nil)
+        await model.sync(plan: plan)
+        #expect(model.lastResult == nil)
+        #expect(model.lastErrorMessage != nil)
+        #expect(!model.isSyncing)
+        await model.sync(plan: plan)
+        #expect(model.lastResult?.copiedCount == 1)
+        #expect(model.lastErrorMessage == nil)
+        await model.sync(plan: nil)
+        #expect(model.lastResult == nil)
+        #expect(model.lastPlan == nil)
+    }
+
 }
 
 private final class RecordingSyncExecutor: @unchecked Sendable, SyncExecuting {
@@ -101,5 +130,13 @@ private final class RecordingSyncExecutor: @unchecked Sendable, SyncExecuting {
             progress?(update)
         }
         return result
+    }
+}
+
+private final class SequenceSyncExecutor: SyncExecuting, @unchecked Sendable {
+    private var results: [Result<SyncResult, any Error>]
+    init(results: [Result<SyncResult, any Error>]) { self.results = results }
+    func execute(plan: SyncPlan, progress: (@Sendable (SyncExecutionProgress) -> Void)?) throws -> SyncResult {
+        try results.removeFirst().get()
     }
 }

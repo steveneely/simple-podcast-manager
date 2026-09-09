@@ -30,7 +30,7 @@ public struct MainView: View {
     @State private var syncExecutionViewModel: SyncExecutionViewModel
     private let devicePodcastConfigurationService = DevicePodcastConfigurationService()
     private let devicePodcastDirectoryMigrationService = DevicePodcastDirectoryMigrationService()
-    private let startupEpisodeStateStore: any EpisodeStateStartupLoading
+    private let startupEpisodeStateStore: any EpisodeStateLoading
     private let startupPerformanceTracker = StartupPerformanceTracker()
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
@@ -54,6 +54,8 @@ public struct MainView: View {
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var isShowingOtherAudioReview = false
+    @State private var episodeStateLoadError: String?
+    @State private var isRestoringAppData = false
     @State private var appDataMessage: String?
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
     @State private var insecureDownloadEpisode: Episode?
@@ -65,7 +67,7 @@ public struct MainView: View {
         viewModel: MainViewModel,
         automaticallyChecksForUpdates: Binding<Bool>? = nil,
         appearancePreference: Binding<AppearancePreference>? = nil,
-        startupEpisodeStateStore: any EpisodeStateStartupLoading = SQLiteEpisodeStore.shared
+        startupEpisodeStateStore: any EpisodeStateLoading = SQLiteEpisodeStore.shared
     ) {
         let podcastPreviewViewModel = PodcastPreviewViewModel()
         let preparationPreviewViewModel = PreparationPreviewViewModel()
@@ -105,6 +107,7 @@ public struct MainView: View {
 
             if viewModel.hasPodcasts {
                 librarySection
+                    .disabled(!hasLoadedEpisodeState)
             } else {
                 VStack(spacing: 16) {
                     ContentUnavailableView(
@@ -133,6 +136,7 @@ public struct MainView: View {
             }
 
         }
+        .disabled(isRestoringAppData)
         .padding(.horizontal, 20)
         .padding(.bottom, 20)
         .padding(.top, 8)
@@ -210,6 +214,7 @@ public struct MainView: View {
                     automaticallyChecksForUpdates?.wrappedValue = isEnabled
                 },
                 onBackUpAppData: exportAppData,
+                canRestoreAppData: canRestoreAppData,
                 onRestoreAppData: importAppData
             )
         }
@@ -1002,35 +1007,40 @@ public struct MainView: View {
         startupPerformanceTracker.mark("cached episodes visible")
     }
 
-    private func loadPersistedEpisodeStateForStartup(forceReload: Bool = false) async {
-        guard forceReload
-            || !preparationPreviewViewModel.hasLoadedPreparedEpisodes
+    private func loadPersistedEpisodeStateForStartup() async {
+        guard !preparationPreviewViewModel.hasLoadedPreparedEpisodes
             || !automaticDownloadViewModel.hasLoadedState
             || !podcastActivityViewModel.hasLoadedState
             || !removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes
         else { return }
 
         do {
-            let store = startupEpisodeStateStore
-            let snapshot = try await Task.detached(priority: .userInitiated) {
-                try store.loadStartupSnapshot()
-            }.value
-            try await preparationPreviewViewModel.applyPersistedState(
-                preparedEpisodes: snapshot.preparedEpisodes,
-                downloadedEpisodes: snapshot.downloadedEpisodes
-            )
-            automaticDownloadViewModel.applyPersistedState(snapshot.automaticDownloadState)
-            podcastActivityViewModel.applyPersistedState(snapshot.podcastActivityState)
-            removedEpisodeHistoryViewModel.applyPersistedState(snapshot.removedEpisodes)
+            try await appDataWorkflow.loadEpisodeState()
+            episodeStateLoadError = nil
             startupPerformanceTracker.mark("persisted episode state ready")
         } catch {
-            // Preserve the existing per-view-model fallback behavior if a future custom
-            // startup store cannot provide a complete snapshot.
-            await preparationPreviewViewModel.loadPersistedPreparedEpisodes()
-            await automaticDownloadViewModel.load()
-            await podcastActivityViewModel.load()
-            await removedEpisodeHistoryViewModel.load()
+            episodeStateLoadError = error.localizedDescription
+            appDataMessage = "Could not load episode history: \(error.localizedDescription). Restart the app to retry."
         }
+    }
+
+    private var appDataWorkflow: AppDataWorkflow {
+        AppDataWorkflow(
+            library: viewModel,
+            preparation: preparationPreviewViewModel,
+            automaticDownloads: automaticDownloadViewModel,
+            activity: podcastActivityViewModel,
+            removalHistory: removedEpisodeHistoryViewModel,
+            episodeStore: startupEpisodeStateStore
+        )
+    }
+
+    private var hasLoadedEpisodeState: Bool {
+        episodeStateLoadError == nil
+            && preparationPreviewViewModel.hasLoadedPreparedEpisodes
+            && automaticDownloadViewModel.hasLoadedState
+            && podcastActivityViewModel.hasLoadedState
+            && removedEpisodeHistoryViewModel.hasLoadedRemovedEpisodes
     }
 
     private func loadDevicesForStartup() async {
@@ -1054,6 +1064,7 @@ public struct MainView: View {
     }
 
     private func coordinatePodcastRefresh(_ scope: PodcastRefreshScope) async {
+        guard hasLoadedEpisodeState else { return }
         let displayScope = podcastRefreshDisplayScope(for: scope)
         downloadedEpisodesForCurrentSummary = []
         podcastRefreshStatus = .refreshing(displayScope)
@@ -1292,7 +1303,21 @@ public struct MainView: View {
         refreshAddedSubscriptions(withIDs: addedSubscriptionIDs)
     }
 
+    private var canRestoreAppData: Bool {
+        !isRestoringAppData
+            && (hasLoadedEpisodeState || episodeStateLoadError != nil)
+            && !syncExecutionViewModel.isSyncing
+            && !preparationPreviewViewModel.isPreparing
+            && !podcastPreviewViewModel.isLoading
+            && activeAutomaticDownloadOperations == 0
+            && podcastRefreshStatus?.isActive != true
+    }
+
     private func importAppData() {
+        guard canRestoreAppData else {
+            appDataMessage = "Wait for refreshes, downloads, and sync to finish before restoring app data."
+            return
+        }
         let panel = NSOpenPanel()
         panel.title = "Restore App Data"
         panel.canChooseFiles = false
@@ -1301,17 +1326,19 @@ public struct MainView: View {
 
         guard panel.runModal() == .OK, let backupURL = panel.url else { return }
         guard confirmsAppDataRestore(from: backupURL) else { return }
+        isRestoringAppData = true
         appDataMessage = nil
 
         Task {
+            defer { isRestoringAppData = false }
             do {
-                let previousBackupURL = try await Task.detached {
-                    try AppDataBackupService().importBackup(from: backupURL)
-                }.value
-                await reloadAppData()
+                let previousBackupURL = try await appDataWorkflow.restore(from: backupURL)
+                episodeStateLoadError = nil
+                await refreshRestoredAppData()
                 appDataMessage = nil
                 showAppDataRestoreSuccess(previousBackupURL: previousBackupURL)
             } catch {
+                if error is AppDataReloadError { episodeStateLoadError = error.localizedDescription }
                 appDataMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
         }
@@ -1347,10 +1374,12 @@ public struct MainView: View {
         }
     }
 
-    private func reloadAppData() async {
-        await viewModel.load()
+    private func refreshRestoredAppData() async {
         loadSyncPreferences()
-        await loadPersistedEpisodeStateForStartup(forceReload: true)
+        appearancePreference?.wrappedValue = viewModel.settings.appearancePreference
+        replacementTargets = []
+        excludedCleanupDeletionTargets = []
+        syncExecutionViewModel.clearLastResult()
         selectedPodcastID = PodcastSelectionPolicy.initialSelection
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
@@ -1536,59 +1565,21 @@ public struct MainView: View {
     }
 
     private func runSync() async {
-        let preparedEpisodesBeforeSync = preparationPreviewViewModel.preparedEpisodes
-        let alreadyOnDeviceFilesByEpisodeKey = Dictionary(uniqueKeysWithValues: preparedEpisodesBeforeSync.compactMap { prepared -> (PodcastActivityEpisodeKey, URL)? in
-            guard let deviceFileURL = deviceLibraryViewModel.file(for: prepared.episode),
-                  let episodeKey = PodcastActivityEpisodeKey(episode: prepared.episode)
-            else { return nil }
-            return (episodeKey, deviceFileURL.standardizedFileURL)
-        })
-        let filesBySubscriptionID = Dictionary(uniqueKeysWithValues: viewModel.podcastSubscriptions.map {
-            ($0.id, deviceLibraryViewModel.files(for: $0))
-        })
-        let episodesBySubscriptionID = Dictionary(grouping: podcastPreviewViewModel.allEpisodes.compactMap { episode -> (UUID, Episode)? in
-            guard let subscriptionID = episode.subscriptionID else { return nil }
-            return (subscriptionID, episode)
-        }, by: \.0).mapValues { $0.map(\.1) }
-
-        await syncExecutionViewModel.sync(plan: syncPlanViewModel.plan)
-
-        if syncExecutionViewModel.lastErrorMessage == nil,
-           syncExecutionViewModel.lastResult != nil {
-            replacementTargets = []
-        }
-
-        if syncExecutionViewModel.lastErrorMessage == nil,
-           let completedPlan = syncExecutionViewModel.lastPlan,
-           syncExecutionViewModel.lastResult != nil {
-            let acknowledgedEpisodes = PodcastActivitySyncAcknowledgement.episodesAcknowledged(
-                preparedEpisodes: preparedEpisodesBeforeSync,
-                existingDeviceFiles: alreadyOnDeviceFilesByEpisodeKey,
-                completedPlan: completedPlan
-            )
-            await podcastActivityViewModel.acknowledge(acknowledgedEpisodes)
-        }
-
-        if
-            let result = syncExecutionViewModel.lastResult,
-            let lastPlan = syncExecutionViewModel.lastPlan
-        {
-            removedEpisodeHistoryViewModel.recordDeletedEpisodes(
-                deletedTargetURLs: lastPlan.removalTargetURLs,
-                filesBySubscriptionID: filesBySubscriptionID,
-                episodesBySubscriptionID: episodesBySubscriptionID,
-                deviceName: deviceViewModel.selectedDevice?.name,
-                removedAt: result.finishedAt ?? Date()
-            )
-        }
-
-        if
-            isDeleteDownloadedAfterSyncEnabled,
-            syncExecutionViewModel.lastErrorMessage == nil,
-            syncExecutionViewModel.lastResult != nil
-        {
-            await preparationPreviewViewModel.removeAllPreparedEpisodes()
-        }
+        guard hasLoadedEpisodeState, !isRestoringAppData else { return }
+        let workflow = SyncWorkflow(
+            execution: syncExecutionViewModel,
+            preparation: preparationPreviewViewModel,
+            activity: podcastActivityViewModel,
+            removalHistory: removedEpisodeHistoryViewModel,
+            deviceLibrary: deviceLibraryViewModel
+        )
+        let succeeded = await workflow.run(
+            plan: syncPlanViewModel.plan,
+            subscriptions: viewModel.podcastSubscriptions,
+            episodes: podcastPreviewViewModel.allEpisodes,
+            deleteDownloadsAfterSync: isDeleteDownloadedAfterSyncEnabled
+        )
+        if succeeded { replacementTargets = [] }
 
         if isEjectAfterSyncEnabled {
             await deviceViewModel.refresh()
@@ -1755,6 +1746,9 @@ public struct MainView: View {
         podcastDirectoryPath: String?,
         migrationPlan: DevicePodcastDirectoryMigrationPlan?
     ) throws {
+        guard hasLoadedEpisodeState else {
+            throw AppDataReloadError(message: "Episode history is unavailable. Restart the app or restore a backup before changing settings.")
+        }
         var updatedDevice: DeviceInfo?
         if let podcastDirectoryPath,
            let selectedDevice = deviceViewModel.selectedDevice {

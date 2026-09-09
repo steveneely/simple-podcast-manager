@@ -11,22 +11,6 @@ public struct PodcastActivityUpdate: Equatable, Sendable {
 }
 
 public enum PodcastActivityPlanner {
-    public static func updating(
-        _ state: PodcastActivityState,
-        subscriptions: [PodcastSubscription],
-        episodes: [Episode],
-        refreshedSubscriptionIDs: Set<UUID>,
-        failedSubscriptionIDs: Set<UUID>
-    ) -> PodcastActivityState {
-        update(
-            state,
-            subscriptions: subscriptions,
-            episodes: episodes,
-            refreshedSubscriptionIDs: refreshedSubscriptionIDs,
-            failedSubscriptionIDs: failedSubscriptionIDs
-        ).state
-    }
-
     public static func update(
         _ state: PodcastActivityState,
         subscriptions: [PodcastSubscription],

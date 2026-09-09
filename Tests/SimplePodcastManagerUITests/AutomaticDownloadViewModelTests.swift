@@ -17,7 +17,7 @@ struct AutomaticDownloadViewModelTests {
         let baselineEpisode = makeEpisode("baseline", day: 1, subscription: subscription)
         let newEpisode = makeEpisode("new", day: 2, subscription: subscription)
 
-        await viewModel.load()
+        viewModel.applyPersistedState(try store.loadState())
         let baselineDownloads = await viewModel.episodesToDownload(
             afterRefreshing: [subscription.id],
             failedSubscriptionIDs: [],
@@ -62,7 +62,7 @@ struct AutomaticDownloadViewModelTests {
         )
         let viewModel = AutomaticDownloadViewModel(store: store)
 
-        await viewModel.load()
+        viewModel.applyPersistedState(try store.loadState())
         await viewModel.applyPreferences(subscriptions: [subscription], limit: .off)
 
         #expect(try store.loadState().podcasts.first?.pendingEpisodeIDs.isEmpty == true)
@@ -86,7 +86,7 @@ struct AutomaticDownloadViewModelTests {
             ])
         )
         let viewModel = AutomaticDownloadViewModel(store: store)
-        await viewModel.load()
+        viewModel.applyPersistedState(try store.loadState())
 
         let episodes = await viewModel.activateDownloadsForCurrentlyNewEpisodes(
             subscriptionIDs: [subscription.id],

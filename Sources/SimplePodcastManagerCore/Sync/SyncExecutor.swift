@@ -36,45 +36,57 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         }
         try storageInspector.ensurePlanFits(plan.actions, on: plan.device)
 
-        for (index, action) in plan.actions.enumerated() {
-            progress?(
-                SyncExecutionProgress(
-                    totalCount: totalCount,
-                    completedCount: index,
-                    currentActionDescription: action.summaryDescription
-                )
-            )
-            switch action {
-            case .copyToDevice(let sourceURL, let destinationURL, let fileSizeBytes):
-                let parentDirectoryURL = destinationURL.deletingLastPathComponent()
-                try fileSystem.createDirectory(at: parentDirectoryURL)
-                if fileSystem.fileExists(at: destinationURL) {
-                    throw SyncExecutionError.destinationAlreadyExists(destinationURL)
-                }
-                do {
-                    try fileSystem.copyItem(at: sourceURL, to: destinationURL)
-                } catch {
-                    throw SyncExecutionError.copyFailed(
-                        fileName: sourceURL.lastPathComponent,
-                        partialFileMayRemain: fileSystem.fileExists(at: destinationURL),
-                        detail: error.localizedDescription
+        do {
+            for (index, action) in plan.actions.enumerated() {
+                progress?(
+                    SyncExecutionProgress(
+                        totalCount: totalCount,
+                        completedCount: index,
+                        currentActionDescription: action.summaryDescription
                     )
+                )
+                try safetyValidator.validate(action, on: plan.device)
+                switch action {
+                case .copyToDevice(let sourceURL, let destinationURL, let fileSizeBytes):
+                    let parentDirectoryURL = destinationURL.deletingLastPathComponent()
+                    try fileSystem.createDirectory(at: parentDirectoryURL)
+                    if fileSystem.fileExists(at: destinationURL) {
+                        throw SyncExecutionError.destinationAlreadyExists(destinationURL)
+                    }
+                    do {
+                        try fileSystem.copyItem(at: sourceURL, to: destinationURL)
+                    } catch {
+                        throw SyncExecutionError.copyFailed(
+                            fileName: sourceURL.lastPathComponent,
+                            partialFileMayRemain: fileSystem.fileExists(at: destinationURL),
+                            detail: error.localizedDescription
+                        )
+                    }
+                    result.copiedCount += 1
+                    result.copiedBytes += fileSizeBytes
+
+                case .deleteFromDevice(let targetURL, let fileSizeBytes):
+                    try deletionService.deleteManagedFile(at: targetURL, on: plan.device) {
+                        // Record the audio deletion even if later metadata cleanup fails.
+                        result.deletedCount += 1
+                        result.deletedBytes += fileSizeBytes
+                        result.completedActions.append(action)
+                    }
+                    continue
+
+                case .ejectDevice:
+                    try ejector.eject(device: plan.device)
+                    result.ejected = true
+
+                case .skip:
+                    result.skippedCount += 1
                 }
-                result.copiedCount += 1
-                result.copiedBytes += fileSizeBytes
-
-            case .deleteFromDevice(let targetURL, let fileSizeBytes):
-                try deletionService.deleteManagedFile(at: targetURL, on: plan.device)
-                result.deletedCount += 1
-                result.deletedBytes += fileSizeBytes
-
-            case .ejectDevice:
-                try ejector.eject(device: plan.device)
-                result.ejected = true
-
-            case .skip:
-                result.skippedCount += 1
+                result.completedActions.append(action)
             }
+        } catch {
+            guard !result.completedActions.isEmpty else { throw error }
+            result.finishedAt = Date()
+            throw SyncExecutionFailure(result: result, underlyingError: error)
         }
 
         result.finishedAt = Date()

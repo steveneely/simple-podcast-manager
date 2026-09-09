@@ -20,17 +20,6 @@ public final class AutomaticDownloadViewModel {
         self.hasLoadedState = false
     }
 
-    public func load() async {
-        do {
-            state = try await persistence.load()
-            lastErrorMessage = nil
-            hasLoadedState = true
-        } catch {
-            state = AutomaticDownloadState()
-            lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
-    }
-
     public func applyPersistedState(_ state: AutomaticDownloadState) {
         self.state = state
         lastErrorMessage = nil
@@ -113,10 +102,6 @@ private actor AutomaticDownloadStatePersistence {
 
     init(store: any AutomaticDownloadStateStore) {
         self.store = store
-    }
-
-    func load() throws -> AutomaticDownloadState {
-        try store.loadState()
     }
 
     func save(_ state: AutomaticDownloadState) throws {

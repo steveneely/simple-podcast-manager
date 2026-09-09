@@ -114,7 +114,7 @@ struct RemovedEpisodeHistoryViewModelTests {
             )
         ]
         let viewModel = RemovedEpisodeHistoryViewModel(store: store)
-        await viewModel.load()
+        viewModel.applyPersistedState(store.removedEpisodes)
 
         let currentFeedEpisode = Episode(
             id: "f13f98bc-c872-459f-ad59-c8200210d878",

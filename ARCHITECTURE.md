@@ -52,7 +52,9 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 - `PodcastPreviewViewModel`: load cached feed data and refresh RSS feeds
 - `PodcastRefreshCoordinator`: coordinate refresh results, podcast activity, and automatic episode preparation behind testable dependency boundaries
 - `PodcastSearchViewModel`: manage an explicit Podcast Index search without persisting directory results
-- `PreparationPreviewViewModel`: download/prepare local episode files and track local download history
+- `PreparationPreviewViewModel`: own one shared queue for manual and automatic downloads, with at most three active preparations, per-episode cancellation, immediate completion updates, and local download history
+- `SyncWorkflow`: apply completed-action removal history after every sync attempt; acknowledge episodes and clean up only the reviewed local downloads after full success
+- `AppDataWorkflow`: share startup/restore snapshot application and report restore success only after configuration and episode state reload
 - `AutomaticDownloadViewModel`: plan automatic downloads after successful feed refreshes and persist feed baselines
 - `PodcastActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
 - `SyncPlanViewModel`: build the full-device plan shown before execution
@@ -117,7 +119,7 @@ Podcast activity is separate from automatic downloads. Existing podcasts establi
 
 Refresh and download status have distinct presentation responsibilities. The lower-left podcast footer owns library-level refresh progress and the durable outcome. While feeds load it shows completed-versus-total podcast checks. Afterward it uses adaptive counters for the current still-new count, successful downloads, and actionable failures: short labeled counters when space allows, icon-and-number counters at narrow widths, and `Up to date` when there is nothing to review. Checked and discovered totals remain in the expandable details instead of lengthening the collapsed footer. Successful manual downloads reconcile that durable outcome immediately by moving the matching episode from still-new to downloaded. Its semantic colors follow the rest of the app: blue for still-new state, green for successful downloads, orange for warnings, and neutral text for refresh completion. Every counter also has an icon, tooltip, and accessibility label so color is never the only signal. The status beside the Device section owns only active media preparation and download work and disappears when that work finishes. Do not duplicate live download progress between the two locations or rely on transient podcast-row badge changes to explain a large-library refresh.
 
-The plan shown to the user is the plan executed by the app.
+The plan shown to the user is the plan executed by the app. The executor also retains exactly completed actions when a later copy, metadata cleanup, or eject fails. Removal history uses those completed deletions even after a partial failure. Local download cleanup and activity acknowledgement require full success; cleanup includes only episodes covered by the reviewed plan and leaves unrelated or newly completed downloads intact.
 
 ## Podcast Download Security
 
@@ -190,7 +192,7 @@ Small configuration data remains in `config.json`. Growing episode state is stor
 
 Each record is keyed by subscription and episode identity. New and updated records use transactional upserts instead of rewriting an entire history file. Database setup, legacy import, and large reads run outside the main actor.
 
-Startup reads prepared episodes, download history, removal history, automatic-download state, and podcast activity in one consistent SQLite read transaction. The UI builds keyed indexes for feed episodes and per-episode status so SwiftUI rendering does not repeatedly scan growing history arrays.
+Startup and backups share one `EpisodeStateSnapshot` read of prepared episodes, download history, removal history, automatic-download state, and podcast activity in a consistent SQLite transaction. Failed startup snapshot reads keep history-dependent workflows disabled and report a retry message; they never establish empty activity/download baselines. Restore is unavailable while refresh, download, or sync work is active, and reload failures remain visible instead of reporting successful restoration. The UI builds keyed indexes for feed episodes and per-episode status so SwiftUI rendering does not repeatedly scan growing history arrays.
 
 On first use, the database imports `prepared-episodes.json`, `downloaded-episodes.json`, and `removed-episodes.json` in one transaction. Automatic-download state uses a separate one-time import so upgrades from development builds can retain `automatic-downloads.json`. Import markers are written only after every source file decodes and every row is stored. The source JSON files remain available for recovery and are not imported again.
 
@@ -271,6 +273,8 @@ All synced output on the device should be MP3.
 - use printable ASCII for device filenames, prefixed with `yyyy.MM.dd` when the publication date is available and suffixed with the podcast title
 - use `ffmpeg` only to convert audio; native Swift code handles MP3 metadata consistently afterward
 - conversion happens in the app's local media workspace on the Mac before copy-to-device
+- `MediaPreparationService` prepares one episode; the UI queue is the sole concurrency owner across requests, starts the next episode whenever a slot is available, and shares in-flight episodes between callers
+- external commands drain stdout and stderr while running, and cancellation terminates and reaps the child before completing
 
 RSS metadata is authoritative. Podcast enclosure files may contain missing, stale, or placeholder ID3 tags because podcast apps normally display metadata from the RSS feed. Offline MP3 players cannot access that feed, so Simple Podcast Manager writes the RSS episode title and podcast title into a deterministic ID3v2.3 tag before syncing.
 

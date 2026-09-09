@@ -91,6 +91,21 @@ struct SyncDialogView: View {
                     )
                 }
 
+                if let lastErrorMessage {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Sync Stopped", systemImage: "exclamationmark.triangle")
+                            .font(.headline)
+                            .foregroundStyle(.orange)
+                        Text(lastErrorMessage)
+                            .font(.caption)
+                        if let lastResult {
+                            Text(SyncPresentation.resultSummary(lastResult))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 if isReplacementPlanReady {
                     replacementPlanReadyCard
                 }

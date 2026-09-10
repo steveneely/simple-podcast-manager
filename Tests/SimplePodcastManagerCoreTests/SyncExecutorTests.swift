@@ -291,6 +291,92 @@ struct SyncExecutorTests {
         }
     }
 
+    @Test
+    func cleansNewCopiesBeforeAutomaticEject() throws {
+        let device = makeDevice()
+        let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/new.mp3")
+        let sidecar = target.deletingLastPathComponent().appendingPathComponent("._new.mp3")
+        let fileSystem = RecordingFileSystem(existingURLs: [], directoryContents: [:], createCopySidecars: true)
+        let ejector = SidecarCheckingEjector(fileSystem: fileSystem, sidecar: sidecar)
+        let copy = SyncAction.copyToDevice(sourceURL: URL(fileURLWithPath: "/tmp/new.mp3"), destinationURL: target, fileSizeBytes: 20)
+        let result = try makeTestExecutor(fileSystem: fileSystem, ejector: ejector).execute(
+            plan: SyncPlan(device: device, actions: [copy, .ejectDevice(deviceRootURL: device.rootURL)])
+        )
+        #expect(result.copiedCount == 1)
+        #expect(result.deletedCount == 0)
+        #expect(result.ejected)
+        #expect(fileSystem.removedItems == [sidecar])
+        #expect(fileSystem.fileExists(at: target))
+    }
+
+    @Test
+    func repairsRetainedEpisodesWithoutCopiesAndLeavesUnrelatedFilesAlone() throws {
+        let device = makeDevice()
+        let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/existing.mp3")
+        let sidecar = target.deletingLastPathComponent().appendingPathComponent("._existing.mp3")
+        let unrelated = device.podcastDirectoryURL.appendingPathComponent("Podcast/._personal.mp3")
+        let orphan = device.podcastDirectoryURL.appendingPathComponent("Podcast/._missing.mp3")
+        let rootFile = device.rootURL.appendingPathComponent("._personal.mp3")
+        let fileSystem = RecordingFileSystem(existingURLs: [target, sidecar, unrelated, orphan, rootFile], directoryContents: [:], appleDoubleURLs: [sidecar, unrelated, orphan, rootFile])
+        let plan = SyncPlan(device: device, existingManagedEpisodeURLs: [target, target])
+        let executor = makeTestExecutor(fileSystem: fileSystem)
+        let result = try executor.execute(plan: plan)
+        _ = try executor.execute(plan: plan)
+        #expect(result.copiedCount == 0)
+        #expect(result.deletedCount == 0)
+        #expect(fileSystem.copiedItems.isEmpty)
+        #expect(fileSystem.removedItems == [sidecar])
+        for file in [target, unrelated, orphan, rootFile] {
+            #expect(fileSystem.fileExists(at: file))
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func cleanupFailurePreservesCopiesAndPreventsEject(unrecognizedSidecar: Bool) throws {
+        let device = makeDevice()
+        let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/existing.mp3")
+        let sidecar = target.deletingLastPathComponent().appendingPathComponent("._existing.mp3")
+        let newTarget = device.podcastDirectoryURL.appendingPathComponent("Podcast/new.mp3")
+        let copy = SyncAction.copyToDevice(sourceURL: URL(fileURLWithPath: "/tmp/new.mp3"), destinationURL: newTarget, fileSizeBytes: 20)
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [target, sidecar], directoryContents: [:],
+            failedRemovalURL: unrecognizedSidecar ? nil : sidecar,
+            appleDoubleURLs: unrecognizedSidecar ? [] : [sidecar]
+        )
+        let ejector = RecordingDeviceEjector()
+        do {
+            _ = try makeTestExecutor(fileSystem: fileSystem, ejector: ejector).execute(plan: SyncPlan(
+                device: device, actions: [copy, .ejectDevice(deviceRootURL: device.rootURL)],
+                existingManagedEpisodeURLs: [target]
+            ))
+            Issue.record("Expected cleanup failure")
+        } catch let failure as SyncExecutionFailure {
+            #expect(failure.result.copiedCount == 1)
+            #expect(failure.result.completedActions == [copy])
+            #expect(failure.underlyingError is SyncExecutionError)
+            #expect(!failure.result.ejected)
+        }
+        #expect(!ejector.didEject)
+        #expect(fileSystem.removedItems.isEmpty)
+        for file in [target, newTarget, sidecar] { #expect(fileSystem.fileExists(at: file)) }
+    }
+
+    @Test
+    func rejectsCleanupOutsidePodcastDirectoryBeforeCopying() throws {
+        let device = makeDevice()
+        let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/new.mp3")
+        let fileSystem = RecordingFileSystem(existingURLs: [], directoryContents: [:])
+        #expect(throws: SafetyValidationError.self) {
+            try makeTestExecutor(fileSystem: fileSystem).execute(plan: SyncPlan(
+                device: device,
+                actions: [.copyToDevice(sourceURL: URL(fileURLWithPath: "/tmp/new.mp3"), destinationURL: target, fileSizeBytes: 20)],
+                existingManagedEpisodeURLs: [device.rootURL.appendingPathComponent("other/song.mp3")]
+            ))
+        }
+        #expect(fileSystem.copiedItems.isEmpty)
+        #expect(fileSystem.removedItems.isEmpty)
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "SPM Test MP3 Player",
@@ -310,6 +396,8 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
     private var directoryContents: [String: Set<URL>]
     private let failedRemovalURL: URL?
     private let failCopiesLeavingPartialFile: Bool
+    private var appleDoubleURLs: Set<URL>
+    private let createCopySidecars: Bool
 
     private(set) var createdDirectories: [URL] = []
     private(set) var copiedItems: [CopyRecord] = []
@@ -319,7 +407,9 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
         existingURLs: [URL],
         directoryContents: [String: [URL]],
         failCopiesLeavingPartialFile: Bool = false,
-        failedRemovalURL: URL? = nil
+        failedRemovalURL: URL? = nil,
+        appleDoubleURLs: Set<URL> = [],
+        createCopySidecars: Bool = false
     ) {
         self.existingURLs = Set(existingURLs.map(\.standardizedFileURL))
         self.directoryContents = directoryContents.reduce(into: [:]) { result, entry in
@@ -327,10 +417,20 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
         }
         self.failCopiesLeavingPartialFile = failCopiesLeavingPartialFile
         self.failedRemovalURL = failedRemovalURL
+        self.appleDoubleURLs = appleDoubleURLs
+        self.createCopySidecars = createCopySidecars
     }
 
     func fileExists(at url: URL) -> Bool {
         existingURLs.contains(url.standardizedFileURL)
+    }
+
+    func isRegularFile(at url: URL) throws -> Bool {
+        fileExists(at: url) && directoryContents[url.standardizedFileURL.path] == nil
+    }
+
+    func isAppleDoubleFile(at url: URL) throws -> Bool {
+        appleDoubleURLs.contains(url.standardizedFileURL)
     }
 
     func createDirectory(at url: URL) throws {
@@ -349,6 +449,12 @@ private final class RecordingFileSystem: FileSystemOperating, @unchecked Sendabl
             throw TestCopyError.failed
         }
         copiedItems.append(.init(source: sourceURL, destination: standardizedDestination))
+        if createCopySidecars {
+            let sidecar = standardizedDestination.deletingLastPathComponent()
+                .appendingPathComponent("._" + standardizedDestination.lastPathComponent)
+            existingURLs.insert(sidecar)
+            appleDoubleURLs.insert(sidecar)
+        }
         existingURLs.insert(standardizedDestination)
         addChild(standardizedDestination, to: standardizedDestination.deletingLastPathComponent())
     }
@@ -423,4 +529,13 @@ private final class SyncProgressCollector: @unchecked Sendable {
 
 private struct FailingDeviceEjector: DeviceEjecting {
     func eject(device: DeviceInfo) throws { throw SyncExecutionError.ejectFailed(device.rootURL.path) }
+}
+
+private struct SidecarCheckingEjector: DeviceEjecting {
+    let fileSystem: RecordingFileSystem
+    let sidecar: URL
+
+    func eject(device: DeviceInfo) throws {
+        #expect(!fileSystem.fileExists(at: sidecar))
+    }
 }

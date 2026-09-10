@@ -810,6 +810,10 @@ private final class CapturingFileSystem: FileSystemOperating, @unchecked Sendabl
         existingFiles.contains(url.standardizedFileURL)
     }
 
+    func isRegularFile(at url: URL) throws -> Bool { fileExists(at: url) }
+
+    func isAppleDoubleFile(at url: URL) throws -> Bool { false }
+
     func createDirectory(at url: URL) throws {}
 
     func copyItem(at sourceURL: URL, to destinationURL: URL) throws {}

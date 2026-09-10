@@ -789,6 +789,7 @@ public struct MainView: View {
 
         EpisodeRowView(
             episode: episode,
+            isNoLongerInCurrentFeed: podcastPreviewViewModel.isNoLongerInCurrentFeed(episode),
             isNew: episode.subscriptionID.map {
                 podcastActivityViewModel.newEpisodeIDs(for: $0).contains(episode.id)
             } ?? false,
@@ -1520,7 +1521,7 @@ public struct MainView: View {
         await deviceLibraryViewModel.refresh(
             device: deviceViewModel.selectedDevice,
             subscriptions: viewModel.podcastSubscriptions,
-            episodes: podcastPreviewViewModel.allEpisodes
+            episodes: viewModel.podcastSubscriptions.flatMap { allEpisodes(for: $0) }
         )
         pruneManualDeletionTargets()
         pruneOtherAudioDeletionTargets()
@@ -1772,7 +1773,10 @@ public struct MainView: View {
     }
 
     private func allEpisodes(for subscription: PodcastSubscription) -> [Episode] {
-        podcastPreviewViewModel.episodes(for: subscription.id)
+        podcastPreviewViewModel.episodesIncludingDownloads(
+            for: subscription.id,
+            preparedEpisodes: preparationPreviewViewModel.preparedEpisodes
+        )
     }
 
     private func displayedEpisodes(for subscription: PodcastSubscription) -> [Episode] {

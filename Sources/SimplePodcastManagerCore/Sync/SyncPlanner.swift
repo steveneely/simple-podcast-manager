@@ -205,7 +205,8 @@ public struct SyncPlanner: Sendable {
             cleanupCandidates: cleanupCandidates.sorted(by: cleanupCandidateSort),
             playlistProtectedCleanupCandidates: playlistProtectedCleanupCandidates.sorted(
                 by: playlistProtectedCleanupCandidateSort
-            )
+            ),
+            existingManagedEpisodeURLs: deviceInventory.allManagedFileURLs.sorted { $0.path < $1.path }
         )
     }
 

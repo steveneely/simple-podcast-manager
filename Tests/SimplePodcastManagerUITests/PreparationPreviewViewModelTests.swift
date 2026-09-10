@@ -6,6 +6,37 @@ import Testing
 @MainActor
 struct PreparationPreviewViewModelTests {
     @Test
+    func retainedEpisodeCanBeRemovedAndHistoryDoesNotKeepItsRowVisible() async throws {
+        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workspace) }
+        let file = workspace.appendingPathComponent("saved.mp3")
+        try Data("audio".utf8).write(to: file)
+        let podcastID = UUID()
+        let episode = Episode(id: "saved", subscriptionID: podcastID, podcastTitle: "Test", title: "Saved episode",
+                              enclosureURL: URL(string: "https://example.com/saved.mp3")!, sourceFeedURL: URL(string: "https://example.com/rss")!)
+        let prepared = PreparedEpisode(episode: episode, sourceFileURL: file, preparedFileURL: file, preparationAction: .passthroughMP3)
+        let store = InMemoryPreparedEpisodeStore(preparedEpisodes: [prepared])
+        let history = DownloadedEpisodeRecord(subscriptionID: podcastID, episodeID: episode.id, episodeTitle: episode.title, preparationAction: .passthroughMP3, downloadedAt: Date(timeIntervalSince1970: 0))
+        let downloadedStore = InMemoryDownloadedEpisodeStore(downloadedEpisodes: [history])
+        let preparation = PreparationPreviewViewModel(
+            service: MediaPreparationService(downloadService: StubPreparationDownloadService(), audioConversionService: StubPreparationAudioConversionService(), workspaceProvider: StubPreparationWorkspaceProvider(workspaceURL: workspace)),
+            store: store, downloadedEpisodeStore: downloadedStore
+        )
+        try await preparation.applyPersistedState(preparedEpisodes: [prepared], downloadedEpisodes: [history])
+        let preview = PodcastPreviewViewModel()
+        let rows = preview.episodesIncludingDownloads(for: podcastID, preparedEpisodes: preparation.preparedEpisodes)
+        #expect(rows == [episode])
+        #expect(preparation.preparedEpisode(for: rows[0]) != nil)
+        await preparation.removePreparedEpisode(for: rows[0])
+        #expect(preparation.lastErrorMessage == nil)
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+        #expect(store.preparedEpisodes.isEmpty)
+        #expect(preparation.downloadedRecord(for: episode) == history)
+        #expect(preview.episodesIncludingDownloads(for: podcastID, preparedEpisodes: preparation.preparedEpisodes).isEmpty)
+    }
+
+    @Test
     func prepareLoadsPreparedEpisodesAndFailures() async throws {
         let workspaceURL = URL(fileURLWithPath: "/tmp/simple-podcast-manager-workspace", isDirectory: true)
         let store = InMemoryPreparedEpisodeStore()
@@ -534,7 +565,8 @@ struct PreparationPreviewViewModelTests {
         for episode in episodes.prefix(3) { gate.finish(episode.id) }
         await first.value
         await duplicate.value
-        #expect(gate.startedIDs == episodes.prefix(3).map(\.id))
+        // Concurrent downloads may reach the service in any order; each must start exactly once.
+        #expect(gate.startedIDs.sorted() == episodes.prefix(3).map(\.id).sorted())
         #expect(model.preparedEpisodes.count == 3)
         #expect(model.failure(for: episodes[3]) == nil)
         #expect(model.downloadedRecord(for: episodes[3]) == nil)

@@ -3,6 +3,7 @@ import SimplePodcastManagerCore
 
 struct EpisodeRowView<Details: View>: View {
     let episode: Episode
+    let isNoLongerInCurrentFeed: Bool
     let isNew: Bool
     let isExpanded: Bool
     let durationLabel: String?
@@ -63,6 +64,11 @@ struct EpisodeRowView<Details: View>: View {
                                 }
                                 if let downloadLabel {
                                     Text(downloadLabel)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if isNoLongerInCurrentFeed {
+                                    Text("No longer in current feed")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

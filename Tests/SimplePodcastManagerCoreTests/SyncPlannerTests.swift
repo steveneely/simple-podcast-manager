@@ -4,6 +4,20 @@ import Testing
 
 struct SyncPlannerTests {
     @Test
+    func plansCleanupForOwnedExistingEpisodesEvenWithoutPreparedDownloads() throws {
+        let device = makeDevice()
+        let directory = device.podcastDirectoryURL.appendingPathComponent("Example Podcast", isDirectory: true)
+        let owned = directory.appendingPathComponent("2026.04.21-Episode 1-(Example Podcast).mp3")
+        let unrelated = directory.appendingPathComponent("personal.mp3")
+        let sidecar = directory.appendingPathComponent("._" + owned.lastPathComponent)
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [directory.path: [owned, unrelated, sidecar]]))
+        let plan = try planner.makePlan(device: device, preparedEpisodes: [], subscriptions: [makeSubscription()], ejectAfterSync: false)
+        #expect(plan.actions.isEmpty)
+        #expect(plan.existingManagedEpisodeURLs == [owned])
+        #expect(plan.metadataCleanupTargets == [owned])
+    }
+
+    @Test
     func plansCopyForPreparedEpisodeMissingFromDevice() throws {
         let device = makeDevice()
         let preparedEpisode = makePreparedEpisode(

@@ -37,6 +37,10 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         for action in plan.actions {
             try safetyValidator.validate(action, on: plan.device)
         }
+        let metadataCleanupTargets = plan.metadataCleanupTargets
+        for target in metadataCleanupTargets {
+            try safetyValidator.validateWriteTarget(target, on: plan.device)
+        }
         try storageInspector.ensurePlanFits(plan.actions, on: plan.device)
 
         do {
@@ -86,6 +90,7 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     result.deletedPlaylistCount += 1
 
                 case .ejectDevice:
+                    try cleanMetadataSidecars(for: metadataCleanupTargets, on: plan.device)
                     try ejector.eject(device: plan.device)
                     result.ejected = true
 
@@ -93,6 +98,9 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     result.skippedCount += 1
                 }
                 result.completedActions.append(action)
+            }
+            if !result.ejected {
+                try cleanMetadataSidecars(for: metadataCleanupTargets, on: plan.device)
             }
         } catch {
             guard !result.completedActions.isEmpty else { throw error }
@@ -108,5 +116,43 @@ public struct SyncExecutor: Sendable, SyncExecuting {
             )
         )
         return result
+    }
+
+    private func cleanMetadataSidecars(for episodeURLs: [URL], on device: DeviceInfo) throws {
+        for episodeURL in episodeURLs {
+            let sidecarURL = episodeURL.deletingLastPathComponent()
+                .appendingPathComponent("._" + episodeURL.lastPathComponent)
+            do {
+                try safetyValidator.validateWriteTarget(episodeURL, on: device)
+                try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
+                guard episodeURL.resolvingSymlinksInPath().standardizedFileURL == episodeURL.standardizedFileURL,
+                      sidecarURL.resolvingSymlinksInPath().standardizedFileURL == sidecarURL.standardizedFileURL else {
+                    throw CocoaError(.fileReadInvalidFileName)
+                }
+                guard fileSystem.fileExists(at: episodeURL) else { continue }
+                guard try fileSystem.isRegularFile(at: episodeURL) else {
+                    throw CocoaError(.fileReadInvalidFileName)
+                }
+                guard fileSystem.fileExists(at: sidecarURL) else { continue }
+                guard try fileSystem.isAppleDoubleFile(at: sidecarURL) else {
+                    throw SyncExecutionError.metadataCleanupFailed(
+                        fileName: episodeURL.lastPathComponent,
+                        detail: "The matching \(sidecarURL.lastPathComponent) is not a verified AppleDouble file and was left untouched."
+                    )
+                }
+                try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
+                try fileSystem.removeItem(at: sidecarURL)
+                guard !fileSystem.fileExists(at: sidecarURL) else {
+                    throw CocoaError(.fileWriteUnknown)
+                }
+            } catch let error as SyncExecutionError {
+                throw error
+            } catch {
+                throw SyncExecutionError.metadataCleanupFailed(
+                    fileName: episodeURL.lastPathComponent,
+                    detail: error.localizedDescription
+                )
+            }
+        }
     }
 }

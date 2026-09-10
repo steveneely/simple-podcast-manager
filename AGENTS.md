@@ -61,6 +61,7 @@ These rules override convenience or speed:
 - Never modify files outside the mounted external device
 - Never modify other device-root files or other folders on the device
 - Never delete files the app does not clearly own without explicit, per-file user selection and confirmation
+- Preserve the scoped sync cleanup for verified AppleDouble sidecars matching app-managed podcast media. This is a tested Walkman compatibility fix, not general device housekeeping; read [the sidecar investigation](docs/WALKMAN_SIDECAR_ISSUE.md) before changing it. It does not authorize deleting audio, unrelated `._` files, or device library databases.
 - Abort destructive work if path validation is uncertain
 
 If a proposed implementation weakens those guarantees, do not take it.

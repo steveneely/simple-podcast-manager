@@ -19,9 +19,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.20.1</string>
+	<string>1.21.0</string>
 	<key>CFBundleVersion</key>
-	<string>102</string>
+	<string>103</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
@@ -29,7 +29,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Steve Neely</string>
 	<key>SPMReleaseTag</key>
-	<string>v1.20.1</string>
+	<string>v1.21.0</string>
     <key>SUFeedURL</key>
     <string>https://steveneely.github.io/simple-podcast-manager/appcast.xml</string>
     <key>SUAllowsAutomaticUpdates</key>

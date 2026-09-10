@@ -436,11 +436,6 @@ public struct SyncPlanner: Sendable {
             )
             try safetyValidator.validatePodcastPlaylistTarget(destinationURL, on: device)
             let normalizedFileName = PodcastPlaylistName.normalized(playlist.deviceFileName)
-            if existingFileNames.contains(normalizedFileName),
-               !ownedFileNames.contains(normalizedFileName) {
-                throw PodcastPlaylistPlanningError.fileNameCollision(destinationURL)
-            }
-
             let explicitFileURLs = playlist.entries.compactMap { entry -> URL? in
                 if let plannedCopyURL = plannedCopyURLsByEpisodeID[entry.id] {
                     return plannedCopyURL
@@ -471,6 +466,17 @@ public struct SyncPlanner: Sendable {
                 deviceInventory: deviceInventory
             )
             let episodeFileURLs = explicitFileURLs + automaticFileURLs
+            if episodeFileURLs.isEmpty {
+                if ownedFileNames.contains(normalizedFileName) {
+                    playlistActions.append(.deletePodcastPlaylist(targetURL: destinationURL))
+                }
+                continue
+            }
+
+            if existingFileNames.contains(normalizedFileName),
+               !ownedFileNames.contains(normalizedFileName) {
+                throw PodcastPlaylistPlanningError.fileNameCollision(destinationURL)
+            }
             let contents = try encoder.encode(fileURLs: episodeFileURLs, on: device)
             playlistActions.append(.writePodcastPlaylist(
                 destinationURL: destinationURL,

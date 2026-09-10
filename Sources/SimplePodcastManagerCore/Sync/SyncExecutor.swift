@@ -83,9 +83,11 @@ public struct SyncExecutor: Sendable, SyncExecuting {
 
                 case .writePodcastPlaylist(let destinationURL, let contents, _):
                     try playlistFileWriter.write(contents, to: destinationURL)
+                    try cleanPlaylistMetadataSidecar(for: destinationURL, on: plan.device)
                     result.updatedPlaylistCount += 1
 
                 case .deletePodcastPlaylist(let targetURL):
+                    try cleanPlaylistMetadataSidecar(for: targetURL, on: plan.device)
                     try playlistFileWriter.removeItemIfPresent(at: targetURL)
                     result.deletedPlaylistCount += 1
 
@@ -153,6 +155,37 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     detail: error.localizedDescription
                 )
             }
+        }
+    }
+
+    private func cleanPlaylistMetadataSidecar(for playlistURL: URL, on device: DeviceInfo) throws {
+        let sidecarURL = playlistURL.deletingLastPathComponent()
+            .appendingPathComponent("._" + playlistURL.lastPathComponent)
+        do {
+            try safetyValidator.validatePodcastPlaylistTarget(playlistURL, on: device)
+            try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
+            guard sidecarURL.resolvingSymlinksInPath().standardizedFileURL == sidecarURL.standardizedFileURL else {
+                throw CocoaError(.fileReadInvalidFileName)
+            }
+            guard fileSystem.fileExists(at: sidecarURL) else { return }
+            guard try fileSystem.isRegularFile(at: sidecarURL),
+                  try fileSystem.isAppleDoubleFile(at: sidecarURL) else {
+                throw SyncExecutionError.metadataCleanupFailed(
+                    fileName: playlistURL.lastPathComponent,
+                    detail: "The matching \(sidecarURL.lastPathComponent) is not a verified AppleDouble file and was left untouched."
+                )
+            }
+            try fileSystem.removeItem(at: sidecarURL)
+            guard !fileSystem.fileExists(at: sidecarURL) else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+        } catch let error as SyncExecutionError {
+            throw error
+        } catch {
+            throw SyncExecutionError.metadataCleanupFailed(
+                fileName: playlistURL.lastPathComponent,
+                detail: error.localizedDescription
+            )
         }
     }
 }

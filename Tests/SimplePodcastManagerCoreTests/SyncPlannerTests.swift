@@ -927,6 +927,52 @@ struct SyncPlannerTests {
     }
 
     @Test
+    func removesOwnedDevicePlaylistWhenItHasNoDeviceEpisodes() throws {
+        let device = makeDevice()
+        let playlist = try PodcastPlaylist(name: "Commute")
+        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            device.podcastDirectoryURL.path: [playlistURL],
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [makeSubscription()],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(
+                playlists: [playlist],
+                deviceStates: [
+                    device.id: PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Commute.m3u"]),
+                ]
+            ),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions == [.deletePodcastPlaylist(targetURL: playlistURL)])
+        #expect(plan.writtenPodcastPlaylistFileNames.isEmpty)
+    }
+
+    @Test
+    func leavesUnownedDevicePlaylistUntouchedWhenSPMPlaylistIsEmpty() throws {
+        let device = makeDevice()
+        let playlist = try PodcastPlaylist(name: "Commute")
+        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            device.podcastDirectoryURL.path: [playlistURL],
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [],
+            subscriptions: [makeSubscription()],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            ejectAfterSync: false
+        )
+
+        #expect(plan.actions.isEmpty)
+    }
+
+    @Test
     func playlistCombinesExplicitAndAutomaticProjectedDeviceContents() throws {
         let device = makeDevice()
         let includedPodcast = makeSubscription()
@@ -1234,7 +1280,13 @@ struct SyncPlannerTests {
     func refusesToOverwritePlaylistThatSPMDoesNotOwn() throws {
         let device = makeDevice()
         let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
-        let playlist = try PodcastPlaylist(name: "Commute")
+        let preparedEpisode = makePreparedEpisode(
+            id: "playlist-episode",
+            title: "Playlist Episode",
+            preparedFileName: "2026.09.07-Playlist Episode-(Example Podcast).mp3"
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: preparedEpisode.episode))
+        let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
         let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(filesByDirectory: [device.podcastDirectoryURL.path: [playlistURL]])
         )
@@ -1242,7 +1294,7 @@ struct SyncPlannerTests {
         #expect(throws: PodcastPlaylistPlanningError.fileNameCollision(playlistURL)) {
             try planner.makePlan(
                 device: device,
-                preparedEpisodes: [],
+                preparedEpisodes: [preparedEpisode],
                 subscriptions: [makeSubscription()],
                 podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
                 ejectAfterSync: false
@@ -1255,7 +1307,13 @@ struct SyncPlannerTests {
         let device = makeDevice()
         let existingURL = device.podcastDirectoryURL.appendingPathComponent("COMMUTE.M3U")
         let requestedURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
-        let playlist = try PodcastPlaylist(name: "Commute")
+        let preparedEpisode = makePreparedEpisode(
+            id: "playlist-episode",
+            title: "Playlist Episode",
+            preparedFileName: "2026.09.07-Playlist Episode-(Example Podcast).mp3"
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: preparedEpisode.episode))
+        let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
         let planner = makeTestPlanner(
             deviceLibrary: StubDeviceLibrary(filesByDirectory: [device.podcastDirectoryURL.path: [existingURL]])
         )
@@ -1263,7 +1321,7 @@ struct SyncPlannerTests {
         #expect(throws: PodcastPlaylistPlanningError.fileNameCollision(requestedURL)) {
             try planner.makePlan(
                 device: device,
-                preparedEpisodes: [],
+                preparedEpisodes: [preparedEpisode],
                 subscriptions: [makeSubscription()],
                 podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
                 ejectAfterSync: false
@@ -1300,8 +1358,16 @@ struct SyncPlannerTests {
         )
         let entry = try #require(PodcastPlaylistEntry(episode: protectedEpisode))
         let playlist = try PodcastPlaylist(name: "Keep", entries: [entry])
+        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Keep.m3u")
+        let playlistLibrary = PodcastPlaylistLibrary(
+            playlists: [playlist],
+            deviceStates: [
+                device.id: PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Keep.m3u"]),
+            ]
+        )
         let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
-            managedDirectory.path: [protectedURL] + unprotectedURLs
+            managedDirectory.path: [protectedURL] + unprotectedURLs,
+            device.podcastDirectoryURL.path: [playlistURL],
         ]))
 
         let plan = try planner.makePlan(
@@ -1309,7 +1375,7 @@ struct SyncPlannerTests {
             preparedEpisodes: [incoming],
             subscriptions: [subscription],
             cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
-            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            podcastPlaylistLibrary: playlistLibrary,
             ejectAfterSync: false
         )
 
@@ -1325,7 +1391,7 @@ struct SyncPlannerTests {
             subscriptions: [subscription],
             cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             selectedPlaylistProtectedDeletionTargets: [protectedURL],
-            podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
+            podcastPlaylistLibrary: playlistLibrary,
             ejectAfterSync: false
         )
 
@@ -1333,20 +1399,23 @@ struct SyncPlannerTests {
         #expect(deletionPlan.actions.contains(
             .deleteFromDevice(targetURL: protectedURL, fileSizeBytes: 1)
         ))
-        guard let playlistAction = deletionPlan.actions.first(where: {
+        #expect(deletionPlan.actions.contains(.deletePodcastPlaylist(targetURL: playlistURL)))
+        #expect(!deletionPlan.actions.contains(where: {
             if case .writePodcastPlaylist = $0 { return true }
             return false
-        }), case .writePodcastPlaylist(_, let contents, _) = playlistAction else {
-            Issue.record("Expected the playlist to be rewritten")
-            return
-        }
-        #expect(!String(decoding: contents, as: UTF8.self).contains(protectedURL.lastPathComponent))
+        }))
     }
 
     @Test
     func doesNotDeleteTombstonedFileNameReusedByActivePlaylist() throws {
         let device = makeDevice()
-        let playlist = try PodcastPlaylist(name: "Commute")
+        let preparedEpisode = makePreparedEpisode(
+            id: "playlist-episode",
+            title: "Playlist Episode",
+            preparedFileName: "2026.09.07-Playlist Episode-(Example Podcast).mp3"
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: preparedEpisode.episode))
+        let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
         let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
         let library = PodcastPlaylistLibrary(
             playlists: [playlist],
@@ -1363,7 +1432,7 @@ struct SyncPlannerTests {
 
         let plan = try planner.makePlan(
             device: device,
-            preparedEpisodes: [],
+            preparedEpisodes: [preparedEpisode],
             subscriptions: [makeSubscription()],
             podcastPlaylistLibrary: library,
             ejectAfterSync: false

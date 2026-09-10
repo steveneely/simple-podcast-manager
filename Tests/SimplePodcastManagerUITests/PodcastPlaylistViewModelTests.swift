@@ -55,11 +55,34 @@ struct PodcastPlaylistViewModelTests {
         try viewModel.renamePlaylist(id: original.id, to: "Garden")
 
         #expect(viewModel.library.deviceStates["walkman"]?.pendingDeletedDeviceFileNames == ["Commute.m3u"])
-        try viewModel.markDevicePlaylistSyncCompleted(deviceID: "walkman")
+        try viewModel.markDevicePlaylistSyncCompleted(
+            deviceID: "walkman",
+            writtenPlaylistFileNames: ["Garden.m3u"]
+        )
         #expect(viewModel.library.deviceStates["walkman"] == PodcastPlaylistDeviceState(
             ownedDeviceFileNames: ["Garden.m3u"],
             pendingDeletedDeviceFileNames: []
         ))
+    }
+
+    @Test
+    func syncCompletionDoesNotMarkEmptyPlaylistsAsDeviceFiles() async throws {
+        let playlist = try PodcastPlaylist(name: "Empty")
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [playlist],
+            deviceStates: [
+                "walkman": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Empty.m3u"]),
+            ]
+        ))
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+
+        try viewModel.markDevicePlaylistSyncCompleted(
+            deviceID: "walkman",
+            writtenPlaylistFileNames: []
+        )
+
+        #expect(viewModel.library.deviceStates["walkman"] == PodcastPlaylistDeviceState())
     }
 
     @Test

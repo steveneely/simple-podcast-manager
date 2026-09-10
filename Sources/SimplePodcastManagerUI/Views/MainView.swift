@@ -1964,7 +1964,10 @@ public struct MainView: View {
         if succeeded {
             replacementTargets = []
             if viewModel.settings.showsPlaylistsBeta, let syncingDeviceID {
-                try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(deviceID: syncingDeviceID)
+                try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(
+                    deviceID: syncingDeviceID,
+                    writtenPlaylistFileNames: syncExecutionViewModel.lastPlan?.writtenPodcastPlaylistFileNames ?? []
+                )
             }
         }
 

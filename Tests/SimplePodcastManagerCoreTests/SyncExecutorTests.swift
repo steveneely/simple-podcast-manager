@@ -235,6 +235,58 @@ struct SyncExecutorTests {
     }
 
     @Test
+    func removesVerifiedPlaylistSidecarWithOwnedPlaylist() throws {
+        let device = makeDevice()
+        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Empty.m3u")
+        let sidecarURL = device.podcastDirectoryURL.appendingPathComponent("._Empty.m3u")
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [playlistURL, sidecarURL],
+            directoryContents: [:],
+            appleDoubleURLs: [sidecarURL]
+        )
+        let writer = RecordingPodcastPlaylistFileWriter()
+
+        let result = try makeTestExecutor(
+            fileSystem: fileSystem,
+            playlistFileWriter: writer
+        ).execute(plan: SyncPlan(
+            device: device,
+            actions: [.deletePodcastPlaylist(targetURL: playlistURL)]
+        ))
+
+        #expect(fileSystem.removedItems == [sidecarURL])
+        #expect(writer.removedURLs == [playlistURL])
+        #expect(result.deletedPlaylistCount == 1)
+    }
+
+    @Test
+    func leavesUnverifiedPlaylistSidecarAndPlaylistUntouched() throws {
+        let device = makeDevice()
+        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Empty.m3u")
+        let sidecarURL = device.podcastDirectoryURL.appendingPathComponent("._Empty.m3u")
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [playlistURL, sidecarURL],
+            directoryContents: [:]
+        )
+        let writer = RecordingPodcastPlaylistFileWriter()
+
+        #expect(throws: SyncExecutionError.self) {
+            try makeTestExecutor(
+                fileSystem: fileSystem,
+                playlistFileWriter: writer
+            ).execute(plan: SyncPlan(
+                device: device,
+                actions: [.deletePodcastPlaylist(targetURL: playlistURL)]
+            ))
+        }
+
+        #expect(fileSystem.removedItems.isEmpty)
+        #expect(writer.removedURLs.isEmpty)
+        #expect(fileSystem.fileExists(at: playlistURL))
+        #expect(fileSystem.fileExists(at: sidecarURL))
+    }
+
+    @Test
     func preservesCompletedDeletionsWhenCopyFailsAndDoesNotEject() throws {
         let device = makeDevice()
         let target = device.podcastDirectoryURL.appendingPathComponent("Podcast/old.mp3")

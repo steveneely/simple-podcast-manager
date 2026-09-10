@@ -43,6 +43,13 @@ public struct SyncPlan: Equatable, Sendable {
             .sorted { $0.path < $1.path }
     }
 
+    public var writtenPodcastPlaylistFileNames: Set<String> {
+        Set(actions.compactMap { action -> String? in
+            guard case .writePodcastPlaylist(let destinationURL, _, _) = action else { return nil }
+            return destinationURL.lastPathComponent
+        })
+    }
+
     /// Device files that remain absent after this plan completes.
     /// A target deleted and then copied back in the same plan is a replacement,
     /// not an episode removal.

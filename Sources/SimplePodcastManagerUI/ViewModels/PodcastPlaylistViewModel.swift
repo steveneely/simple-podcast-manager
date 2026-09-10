@@ -297,10 +297,13 @@ public final class PodcastPlaylistViewModel {
         return library.playlists.first { $0.id == id }
     }
 
-    public func markDevicePlaylistSyncCompleted(deviceID: String) throws {
+    public func markDevicePlaylistSyncCompleted(
+        deviceID: String,
+        writtenPlaylistFileNames: Set<String>
+    ) throws {
         var updatedLibrary = library
         updatedLibrary.deviceStates[deviceID] = PodcastPlaylistDeviceState(
-            ownedDeviceFileNames: Set(updatedLibrary.playlists.map(\.deviceFileName)),
+            ownedDeviceFileNames: writtenPlaylistFileNames,
             pendingDeletedDeviceFileNames: []
         )
         try persist(updatedLibrary)

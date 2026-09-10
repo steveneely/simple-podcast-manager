@@ -23,4 +23,22 @@ struct SyncPlanTests {
         #expect(plan.metadataCleanupTargets == [replacedURL.standardizedFileURL])
         #expect(plan.removalTargetURLs == [removedURL.standardizedFileURL])
     }
+
+    @Test
+    func reportsOnlyPlaylistFilesWrittenByThePlan() {
+        let rootURL = URL(fileURLWithPath: "/Volumes/SPMTEST", isDirectory: true)
+        let device = DeviceInfo(
+            name: "SPMTEST",
+            rootURL: rootURL,
+            podcastDirectoryURL: rootURL.appending(path: "music", directoryHint: .isDirectory)
+        )
+        let commuteURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let emptyURL = device.podcastDirectoryURL.appendingPathComponent("Empty.m3u")
+        let plan = SyncPlan(device: device, actions: [
+            .writePodcastPlaylist(destinationURL: commuteURL, contents: Data(), episodeCount: 1),
+            .deletePodcastPlaylist(targetURL: emptyURL),
+        ])
+
+        #expect(plan.writtenPodcastPlaylistFileNames == ["Commute.m3u"])
+    }
 }

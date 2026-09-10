@@ -17,10 +17,5 @@ public struct LocalPodcastPlaylistFileWriter: PodcastPlaylistFileWriting {
         if fileManager.fileExists(atPath: targetURL.path) {
             try fileManager.removeItem(at: targetURL)
         }
-        let sidecarURL = targetURL.deletingLastPathComponent()
-            .appendingPathComponent("._\(targetURL.lastPathComponent)", isDirectory: false)
-        if fileManager.fileExists(atPath: sidecarURL.path) {
-            try fileManager.removeItem(at: sidecarURL)
-        }
     }
 }

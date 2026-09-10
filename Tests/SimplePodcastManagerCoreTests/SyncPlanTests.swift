@@ -18,8 +18,9 @@ struct SyncPlanTests {
             .deleteFromDevice(targetURL: replacedURL, fileSizeBytes: 25),
             .deleteFromDevice(targetURL: removedURL, fileSizeBytes: 100),
             .copyToDevice(sourceURL: sourceURL, destinationURL: replacedURL, fileSizeBytes: 100),
-        ])
+        ], existingManagedEpisodeURLs: [replacedURL, removedURL])
 
+        #expect(plan.metadataCleanupTargets == [replacedURL.standardizedFileURL])
         #expect(plan.removalTargetURLs == [removedURL.standardizedFileURL])
     }
 }

@@ -15,6 +15,7 @@ public final class PodcastPreviewViewModel {
     private let service: any FeedService
     private let cacheStore: any FeedCacheStore
     private var episodesBySubscriptionID: [UUID: [Episode]]
+    private var episodeIDsBySubscriptionID: [UUID: Set<String>]
     private var failuresBySubscriptionID: [UUID: [FeedFetchFailure]]
 
     public init(
@@ -30,6 +31,7 @@ public final class PodcastPreviewViewModel {
         self.lastErrorMessage = nil
         self.refreshProgress = nil
         self.episodesBySubscriptionID = [:]
+        self.episodeIDsBySubscriptionID = [:]
         self.failuresBySubscriptionID = [:]
     }
 
@@ -125,6 +127,31 @@ public final class PodcastPreviewViewModel {
         episodesBySubscriptionID[subscriptionID] ?? []
     }
 
+    /// The list remains actionable after a publisher trims its RSS feed.
+    /// Prepared episodes represent local files; download history alone adds no rows.
+    public func episodesIncludingDownloads(
+        for subscriptionID: UUID,
+        preparedEpisodes: [PreparedEpisode]
+    ) -> [Episode] {
+        var episodesByID: [String: Episode] = [:]
+        for prepared in preparedEpisodes where prepared.episode.subscriptionID == subscriptionID {
+            episodesByID[prepared.episode.id] = prepared.episode
+        }
+        // Prefer the current RSS metadata when the same episode is also downloaded.
+        for episode in episodes(for: subscriptionID) {
+            episodesByID[episode.id] = episode
+        }
+        return episodesByID.values.sorted(by: EpisodeSelector.isHigherPriority(_:than:))
+    }
+
+    public func isNoLongerInCurrentFeed(_ episode: Episode) -> Bool {
+        guard let subscriptionID = episode.subscriptionID,
+              feedSummaries[subscriptionID] != nil,
+              lastErrorMessage == nil,
+              failures(for: subscriptionID).isEmpty else { return false }
+        return !(episodeIDsBySubscriptionID[subscriptionID]?.contains(episode.id) ?? false)
+    }
+
     public func failures(for subscriptionID: UUID) -> [FeedFetchFailure] {
         failuresBySubscriptionID[subscriptionID] ?? []
     }
@@ -149,6 +176,7 @@ public final class PodcastPreviewViewModel {
         episodesBySubscriptionID = Dictionary(grouping: allEpisodes.compactMap { episode in
             episode.subscriptionID.map { ($0, episode) }
         }, by: \.0).mapValues { $0.map(\.1) }
+        episodeIDsBySubscriptionID = episodesBySubscriptionID.mapValues { Set($0.map(\.id)) }
         failuresBySubscriptionID = Dictionary(grouping: failures, by: \.subscriptionID)
     }
 }

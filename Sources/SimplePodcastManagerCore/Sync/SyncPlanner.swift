@@ -167,7 +167,8 @@ public struct SyncPlanner: Sendable {
         return SyncPlan(
             device: device,
             actions: orderedActions,
-            cleanupCandidates: cleanupCandidates.sorted(by: cleanupCandidateSort)
+            cleanupCandidates: cleanupCandidates.sorted(by: cleanupCandidateSort),
+            existingManagedEpisodeURLs: deviceInventory.allManagedFileURLs.sorted { $0.path < $1.path }
         )
     }
 

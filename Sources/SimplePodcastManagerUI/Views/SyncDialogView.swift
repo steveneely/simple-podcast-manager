@@ -31,14 +31,7 @@ struct SyncDialogView: View {
 
     private var canSync: Bool {
         guard !isSyncing, !isPlanning, let plan else { return false }
-        return plan.actions.contains {
-            switch $0 {
-            case .copyToDevice, .deleteFromDevice, .ejectDevice:
-                return true
-            case .skip:
-                return false
-            }
-        }
+        return plan.hasWork
     }
 
     private var plannedDeletionTargets: Set<URL> {

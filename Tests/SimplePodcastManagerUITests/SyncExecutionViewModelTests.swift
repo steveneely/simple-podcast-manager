@@ -6,6 +6,17 @@ import Testing
 @MainActor
 struct SyncExecutionViewModelTests {
     @Test
+    func cleanupOnlyPlanEnablesSyncWithoutAutomaticEject() {
+        let root = URL(fileURLWithPath: "/Volumes/SPMTEST", isDirectory: true)
+        let device = DeviceInfo(name: "SPMTEST", rootURL: root, podcastDirectoryURL: root.appendingPathComponent("music", isDirectory: true))
+        let existing = device.podcastDirectoryURL.appendingPathComponent("Podcast/existing.mp3")
+        #expect(SyncPlan(device: device, existingManagedEpisodeURLs: [existing]).hasWork)
+        #expect(SyncPlan(device: device, actions: [.skip(reason: "Already present")], existingManagedEpisodeURLs: [existing]).hasWork)
+        #expect(!SyncPlan(device: device).hasWork)
+        #expect(!SyncPlan(device: device, actions: [.skip(reason: "Nothing to transfer")]).hasWork)
+    }
+
+    @Test
     func syncUsesExecutorAndCapturesResult() async {
         let device = DeviceInfo(
             name: "SPM Test MP3 Player",

@@ -16,6 +16,7 @@ public struct SyncExecutionFailure: LocalizedError {
 public enum SyncExecutionError: LocalizedError, Equatable, Sendable {
     case destinationAlreadyExists(URL)
     case copyFailed(fileName: String, partialFileMayRemain: Bool, detail: String)
+    case metadataCleanupFailed(fileName: String, detail: String)
     case ejectFailed(String, String? = nil)
 
     public var errorDescription: String? {
@@ -27,6 +28,8 @@ public enum SyncExecutionError: LocalizedError, Equatable, Sendable {
                 ? " A partial file may remain on the device; select it for deletion before trying again."
                 : ""
             return "Could not copy \(fileName): \(detail).\(partialCopyMessage)"
+        case .metadataCleanupFailed(let fileName, let detail):
+            return "Could not finish device cleanup for \(fileName): \(detail) The device was not ejected."
         case .ejectFailed(let path, let detail):
             let trimmedDetail = detail?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let trimmedDetail, !trimmedDetail.isEmpty {

@@ -6,6 +6,74 @@ import Testing
 @MainActor
 struct PodcastPreviewViewModelTests {
     @Test
+    func includesRetainedDownloadsInDateOrderWithoutChangingFeedData() async {
+        let podcastID = UUID()
+        let current = retainedTestEpisode(id: "current", podcastID: podcastID, day: 3)
+        let older = retainedTestEpisode(id: "older", podcastID: podcastID, day: 2)
+        let undated = retainedTestEpisode(id: "undated", podcastID: podcastID, day: nil)
+        let otherPodcast = retainedTestEpisode(id: "older", podcastID: UUID(), day: 4)
+        let model = PodcastPreviewViewModel(
+            service: MockFeedService(result: FeedFetchResult(allEpisodes: [current], feedSummaries: [FeedSummary(subscriptionID: podcastID, title: "Test")])),
+            cacheStore: InMemoryFeedCacheStore()
+        )
+        await model.refreshPreview(for: [])
+        let rows = model.episodesIncludingDownloads(for: podcastID, preparedEpisodes: [older, undated, otherPodcast].map(retainedTestDownload))
+        #expect(rows == [current, older, undated])
+        #expect(model.allEpisodes == [current])
+        #expect(!model.isNoLongerInCurrentFeed(current))
+        #expect(model.isNoLongerInCurrentFeed(older))
+    }
+
+    @Test
+    func restoredFeedEntryReplacesSavedMetadataWithoutDuplicatingRow() async {
+        let podcastID = UUID()
+        let saved = retainedTestEpisode(id: "returning", podcastID: podcastID, day: 1)
+        var updated = saved
+        updated.title = "Updated publisher title"
+        let summary = FeedSummary(subscriptionID: podcastID, title: "Test")
+        let model = PodcastPreviewViewModel(
+            service: SequencedFeedService(results: [
+                FeedFetchResult(feedSummaries: [summary]),
+                FeedFetchResult(allEpisodes: [updated, updated], feedSummaries: [summary])
+            ]), cacheStore: InMemoryFeedCacheStore()
+        )
+        await model.refreshPreview(for: [])
+        #expect(model.episodesIncludingDownloads(for: podcastID, preparedEpisodes: [retainedTestDownload(saved)]) == [saved])
+        #expect(model.isNoLongerInCurrentFeed(saved))
+        await model.refreshPreview(for: [])
+        #expect(model.episodesIncludingDownloads(for: podcastID, preparedEpisodes: [retainedTestDownload(saved)]) == [updated])
+        #expect(!model.isNoLongerInCurrentFeed(updated))
+    }
+
+    @Test
+    func keepsDownloadsVisibleWithoutClaimingFeedRemovalOnLoadOrRefreshFailure() async {
+        let podcastID = UUID()
+        let saved = retainedTestEpisode(id: "saved", podcastID: podcastID, day: 1)
+        let model = PodcastPreviewViewModel(
+            service: MockFeedService(result: FeedFetchResult(
+                failures: [FeedFetchFailure(subscriptionID: podcastID, subscriptionTitle: "Test", message: "Offline")],
+                feedSummaries: [FeedSummary(subscriptionID: podcastID, title: "Test")]
+            )), cacheStore: InMemoryFeedCacheStore()
+        )
+        #expect(!model.isNoLongerInCurrentFeed(saved))
+        #expect(model.episodesIncludingDownloads(for: podcastID, preparedEpisodes: [retainedTestDownload(saved)]) == [saved])
+        await model.refreshPreview(for: [])
+        #expect(!model.isNoLongerInCurrentFeed(saved))
+        #expect(model.episodesIncludingDownloads(for: podcastID, preparedEpisodes: [retainedTestDownload(saved)]) == [saved])
+    }
+
+    private func retainedTestEpisode(id: String, podcastID: UUID, day: Int?) -> Episode {
+        Episode(id: id, subscriptionID: podcastID, podcastTitle: "Test", title: id,
+                publicationDate: day.map { Date(timeIntervalSince1970: Double($0 * 86400)) },
+                enclosureURL: URL(string: "https://example.com/\(id).mp3")!, sourceFeedURL: URL(string: "https://example.com/rss")!)
+    }
+
+    private func retainedTestDownload(_ episode: Episode) -> PreparedEpisode {
+        let file = URL(fileURLWithPath: "/tmp/\(episode.id).mp3")
+        return PreparedEpisode(episode: episode, sourceFileURL: file, preparedFileURL: file, preparationAction: .passthroughMP3)
+    }
+
+    @Test
     func refreshPreviewLoadsEpisodesAndFailures() async throws {
         let subscriptionID = UUID()
         let viewModel = PodcastPreviewViewModel(

@@ -36,9 +36,19 @@ struct SyncPlanTests {
         let emptyURL = device.podcastDirectoryURL.appendingPathComponent("Empty.m3u")
         let plan = SyncPlan(device: device, actions: [
             .writePodcastPlaylist(destinationURL: commuteURL, contents: Data(), episodeCount: 1),
-            .deletePodcastPlaylist(targetURL: emptyURL),
+            .deleteEmptyPodcastPlaylist(targetURL: emptyURL),
         ])
 
         #expect(plan.writtenPodcastPlaylistFileNames == ["Commute.m3u"])
+    }
+
+    @Test
+    func describesEmptyPlaylistRemovalClearly() {
+        let targetURL = URL(fileURLWithPath: "/Volumes/SPMTEST/music/News.m3u")
+
+        #expect(
+            SyncAction.deleteEmptyPodcastPlaylist(targetURL: targetURL).summaryDescription
+                == "Remove empty playlist: News"
+        )
     }
 }

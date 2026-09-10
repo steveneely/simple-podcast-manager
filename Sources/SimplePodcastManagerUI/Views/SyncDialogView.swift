@@ -455,7 +455,7 @@ enum SyncPresentation {
         case .copyToDevice: "arrow.down.circle"
         case .deleteFromDevice: "trash"
         case .writePodcastPlaylist: "music.note.list"
-        case .deletePodcastPlaylist: "trash"
+        case .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist: "trash"
         case .skip: "arrow.right"
         case .ejectDevice: "eject"
         }
@@ -463,7 +463,7 @@ enum SyncPresentation {
 
     static func iconColor(for action: SyncAction) -> Color {
         switch action {
-        case .deleteFromDevice, .deletePodcastPlaylist: .red
+        case .deleteFromDevice, .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist: .red
         case .copyToDevice, .writePodcastPlaylist: .accentColor
         case .skip, .ejectDevice: .secondary
         }

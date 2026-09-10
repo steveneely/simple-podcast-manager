@@ -57,7 +57,7 @@ public struct SafetyValidator: Sendable {
             try validateDeleteTarget(targetURL, on: device)
         case .writePodcastPlaylist(let destinationURL, _, _):
             try validatePodcastPlaylistTarget(destinationURL, on: device)
-        case .deletePodcastPlaylist(let targetURL):
+        case .deletePodcastPlaylist(let targetURL), .deleteEmptyPodcastPlaylist(let targetURL):
             try validatePodcastPlaylistTarget(targetURL, on: device)
         case .ejectDevice(let deviceRootURL):
             let canonicalDeviceRootURL = canonicalDirectoryURL(device.rootURL)

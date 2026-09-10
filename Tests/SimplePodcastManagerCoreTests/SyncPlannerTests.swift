@@ -948,7 +948,7 @@ struct SyncPlannerTests {
             ejectAfterSync: false
         )
 
-        #expect(plan.actions == [.deletePodcastPlaylist(targetURL: playlistURL)])
+        #expect(plan.actions == [.deleteEmptyPodcastPlaylist(targetURL: playlistURL)])
         #expect(plan.writtenPodcastPlaylistFileNames.isEmpty)
     }
 
@@ -1399,7 +1399,7 @@ struct SyncPlannerTests {
         #expect(deletionPlan.actions.contains(
             .deleteFromDevice(targetURL: protectedURL, fileSizeBytes: 1)
         ))
-        #expect(deletionPlan.actions.contains(.deletePodcastPlaylist(targetURL: playlistURL)))
+        #expect(deletionPlan.actions.contains(.deleteEmptyPodcastPlaylist(targetURL: playlistURL)))
         #expect(!deletionPlan.actions.contains(where: {
             if case .writePodcastPlaylist = $0 { return true }
             return false

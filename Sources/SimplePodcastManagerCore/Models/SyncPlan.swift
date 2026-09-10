@@ -26,7 +26,7 @@ public struct SyncPlan: Equatable, Sendable {
         !metadataCleanupTargets.isEmpty || actions.contains { action in
             switch action {
             case .copyToDevice, .deleteFromDevice, .writePodcastPlaylist,
-                    .deletePodcastPlaylist, .ejectDevice:
+                    .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist, .ejectDevice:
                 true
             case .skip: false
             }

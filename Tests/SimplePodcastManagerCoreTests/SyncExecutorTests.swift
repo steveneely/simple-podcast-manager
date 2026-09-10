@@ -251,7 +251,7 @@ struct SyncExecutorTests {
             playlistFileWriter: writer
         ).execute(plan: SyncPlan(
             device: device,
-            actions: [.deletePodcastPlaylist(targetURL: playlistURL)]
+            actions: [.deleteEmptyPodcastPlaylist(targetURL: playlistURL)]
         ))
 
         #expect(fileSystem.removedItems == [sidecarURL])
@@ -276,7 +276,7 @@ struct SyncExecutorTests {
                 playlistFileWriter: writer
             ).execute(plan: SyncPlan(
                 device: device,
-                actions: [.deletePodcastPlaylist(targetURL: playlistURL)]
+                actions: [.deleteEmptyPodcastPlaylist(targetURL: playlistURL)]
             ))
         }
 

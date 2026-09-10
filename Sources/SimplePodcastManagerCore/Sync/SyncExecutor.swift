@@ -86,7 +86,7 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     try cleanPlaylistMetadataSidecar(for: destinationURL, on: plan.device)
                     result.updatedPlaylistCount += 1
 
-                case .deletePodcastPlaylist(let targetURL):
+                case .deletePodcastPlaylist(let targetURL), .deleteEmptyPodcastPlaylist(let targetURL):
                     try cleanPlaylistMetadataSidecar(for: targetURL, on: plan.device)
                     try playlistFileWriter.removeItemIfPresent(at: targetURL)
                     result.deletedPlaylistCount += 1

@@ -468,7 +468,7 @@ public struct SyncPlanner: Sendable {
             let episodeFileURLs = explicitFileURLs + automaticFileURLs
             if episodeFileURLs.isEmpty {
                 if ownedFileNames.contains(normalizedFileName) {
-                    playlistActions.append(.deletePodcastPlaylist(targetURL: destinationURL))
+                    playlistActions.append(.deleteEmptyPodcastPlaylist(targetURL: destinationURL))
                 }
                 continue
             }

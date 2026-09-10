@@ -346,6 +346,7 @@ struct SyncPlanViewModelTests {
         #expect(!plan.actions.contains { action in
             if case .writePodcastPlaylist = action { return true }
             if case .deletePodcastPlaylist = action { return true }
+            if case .deleteEmptyPodcastPlaylist = action { return true }
             return false
         })
     }

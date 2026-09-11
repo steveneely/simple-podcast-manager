@@ -29,7 +29,8 @@ struct HoverIconButton: View {
                 systemName: systemName,
                 isHovered: isHovered,
                 isDestructive: isDestructive,
-                isDisabled: isDisabled
+                isDisabled: isDisabled,
+                isActive: false
             )
         }
         .buttonStyle(.plain)
@@ -47,6 +48,7 @@ struct HoverIconLabel: View {
     let isHovered: Bool
     let isDestructive: Bool
     let isDisabled: Bool
+    let isActive: Bool
 
     var body: some View {
         Image(systemName: systemName)
@@ -67,6 +69,9 @@ struct HoverIconLabel: View {
         }
         if isDestructive && isHovered {
             return Color.red
+        }
+        if isActive {
+            return Color.accentColor
         }
         if isHovered {
             return Color.primary
@@ -98,6 +103,7 @@ struct HoverIconLabel: View {
 struct HoverIconMenu<Content: View>: View {
     let systemName: String
     let helpText: String
+    let isActive: Bool
     @ViewBuilder let content: Content
 
     @State private var isHovered = false
@@ -105,10 +111,12 @@ struct HoverIconMenu<Content: View>: View {
     init(
         systemName: String,
         helpText: String,
+        isActive: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.systemName = systemName
         self.helpText = helpText
+        self.isActive = isActive
         self.content = content()
     }
 
@@ -120,7 +128,8 @@ struct HoverIconMenu<Content: View>: View {
                 systemName: systemName,
                 isHovered: isHovered,
                 isDestructive: false,
-                isDisabled: false
+                isDisabled: false,
+                isActive: isActive
             )
         }
         .menuStyle(.borderlessButton)

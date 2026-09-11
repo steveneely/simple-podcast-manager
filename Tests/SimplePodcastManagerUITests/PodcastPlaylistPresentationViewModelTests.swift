@@ -63,6 +63,69 @@ struct PodcastPlaylistPresentationViewModelTests {
             "prepared", "current",
         ])
         #expect(presentation.episodeCountsByPlaylistID[playlist.id] == 2)
+        #expect(presentation.automaticPlaylistIDs(containing: prepared) == [playlist.id])
+    }
+
+    @Test
+    func episodeIndicatorDistinguishesManualAutomaticAndMissingMemberships() throws {
+        let subscription = PodcastSubscription(
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = makeEpisode(
+            id: "included",
+            title: "Included",
+            day: 2,
+            subscription: subscription
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let manualPlaylist = try PodcastPlaylist(name: "Saved", entries: [entry])
+        let automaticPlaylist = try PodcastPlaylist(name: "News")
+        let unrelatedPlaylist = try PodcastPlaylist(name: "Commute")
+
+        let presentation = EpisodePlaylistIndicatorPresentation(
+            episode: episode,
+            playlists: [manualPlaylist, automaticPlaylist, unrelatedPlaylist],
+            automaticPlaylistIDs: [automaticPlaylist.id]
+        )
+
+        #expect(presentation.isIncluded)
+        #expect(presentation.systemName == "text.badge.checkmark")
+        #expect(presentation.helpText == "In 2 playlists — click to manage")
+        #expect(presentation.membership(for: manualPlaylist.id) == .manual)
+        #expect(presentation.membership(for: automaticPlaylist.id) == .automatic)
+        #expect(presentation.membership(for: unrelatedPlaylist.id) == .none)
+    }
+
+    @Test
+    func episodeIndicatorNamesOnePlaylistAndUsesAddStateForNone() throws {
+        let subscription = PodcastSubscription(
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = makeEpisode(
+            id: "included",
+            title: "Included",
+            day: 2,
+            subscription: subscription
+        )
+        let playlist = try PodcastPlaylist(name: "News")
+
+        let included = EpisodePlaylistIndicatorPresentation(
+            episode: episode,
+            playlists: [playlist],
+            automaticPlaylistIDs: [playlist.id]
+        )
+        let notIncluded = EpisodePlaylistIndicatorPresentation(
+            episode: episode,
+            playlists: [playlist],
+            automaticPlaylistIDs: []
+        )
+
+        #expect(included.helpText == "In playlist “News” — click to manage")
+        #expect(notIncluded.systemName == "text.badge.plus")
+        #expect(notIncluded.helpText == "Add to playlist")
+        #expect(!notIncluded.isIncluded)
     }
 
     @Test

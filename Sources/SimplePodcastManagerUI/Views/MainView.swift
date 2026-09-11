@@ -812,6 +812,11 @@ public struct MainView: View {
             playlists: viewModel.settings.showsPlaylistsBeta
                 ? podcastPlaylistViewModel.playlists
                 : [],
+            automaticPlaylistIDs: viewModel.settings.showsPlaylistsBeta
+                ? podcastPlaylistPresentationViewModel.presentation.automaticPlaylistIDs(
+                    containing: episode
+                )
+                : [],
             onToggleDetails: { toggleEpisodeDetails(for: episode) },
             onToggleDeviceRemoval: {
                 if let deviceFileURL {

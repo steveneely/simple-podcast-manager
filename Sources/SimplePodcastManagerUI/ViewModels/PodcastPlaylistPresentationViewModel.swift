@@ -10,6 +10,13 @@ struct PodcastPlaylistPresentation: Equatable, Sendable {
         entriesByPlaylistID: [:],
         episodeCountsByPlaylistID: [:]
     )
+
+    func automaticPlaylistIDs(containing episode: Episode) -> Set<PodcastPlaylist.ID> {
+        guard let episodeID = PodcastPlaylistEpisodeID(episode: episode) else { return [] }
+        return Set(entriesByPlaylistID.compactMap { playlistID, entries in
+            entries.automatic.contains(where: { $0.id == episodeID }) ? playlistID : nil
+        })
+    }
 }
 
 enum PodcastPlaylistPresentationBuilder {

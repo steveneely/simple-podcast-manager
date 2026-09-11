@@ -16,6 +16,7 @@ struct EpisodeRowView<Details: View>: View {
     let isPrepared: Bool
     let isPreparing: Bool
     let playlists: [PodcastPlaylist]
+    let automaticPlaylistIDs: Set<PodcastPlaylist.ID>
     let onToggleDetails: () -> Void
     let onToggleDeviceRemoval: () -> Void
     let onRemoveDownload: () -> Void
@@ -104,14 +105,29 @@ struct EpisodeRowView<Details: View>: View {
                 Spacer()
 
                 if !playlists.isEmpty {
-                    HoverIconMenu(systemName: "text.badge.plus", helpText: "Add to playlist") {
+                    let playlistIndicator = EpisodePlaylistIndicatorPresentation(
+                        episode: episode,
+                        playlists: playlists,
+                        automaticPlaylistIDs: automaticPlaylistIDs
+                    )
+                    HoverIconMenu(
+                        systemName: playlistIndicator.systemName,
+                        helpText: playlistIndicator.helpText,
+                        isActive: playlistIndicator.isIncluded
+                    ) {
                         ForEach(playlists) { playlist in
                             Button {
                                 onTogglePlaylist(playlist)
                             } label: {
-                                if playlist.contains(episode) {
+                                switch playlistIndicator.membership(for: playlist.id) {
+                                case .manual:
                                     Label(playlist.name, systemImage: "checkmark")
-                                } else {
+                                case .automatic:
+                                    Label(
+                                        "\(playlist.name) — Automatically added",
+                                        systemImage: "gearshape"
+                                    )
+                                case .none:
                                     Text(playlist.name)
                                 }
                             }
@@ -154,5 +170,64 @@ struct EpisodeRowView<Details: View>: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+struct EpisodePlaylistIndicatorPresentation: Equatable {
+    enum Membership: Equatable {
+        case none
+        case automatic
+        case manual
+    }
+
+    let membershipsByPlaylistID: [PodcastPlaylist.ID: Membership]
+    let includedPlaylistNames: [String]
+
+    init(
+        episode: Episode,
+        playlists: [PodcastPlaylist],
+        automaticPlaylistIDs: Set<PodcastPlaylist.ID>
+    ) {
+        var membershipsByPlaylistID: [PodcastPlaylist.ID: Membership] = [:]
+        var includedPlaylistNames: [String] = []
+        for playlist in playlists {
+            let membership: Membership
+            if playlist.contains(episode) {
+                membership = .manual
+            } else if automaticPlaylistIDs.contains(playlist.id) {
+                membership = .automatic
+            } else {
+                membership = .none
+            }
+            membershipsByPlaylistID[playlist.id] = membership
+            if membership != .none {
+                includedPlaylistNames.append(playlist.name)
+            }
+        }
+        self.membershipsByPlaylistID = membershipsByPlaylistID
+        self.includedPlaylistNames = includedPlaylistNames
+    }
+
+    var isIncluded: Bool {
+        !includedPlaylistNames.isEmpty
+    }
+
+    var systemName: String {
+        isIncluded ? "text.badge.checkmark" : "text.badge.plus"
+    }
+
+    var helpText: String {
+        switch includedPlaylistNames.count {
+        case 0:
+            "Add to playlist"
+        case 1:
+            "In playlist “\(includedPlaylistNames[0])” — click to manage"
+        default:
+            "In \(includedPlaylistNames.count) playlists — click to manage"
+        }
+    }
+
+    func membership(for playlistID: PodcastPlaylist.ID) -> Membership {
+        membershipsByPlaylistID[playlistID] ?? .none
     }
 }

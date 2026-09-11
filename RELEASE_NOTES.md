@@ -1,5 +1,5 @@
-# Simple Podcast Manager v1.21.0
+# Simple Podcast Manager v1.21.1
 
-- Adds an opt-in Playlists beta for manually curating episodes or automatically including recent episodes from selected podcasts.
-- Playlists sync to compatible MP3 players as M3U files, stay current as episodes change, and are removed from the device when empty.
-- Sync cleanup now identifies older episodes protected by playlists so they can be reviewed and optionally removed.
+- Adds configurable playlist folders for players such as HiByOS devices, with portable relative paths from the chosen folder.
+- Improves playlist feedback with selectable icons, clearer episode membership, immediate pinning, and automatic entries visible without a connected player.
+- Keeps playlists consistent when podcasts are removed and offers to redownload unavailable manually added episodes before syncing another player.

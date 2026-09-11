@@ -189,8 +189,12 @@ public final class PodcastPlaylistViewModel {
             guard var automaticRule = updatedLibrary.playlists[index].automaticRule,
                   case .selectedPodcasts(var includedPodcastIDs) = automaticRule.source else { continue }
             includedPodcastIDs.subtract(subscriptionIDs)
-            automaticRule.source = .selectedPodcasts(includedPodcastIDs)
-            updatedLibrary.playlists[index].automaticRule = automaticRule
+            if includedPodcastIDs.isEmpty {
+                updatedLibrary.playlists[index].automaticRule = nil
+            } else {
+                automaticRule.source = .selectedPodcasts(includedPodcastIDs)
+                updatedLibrary.playlists[index].automaticRule = automaticRule
+            }
         }
         for deviceID in Array(updatedLibrary.deviceStates.keys) {
             updatedLibrary.deviceStates[deviceID]?.mostRecentSyncEntries.removeAll {

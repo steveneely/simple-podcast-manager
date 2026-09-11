@@ -383,7 +383,7 @@ struct PodcastPlaylistViewModelTests {
     }
 
     @Test
-    func deletingLastSelectedPodcastLeavesAutomaticRuleScopedToNoPodcasts() async throws {
+    func deletingLastSelectedPodcastTurnsPlaylistBackIntoManualOnly() async throws {
         let podcastID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let playlist = try PodcastPlaylist(
             name: "News",
@@ -397,7 +397,30 @@ struct PodcastPlaylistViewModelTests {
 
         try viewModel.removeEntries(forSubscriptionIDs: [podcastID])
 
-        #expect(viewModel.playlist(id: playlist.id)?.automaticRule?.source == .selectedPodcasts([]))
+        #expect(viewModel.playlist(id: playlist.id)?.automaticRule == nil)
+    }
+
+    @Test
+    func deletingOneSelectedPodcastPreservesRemainingAutomaticSources() async throws {
+        let deletedPodcastID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+        let retainedPodcastID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
+        let playlist = try PodcastPlaylist(
+            name: "News",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([deletedPodcastID, retainedPodcastID])
+            )
+        )
+        let store = InMemoryPodcastPlaylistStore(
+            library: PodcastPlaylistLibrary(playlists: [playlist])
+        )
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+
+        try viewModel.removeEntries(forSubscriptionIDs: [deletedPodcastID])
+
+        #expect(viewModel.playlist(id: playlist.id)?.automaticRule?.source == .selectedPodcasts([
+            retainedPodcastID,
+        ]))
     }
 
     private func makeEpisode(id: String, title: String, day: Int? = nil) -> Episode {

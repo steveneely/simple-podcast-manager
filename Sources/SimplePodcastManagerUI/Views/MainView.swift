@@ -1741,11 +1741,18 @@ public struct MainView: View {
         let playlistEntryCount = podcastPlaylistViewModel.playlists.reduce(into: 0) { count, playlist in
             count += playlist.entries.count { subscriptionIDs.contains($0.id.subscriptionID) }
         }
+        let automaticPlaylistCount = podcastPlaylistViewModel.playlists.count { playlist in
+            guard case .selectedPodcasts(let includedPodcastIDs) = playlist.automaticRule?.source else {
+                return false
+            }
+            return !includedPodcastIDs.isDisjoint(with: subscriptionIDs)
+        }
 
         pendingPodcastDeletionConfirmation = PodcastDeletionConfirmation(
             subscriptions: subscriptions,
             localDownloadCount: localDownloadCount,
-            playlistEntryCount: playlistEntryCount
+            playlistEntryCount: playlistEntryCount,
+            automaticPlaylistCount: automaticPlaylistCount
         )
     }
 

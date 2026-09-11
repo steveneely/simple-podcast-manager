@@ -47,4 +47,28 @@ struct PodcastDeletionConfirmationTests {
         """)
         #expect(confirmation.deleteButtonTitle == "Delete Podcasts")
     }
+
+    @Test
+    func describesUpdatingAutomaticPlaylists() {
+        let subscription = PodcastSubscription(
+            title: "Connected",
+            rssURL: URL(string: "https://relay.fm/connected/feed")!
+        )
+
+        let confirmation = PodcastDeletionConfirmation(
+            subscriptions: [subscription],
+            playlistEntryCount: 1,
+            automaticPlaylistCount: 2
+        )
+
+        #expect(confirmation.message == """
+        Are you sure you want to delete “Connected”?
+
+        This will also remove 1 episode entry from your playlists.
+
+        This will also update automatic additions in 2 playlists.
+
+        Episodes already copied to a device will not be deleted.
+        """)
+    }
 }

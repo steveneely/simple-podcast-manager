@@ -51,7 +51,7 @@ struct HoverIconLabel: View {
     let isActive: Bool
 
     var body: some View {
-        Image(systemName: systemName)
+        icon
             .font(.system(size: 13, weight: .semibold))
             .frame(width: 28, height: 28)
             .background(backgroundColor)
@@ -60,7 +60,19 @@ struct HoverIconLabel: View {
                 RoundedRectangle(cornerRadius: 7)
                     .strokeBorder(borderColor, lineWidth: isHovered ? 1 : 0)
             )
-            .foregroundStyle(foregroundColor)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if isActive {
+            Image(systemName: systemName)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Color.blue, foregroundColor)
+        } else {
+            Image(systemName: systemName)
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(foregroundColor)
+        }
     }
 
     private var foregroundColor: Color {
@@ -69,9 +81,6 @@ struct HoverIconLabel: View {
         }
         if isDestructive && isHovered {
             return Color.red
-        }
-        if isActive {
-            return Color.accentColor
         }
         if isHovered {
             return Color.primary

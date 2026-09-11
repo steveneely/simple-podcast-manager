@@ -45,6 +45,7 @@ enum PodcastPlaylistPresentationBuilder {
             subscriptions: subscriptions,
             episodes: episodes,
             preparedEpisodeIDs: preparedEpisodeIDs,
+            downloadedEpisodeSnapshots: recentlyDownloadedEntries,
             managedInventory: managedInventory,
             plannedRemovalURLs: plannedRemovalURLs,
             replacementTargets: replacementTargets
@@ -68,6 +69,7 @@ enum PodcastPlaylistPresentationBuilder {
         subscriptions: [PodcastSubscription],
         episodes: [Episode],
         preparedEpisodeIDs: Set<PodcastPlaylistEpisodeID>,
+        downloadedEpisodeSnapshots: [PodcastPlaylistEntry],
         managedInventory: ManagedDeviceLibraryInventory?,
         plannedRemovalURLs: Set<URL>,
         replacementTargets: Set<URL>
@@ -80,6 +82,8 @@ enum PodcastPlaylistPresentationBuilder {
             by: \.0
         ).mapValues { $0.map(\.1) }
         var availableEpisodes: [Episode] = []
+        var unavailableEpisodeIDs: Set<PodcastPlaylistEpisodeID> = []
+        var unavailableEpisodeKeys: Set<PodcastPlaylistAutomaticExclusion> = []
 
         for subscription in subscriptions {
             guard !Task.isCancelled else { return [] }
@@ -87,6 +91,13 @@ enum PodcastPlaylistPresentationBuilder {
             let deviceFiles = managedInventory?.files(for: subscription) ?? []
             var deviceFilesByStem: [String: URL] = [:]
             for fileURL in deviceFiles {
+                if plannedRemovalURLs.contains(fileURL.standardizedFileURL),
+                   !replacementTargets.contains(fileURL.standardizedFileURL) {
+                    unavailableEpisodeKeys.insert(PodcastPlaylistAutomaticExclusion(
+                        subscriptionID: subscription.id,
+                        episodeFileStem: fileURL.deletingPathExtension().lastPathComponent
+                    ))
+                }
                 let fileStem = fileURL.deletingPathExtension().lastPathComponent
                 if deviceFilesByStem[fileStem] == nil {
                     deviceFilesByStem[fileStem] = fileURL
@@ -106,6 +117,9 @@ enum PodcastPlaylistPresentationBuilder {
                     matchedDeviceFiles.insert(deviceFileURL.standardizedFileURL)
                     if plannedRemovalURLs.contains(deviceFileURL.standardizedFileURL),
                        !replacementTargets.contains(deviceFileURL.standardizedFileURL) {
+                        if let episodeID = PodcastPlaylistEpisodeID(episode: episode) {
+                            unavailableEpisodeIDs.insert(episodeID)
+                        }
                         continue
                     }
                 }
@@ -132,6 +146,18 @@ enum PodcastPlaylistPresentationBuilder {
                 ))
             }
         }
+
+        let subscribedPodcastIDs = Set(subscriptions.map(\.id))
+        var availableEpisodeIDs = Set(availableEpisodes.compactMap(PodcastPlaylistEpisodeID.init))
+        for snapshot in downloadedEpisodeSnapshots {
+            let snapshotKey = PodcastPlaylistAutomaticExclusion(episode: snapshot.episode)
+            let isSelectedForRemoval = snapshotKey.map(unavailableEpisodeKeys.contains) ?? false
+            guard subscribedPodcastIDs.contains(snapshot.id.subscriptionID),
+                  !unavailableEpisodeIDs.contains(snapshot.id),
+                  !isSelectedForRemoval,
+                  availableEpisodeIDs.insert(snapshot.id).inserted else { continue }
+            availableEpisodes.append(snapshot.episode)
+        }
         return availableEpisodes
     }
 }
@@ -153,7 +179,8 @@ final class PodcastPlaylistPresentationViewModel {
         recentlyDownloadedEntries: [PodcastPlaylistEntry],
         managedInventory: ManagedDeviceLibraryInventory?,
         plannedRemovalURLs: Set<URL>,
-        replacementTargets: Set<URL>
+        replacementTargets: Set<URL>,
+        onResolvedAutomaticEpisodes: @escaping @MainActor ([Episode]) -> Void = { _ in }
     ) {
         workerTask?.cancel()
         resultTask?.cancel()
@@ -182,6 +209,11 @@ final class PodcastPlaylistPresentationViewModel {
             self?.presentation = updatedPresentation
             self?.workerTask = nil
             self?.resultTask = nil
+            onResolvedAutomaticEpisodes(
+                updatedPresentation.entriesByPlaylistID.values.flatMap { entries in
+                    entries.automatic.map(\.episode)
+                }
+            )
         }
     }
 }

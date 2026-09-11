@@ -29,11 +29,13 @@ struct PodcastPlaylistEditorPresentation: Identifiable {
     let id = UUID()
     let playlistID: PodcastPlaylist.ID?
     let initialName: String
+    let initialIcon: PodcastPlaylistIcon
     let automaticRule: PodcastPlaylistAutomaticRule?
 
     init(playlist: PodcastPlaylist? = nil) {
         playlistID = playlist?.id
         initialName = playlist?.name ?? ""
+        initialIcon = playlist?.icon ?? .music
         automaticRule = playlist?.automaticRule
     }
 }
@@ -41,13 +43,15 @@ struct PodcastPlaylistEditorPresentation: Identifiable {
 struct PodcastPlaylistEditorView: View {
     let title: String
     let initialName: String
+    let initialIcon: PodcastPlaylistIcon
     let playlistID: PodcastPlaylist.ID?
     let initialAutomaticRule: PodcastPlaylistAutomaticRule?
     let podcasts: [PodcastSubscription]
-    let onSave: (String, PodcastPlaylistAutomaticRule?) throws -> Void
+    let onSave: (String, PodcastPlaylistIcon, PodcastPlaylistAutomaticRule?) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
+    @State private var icon: PodcastPlaylistIcon
     @State private var automaticallyAddsEpisodes: Bool
     @State private var selectedPodcastIDs: Set<PodcastSubscription.ID>
     @State private var limitsEpisodeCount: Bool
@@ -57,18 +61,21 @@ struct PodcastPlaylistEditorView: View {
     init(
         title: String,
         initialName: String,
+        initialIcon: PodcastPlaylistIcon,
         playlistID: PodcastPlaylist.ID?,
         initialAutomaticRule: PodcastPlaylistAutomaticRule?,
         podcasts: [PodcastSubscription],
-        onSave: @escaping (String, PodcastPlaylistAutomaticRule?) throws -> Void
+        onSave: @escaping (String, PodcastPlaylistIcon, PodcastPlaylistAutomaticRule?) throws -> Void
     ) {
         self.title = title
         self.initialName = initialName
+        self.initialIcon = initialIcon
         self.playlistID = playlistID
         self.initialAutomaticRule = initialAutomaticRule
         self.podcasts = podcasts
         self.onSave = onSave
         self._name = State(initialValue: initialName)
+        self._icon = State(initialValue: initialIcon)
         self._automaticallyAddsEpisodes = State(initialValue: initialAutomaticRule != nil)
         switch initialAutomaticRule?.source {
         case .selectedPodcasts(let includedPodcastIDs):
@@ -91,6 +98,16 @@ struct PodcastPlaylistEditorView: View {
             TextField("Playlist Name", text: $name)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(save)
+
+            Picker("Icon", selection: $icon) {
+                ForEach(PodcastPlaylistIcon.allCases, id: \.self) { icon in
+                    Text(icon.glyph)
+                        .tag(icon)
+                        .help(icon.title)
+                        .accessibilityLabel(icon.title)
+                }
+            }
+            .pickerStyle(.palette)
 
             automaticRuleEditor
 
@@ -185,7 +202,7 @@ struct PodcastPlaylistEditorView: View {
             } else {
                 automaticRule = nil
             }
-            try onSave(name, automaticRule)
+            try onSave(name, icon, automaticRule)
             dismiss()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
@@ -226,6 +243,7 @@ struct PodcastPlaylistSidebarView: View {
                         } label: {
                             HStack(alignment: .center, spacing: 10) {
                                 PodcastPlaylistIconView(
+                                    icon: playlist.icon,
                                     automaticallyAddsEpisodes: playlist.automaticallyAddsEpisodes
                                 )
 
@@ -269,6 +287,7 @@ struct PodcastPlaylistSidebarView: View {
 }
 
 private struct PodcastPlaylistIconView: View {
+    let icon: PodcastPlaylistIcon
     let automaticallyAddsEpisodes: Bool
 
     var body: some View {
@@ -281,9 +300,14 @@ private struct PodcastPlaylistIconView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            Image(systemName: "music.note.list")
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.92))
+            if icon == .music {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+            } else {
+                Text(icon.glyph)
+                    .font(.system(size: 22))
+            }
         }
         .frame(width: 42, height: 42)
         .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -303,6 +327,40 @@ private struct PodcastPlaylistIconView: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+private extension PodcastPlaylistIcon {
+    var title: String {
+        switch self {
+        case .music: "Music"
+        case .favorite: "Favorite"
+        case .news: "News"
+        case .history: "History"
+        case .technology: "Technology"
+        case .cycling: "Cycling"
+        case .exercise: "Exercise"
+        case .commuting: "Commuting"
+        case .home: "Home"
+        case .outdoors: "Outdoors"
+        case .sleep: "Sleep"
+        }
+    }
+
+    var glyph: String {
+        switch self {
+        case .music: "♫"
+        case .favorite: "⭐️"
+        case .news: "📰"
+        case .history: "🏛️"
+        case .technology: "💻"
+        case .cycling: "🚲"
+        case .exercise: "🏃"
+        case .commuting: "🚆"
+        case .home: "🏠"
+        case .outdoors: "🌿"
+        case .sleep: "🌙"
+        }
     }
 }
 

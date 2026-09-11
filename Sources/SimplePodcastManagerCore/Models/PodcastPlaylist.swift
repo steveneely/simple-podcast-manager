@@ -109,10 +109,25 @@ public struct PodcastPlaylistAutomaticExclusion: Codable, Equatable, Hashable, S
     }
 }
 
+public enum PodcastPlaylistIcon: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
+    case music
+    case favorite
+    case news
+    case history
+    case technology
+    case cycling
+    case exercise
+    case commuting
+    case home
+    case outdoors
+    case sleep
+}
+
 public struct PodcastPlaylist: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID
     public var name: String
     public var deviceFileName: String
+    public var icon: PodcastPlaylistIcon
     public var entries: [PodcastPlaylistEntry]
     public var automaticRule: PodcastPlaylistAutomaticRule?
     public var automaticExclusions: Set<PodcastPlaylistAutomaticExclusion>
@@ -121,6 +136,7 @@ public struct PodcastPlaylist: Codable, Equatable, Identifiable, Sendable {
         id: UUID = UUID(),
         name: String,
         deviceFileName: String? = nil,
+        icon: PodcastPlaylistIcon = .music,
         entries: [PodcastPlaylistEntry] = [],
         automaticRule: PodcastPlaylistAutomaticRule? = nil,
         automaticExclusions: Set<PodcastPlaylistAutomaticExclusion> = []
@@ -129,6 +145,7 @@ public struct PodcastPlaylist: Codable, Equatable, Identifiable, Sendable {
         self.id = id
         self.name = validatedName
         self.deviceFileName = deviceFileName ?? PodcastPlaylistName.deviceFileName(for: validatedName)
+        self.icon = icon
         self.entries = entries
         self.automaticRule = automaticRule
         self.automaticExclusions = automaticExclusions
@@ -145,6 +162,7 @@ public struct PodcastPlaylist: Codable, Equatable, Identifiable, Sendable {
         case id
         case name
         case deviceFileName
+        case icon
         case entries
         case automaticRule
         case automaticExclusions
@@ -157,6 +175,7 @@ public struct PodcastPlaylist: Codable, Equatable, Identifiable, Sendable {
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         deviceFileName = try container.decode(String.self, forKey: .deviceFileName)
+        icon = try container.decodeIfPresent(PodcastPlaylistIcon.self, forKey: .icon) ?? .music
         entries = try container.decodeIfPresent([PodcastPlaylistEntry].self, forKey: .entries) ?? []
         automaticRule = try container.decodeIfPresent(
             PodcastPlaylistAutomaticRule.self,
@@ -176,6 +195,7 @@ public struct PodcastPlaylist: Codable, Equatable, Identifiable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(deviceFileName, forKey: .deviceFileName)
+        try container.encode(icon, forKey: .icon)
         try container.encode(entries, forKey: .entries)
         try container.encodeIfPresent(automaticRule, forKey: .automaticRule)
         try container.encode(automaticExclusions, forKey: .automaticExclusions)

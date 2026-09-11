@@ -38,13 +38,18 @@ public final class PodcastPlaylistViewModel {
     @discardableResult
     public func createPlaylist(
         named name: String,
+        icon: PodcastPlaylistIcon = .music,
         automaticRule: PodcastPlaylistAutomaticRule? = nil
     ) throws -> PodcastPlaylist.ID {
         var updatedLibrary = library
         if let automaticRule {
             try validate(automaticRule)
         }
-        let playlist = try PodcastPlaylist(name: name, automaticRule: automaticRule)
+        let playlist = try PodcastPlaylist(
+            name: name,
+            icon: icon,
+            automaticRule: automaticRule
+        )
         try ensureUniqueName(playlist.name, excluding: nil, in: updatedLibrary.playlists)
         updatedLibrary.playlists.append(playlist)
         try persist(updatedLibrary)
@@ -61,6 +66,7 @@ public final class PodcastPlaylistViewModel {
     public func updatePlaylist(
         id: PodcastPlaylist.ID,
         name: String,
+        icon: PodcastPlaylistIcon? = nil,
         automaticRule: PodcastPlaylistAutomaticRule?
     ) throws {
         if let automaticRule {
@@ -69,6 +75,9 @@ public final class PodcastPlaylistViewModel {
         var updatedLibrary = library
         guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == id }) else { return }
         try applyName(name, toPlaylistAt: index, in: &updatedLibrary)
+        if let icon {
+            updatedLibrary.playlists[index].icon = icon
+        }
         updatedLibrary.playlists[index].automaticRule = automaticRule
         try persist(updatedLibrary)
     }

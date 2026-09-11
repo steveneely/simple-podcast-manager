@@ -113,6 +113,17 @@ struct PodcastPlaylistResolverTests {
         #expect(!playlist.automaticallyAddsEpisodes)
         #expect(playlist.automaticRule == nil)
         #expect(playlist.automaticExclusions.isEmpty)
+        #expect(playlist.icon == .music)
+    }
+
+    @Test
+    func selectedPlaylistIconSurvivesJSONRoundTrip() throws {
+        let playlist = try PodcastPlaylist(name: "Cycling", icon: .cycling)
+
+        let data = try JSONEncoder().encode(playlist)
+        let decoded = try JSONDecoder().decode(PodcastPlaylist.self, from: data)
+
+        #expect(decoded.icon == .cycling)
     }
 
     @Test

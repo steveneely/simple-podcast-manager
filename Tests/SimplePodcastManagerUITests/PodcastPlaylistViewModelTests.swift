@@ -145,6 +145,7 @@ struct PodcastPlaylistViewModelTests {
         try viewModel.updatePlaylist(
             id: playlistID,
             name: "News",
+            icon: .news,
             automaticRule: PodcastPlaylistAutomaticRule(
                 source: .selectedPodcasts([podcastID]),
                 maximumEpisodeCount: 10
@@ -156,6 +157,7 @@ struct PodcastPlaylistViewModelTests {
             maximumEpisodeCount: 10
         ))
         #expect(viewModel.playlist(id: playlistID)?.name == "News")
+        #expect(viewModel.playlist(id: playlistID)?.icon == .news)
         #expect(store.library == viewModel.library)
     }
 
@@ -172,22 +174,29 @@ struct PodcastPlaylistViewModelTests {
 
         let playlistID = try viewModel.createPlaylist(
             named: "News",
+            icon: .news,
             automaticRule: rule
         )
 
         #expect(viewModel.playlist(id: playlistID)?.automaticRule == rule)
+        #expect(viewModel.playlist(id: playlistID)?.icon == .news)
         #expect(store.library == viewModel.library)
     }
 
     @Test
     func editorPresentationRetainsAutomaticSettings() throws {
         let rule = PodcastPlaylistAutomaticRule(maximumEpisodeCount: 20)
-        let playlist = try PodcastPlaylist(name: "Latest", automaticRule: rule)
+        let playlist = try PodcastPlaylist(
+            name: "Latest",
+            icon: .history,
+            automaticRule: rule
+        )
 
         let presentation = PodcastPlaylistEditorPresentation(playlist: playlist)
 
         #expect(presentation.playlistID == playlist.id)
         #expect(presentation.initialName == "Latest")
+        #expect(presentation.initialIcon == .history)
         #expect(presentation.automaticRule == rule)
     }
 

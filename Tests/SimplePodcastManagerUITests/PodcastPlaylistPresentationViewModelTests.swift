@@ -193,6 +193,158 @@ struct PodcastPlaylistPresentationViewModelTests {
         #expect(presentation.episodeCountsByPlaylistID[playlist.id] == 1)
     }
 
+    @Test
+    func builderKeepsSelectedPodcastDownloadsVisibleWithoutAConnectedDevice() throws {
+        let subscription = PodcastSubscription(
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let downloadedEpisode = makeEpisode(
+            id: "downloaded",
+            title: "Downloaded",
+            day: 2,
+            subscription: subscription
+        )
+        let downloadedEntry = try #require(PodcastPlaylistEntry(episode: downloadedEpisode))
+        let playlist = try PodcastPlaylist(
+            name: "News",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([subscription.id])
+            )
+        )
+
+        let presentation = PodcastPlaylistPresentationBuilder.build(
+            playlists: [playlist],
+            subscriptions: [subscription],
+            episodes: [],
+            preparedEpisodeIDs: [],
+            recentlyDownloadedEntries: [downloadedEntry],
+            managedInventory: nil,
+            plannedRemovalURLs: [],
+            replacementTargets: []
+        )
+
+        #expect(presentation.entriesByPlaylistID[playlist.id]?.automatic == [downloadedEntry])
+        #expect(presentation.episodeCountsByPlaylistID[playlist.id] == 1)
+    }
+
+    @Test
+    func builderDoesNotRestoreDownloadedSnapshotSelectedForDeviceRemoval() throws {
+        let subscription = PodcastSubscription(
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/PLAYER/music", isDirectory: true)
+        )
+        let downloadedEpisode = makeEpisode(
+            id: "downloaded",
+            title: "Downloaded",
+            day: 2,
+            subscription: subscription
+        )
+        let downloadedEntry = try #require(PodcastPlaylistEntry(episode: downloadedEpisode))
+        let directory = device.podcastDirectoryURL.appendingPathComponent(
+            subscription.title,
+            isDirectory: true
+        )
+        let deviceFile = directory.appendingPathComponent(
+            EpisodeFileName.fileName(for: downloadedEpisode, fileExtension: "mp3")
+        )
+        let inventory = ManagedDeviceLibraryInventory(
+            device: device,
+            subscriptions: [subscription],
+            managedDirectoryURLsBySubscriptionID: [subscription.id: directory],
+            filesBySubscriptionID: [subscription.id: [deviceFile]]
+        )
+        let playlist = try PodcastPlaylist(
+            name: "News",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([subscription.id])
+            )
+        )
+
+        let presentation = PodcastPlaylistPresentationBuilder.build(
+            playlists: [playlist],
+            subscriptions: [subscription],
+            episodes: [downloadedEpisode],
+            preparedEpisodeIDs: [],
+            recentlyDownloadedEntries: [downloadedEntry],
+            managedInventory: inventory,
+            plannedRemovalURLs: [deviceFile.standardizedFileURL],
+            replacementTargets: []
+        )
+
+        #expect(presentation.entriesByPlaylistID[playlist.id]?.automatic.isEmpty == true)
+        #expect(presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+    }
+
+    @Test
+    func resolvedDeviceEpisodeSnapshotKeepsPlaylistVisibleAfterDisconnection() throws {
+        let subscription = PodcastSubscription(
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let device = DeviceInfo(
+            name: "Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/PLAYER/music", isDirectory: true)
+        )
+        let episode = makeEpisode(
+            id: "on-device",
+            title: "On Device",
+            day: 2,
+            subscription: subscription
+        )
+        let directory = device.podcastDirectoryURL.appendingPathComponent(
+            subscription.title,
+            isDirectory: true
+        )
+        let deviceFile = directory.appendingPathComponent(
+            EpisodeFileName.fileName(for: episode, fileExtension: "mp3")
+        )
+        let inventory = ManagedDeviceLibraryInventory(
+            device: device,
+            subscriptions: [subscription],
+            managedDirectoryURLsBySubscriptionID: [subscription.id: directory],
+            filesBySubscriptionID: [subscription.id: [deviceFile]]
+        )
+        let playlist = try PodcastPlaylist(
+            name: "News",
+            automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([subscription.id])
+            )
+        )
+
+        let connectedPresentation = PodcastPlaylistPresentationBuilder.build(
+            playlists: [playlist],
+            subscriptions: [subscription],
+            episodes: [episode],
+            preparedEpisodeIDs: [],
+            recentlyDownloadedEntries: [],
+            managedInventory: inventory,
+            plannedRemovalURLs: [],
+            replacementTargets: []
+        )
+        let resolvedSnapshots = connectedPresentation.entriesByPlaylistID[playlist.id]?.automatic ?? []
+        let disconnectedPresentation = PodcastPlaylistPresentationBuilder.build(
+            playlists: [playlist],
+            subscriptions: [subscription],
+            episodes: [],
+            preparedEpisodeIDs: [],
+            recentlyDownloadedEntries: resolvedSnapshots,
+            managedInventory: nil,
+            plannedRemovalURLs: [],
+            replacementTargets: []
+        )
+
+        #expect(resolvedSnapshots.map(\.episode.id) == ["on-device"])
+        #expect(disconnectedPresentation.entriesByPlaylistID[playlist.id]?.automatic == resolvedSnapshots)
+        #expect(disconnectedPresentation.episodeCountsByPlaylistID[playlist.id] == 1)
+    }
+
     private func makeEpisode(
         id: String,
         title: String,

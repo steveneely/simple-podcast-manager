@@ -216,19 +216,22 @@ public struct MainView: View {
                     ? "New Playlist"
                     : "Edit Playlist",
                 initialName: presentation.initialName,
+                initialIcon: presentation.initialIcon,
                 playlistID: presentation.playlistID,
                 initialAutomaticRule: presentation.automaticRule,
                 podcasts: viewModel.podcastSubscriptions
-            ) { name, automaticRule in
+            ) { name, icon, automaticRule in
                 if let playlistID = presentation.playlistID {
                     try podcastPlaylistViewModel.updatePlaylist(
                         id: playlistID,
                         name: name,
+                        icon: icon,
                         automaticRule: automaticRule
                     )
                 } else {
                     selectedPlaylistID = try podcastPlaylistViewModel.createPlaylist(
                         named: name,
+                        icon: icon,
                         automaticRule: automaticRule
                     )
                     libraryMode = .playlists
@@ -1510,6 +1513,8 @@ public struct MainView: View {
     }
 
     private func refreshPodcastPlaylistPresentation() {
+        let shouldRememberResolvedEpisodes = viewModel.settings.showsPlaylistsBeta
+            && deviceLibraryViewModel.managedInventory != nil
         podcastPlaylistPresentationViewModel.refresh(
             playlists: podcastPlaylistViewModel.playlists,
             subscriptions: viewModel.podcastSubscriptions,
@@ -1520,7 +1525,11 @@ public struct MainView: View {
             plannedRemovalURLs: Set(
                 syncPlanViewModel.plan?.removalTargetURLs.map(\.standardizedFileURL) ?? []
             ),
-            replacementTargets: replacementTargets
+            replacementTargets: replacementTargets,
+            onResolvedAutomaticEpisodes: { episodes in
+                guard shouldRememberResolvedEpisodes else { return }
+                try? podcastPlaylistViewModel.seedRecentlyDownloadedEpisodes(episodes)
+            }
         )
     }
 

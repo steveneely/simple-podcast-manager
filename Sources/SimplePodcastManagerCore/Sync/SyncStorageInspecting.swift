@@ -24,7 +24,8 @@ extension SyncStorageInspecting {
                 )
             case .writePodcastPlaylist(_, let contents, _):
                 requiredCapacity = addingCapacity(Int64(contents.count), to: requiredCapacity)
-            case .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist, .skip, .ejectDevice:
+            case .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist,
+                    .deleteRelocatedPodcastPlaylist, .skip, .ejectDevice:
                 break
             }
         }

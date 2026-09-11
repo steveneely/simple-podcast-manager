@@ -117,7 +117,7 @@ Expected runtime flow:
 8. `SyncExecutionViewModel` executes the plan:
    - copy prepared MP3 files
    - delete selected app-managed device files
-   - write or remove only validated SPM-owned playlist files directly under the configured podcast directory
+   - write or remove only validated SPM-owned playlist files directly under the configured playlist directory
    - optionally eject after success
 9. Progress and result state are rendered in the UI.
 
@@ -223,7 +223,7 @@ The playlist editor exposes one automatic rule: choose one or more Podcasts whos
 
 Earlier development builds briefly exposed All Podcasts, Recently Downloaded, and device-sync-based automatic sources. Their persisted identifiers and download history remain decodable so existing local test data is not lost, but the editor no longer offers those rule types. During sync, the planner resolves explicit entries to planned copies or existing exact/conservative device matches, then independently resolves automatic rules against projected post-sync device files. Planned deletions are excluded, planned copies are included, explicit and automatic results are deduplicated, and unavailable entries are omitted.
 
-Each nonempty playlist is encoded as UTF-8 extended M3U at `[configured podcast directory]/<playlist-name>.m3u`. Entries use device-root-relative paths with backslashes, matching the tested Sony NW-E394 behavior. When none of a playlist's episodes are present or planned for copy, sync removes its SPM-owned M3U from the device but retains the playlist definition in the app; a later sync recreates the file after an episode becomes available. SPM records only playlist filenames actually written by a successful sync. Renames, deletions, and emptying leave durable ownership state until a successful sync removes the old file. An unrelated same-named playlist is never removed, and causes planning to stop only when SPM needs to write a populated playlist over it. Playlist writes and removals delete only verified AppleDouble sidecars with the exact matching `._<playlist-name>.m3u` name.
+Each nonempty playlist is encoded as UTF-8 extended M3U at `[configured playlist directory]/<playlist-name>.m3u`. The configured playlist directory defaults to the Podcast directory for compatibility with existing devices and can be changed per device while Playlists is enabled, including to a root-level folder such as HiByOS's `playlist_data`. Entries use backslash-separated paths calculated relative to the playlist file's directory, so the same encoding works when playlists and podcast media live in different folders. When none of a playlist's episodes are present or planned for copy, sync removes its SPM-owned M3U from the device but retains the playlist definition in the app; a later sync recreates the file after an episode becomes available. SPM records only playlist filenames and the directory actually written by a successful sync. Renames, deletions, and emptying leave durable ownership state until a successful sync removes the old file. Ownership never transfers merely because the configured folder changes, so an unrelated same-named playlist in a new folder is not overwritten or removed. Playlist writes and removals delete only verified AppleDouble sidecars with the exact matching `._<playlist-name>.m3u` name.
 
 ## Automatic Downloads
 
@@ -241,9 +241,10 @@ Detection rules:
 
 - inspect mounted volumes under `/Volumes`
 - consider only removable or external volumes
-- read optional `[device root]/.spmconfig` for Simple Podcast Manager device settings
+- read optional `[device root]/.spmconfig` for Simple Podcast Manager device settings, including `podcast-dir` and the optional `playlist-dir`
 - use the configured `podcast-dir` as the podcast sync target, such as `music` or `podcasts`
 - default to `[device root]/music` when `.spmconfig` is absent or does not specify `podcast-dir`
+- default the playlist directory to the configured Podcast directory when `.spmconfig` does not specify `playlist-dir`
 - require the resolved podcast sync target to exist before selecting the device
 
 Selection behavior:
@@ -340,6 +341,7 @@ All device mutations pass through `SafetyValidator` and the scoped file services
 
 - write `.spmconfig` only at `[device root]/.spmconfig`
 - write and delete podcast media only inside the configured podcast directory, which defaults to `[device root]/music`
+- write and delete SPM-owned playlist files only directly inside the configured playlist directory
 - as the sole cross-directory exception, a user-confirmed podcast-folder migration may move only the exact displayed app-managed files between the old and replacement podcast directories on the same validated device; revalidate the complete plan immediately before execution, roll back on failure, and remove only source podcast subdirectories proven empty plus their matching metadata sidecars
 - delete files only after explicit selection in the current plan review; retention cleanup may preselect only proven app-managed files and must allow per-file opt-out
 - keep the plan shown to the user identical to the plan passed to the executor

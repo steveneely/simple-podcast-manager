@@ -236,9 +236,15 @@ struct SyncExecutorTests {
 
     @Test
     func removesVerifiedPlaylistSidecarWithOwnedPlaylist() throws {
-        let device = makeDevice()
-        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Empty.m3u")
-        let sidecarURL = device.podcastDirectoryURL.appendingPathComponent("._Empty.m3u")
+        let baseDevice = makeDevice()
+        let device = DeviceInfo(
+            name: baseDevice.name,
+            rootURL: baseDevice.rootURL,
+            podcastDirectoryURL: baseDevice.podcastDirectoryURL,
+            playlistDirectoryURL: baseDevice.rootURL.appendingPathComponent("playlist_data", isDirectory: true)
+        )
+        let playlistURL = device.playlistDirectoryURL.appendingPathComponent("Empty.m3u")
+        let sidecarURL = device.playlistDirectoryURL.appendingPathComponent("._Empty.m3u")
         let fileSystem = RecordingFileSystem(
             existingURLs: [playlistURL, sidecarURL],
             directoryContents: [:],
@@ -256,6 +262,40 @@ struct SyncExecutorTests {
 
         #expect(fileSystem.removedItems == [sidecarURL])
         #expect(writer.removedURLs == [playlistURL])
+        #expect(result.deletedPlaylistCount == 1)
+    }
+
+    @Test
+    func removesOwnedPlaylistAndSidecarFromPreviousPlaylistFolder() throws {
+        let baseDevice = makeDevice()
+        let device = DeviceInfo(
+            name: baseDevice.name,
+            rootURL: baseDevice.rootURL,
+            podcastDirectoryURL: baseDevice.podcastDirectoryURL,
+            playlistDirectoryURL: baseDevice.rootURL.appendingPathComponent("playlist_data", isDirectory: true)
+        )
+        let oldPlaylistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let oldSidecarURL = device.podcastDirectoryURL.appendingPathComponent("._Commute.m3u")
+        let fileSystem = RecordingFileSystem(
+            existingURLs: [oldPlaylistURL, oldSidecarURL],
+            directoryContents: [:],
+            appleDoubleURLs: [oldSidecarURL]
+        )
+        let writer = RecordingPodcastPlaylistFileWriter()
+
+        let result = try makeTestExecutor(
+            fileSystem: fileSystem,
+            playlistFileWriter: writer
+        ).execute(plan: SyncPlan(
+            device: device,
+            actions: [.deleteRelocatedPodcastPlaylist(
+                targetURL: oldPlaylistURL,
+                playlistDirectoryURL: device.podcastDirectoryURL
+            )]
+        ))
+
+        #expect(fileSystem.removedItems == [oldSidecarURL])
+        #expect(writer.removedURLs == [oldPlaylistURL])
         #expect(result.deletedPlaylistCount == 1)
     }
 

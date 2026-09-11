@@ -6,6 +6,7 @@ public enum SyncAction: Equatable, Sendable {
     case writePodcastPlaylist(destinationURL: URL, contents: Data, episodeCount: Int)
     case deletePodcastPlaylist(targetURL: URL)
     case deleteEmptyPodcastPlaylist(targetURL: URL)
+    case deleteRelocatedPodcastPlaylist(targetURL: URL, playlistDirectoryURL: URL)
     case ejectDevice(deviceRootURL: URL)
     case skip(reason: String)
 
@@ -15,7 +16,8 @@ public enum SyncAction: Equatable, Sendable {
             return fileSizeBytes
         case .writePodcastPlaylist(_, let contents, _):
             return Int64(contents.count)
-        case .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist, .ejectDevice, .skip:
+        case .deletePodcastPlaylist, .deleteEmptyPodcastPlaylist,
+                .deleteRelocatedPodcastPlaylist, .ejectDevice, .skip:
             return nil
         }
     }
@@ -32,6 +34,8 @@ public enum SyncAction: Equatable, Sendable {
             return "Remove playlist: \(targetURL.deletingPathExtension().lastPathComponent)"
         case .deleteEmptyPodcastPlaylist(let targetURL):
             return "Remove empty playlist: \(targetURL.deletingPathExtension().lastPathComponent)"
+        case .deleteRelocatedPodcastPlaylist(let targetURL, _):
+            return "Remove playlist from previous folder: \(targetURL.deletingPathExtension().lastPathComponent)"
         case .ejectDevice:
             return "Eject device when finished"
         case .skip(let reason):

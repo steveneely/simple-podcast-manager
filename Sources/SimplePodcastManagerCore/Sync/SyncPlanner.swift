@@ -418,19 +418,38 @@ public struct SyncPlanner: Sendable {
             return (entryID, destinationURL)
         })
         let deviceState = library.deviceStates[device.id] ?? PodcastPlaylistDeviceState()
+        let ownershipDirectoryURL: URL
+        if let storedPlaylistDirectoryPath = deviceState.playlistDirectoryPath {
+            let normalizedPath = try DevicePodcastConfiguration.normalizedPlaylistDirectoryPath(
+                storedPlaylistDirectoryPath
+            )
+            ownershipDirectoryURL = device.rootURL.appending(
+                path: normalizedPath,
+                directoryHint: .isDirectory
+            ).standardizedFileURL
+        } else {
+            // Device states saved before configurable playlist folders were introduced
+            // always refer to the Podcast directory.
+            ownershipDirectoryURL = device.podcastDirectoryURL.standardizedFileURL
+        }
+        let ownsFilesInCurrentDirectory = ownershipDirectoryURL.path.caseInsensitiveCompare(
+            device.playlistDirectoryURL.standardizedFileURL.path
+        ) == .orderedSame
         let activePlaylistFileNames = Set(library.playlists.map {
             PodcastPlaylistName.normalized($0.deviceFileName)
         })
-        let rootFiles = try deviceLibrary.files(in: device.podcastDirectoryURL)
+        let rootFiles = try deviceLibrary.files(in: device.playlistDirectoryURL)
         let existingFileNames = Set(rootFiles.map {
             PodcastPlaylistName.normalized($0.lastPathComponent)
         })
-        let ownedFileNames = Set(deviceState.ownedDeviceFileNames.map(PodcastPlaylistName.normalized))
+        let ownedFileNames = ownsFilesInCurrentDirectory
+            ? Set(deviceState.ownedDeviceFileNames.map(PodcastPlaylistName.normalized))
+            : []
         var playlistActions: [SyncAction] = []
 
         for playlist in library.playlists {
             try Task.checkCancellation()
-            let destinationURL = device.podcastDirectoryURL.appendingPathComponent(
+            let destinationURL = device.playlistDirectoryURL.appendingPathComponent(
                 playlist.deviceFileName,
                 isDirectory: false
             )
@@ -477,7 +496,11 @@ public struct SyncPlanner: Sendable {
                !ownedFileNames.contains(normalizedFileName) {
                 throw PodcastPlaylistPlanningError.fileNameCollision(destinationURL)
             }
-            let contents = try encoder.encode(fileURLs: episodeFileURLs, on: device)
+            let contents = try encoder.encode(
+                fileURLs: episodeFileURLs,
+                relativeTo: device.playlistDirectoryURL,
+                on: device
+            )
             playlistActions.append(.writePodcastPlaylist(
                 destinationURL: destinationURL,
                 contents: contents,
@@ -485,12 +508,42 @@ public struct SyncPlanner: Sendable {
             ))
         }
 
-        for fileName in deviceState.pendingDeletedDeviceFileNames
+        let pendingDeletedDeviceFileNames = ownsFilesInCurrentDirectory
+            ? deviceState.pendingDeletedDeviceFileNames
+            : []
+        for fileName in pendingDeletedDeviceFileNames
             .filter({ !activePlaylistFileNames.contains(PodcastPlaylistName.normalized($0)) })
             .sorted() {
-            let targetURL = device.podcastDirectoryURL.appendingPathComponent(fileName, isDirectory: false)
+            let targetURL = device.playlistDirectoryURL.appendingPathComponent(fileName, isDirectory: false)
             try safetyValidator.validatePodcastPlaylistTarget(targetURL, on: device)
             playlistActions.append(.deletePodcastPlaylist(targetURL: targetURL))
+        }
+
+        if !ownsFilesInCurrentDirectory {
+            let previousDirectoryFiles = try deviceLibrary.files(in: ownershipDirectoryURL)
+            let previousFilesByNormalizedName = Dictionary(
+                previousDirectoryFiles.map {
+                    (PodcastPlaylistName.normalized($0.lastPathComponent), $0)
+                },
+                uniquingKeysWith: { first, _ in first }
+            )
+            let previouslyOwnedFileNames = Set(
+                deviceState.ownedDeviceFileNames
+                    .union(deviceState.pendingDeletedDeviceFileNames)
+                    .map(PodcastPlaylistName.normalized)
+            )
+            for normalizedFileName in previouslyOwnedFileNames.sorted() {
+                guard let targetURL = previousFilesByNormalizedName[normalizedFileName] else { continue }
+                try safetyValidator.validatePodcastPlaylistTarget(
+                    targetURL,
+                    in: ownershipDirectoryURL,
+                    on: device
+                )
+                playlistActions.append(.deleteRelocatedPodcastPlaylist(
+                    targetURL: targetURL,
+                    playlistDirectoryURL: ownershipDirectoryURL
+                ))
+            }
         }
         return playlistActions
     }

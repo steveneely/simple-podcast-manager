@@ -89,13 +89,67 @@ struct SafetyValidatorTests {
     }
 
     @Test
-    func allowsPlaylistOnlyAtPodcastDirectoryRoot() throws {
-        let device = makeDeviceInfo()
+    func allowsPlaylistOnlyAtConfiguredPlaylistDirectoryRoot() throws {
+        let device = DeviceInfo(
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/Podcast", isDirectory: true),
+            playlistDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/playlist_data", isDirectory: true)
+        )
         let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
-        let playlistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let playlistURL = device.playlistDirectoryURL.appendingPathComponent("Commute.m3u")
 
         #expect(throws: Never.self) {
             try validator.validatePodcastPlaylistTarget(playlistURL, on: device)
+        }
+        #expect(throws: SafetyValidationError.invalidPodcastPlaylistTarget(
+            device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        )) {
+            try validator.validatePodcastPlaylistTarget(
+                device.podcastDirectoryURL.appendingPathComponent("Commute.m3u"),
+                on: device
+            )
+        }
+    }
+
+    @Test
+    func allowsOwnedPlaylistDeletionFromPreviousFolderInsideDevice() throws {
+        let device = DeviceInfo(
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/Podcast", isDirectory: true),
+            playlistDirectoryURL: URL(fileURLWithPath: "/Volumes/SPM-TEST-PLAYER/playlist_data", isDirectory: true)
+        )
+        let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+        let previousDirectoryURL = device.podcastDirectoryURL
+        let playlistURL = previousDirectoryURL.appendingPathComponent("Commute.m3u")
+
+        #expect(throws: Never.self) {
+            try validator.validate(
+                .deleteRelocatedPodcastPlaylist(
+                    targetURL: playlistURL,
+                    playlistDirectoryURL: previousDirectoryURL
+                ),
+                on: device
+            )
+        }
+    }
+
+    @Test
+    func rejectsPreviousPlaylistFolderOutsideDevice() throws {
+        let device = makeDeviceInfo()
+        let validator = SafetyValidator(homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true))
+        let outsideDirectoryURL = URL(fileURLWithPath: "/Volumes/OTHER/playlist_data", isDirectory: true)
+        let playlistURL = outsideDirectoryURL.appendingPathComponent("Commute.m3u")
+
+        #expect(throws: SafetyValidationError.invalidPlaylistDirectory(outsideDirectoryURL)) {
+            try validator.validate(
+                .deleteRelocatedPodcastPlaylist(
+                    targetURL: playlistURL,
+                    playlistDirectoryURL: outsideDirectoryURL
+                ),
+                on: device
+            )
         }
     }
 

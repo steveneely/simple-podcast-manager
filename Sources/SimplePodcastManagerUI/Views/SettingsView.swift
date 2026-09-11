@@ -15,9 +15,11 @@ public struct SettingsView: View {
     @State private var inactivePodcastThreshold: InactivePodcastThreshold
     @State private var showsPlaylistsBeta: Bool
     @State private var podcastDirectoryPath: String
+    @State private var playlistDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
     @State private var isShowingCreateFolderConfirmation = false
+    @State private var folderPendingCreation: DeviceFolderKind = .podcast
     @State private var isShowingPodcastMigrationConfirmation = false
     @State private var pendingSave: PendingSave?
     @State private var hasSettledAppearancePreference = false
@@ -28,8 +30,9 @@ public struct SettingsView: View {
     private let ejectDeviceAfterSync: Bool
     private let deleteDownloadedEpisodesAfterSync: Bool
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
+    private let shouldConfirmPlaylistDirectoryCreation: (String?) throws -> Bool
     private let makePodcastDirectoryMigrationPlan: (String?) throws -> DevicePodcastDirectoryMigrationPlan?
-    private let onSave: (AppSettings, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void
+    private let onSave: (AppSettings, String?, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void
     private let onAppearancePreferencePreview: (AppearancePreference) -> Void
     private let onAutomaticallyChecksForUpdatesChange: (Bool) -> Void
     private let onBackUpAppData: () -> Void
@@ -40,6 +43,7 @@ public struct SettingsView: View {
     private struct PendingSave {
         var settings: AppSettings
         var podcastDirectoryPath: String?
+        var playlistDirectoryPath: String?
         var automaticallyChecksForUpdates: Bool
         var migrationPlan: DevicePodcastDirectoryMigrationPlan?
     }
@@ -49,10 +53,12 @@ public struct SettingsView: View {
         selectedDeviceName: String? = nil,
         selectedDeviceRootURL: URL? = nil,
         podcastDirectoryPath: String? = nil,
+        playlistDirectoryPath: String? = nil,
         automaticallyChecksForUpdates: Bool? = nil,
         shouldConfirmPodcastDirectoryCreation: @escaping (String?) throws -> Bool = { _ in false },
+        shouldConfirmPlaylistDirectoryCreation: @escaping (String?) throws -> Bool = { _ in false },
         makePodcastDirectoryMigrationPlan: @escaping (String?) throws -> DevicePodcastDirectoryMigrationPlan? = { _ in nil },
-        onSave: @escaping (AppSettings, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void,
+        onSave: @escaping (AppSettings, String?, String?, DevicePodcastDirectoryMigrationPlan?) throws -> Void,
         onAppearancePreferencePreview: @escaping (AppearancePreference) -> Void = { _ in },
         onAutomaticallyChecksForUpdatesChange: @escaping (Bool) -> Void = { _ in },
         onBackUpAppData: @escaping () -> Void = {},
@@ -71,6 +77,11 @@ public struct SettingsView: View {
         self._inactivePodcastThreshold = State(initialValue: settings.inactivePodcastThreshold)
         self._showsPlaylistsBeta = State(initialValue: settings.showsPlaylistsBeta)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
+        self._playlistDirectoryPath = State(
+            initialValue: playlistDirectoryPath
+                ?? podcastDirectoryPath
+                ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath
+        )
         self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
         self._errorMessage = State(initialValue: nil)
         self.selectedDeviceName = selectedDeviceName
@@ -80,6 +91,7 @@ public struct SettingsView: View {
         self.ejectDeviceAfterSync = settings.ejectDeviceAfterSync
         self.deleteDownloadedEpisodesAfterSync = settings.deleteDownloadedEpisodesAfterSync
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
+        self.shouldConfirmPlaylistDirectoryCreation = shouldConfirmPlaylistDirectoryCreation
         self.makePodcastDirectoryMigrationPlan = makePodcastDirectoryMigrationPlan
         self.onSave = onSave
         self.onAppearancePreferencePreview = onAppearancePreferencePreview
@@ -185,6 +197,7 @@ public struct SettingsView: View {
                             } onClear: {}
                             .disabled(selectedDeviceName == nil)
                         }
+
                     }
 
                     SettingsSection(title: "General") {
@@ -252,6 +265,24 @@ public struct SettingsView: View {
                             Toggle("Enable Playlists", isOn: $showsPlaylistsBeta)
                                 .toggleStyle(.checkbox)
                         }
+
+                        if showsPlaylistsBeta {
+                            LabeledField(
+                                title: "Device Playlist Folder",
+                                detail: selectedDeviceName.map { "Choose where playlists are saved on \($0). Some players, including HiByOS devices, require a separate folder such as \"playlist_data\"." }
+                                    ?? "Connect a device to choose where its playlists are saved.",
+                                emphasizesTitle: true
+                            ) {
+                                chooserRow(
+                                    value: playlistDirectoryPath,
+                                    buttonTitle: "Choose Folder…",
+                                    clearTitle: nil
+                                ) {
+                                    choosePlaylistDirectory()
+                                } onClear: {}
+                                .disabled(selectedDeviceName == nil)
+                            }
+                        }
                     }
 
                     SettingsSection(title: "App Data") {
@@ -293,7 +324,7 @@ public struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 520, height: 600)
-        .alert("Create Podcast Folder?", isPresented: $isShowingCreateFolderConfirmation) {
+        .alert(createFolderConfirmationTitle, isPresented: $isShowingCreateFolderConfirmation) {
             Button("Cancel", role: .cancel) {
                 pendingSave = nil
             }
@@ -365,9 +396,21 @@ public struct SettingsView: View {
     }
 
     private var createFolderConfirmationMessage: String {
-        let folder = pendingSave?.podcastDirectoryPath ?? podcastDirectoryPath
+        let folder = switch folderPendingCreation {
+        case .podcast:
+            pendingSave?.podcastDirectoryPath ?? podcastDirectoryPath
+        case .playlist:
+            pendingSave?.playlistDirectoryPath ?? playlistDirectoryPath
+        }
         let device = selectedDeviceName ?? "the selected device"
         return "The folder \"\(folder)\" does not exist on \(device). Create it and save this device setting?"
+    }
+
+    private var createFolderConfirmationTitle: String {
+        switch folderPendingCreation {
+        case .podcast: "Create Podcast Folder?"
+        case .playlist: "Create Playlist Folder?"
+        }
     }
 
     private func save() {
@@ -387,6 +430,9 @@ public struct SettingsView: View {
                 showsPlaylistsBeta: showsPlaylistsBeta
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
+            playlistDirectoryPath: selectedDeviceName == nil || !showsPlaylistsBeta
+                ? nil
+                : playlistDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates,
             migrationPlan: nil
         )
@@ -410,6 +456,13 @@ public struct SettingsView: View {
     private func continueSavingWithoutMigration(_ pendingSave: PendingSave) {
         do {
             if try shouldConfirmPodcastDirectoryCreation(pendingSave.podcastDirectoryPath) {
+                folderPendingCreation = .podcast
+                self.pendingSave = pendingSave
+                isShowingCreateFolderConfirmation = true
+                return
+            }
+            if try shouldConfirmPlaylistDirectoryCreation(pendingSave.playlistDirectoryPath) {
+                folderPendingCreation = .playlist
                 self.pendingSave = pendingSave
                 isShowingCreateFolderConfirmation = true
                 return
@@ -441,6 +494,7 @@ public struct SettingsView: View {
             try onSave(
                 pendingSave.settings,
                 pendingSave.podcastDirectoryPath,
+                pendingSave.playlistDirectoryPath,
                 pendingSave.migrationPlan
             )
             if showsUpdateSettings {
@@ -504,27 +558,71 @@ public struct SettingsView: View {
         }
 
         do {
-            podcastDirectoryPath = try Self.relativeDevicePath(for: selectedURL, rootURL: selectedDeviceRootURL)
+            podcastDirectoryPath = try Self.relativeDevicePath(
+                for: selectedURL,
+                rootURL: selectedDeviceRootURL,
+                normalizer: DevicePodcastConfiguration.normalizedRelativeDirectoryPath
+            )
             errorMessage = nil
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
-    private static func relativeDevicePath(for selectedURL: URL, rootURL: URL) throws -> String {
+    private func choosePlaylistDirectory() {
+        guard showsPlaylistsBeta, let selectedDeviceRootURL else { return }
+
+        let panel = NSOpenPanel()
+        panel.title = "Choose Playlist Folder"
+        panel.prompt = "Choose"
+        panel.message = "Choose a folder on \(selectedDeviceName ?? "the selected device")."
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = selectedDeviceRootURL
+
+        guard panel.runModal() == .OK,
+              let selectedURL = panel.url else {
+            return
+        }
+
+        do {
+            let relativePath = try Self.relativeDevicePath(
+                for: selectedURL,
+                rootURL: selectedDeviceRootURL,
+                normalizer: DevicePodcastConfiguration.normalizedPlaylistDirectoryPath
+            )
+            playlistDirectoryPath = relativePath
+            errorMessage = nil
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private static func relativeDevicePath(
+        for selectedURL: URL,
+        rootURL: URL,
+        normalizer: (String) throws -> String
+    ) throws -> String {
         let rootURL = rootURL.standardizedFileURL
         let selectedURL = selectedURL.standardizedFileURL
         let rootPath = rootURL.path
         let selectedPath = selectedURL.path
 
         guard selectedPath.hasPrefix(rootPath + "/") else {
-            throw DevicePodcastConfigurationError.invalidPodcastDirectoryPath(selectedPath)
+            return try normalizer(selectedPath)
         }
 
         let relativePath = String(selectedPath.dropFirst(rootPath.count + 1))
-        return try DevicePodcastConfiguration.normalizedRelativeDirectoryPath(relativePath)
+        return try normalizer(relativePath)
     }
 
+}
+
+private enum DeviceFolderKind {
+    case podcast
+    case playlist
 }
 
 private struct PodcastDirectoryMigrationReviewView: View {

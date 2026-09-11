@@ -39,13 +39,53 @@ public struct SafetyValidator: Sendable {
     }
 
     public func validatePodcastPlaylistTarget(_ targetURL: URL, on device: DeviceInfo) throws {
-        try validateWriteTarget(targetURL, on: device)
+        try validatePodcastPlaylistTarget(
+            targetURL,
+            in: device.playlistDirectoryURL,
+            on: device
+        )
+    }
+
+    public func validatePodcastPlaylistTarget(
+        _ targetURL: URL,
+        in playlistDirectoryURL: URL,
+        on device: DeviceInfo
+    ) throws {
+        try validateDevice(device)
         let canonicalTargetURL = canonicalFileURL(targetURL)
-        let canonicalPodcastDirectoryURL = canonicalDirectoryURL(device.podcastDirectoryURL)
-        guard canonicalTargetURL.deletingLastPathComponent() == canonicalPodcastDirectoryURL.standardizedFileURL,
+        let canonicalPlaylistDirectoryURL = canonicalDirectoryURL(playlistDirectoryURL)
+        let canonicalRootURL = canonicalDirectoryURL(device.rootURL)
+        guard isContained(canonicalPlaylistDirectoryURL, within: canonicalRootURL),
+              canonicalPlaylistDirectoryURL != canonicalRootURL else {
+            throw SafetyValidationError.invalidPlaylistDirectory(canonicalPlaylistDirectoryURL)
+        }
+        try validateNotMacTrash(canonicalTargetURL)
+        guard canonicalTargetURL.deletingLastPathComponent() == canonicalPlaylistDirectoryURL.standardizedFileURL,
               canonicalTargetURL.pathExtension.lowercased() == "m3u",
               !canonicalTargetURL.lastPathComponent.hasPrefix("._") else {
             throw SafetyValidationError.invalidPodcastPlaylistTarget(canonicalTargetURL)
+        }
+    }
+
+    public func validatePodcastPlaylistSidecarTarget(
+        _ sidecarURL: URL,
+        for playlistURL: URL,
+        in playlistDirectoryURL: URL? = nil,
+        on device: DeviceInfo
+    ) throws {
+        try validatePodcastPlaylistTarget(
+            playlistURL,
+            in: playlistDirectoryURL ?? device.playlistDirectoryURL,
+            on: device
+        )
+        let canonicalSidecarURL = canonicalFileURL(sidecarURL)
+        let expectedSidecarURL = canonicalFileURL(
+            playlistURL.deletingLastPathComponent()
+                .appendingPathComponent("._" + playlistURL.lastPathComponent)
+        )
+        try validateNotMacTrash(canonicalSidecarURL)
+        guard canonicalSidecarURL == expectedSidecarURL else {
+            throw SafetyValidationError.invalidPodcastPlaylistTarget(canonicalSidecarURL)
         }
     }
 
@@ -59,6 +99,8 @@ public struct SafetyValidator: Sendable {
             try validatePodcastPlaylistTarget(destinationURL, on: device)
         case .deletePodcastPlaylist(let targetURL), .deleteEmptyPodcastPlaylist(let targetURL):
             try validatePodcastPlaylistTarget(targetURL, on: device)
+        case .deleteRelocatedPodcastPlaylist(let targetURL, let playlistDirectoryURL):
+            try validatePodcastPlaylistTarget(targetURL, in: playlistDirectoryURL, on: device)
         case .ejectDevice(let deviceRootURL):
             let canonicalDeviceRootURL = canonicalDirectoryURL(device.rootURL)
             let canonicalActionRootURL = canonicalDirectoryURL(deviceRootURL)

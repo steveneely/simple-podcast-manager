@@ -895,8 +895,17 @@ struct SyncPlannerTests {
     }
 
     @Test
-    func writesPlaylistAfterCopyUsingWalkmanPathFormat() throws {
-        let device = makeDevice()
+    func writesPlaylistToConfiguredFolderUsingRelativeEpisodePath() throws {
+        let baseDevice = makeDevice()
+        let device = DeviceInfo(
+            name: baseDevice.name,
+            rootURL: baseDevice.rootURL,
+            podcastDirectoryURL: baseDevice.podcastDirectoryURL,
+            playlistDirectoryURL: baseDevice.rootURL.appendingPathComponent(
+                "playlist_data",
+                isDirectory: true
+            )
+        )
         let subscription = makeSubscription()
         let preparedEpisode = makePreparedEpisode(
             id: "playlist-episode",
@@ -921,9 +930,9 @@ struct SyncPlannerTests {
             Issue.record("Expected a playlist write after the episode copy")
             return
         }
-        #expect(destinationURL == device.podcastDirectoryURL.appendingPathComponent("Commute.m3u"))
+        #expect(destinationURL == device.playlistDirectoryURL.appendingPathComponent("Commute.m3u"))
         #expect(episodeCount == 1)
-        #expect(String(decoding: contents, as: UTF8.self) == "#EXTM3U\n\\music\\Example Podcast\\2026.09.07-Playlist Episode-(Example Podcast).mp3\n")
+        #expect(String(decoding: contents, as: UTF8.self) == "#EXTM3U\n..\\music\\Example Podcast\\2026.09.07-Playlist Episode-(Example Podcast).mp3\n")
     }
 
     @Test
@@ -1047,9 +1056,9 @@ struct SyncPlannerTests {
         #expect(episodeCount == 3)
         #expect(String(decoding: contents, as: UTF8.self) == """
         #EXTM3U
-        \\music\\Other Podcast\\2026.09.06-Excluded-(Other Podcast).mp3
-        \\music\\Example Podcast\\2026.09.05-Incoming-(Example Podcast).mp3
-        \\music\\Example Podcast\\2026.09.01-Oldest-(Example Podcast).mp3
+        Other Podcast\\2026.09.06-Excluded-(Other Podcast).mp3
+        Example Podcast\\2026.09.05-Incoming-(Example Podcast).mp3
+        Example Podcast\\2026.09.01-Oldest-(Example Podcast).mp3
 
         """)
     }
@@ -1169,8 +1178,8 @@ struct SyncPlannerTests {
         #expect(episodeCount == 2)
         #expect(String(decoding: contents, as: UTF8.self) == """
         #EXTM3U
-        \\music\\Example Podcast\\2026.09.03-Explicit-(Example Podcast).mp3
-        \\music\\Example Podcast\\2026.09.01-Oldest-(Example Podcast).mp3
+        Example Podcast\\2026.09.03-Explicit-(Example Podcast).mp3
+        Example Podcast\\2026.09.01-Oldest-(Example Podcast).mp3
 
         """)
     }
@@ -1300,6 +1309,94 @@ struct SyncPlannerTests {
                 ejectAfterSync: false
             )
         }
+    }
+
+    @Test
+    func changingPlaylistFolderDoesNotTransferOwnershipByFileName() throws {
+        let baseDevice = makeDevice()
+        let device = DeviceInfo(
+            name: baseDevice.name,
+            rootURL: baseDevice.rootURL,
+            podcastDirectoryURL: baseDevice.podcastDirectoryURL,
+            playlistDirectoryURL: baseDevice.rootURL.appendingPathComponent("playlist_data", isDirectory: true)
+        )
+        let playlistURL = device.playlistDirectoryURL.appendingPathComponent("Commute.m3u")
+        let preparedEpisode = makePreparedEpisode(
+            id: "playlist-episode",
+            title: "Playlist Episode",
+            preparedFileName: "2026.09.07-Playlist Episode-(Example Podcast).mp3"
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: preparedEpisode.episode))
+        let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            device.playlistDirectoryURL.path: [playlistURL],
+        ]))
+
+        #expect(throws: PodcastPlaylistPlanningError.fileNameCollision(playlistURL)) {
+            try planner.makePlan(
+                device: device,
+                preparedEpisodes: [preparedEpisode],
+                subscriptions: [makeSubscription()],
+                podcastPlaylistLibrary: PodcastPlaylistLibrary(
+                    playlists: [playlist],
+                    deviceStates: [
+                        device.id: PodcastPlaylistDeviceState(
+                            ownedDeviceFileNames: ["Commute.m3u"]
+                        ),
+                    ]
+                ),
+                ejectAfterSync: false
+            )
+        }
+    }
+
+    @Test
+    func changingPlaylistFolderReplacesThenRemovesPreviouslyOwnedPlaylist() throws {
+        let baseDevice = makeDevice()
+        let device = DeviceInfo(
+            name: baseDevice.name,
+            rootURL: baseDevice.rootURL,
+            podcastDirectoryURL: baseDevice.podcastDirectoryURL,
+            playlistDirectoryURL: baseDevice.rootURL.appendingPathComponent("playlist_data", isDirectory: true)
+        )
+        let oldPlaylistURL = device.podcastDirectoryURL.appendingPathComponent("Commute.m3u")
+        let newPlaylistURL = device.playlistDirectoryURL.appendingPathComponent("Commute.m3u")
+        let preparedEpisode = makePreparedEpisode(
+            id: "playlist-episode",
+            title: "Playlist Episode",
+            preparedFileName: "2026.09.07-Playlist Episode-(Example Podcast).mp3"
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: preparedEpisode.episode))
+        let playlist = try PodcastPlaylist(name: "Commute", entries: [entry])
+        let planner = makeTestPlanner(deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+            device.podcastDirectoryURL.path: [oldPlaylistURL],
+        ]))
+
+        let plan = try planner.makePlan(
+            device: device,
+            preparedEpisodes: [preparedEpisode],
+            subscriptions: [makeSubscription()],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(
+                playlists: [playlist],
+                deviceStates: [
+                    device.id: PodcastPlaylistDeviceState(
+                        ownedDeviceFileNames: ["Commute.m3u"],
+                        playlistDirectoryPath: "music"
+                    ),
+                ]
+            ),
+            ejectAfterSync: false
+        )
+
+        let writeIndex = try #require(plan.actions.firstIndex(where: {
+            guard case .writePodcastPlaylist(let destinationURL, _, _) = $0 else { return false }
+            return destinationURL == newPlaylistURL
+        }))
+        let removalIndex = try #require(plan.actions.firstIndex(of: .deleteRelocatedPodcastPlaylist(
+            targetURL: oldPlaylistURL,
+            playlistDirectoryURL: device.podcastDirectoryURL
+        )))
+        #expect(writeIndex < removalIndex)
     }
 
     @Test

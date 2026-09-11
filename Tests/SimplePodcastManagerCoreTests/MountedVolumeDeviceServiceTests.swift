@@ -109,6 +109,47 @@ struct MountedVolumeDeviceServiceTests {
     }
 
     @Test
+    func detectsConfiguredPlaylistDirectoryFromDotfile() throws {
+        let service = MountedVolumeDeviceService(
+            mountedVolumeProvider: StubMountedVolumeProvider(urls: [
+                URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            ]),
+            metadataProvider: StubVolumeMetadataProvider(
+                resourceValues: [
+                    "/Volumes/TEST-MP3-PLAYER": MountedVolumeResourceValues(
+                        volumeName: "HiBy",
+                        isDirectory: true,
+                        isRemovable: true,
+                        isEjectable: true
+                    ),
+                ],
+                childDirectories: [
+                    "/Volumes/TEST-MP3-PLAYER": [
+                        URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcast", isDirectory: true),
+                        URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/playlist_data", isDirectory: true),
+                    ]
+                ],
+                fileContents: [
+                    "/Volumes/TEST-MP3-PLAYER/.spmconfig": """
+                    [simple-podcast-manager]
+                    podcast-dir: Podcast
+                    playlist-dir: playlist_data
+
+                    """
+                ]
+            ),
+            safetyValidator: SafetyValidator(
+                homeDirectoryURL: URL(fileURLWithPath: "/Users/tester", isDirectory: true)
+            )
+        )
+
+        let device = try #require(service.discoverDevices().first)
+
+        #expect(device.podcastDirectoryURL.path == "/Volumes/TEST-MP3-PLAYER/Podcast")
+        #expect(device.playlistDirectoryURL.path == "/Volumes/TEST-MP3-PLAYER/playlist_data")
+    }
+
+    @Test
     func ignoresVolumesWithoutPodcastDirectory() throws {
         let service = MountedVolumeDeviceService(
             mountedVolumeProvider: StubMountedVolumeProvider(urls: [

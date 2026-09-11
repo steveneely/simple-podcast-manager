@@ -47,6 +47,36 @@ struct DevicePodcastConfigurationServiceTests {
     }
 
     @Test
+    func savingSeparatePlaylistDirectoryCreatesItAndWritesBothPaths() throws {
+        let fileSystem = RecordingDevicePodcastConfigurationFileSystem()
+        let service = DevicePodcastConfigurationService(fileSystem: fileSystem)
+        let device = DeviceInfo(
+            name: "Test MP3 Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcast", isDirectory: true)
+        )
+
+        let updatedDevice = try service.saveDirectoryPaths(
+            podcastDirectoryPath: "Podcast",
+            playlistDirectoryPath: "playlist_data",
+            on: device
+        )
+
+        #expect(updatedDevice.podcastDirectoryURL.path == "/Volumes/TEST-MP3-PLAYER/Podcast")
+        #expect(updatedDevice.playlistDirectoryURL.path == "/Volumes/TEST-MP3-PLAYER/playlist_data")
+        #expect(fileSystem.createdDirectories == [
+            URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/Podcast", isDirectory: true).standardizedFileURL,
+            URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/playlist_data", isDirectory: true).standardizedFileURL,
+        ])
+        #expect(fileSystem.writtenFiles.first?.contents == """
+        [simple-podcast-manager]
+        podcast-dir: Podcast
+        playlist-dir: playlist_data
+
+        """)
+    }
+
+    @Test
     func checkingForMissingPodcastDirectoryDoesNotWriteAnything() throws {
         let fileSystem = RecordingDevicePodcastConfigurationFileSystem(existingDirectories: [
             URL(fileURLWithPath: "/Volumes/TEST-MP3-PLAYER/music", isDirectory: true).standardizedFileURL,

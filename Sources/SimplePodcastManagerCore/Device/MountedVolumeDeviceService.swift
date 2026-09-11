@@ -48,20 +48,34 @@ public struct MountedVolumeDeviceService: DeviceService {
         }
 
         let rootURL = volumeURL.resolvingSymlinksInPath().standardizedFileURL
-        guard let podcastDirectoryURL = resolvedPodcastDirectoryURL(in: rootURL) else {
+        let configuration = configuredDeviceConfiguration(in: rootURL)
+            ?? DevicePodcastConfiguration.defaultConfiguration
+        guard let podcastDirectoryURL = resolvedDirectoryURL(
+            for: configuration.podcastDirectoryPath,
+            in: rootURL,
+            mustExist: true
+        ) else {
             return nil
         }
+        let playlistDirectoryURL = resolvedDirectoryURL(
+            for: configuration.resolvedPlaylistDirectoryPath,
+            in: rootURL,
+            mustExist: false
+        ) ?? podcastDirectoryURL
 
         return DeviceInfo(
             name: resourceValues.volumeName ?? rootURL.lastPathComponent,
             rootURL: rootURL,
-            podcastDirectoryURL: podcastDirectoryURL
+            podcastDirectoryURL: podcastDirectoryURL,
+            playlistDirectoryURL: playlistDirectoryURL
         )
     }
 
-    private func resolvedPodcastDirectoryURL(in rootURL: URL) -> URL? {
-        let configuredPath = configuredPodcastDirectoryPath(in: rootURL)
-            ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath
+    private func resolvedDirectoryURL(
+        for configuredPath: String,
+        in rootURL: URL,
+        mustExist: Bool
+    ) -> URL? {
         let configuredURL = rootURL.appending(path: configuredPath, directoryHint: .isDirectory)
         if let existingURL = resolvedExistingDirectoryURL(for: configuredPath, in: rootURL) {
             return existingURL
@@ -69,8 +83,7 @@ public struct MountedVolumeDeviceService: DeviceService {
         if metadataProvider.directoryExists(at: configuredURL) {
             return configuredURL.standardizedFileURL
         }
-
-        return nil
+        return mustExist ? nil : configuredURL.standardizedFileURL
     }
 
     private func resolvedExistingDirectoryURL(for relativePath: String, in rootURL: URL) -> URL? {
@@ -87,7 +100,7 @@ public struct MountedVolumeDeviceService: DeviceService {
         return currentURL
     }
 
-    private func configuredPodcastDirectoryPath(in rootURL: URL) -> String? {
+    private func configuredDeviceConfiguration(in rootURL: URL) -> DevicePodcastConfiguration? {
         let configURL = rootURL.appending(path: DevicePodcastConfiguration.fileName, directoryHint: .notDirectory)
         guard metadataProvider.fileExists(at: configURL),
               let contents = try? metadataProvider.stringContents(of: configURL),
@@ -95,6 +108,6 @@ public struct MountedVolumeDeviceService: DeviceService {
             return nil
         }
 
-        return configuration.podcastDirectoryPath
+        return configuration
     }
 }

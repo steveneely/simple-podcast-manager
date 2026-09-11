@@ -242,17 +242,22 @@ public struct MainView: View {
                 selectedDeviceName: deviceViewModel.selectedDevice?.name,
                 selectedDeviceRootURL: deviceViewModel.selectedDevice?.rootURL,
                 podcastDirectoryPath: selectedDevicePodcastDirectoryPath,
+                playlistDirectoryPath: selectedDevicePlaylistDirectoryPath,
                 automaticallyChecksForUpdates: automaticallyChecksForUpdates?.wrappedValue,
                 shouldConfirmPodcastDirectoryCreation: { updatedPodcastDirectoryPath in
                     try shouldConfirmPodcastDirectoryCreation(updatedPodcastDirectoryPath)
                 },
+                shouldConfirmPlaylistDirectoryCreation: { updatedPlaylistDirectoryPath in
+                    try shouldConfirmPlaylistDirectoryCreation(updatedPlaylistDirectoryPath)
+                },
                 makePodcastDirectoryMigrationPlan: { updatedPodcastDirectoryPath in
                     try makePodcastDirectoryMigrationPlan(updatedPodcastDirectoryPath)
                 },
-                onSave: { updatedSettings, updatedPodcastDirectoryPath, migrationPlan in
+                onSave: { updatedSettings, updatedPodcastDirectoryPath, updatedPlaylistDirectoryPath, migrationPlan in
                     try saveSettings(
                         updatedSettings,
                         podcastDirectoryPath: updatedPodcastDirectoryPath,
+                        playlistDirectoryPath: updatedPlaylistDirectoryPath,
                         migrationPlan: migrationPlan
                     )
                 },
@@ -1966,7 +1971,10 @@ public struct MainView: View {
             if viewModel.settings.showsPlaylistsBeta, let syncingDeviceID {
                 try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(
                     deviceID: syncingDeviceID,
-                    writtenPlaylistFileNames: syncExecutionViewModel.lastPlan?.writtenPodcastPlaylistFileNames ?? []
+                    writtenPlaylistFileNames: syncExecutionViewModel.lastPlan?.writtenPodcastPlaylistFileNames ?? [],
+                    playlistDirectoryPath: syncExecutionViewModel.lastPlan.map {
+                        devicePodcastConfigurationService.relativePlaylistDirectoryPath(on: $0.device)
+                    }
                 )
             }
         }
@@ -2149,9 +2157,15 @@ public struct MainView: View {
         return devicePodcastConfigurationService.relativePodcastDirectoryPath(on: selectedDevice)
     }
 
+    private var selectedDevicePlaylistDirectoryPath: String? {
+        guard let selectedDevice = deviceViewModel.selectedDevice else { return nil }
+        return devicePodcastConfigurationService.relativePlaylistDirectoryPath(on: selectedDevice)
+    }
+
     private func saveSettings(
         _ updatedSettings: AppSettings,
         podcastDirectoryPath: String?,
+        playlistDirectoryPath: String?,
         migrationPlan: DevicePodcastDirectoryMigrationPlan?
     ) throws {
         guard hasLoadedEpisodeState else {
@@ -2164,6 +2178,19 @@ public struct MainView: View {
                 updatedDevice = try devicePodcastDirectoryMigrationService.execute(
                     migrationPlan,
                     subscriptions: viewModel.podcastSubscriptions
+                )
+                if let playlistDirectoryPath, let migratedDevice = updatedDevice {
+                    updatedDevice = try devicePodcastConfigurationService.saveDirectoryPaths(
+                        podcastDirectoryPath: podcastDirectoryPath,
+                        playlistDirectoryPath: playlistDirectoryPath,
+                        on: migratedDevice
+                    )
+                }
+            } else if let playlistDirectoryPath {
+                updatedDevice = try devicePodcastConfigurationService.saveDirectoryPaths(
+                    podcastDirectoryPath: podcastDirectoryPath,
+                    playlistDirectoryPath: playlistDirectoryPath,
+                    on: selectedDevice
                 )
             } else {
                 updatedDevice = try devicePodcastConfigurationService.savePodcastDirectoryPath(
@@ -2243,6 +2270,18 @@ public struct MainView: View {
         }
 
         return try !devicePodcastConfigurationService.podcastDirectoryExists(podcastDirectoryPath, on: selectedDevice)
+    }
+
+    private func shouldConfirmPlaylistDirectoryCreation(_ playlistDirectoryPath: String?) throws -> Bool {
+        guard let playlistDirectoryPath,
+              let selectedDevice = deviceViewModel.selectedDevice else {
+            return false
+        }
+
+        return try !devicePodcastConfigurationService.playlistDirectoryExists(
+            playlistDirectoryPath,
+            on: selectedDevice
+        )
     }
 
     private func relativeDevicePodcastPath(for fileURL: URL) -> String {

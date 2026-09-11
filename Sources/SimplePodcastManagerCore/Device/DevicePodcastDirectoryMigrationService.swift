@@ -57,7 +57,8 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
             podcastDirectoryURL: device.rootURL.appending(
                 path: configuration.podcastDirectoryPath,
                 directoryHint: .isDirectory
-            ).standardizedFileURL
+            ).standardizedFileURL,
+            playlistDirectoryURL: device.playlistDirectoryURL
         )
 
         try validateMigrationDevices(currentDevice: device, updatedDevice: updatedDevice)

@@ -127,6 +127,7 @@ struct PodcastPlaylistResolverTests {
         let state = try JSONDecoder().decode(PodcastPlaylistDeviceState.self, from: Data(json.utf8))
 
         #expect(state.ownedDeviceFileNames == ["Commute.m3u"])
+        #expect(state.playlistDirectoryPath == nil)
         #expect(state.mostRecentSyncEntries.isEmpty)
     }
 

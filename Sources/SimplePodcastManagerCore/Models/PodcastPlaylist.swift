@@ -230,6 +230,7 @@ public struct PodcastPlaylistLibrary: Codable, Equatable, Sendable {
 public struct PodcastPlaylistDeviceState: Codable, Equatable, Sendable {
     public var ownedDeviceFileNames: Set<String>
     public var pendingDeletedDeviceFileNames: Set<String>
+    public var playlistDirectoryPath: String?
     // Keep this temporary development-build key decodable so its episode
     // snapshots can migrate into PodcastPlaylistLibrary.recentlyDownloadedEntries.
     public var mostRecentSyncEntries: [PodcastPlaylistEntry]
@@ -237,16 +238,19 @@ public struct PodcastPlaylistDeviceState: Codable, Equatable, Sendable {
     public init(
         ownedDeviceFileNames: Set<String> = [],
         pendingDeletedDeviceFileNames: Set<String> = [],
+        playlistDirectoryPath: String? = nil,
         mostRecentSyncEntries: [PodcastPlaylistEntry] = []
     ) {
         self.ownedDeviceFileNames = ownedDeviceFileNames
         self.pendingDeletedDeviceFileNames = pendingDeletedDeviceFileNames
+        self.playlistDirectoryPath = playlistDirectoryPath
         self.mostRecentSyncEntries = mostRecentSyncEntries
     }
 
     private enum CodingKeys: String, CodingKey {
         case ownedDeviceFileNames
         case pendingDeletedDeviceFileNames
+        case playlistDirectoryPath
         case mostRecentSyncEntries
     }
 
@@ -260,6 +264,10 @@ public struct PodcastPlaylistDeviceState: Codable, Equatable, Sendable {
             Set<String>.self,
             forKey: .pendingDeletedDeviceFileNames
         ) ?? []
+        playlistDirectoryPath = try container.decodeIfPresent(
+            String.self,
+            forKey: .playlistDirectoryPath
+        )
         mostRecentSyncEntries = try container.decodeIfPresent(
             [PodcastPlaylistEntry].self,
             forKey: .mostRecentSyncEntries

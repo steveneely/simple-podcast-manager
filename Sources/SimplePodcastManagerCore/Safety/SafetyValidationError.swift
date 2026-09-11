@@ -3,6 +3,7 @@ import Foundation
 public enum SafetyValidationError: LocalizedError, Equatable, Sendable {
     case invalidDeviceRoot(URL)
     case invalidPodcastDirectory(URL)
+    case invalidPlaylistDirectory(URL)
     case pathOutsideDevicePodcastDirectory(URL)
     case pathOutsideDeviceRoot(URL)
     case macTrashPathNotAllowed(URL)
@@ -14,6 +15,8 @@ public enum SafetyValidationError: LocalizedError, Equatable, Sendable {
             return "The selected device is not available at a safe mounted-volume path: \(url.path)."
         case .invalidPodcastDirectory(let url):
             return "The configured podcast folder is not safely contained inside the selected device: \(url.path)."
+        case .invalidPlaylistDirectory(let url):
+            return "The configured playlist folder is not safely contained inside the selected device: \(url.path)."
         case .pathOutsideDevicePodcastDirectory(let url):
             return "The proposed file is outside the configured podcast folder, so SPM will not change it: \(url.path)."
         case .pathOutsideDeviceRoot(let url):
@@ -21,7 +24,7 @@ public enum SafetyValidationError: LocalizedError, Equatable, Sendable {
         case .macTrashPathNotAllowed(let url):
             return "SPM will not change files in the Mac Trash: \(url.path)."
         case .invalidPodcastPlaylistTarget(let url):
-            return "The proposed playlist is not a direct .m3u file in the configured Podcast folder: \(url.path)."
+            return "The proposed playlist is not a direct .m3u file in the configured playlist folder: \(url.path)."
         }
     }
 }

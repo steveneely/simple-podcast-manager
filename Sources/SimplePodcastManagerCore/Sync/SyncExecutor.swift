@@ -91,6 +91,15 @@ public struct SyncExecutor: Sendable, SyncExecuting {
                     try playlistFileWriter.removeItemIfPresent(at: targetURL)
                     result.deletedPlaylistCount += 1
 
+                case .deleteRelocatedPodcastPlaylist(let targetURL, let playlistDirectoryURL):
+                    try cleanPlaylistMetadataSidecar(
+                        for: targetURL,
+                        in: playlistDirectoryURL,
+                        on: plan.device
+                    )
+                    try playlistFileWriter.removeItemIfPresent(at: targetURL)
+                    result.deletedPlaylistCount += 1
+
                 case .ejectDevice:
                     try cleanMetadataSidecars(for: metadataCleanupTargets, on: plan.device)
                     try ejector.eject(device: plan.device)
@@ -158,12 +167,25 @@ public struct SyncExecutor: Sendable, SyncExecuting {
         }
     }
 
-    private func cleanPlaylistMetadataSidecar(for playlistURL: URL, on device: DeviceInfo) throws {
+    private func cleanPlaylistMetadataSidecar(
+        for playlistURL: URL,
+        in playlistDirectoryURL: URL? = nil,
+        on device: DeviceInfo
+    ) throws {
         let sidecarURL = playlistURL.deletingLastPathComponent()
             .appendingPathComponent("._" + playlistURL.lastPathComponent)
         do {
-            try safetyValidator.validatePodcastPlaylistTarget(playlistURL, on: device)
-            try safetyValidator.validateDeleteTarget(sidecarURL, on: device)
+            try safetyValidator.validatePodcastPlaylistTarget(
+                playlistURL,
+                in: playlistDirectoryURL ?? device.playlistDirectoryURL,
+                on: device
+            )
+            try safetyValidator.validatePodcastPlaylistSidecarTarget(
+                sidecarURL,
+                for: playlistURL,
+                in: playlistDirectoryURL,
+                on: device
+            )
             guard sidecarURL.resolvingSymlinksInPath().standardizedFileURL == sidecarURL.standardizedFileURL else {
                 throw CocoaError(.fileReadInvalidFileName)
             }

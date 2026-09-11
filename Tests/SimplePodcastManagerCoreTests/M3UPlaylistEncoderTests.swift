@@ -4,15 +4,43 @@ import Testing
 
 struct M3UPlaylistEncoderTests {
     @Test
-    func encodesWalkmanCompatibleRootRelativeUTF8Paths() throws {
+    func encodesUTF8PathsRelativeToPlaylistFolder() throws {
         let device = makeDevice()
         let episodeURL = device.podcastDirectoryURL
             .appendingPathComponent("Hörspiel", isDirectory: true)
             .appendingPathComponent("Größte Folge.mp3", isDirectory: false)
 
-        let data = try M3UPlaylistEncoder().encode(fileURLs: [episodeURL], on: device)
+        let data = try M3UPlaylistEncoder().encode(
+            fileURLs: [episodeURL],
+            relativeTo: device.playlistDirectoryURL,
+            on: device
+        )
 
-        #expect(String(decoding: data, as: UTF8.self) == "#EXTM3U\n\\MUSIC\\Hörspiel\\Größte Folge.mp3\n")
+        #expect(String(decoding: data, as: UTF8.self) == "#EXTM3U\nHörspiel\\Größte Folge.mp3\n")
+    }
+
+    @Test
+    func encodesHiByPathFromRootPlaylistFolderToPodcastFolder() throws {
+        let device = DeviceInfo(
+            name: "HiBy",
+            rootURL: URL(fileURLWithPath: "/Volumes/HIBY", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/HIBY/Podcast", isDirectory: true),
+            playlistDirectoryURL: URL(fileURLWithPath: "/Volumes/HIBY/playlist_data", isDirectory: true)
+        )
+        let episodeURL = device.podcastDirectoryURL
+            .appendingPathComponent("Global News Podcast", isDirectory: true)
+            .appendingPathComponent("2026.09.11-News.mp3", isDirectory: false)
+
+        let data = try M3UPlaylistEncoder().encode(
+            fileURLs: [episodeURL],
+            relativeTo: device.playlistDirectoryURL,
+            on: device
+        )
+
+        #expect(
+            String(decoding: data, as: UTF8.self)
+                == "#EXTM3U\n..\\Podcast\\Global News Podcast\\2026.09.11-News.mp3\n"
+        )
     }
 
     @Test
@@ -21,7 +49,11 @@ struct M3UPlaylistEncoderTests {
         let outsideURL = URL(fileURLWithPath: "/Volumes/OTHER/Episode.mp3")
 
         #expect(throws: SafetyValidationError.pathOutsideDeviceRoot(outsideURL)) {
-            try M3UPlaylistEncoder().encode(fileURLs: [outsideURL], on: device)
+            try M3UPlaylistEncoder().encode(
+                fileURLs: [outsideURL],
+                relativeTo: device.playlistDirectoryURL,
+                on: device
+            )
         }
     }
 

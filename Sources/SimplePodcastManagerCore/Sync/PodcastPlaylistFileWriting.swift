@@ -9,6 +9,10 @@ public struct LocalPodcastPlaylistFileWriter: PodcastPlaylistFileWriting {
     public init() {}
 
     public func write(_ data: Data, to destinationURL: URL) throws {
+        try FileManager.default.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
         try data.write(to: destinationURL, options: .atomic)
     }
 

@@ -57,11 +57,13 @@ struct PodcastPlaylistViewModelTests {
         #expect(viewModel.library.deviceStates["walkman"]?.pendingDeletedDeviceFileNames == ["Commute.m3u"])
         try viewModel.markDevicePlaylistSyncCompleted(
             deviceID: "walkman",
-            writtenPlaylistFileNames: ["Garden.m3u"]
+            writtenPlaylistFileNames: ["Garden.m3u"],
+            playlistDirectoryPath: "playlist_data"
         )
         #expect(viewModel.library.deviceStates["walkman"] == PodcastPlaylistDeviceState(
             ownedDeviceFileNames: ["Garden.m3u"],
-            pendingDeletedDeviceFileNames: []
+            pendingDeletedDeviceFileNames: [],
+            playlistDirectoryPath: "playlist_data"
         ))
     }
 

@@ -129,6 +129,38 @@ struct PodcastPlaylistPresentationViewModelTests {
     }
 
     @Test
+    func detailEntriesReflectAPinBeforeAutomaticPresentationRefreshFinishes() throws {
+        let subscription = PodcastSubscription(
+            title: "Example Podcast",
+            rssURL: URL(string: "https://example.com/feed.xml")!
+        )
+        let episode = makeEpisode(
+            id: "automatic",
+            title: "Automatic",
+            day: 2,
+            subscription: subscription
+        )
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        var playlist = try PodcastPlaylist(name: "News")
+        let stalePresentation = PodcastPlaylistPresentation(
+            entriesByPlaylistID: [
+                playlist.id: ResolvedPodcastPlaylistEntries(
+                    explicit: [],
+                    automatic: [entry]
+                ),
+            ],
+            episodeCountsByPlaylistID: [playlist.id: 1]
+        )
+
+        playlist.entries.append(entry)
+        let entries = stalePresentation.entries(reflecting: playlist)
+
+        #expect(entries.explicit == [entry])
+        #expect(entries.automatic.isEmpty)
+        #expect(entries.all == [entry])
+    }
+
+    @Test
     func builderKeepsRecentlyDownloadedEntriesVisibleWithoutAConnectedDevice() throws {
         let subscription = PodcastSubscription(
             title: "Example Podcast",

@@ -609,12 +609,9 @@ public struct MainView: View {
         let playlist = podcastPlaylistViewModel.playlist(id: selectedPlaylistID)
         return PodcastPlaylistDetailView(
             playlist: playlist,
-            entries: playlist.flatMap {
-                podcastPlaylistPresentationViewModel.presentation.entriesByPlaylistID[$0.id]
-            } ?? ResolvedPodcastPlaylistEntries(
-                explicit: playlist?.entries ?? [],
-                automatic: []
-            ),
+            entries: playlist.map {
+                podcastPlaylistPresentationViewModel.presentation.entries(reflecting: $0)
+            } ?? ResolvedPodcastPlaylistEntries(explicit: [], automatic: []),
             isOnDevice: isPlaylistEpisodeOnDevice,
             isDownloaded: { preparationPreviewViewModel.preparedEpisode(for: $0) != nil },
             onAddPlaylist: presentNewPlaylistEditor,

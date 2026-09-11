@@ -17,6 +17,17 @@ struct PodcastPlaylistPresentation: Equatable, Sendable {
             entries.automatic.contains(where: { $0.id == episodeID }) ? playlistID : nil
         })
     }
+
+    func entries(reflecting playlist: PodcastPlaylist) -> ResolvedPodcastPlaylistEntries {
+        let explicitEntryIDs = Set(playlist.entries.map(\.id))
+        let automaticEntries = entriesByPlaylistID[playlist.id]?.automatic.filter {
+            !explicitEntryIDs.contains($0.id)
+        } ?? []
+        return ResolvedPodcastPlaylistEntries(
+            explicit: playlist.entries,
+            automatic: automaticEntries
+        )
+    }
 }
 
 enum PodcastPlaylistPresentationBuilder {

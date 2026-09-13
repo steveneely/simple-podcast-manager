@@ -28,6 +28,7 @@ Keep the app visually and behaviorally consistent. New UI and changes to existin
 - Use `feed` only when referring specifically to an RSS document, RSS URL, parser, network request, or derived feed cache. Use `RSS Feed URL` for field labels and explanatory copy; the compact Add Podcast method selector uses `Feed URL`.
 - Use `subscription` only when the relationship or portable subscription data is the subject, such as OPML import/export or a persisted subscription identifier.
 - Do not introduce `show` as a synonym for podcast. The verb “show” remains appropriate for actions such as `Show more` or `Show in Finder`.
+- Keep device support generic. Never use manufacturer names, device model names, or device-specific operating-system names in documentation, source code, tests, or user-facing UI. Describe the relevant capability, filesystem behavior, or compatibility constraint instead.
 - Use buttons for app actions, links only for navigation to a URL, and toggles or checkboxes for selectable on/off state. Do not make a button look like a checkbox or style non-navigation actions as links.
 - Make every interactive control recognizable through its native role, label, hover/pressed treatment, selection state, or standard macOS affordance. Icon-only controls must have both help text and an accessibility label.
 - Use `HoverIconButton` and `HoverIconMenu` for compact toolbar actions so icon size, hit target, hover feedback, and accessibility stay consistent. Destructive controls should use the shared destructive treatment.
@@ -61,7 +62,7 @@ These rules override convenience or speed:
 - Never modify files outside the mounted external device
 - Never modify other device-root files or other folders on the device
 - Never delete files the app does not clearly own without explicit, per-file user selection and confirmation
-- Preserve the scoped sync cleanup for verified AppleDouble sidecars matching app-managed podcast media. This is a tested Walkman compatibility fix, not general device housekeeping; read [the sidecar investigation](docs/WALKMAN_SIDECAR_ISSUE.md) before changing it. It does not authorize deleting audio, unrelated `._` files, or device library databases.
+- Preserve the scoped sync cleanup for verified AppleDouble sidecars matching app-managed podcast media. This is a tested compatibility fix for devices that mishandle these files, not general device housekeeping; read [the sidecar investigation](docs/APPLEDOUBLE_SIDECAR_ISSUE.md) before changing it. It does not authorize deleting audio, unrelated `._` files, or device library databases.
 - Abort destructive work if path validation is uncertain
 
 If a proposed implementation weakens those guarantees, do not take it.

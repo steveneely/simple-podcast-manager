@@ -20,12 +20,12 @@ struct M3UPlaylistEncoderTests {
     }
 
     @Test
-    func encodesHiByPathFromRootPlaylistFolderToPodcastFolder() throws {
+    func encodesPathFromRootPlaylistFolderToPodcastFolder() throws {
         let device = DeviceInfo(
-            name: "HiBy",
-            rootURL: URL(fileURLWithPath: "/Volumes/HIBY", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/HIBY/Podcast", isDirectory: true),
-            playlistDirectoryURL: URL(fileURLWithPath: "/Volumes/HIBY/playlist_data", isDirectory: true)
+            name: "Test Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-PLAYER/Podcast", isDirectory: true),
+            playlistDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-PLAYER/playlist_data", isDirectory: true)
         )
         let episodeURL = device.podcastDirectoryURL
             .appendingPathComponent("Global News Podcast", isDirectory: true)
@@ -59,9 +59,9 @@ struct M3UPlaylistEncoderTests {
 
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
-            name: "Walkman",
-            rootURL: URL(fileURLWithPath: "/Volumes/WALKMAN", isDirectory: true),
-            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/WALKMAN/MUSIC", isDirectory: true)
+            name: "Test Player",
+            rootURL: URL(fileURLWithPath: "/Volumes/TEST-PLAYER", isDirectory: true),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST-PLAYER/MUSIC", isDirectory: true)
         )
     }
 }

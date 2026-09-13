@@ -117,7 +117,7 @@ struct MountedVolumeDeviceServiceTests {
             metadataProvider: StubVolumeMetadataProvider(
                 resourceValues: [
                     "/Volumes/TEST-MP3-PLAYER": MountedVolumeResourceValues(
-                        volumeName: "HiBy",
+                        volumeName: "Test MP3 Player",
                         isDirectory: true,
                         isRemovable: true,
                         isEjectable: true

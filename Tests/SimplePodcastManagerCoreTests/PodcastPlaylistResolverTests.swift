@@ -160,7 +160,7 @@ struct PodcastPlaylistResolverTests {
         let legacyLibrary = LegacyPlaylistLibrary(
             playlists: [],
             deviceStates: [
-                "walkman": PodcastPlaylistDeviceState(mostRecentSyncEntries: [entry])
+                "test-device": PodcastPlaylistDeviceState(mostRecentSyncEntries: [entry])
             ]
         )
 

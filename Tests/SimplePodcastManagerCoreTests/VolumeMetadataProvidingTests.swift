@@ -7,7 +7,7 @@ struct VolumeMetadataProvidingTests {
     func detectsConfigurationAndDirectoryWhenVolumePathRequiresPercentEncoding() throws {
         let fileManager = FileManager.default
         let volumeURL = fileManager.temporaryDirectory.appendingPathComponent(
-            "HIBY R1 #\(UUID().uuidString)",
+            "TEST PLAYER #\(UUID().uuidString)",
             isDirectory: true
         )
         defer { try? fileManager.removeItem(at: volumeURL) }

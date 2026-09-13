@@ -46,7 +46,7 @@ struct PodcastPlaylistViewModelTests {
         let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
             playlists: [original],
             deviceStates: [
-                "walkman": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Commute.m3u"])
+                "test-device": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Commute.m3u"])
             ]
         ))
         let viewModel = PodcastPlaylistViewModel(store: store)
@@ -54,13 +54,13 @@ struct PodcastPlaylistViewModelTests {
 
         try viewModel.renamePlaylist(id: original.id, to: "Garden")
 
-        #expect(viewModel.library.deviceStates["walkman"]?.pendingDeletedDeviceFileNames == ["Commute.m3u"])
+        #expect(viewModel.library.deviceStates["test-device"]?.pendingDeletedDeviceFileNames == ["Commute.m3u"])
         try viewModel.markDevicePlaylistSyncCompleted(
-            deviceID: "walkman",
+            deviceID: "test-device",
             writtenPlaylistFileNames: ["Garden.m3u"],
             playlistDirectoryPath: "playlist_data"
         )
-        #expect(viewModel.library.deviceStates["walkman"] == PodcastPlaylistDeviceState(
+        #expect(viewModel.library.deviceStates["test-device"] == PodcastPlaylistDeviceState(
             ownedDeviceFileNames: ["Garden.m3u"],
             pendingDeletedDeviceFileNames: [],
             playlistDirectoryPath: "playlist_data"
@@ -73,18 +73,18 @@ struct PodcastPlaylistViewModelTests {
         let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
             playlists: [playlist],
             deviceStates: [
-                "walkman": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Empty.m3u"]),
+                "test-device": PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Empty.m3u"]),
             ]
         ))
         let viewModel = PodcastPlaylistViewModel(store: store)
         await viewModel.load()
 
         try viewModel.markDevicePlaylistSyncCompleted(
-            deviceID: "walkman",
+            deviceID: "test-device",
             writtenPlaylistFileNames: []
         )
 
-        #expect(viewModel.library.deviceStates["walkman"] == PodcastPlaylistDeviceState())
+        #expect(viewModel.library.deviceStates["test-device"] == PodcastPlaylistDeviceState())
     }
 
     @Test
@@ -324,7 +324,7 @@ struct PodcastPlaylistViewModelTests {
         let viewModel = PodcastPlaylistViewModel(store: store)
         await viewModel.load()
         let episode = makeEpisode(id: "episode", title: "Episode")
-        let deviceFileURL = URL(fileURLWithPath: "/Volumes/WALKMAN/music/Example Podcast/old-name.mp3")
+        let deviceFileURL = URL(fileURLWithPath: "/Volumes/TEST-PLAYER/music/Example Podcast/old-name.mp3")
 
         try viewModel.excludeAutomaticEpisode(
             episode,

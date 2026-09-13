@@ -90,7 +90,7 @@ struct PodcastPlaylistEditorView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             Text(title)
                 .font(.title2)
                 .fontWeight(.semibold)
@@ -101,13 +101,15 @@ struct PodcastPlaylistEditorView: View {
 
             Picker("Icon", selection: $icon) {
                 ForEach(PodcastPlaylistIcon.allCases, id: \.self) { icon in
-                    Text(icon.glyph)
+                    Image(systemName: icon.systemImageName)
+                        .symbolRenderingMode(.monochrome)
                         .tag(icon)
                         .help(icon.title)
                         .accessibilityLabel(icon.title)
                 }
             }
             .pickerStyle(.palette)
+            .frame(maxWidth: .infinity)
 
             automaticRuleEditor
 
@@ -127,8 +129,8 @@ struct PodcastPlaylistEditorView: View {
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(20)
-        .frame(width: 440)
+        .frame(width: 480, alignment: .topLeading)
+        .padding(24)
     }
 
     private var automaticRuleEditor: some View {
@@ -167,9 +169,10 @@ struct PodcastPlaylistEditorView: View {
                                 )
                             }
                         }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxHeight: 150)
-                    .padding(10)
+                    .frame(maxWidth: .infinity, maxHeight: 150, alignment: .topLeading)
                     .background(Color(NSColor.controlBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -300,14 +303,10 @@ private struct PodcastPlaylistIconView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            if icon == .music {
-                Image(systemName: "music.note.list")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.92))
-            } else {
-                Text(icon.glyph)
-                    .font(.system(size: 22))
-            }
+            Image(systemName: icon.systemImageName)
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
         }
         .frame(width: 42, height: 42)
         .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -330,7 +329,7 @@ private struct PodcastPlaylistIconView: View {
     }
 }
 
-private extension PodcastPlaylistIcon {
+extension PodcastPlaylistIcon {
     var title: String {
         switch self {
         case .music: "Music"
@@ -347,19 +346,19 @@ private extension PodcastPlaylistIcon {
         }
     }
 
-    var glyph: String {
+    var systemImageName: String {
         switch self {
-        case .music: "♫"
-        case .favorite: "⭐️"
-        case .news: "📰"
-        case .history: "🏛️"
-        case .technology: "💻"
-        case .cycling: "🚲"
-        case .exercise: "🏃"
-        case .commuting: "🚆"
-        case .home: "🏠"
-        case .outdoors: "🌿"
-        case .sleep: "🌙"
+        case .music: "music.note.list"
+        case .favorite: "star"
+        case .news: "newspaper"
+        case .history: "building.columns"
+        case .technology: "cpu"
+        case .cycling: "bicycle"
+        case .exercise: "figure.run"
+        case .commuting: "tram"
+        case .home: "house"
+        case .outdoors: "leaf"
+        case .sleep: "moon.zzz"
         }
     }
 }

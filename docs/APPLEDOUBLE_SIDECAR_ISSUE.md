@@ -1,10 +1,10 @@
-# Walkman playlist failures caused by macOS sidecars
+# Playlist failures caused by macOS sidecars
 
 ## Decision and scope
 
-Introduced in **v1.20.1, build 102** after testing Steve's **Sony Walkman NW-E394, firmware 1.01**. Sync removes verified AppleDouble metadata files matching app-managed podcast media before automatic eject. Retain this behavior when changing copying, device inventory, or sync execution.
+Introduced in **v1.20.1, build 102** after testing a physical MP3 player that exhibited playlist playback failures. Sync removes verified AppleDouble metadata files matching app-managed podcast media before automatic eject. Retain this behavior when changing copying, device inventory, or sync execution.
 
-This document records a local device investigation and its resulting compatibility decision. It is not a Sony specification or a claim about every Walkman model. The exact firmware implementation was not reverse engineered.
+This document records a local device investigation and its resulting compatibility decision. It is not a device specification or a claim about every player. The exact firmware implementation was not reverse engineered.
 
 ## What the experiments established
 
@@ -43,4 +43,4 @@ This is not permission to run a recursive `._*` sweep or `dot_clean` over the de
 
 The behavior is covered by [AppleDoubleFileTests](../Tests/SimplePodcastManagerCoreTests/AppleDoubleFileTests.swift), [SyncExecutorTests](../Tests/SimplePodcastManagerCoreTests/SyncExecutorTests.swift), [SyncPlannerTests](../Tests/SimplePodcastManagerCoreTests/SyncPlannerTests.swift), and [SyncPlanTests](../Tests/SimplePodcastManagerCoreTests/SyncPlanTests.swift). Preserve coverage for valid and malformed companions, unrelated files, unsafe paths, cleanup of retained media without copies, and cleanup failure before eject.
 
-Use the disposable FAT disk-image workflow in [AGENTS.md](../AGENTS.md#manual-disk-image-device-test) for filesystem and app checks. It cannot emulate the Walkman firmware. If device behavior needs retesting, use explicitly authorized disposable tracks and playlists on the player; compare the same audio and playlist with and without verified companions, eject normally, let the player scan, and record both displayed titles and actual playback. Reintroducing the suspected cause and removing it again is needed to distinguish this issue from a coincidental library refresh. Do not reset or delete the player's database to make a test pass.
+Use the disposable FAT disk-image workflow in [AGENTS.md](../AGENTS.md#manual-disk-image-device-test) for filesystem and app checks. It cannot emulate a physical player's firmware. If device behavior needs retesting, use explicitly authorized disposable tracks and playlists on the player; compare the same audio and playlist with and without verified companions, eject normally, let the player scan, and record both displayed titles and actual playback. Reintroducing the suspected cause and removing it again is needed to distinguish this issue from a coincidental library refresh. Do not reset or delete the player's database to make a test pass.

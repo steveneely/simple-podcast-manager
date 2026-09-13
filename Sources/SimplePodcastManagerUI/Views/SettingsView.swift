@@ -269,7 +269,7 @@ public struct SettingsView: View {
                         if showsPlaylistsBeta {
                             LabeledField(
                                 title: "Device Playlist Folder",
-                                detail: selectedDeviceName.map { "Choose where playlists are saved on \($0). Some players, including HiByOS devices, require a separate folder such as \"playlist_data\"." }
+                                detail: selectedDeviceName.map { _ in "Choose where playlists are saved. Some devices require playlists to be stored in a separate folder." }
                                     ?? "Connect a device to choose where its playlists are saved.",
                                 emphasizesTitle: true
                             ) {

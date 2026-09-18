@@ -34,8 +34,7 @@ struct JSONConfigurationStoreTests {
                 ejectDeviceAfterSync: false,
                 deleteDownloadedEpisodesAfterSync: false,
                 inactivePodcastThreshold: .oneYear,
-                podcastSortOrder: .leastRecentlyUpdated,
-                showsPlaylistsBeta: true
+                podcastSortOrder: .leastRecentlyUpdated
             ),
             podcastSubscriptions: [
                 PodcastSubscription(
@@ -132,8 +131,30 @@ struct JSONConfigurationStoreTests {
         #expect(configuration.settings.deleteDownloadedEpisodesAfterSync)
         #expect(configuration.settings.inactivePodcastThreshold == .sixMonths)
         #expect(configuration.settings.podcastSortOrder == .alphabetic)
-        #expect(!configuration.settings.showsPlaylistsBeta)
         #expect(configuration.podcastSubscriptions.isEmpty)
+    }
+
+    @Test(arguments: [true, false])
+    func ignoresRetiredPlaylistBetaSettingAndOmitsItOnSave(wasEnabled: Bool) throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let fileURL = directory.appendingPathComponent("config.json")
+        let data = try JSONSerialization.data(withJSONObject: [
+            "settings": ["showsPlaylistsBeta": wasEnabled, "ejectDeviceAfterSync": false],
+            "feedSubscriptions": [],
+        ])
+        try data.write(to: fileURL)
+        let store = JSONConfigurationStore(fileURL: fileURL)
+
+        let configuration = try store.loadConfiguration()
+
+        #expect(configuration.settings == AppSettings(ejectDeviceAfterSync: false))
+        try store.saveConfiguration(configuration)
+        let saved = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any])
+        let settings = try #require(saved["settings"] as? [String: Any])
+        #expect(settings["showsPlaylistsBeta"] == nil)
+        #expect(try store.loadConfiguration() == configuration)
     }
 
     @Test

@@ -122,12 +122,12 @@ public struct MainView: View {
         self.startupEpisodeStateStore = startupEpisodeStateStore
     }
 
-    public var body: some View {
+    private var contentWithSheets: some View {
         VStack(alignment: .leading, spacing: 16) {
             deviceSection
 
             if viewModel.hasPodcasts
-                || (viewModel.settings.showsPlaylistsBeta && !podcastPlaylistViewModel.playlists.isEmpty) {
+                || !podcastPlaylistViewModel.playlists.isEmpty {
                 librarySection
                     .disabled(!hasLoadedEpisodeState)
             } else {
@@ -287,11 +287,14 @@ public struct MainView: View {
         ) {
             otherAudioReviewSheet
         }
+    }
+
+    public var body: some View {
+        contentWithSheets
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPodcast)) { _ in
             presentNewPodcastEditor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerAddPlaylist)) { _ in
-            guard viewModel.settings.showsPlaylistsBeta else { return }
             presentNewPlaylistEditor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerOpenSettings)) { _ in
@@ -307,7 +310,6 @@ public struct MainView: View {
             libraryMode = .podcasts
         }
         .onReceive(NotificationCenter.default.publisher(for: .simplePodcastManagerShowPlaylists)) { _ in
-            guard viewModel.settings.showsPlaylistsBeta else { return }
             libraryMode = .playlists
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)) { _ in
@@ -436,7 +438,7 @@ public struct MainView: View {
             librarySidebar
                 .frame(minWidth: 220, idealWidth: 260, maxWidth: 300)
             Group {
-                if libraryMode == .playlists, viewModel.settings.showsPlaylistsBeta {
+                if libraryMode == .playlists {
                     podcastPlaylistDetailSection
                 } else {
                     episodeDetailSection
@@ -451,7 +453,7 @@ public struct MainView: View {
 
     @ViewBuilder
     private var librarySidebar: some View {
-        if libraryMode == .playlists, viewModel.settings.showsPlaylistsBeta {
+        if libraryMode == .playlists {
             PodcastPlaylistSidebarView(
                 playlists: podcastPlaylistViewModel.playlists,
                 libraryMode: $libraryMode,
@@ -475,7 +477,6 @@ public struct MainView: View {
         PodcastSidebarView(
             subscriptions: viewModel.podcastSubscriptions,
             libraryMode: $libraryMode,
-            showsPlaylistsBeta: viewModel.settings.showsPlaylistsBeta,
             selectedPodcastID: $selectedPodcastID,
             sortOrder: Binding(
                 get: { viewModel.settings.podcastSortOrder },
@@ -676,7 +677,6 @@ public struct MainView: View {
     }
 
     private func presentNewPlaylistEditor() {
-        guard viewModel.settings.showsPlaylistsBeta else { return }
         podcastPlaylistEditorPresentation = PodcastPlaylistEditorPresentation()
     }
 
@@ -817,14 +817,10 @@ public struct MainView: View {
             isSelectedForDeviceRemoval: isSelectedForDeviceRemoval,
             isPrepared: status.preparedEpisode != nil,
             isPreparing: preparationPreviewViewModel.isPreparing(episode),
-            playlists: viewModel.settings.showsPlaylistsBeta
-                ? podcastPlaylistViewModel.playlists
-                : [],
-            automaticPlaylistIDs: viewModel.settings.showsPlaylistsBeta
-                ? podcastPlaylistPresentationViewModel.presentation.automaticPlaylistIDs(
-                    containing: episode
-                )
-                : [],
+            playlists: podcastPlaylistViewModel.playlists,
+            automaticPlaylistIDs: podcastPlaylistPresentationViewModel.presentation.automaticPlaylistIDs(
+                containing: episode
+            ),
             onToggleDetails: { toggleEpisodeDetails(for: episode) },
             onToggleDeviceRemoval: {
                 if let deviceFileURL {
@@ -858,7 +854,6 @@ public struct MainView: View {
     }
 
     private func togglePlaylistMembership(for episode: Episode, playlist: PodcastPlaylist) {
-        guard viewModel.settings.showsPlaylistsBeta else { return }
         do {
             if playlist.contains(episode) {
                 try podcastPlaylistViewModel.remove(episode, from: playlist.id)
@@ -1264,14 +1259,9 @@ public struct MainView: View {
         episodes.filter { preparationPreviewViewModel.preparedEpisode(for: $0) != nil }
     }
 
-    private func recordDownloadedEpisodesForPlaylists(_ episodes: [Episode]) {
-        guard viewModel.settings.showsPlaylistsBeta else { return }
-        try? podcastPlaylistViewModel.recordDownloadedEpisodes(episodes)
-    }
-
     private func showDownloadSummary(_ downloadedEpisodes: [Episode]) {
         guard !downloadedEpisodes.isEmpty else { return }
-        recordDownloadedEpisodesForPlaylists(downloadedEpisodes)
+        try? podcastPlaylistViewModel.recordDownloadedEpisodes(downloadedEpisodes)
         let newDownloads = downloadedEpisodes.map(PodcastRefreshEpisodeDetail.init)
         downloadedEpisodesForCurrentSummary = PodcastRefreshEpisodeDetail.merging(
             downloadedEpisodesForCurrentSummary,
@@ -1403,7 +1393,7 @@ public struct MainView: View {
             downloadedEpisodesForCurrentSummary,
             with: outcome.downloadedEpisodes.map(PodcastRefreshEpisodeDetail.init)
         )
-        recordDownloadedEpisodesForPlaylists(outcome.downloadedEpisodes)
+        try? podcastPlaylistViewModel.recordDownloadedEpisodes(outcome.downloadedEpisodes)
         podcastRefreshStatus = .completed(refreshSummary(
             for: scope,
             displayScope: displayScope,
@@ -1515,7 +1505,6 @@ public struct MainView: View {
                 selectedPlaylistProtectedDeletionTargets: selectedPlaylistProtectedDeletionTargets,
                 managedInventory: deviceLibraryViewModel.managedInventory,
                 podcastPlaylistLibrary: podcastPlaylistViewModel.library,
-                arePlaylistsEnabled: viewModel.settings.showsPlaylistsBeta,
                 ejectAfterSync: isEjectAfterSyncEnabled
             )
             refreshPodcastPlaylistPresentation()
@@ -1523,8 +1512,7 @@ public struct MainView: View {
     }
 
     private func refreshPodcastPlaylistPresentation() {
-        let shouldRememberResolvedEpisodes = viewModel.settings.showsPlaylistsBeta
-            && deviceLibraryViewModel.managedInventory != nil
+        let shouldRememberResolvedEpisodes = deviceLibraryViewModel.managedInventory != nil
         podcastPlaylistPresentationViewModel.refresh(
             playlists: podcastPlaylistViewModel.playlists,
             subscriptions: viewModel.podcastSubscriptions,
@@ -1996,7 +1984,7 @@ public struct MainView: View {
 
         if succeeded {
             replacementTargets = []
-            if viewModel.settings.showsPlaylistsBeta, let syncingDeviceID {
+            if let syncingDeviceID {
                 try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(
                     deviceID: syncingDeviceID,
                     writtenPlaylistFileNames: syncExecutionViewModel.lastPlan?.writtenPodcastPlaylistFileNames ?? [],
@@ -2019,14 +2007,13 @@ public struct MainView: View {
         selectedPlaylistProtectedDeletionTargets = []
         replacementTargets = []
 
-        if viewModel.settings.showsPlaylistsBeta,
-           let preflight = PodcastPlaylistSyncPreflight.make(
-               playlists: podcastPlaylistViewModel.playlists,
-               isAvailable: { episode in
-                   preparationPreviewViewModel.preparedEpisode(for: episode) != nil
-                       || playlistDeviceFileURL(for: episode) != nil
-               }
-           ) {
+        if let preflight = PodcastPlaylistSyncPreflight.make(
+            playlists: podcastPlaylistViewModel.playlists,
+            isAvailable: { episode in
+                preparationPreviewViewModel.preparedEpisode(for: episode) != nil
+                    || playlistDeviceFileURL(for: episode) != nil
+            }
+        ) {
             pendingPlaylistSyncDownload = preflight
             return
         }
@@ -2306,15 +2293,7 @@ public struct MainView: View {
         }
 
         let previousAutomaticDownloadLimit = viewModel.settings.automaticDownloadLimit
-        let werePlaylistsEnabled = viewModel.settings.showsPlaylistsBeta
         viewModel.replaceSettings(updatedSettings)
-        if !updatedSettings.showsPlaylistsBeta {
-            libraryMode = .podcasts
-            selectedPlaylistProtectedDeletionTargets = []
-        }
-        if werePlaylistsEnabled != updatedSettings.showsPlaylistsBeta {
-            rebuildSyncPlan()
-        }
         Task {
             await automaticDownloadViewModel.applyPreferences(
                 subscriptions: viewModel.podcastSubscriptions,

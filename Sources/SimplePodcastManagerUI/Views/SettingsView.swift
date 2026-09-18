@@ -13,7 +13,6 @@ public struct SettingsView: View {
     @State private var automaticDownloadLimit: AutomaticDownloadLimit
     @State private var deviceCleanupPolicy: DeviceCleanupPolicy
     @State private var inactivePodcastThreshold: InactivePodcastThreshold
-    @State private var showsPlaylistsBeta: Bool
     @State private var podcastDirectoryPath: String
     @State private var playlistDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
@@ -75,7 +74,6 @@ public struct SettingsView: View {
         self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
         self._deviceCleanupPolicy = State(initialValue: settings.deviceCleanupPolicy)
         self._inactivePodcastThreshold = State(initialValue: settings.inactivePodcastThreshold)
-        self._showsPlaylistsBeta = State(initialValue: settings.showsPlaylistsBeta)
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._playlistDirectoryPath = State(
             initialValue: playlistDirectoryPath
@@ -198,6 +196,21 @@ public struct SettingsView: View {
                             .disabled(selectedDeviceName == nil)
                         }
 
+                        LabeledField(
+                            title: "Device Playlist Folder",
+                            detail: selectedDeviceName.map { _ in "Choose where playlists are saved. Some devices require playlists to be stored in a separate folder." }
+                                ?? "Connect a device to choose where its playlists are saved.",
+                            emphasizesTitle: true
+                        ) {
+                            chooserRow(
+                                value: playlistDirectoryPath,
+                                buttonTitle: "Choose Folder…",
+                                clearTitle: nil
+                            ) {
+                                choosePlaylistDirectory()
+                            } onClear: {}
+                            .disabled(selectedDeviceName == nil)
+                        }
                     }
 
                     SettingsSection(title: "General") {
@@ -253,35 +266,6 @@ public struct SettingsView: View {
                                 isOn: $allowsInsecureDownloads
                             )
                             .toggleStyle(.checkbox)
-                        }
-                    }
-
-                    SettingsSection(title: "Beta Features") {
-                        LabeledField(
-                            title: "Playlists",
-                            detail: "Create playlists for compatible MP3 players and optionally add downloaded episodes automatically. Disabling Playlists preserves their definitions but stops syncing them and protecting their episodes from cleanup. Existing playlist files on MP3 players are left unchanged.",
-                            emphasizesTitle: true
-                        ) {
-                            Toggle("Enable Playlists", isOn: $showsPlaylistsBeta)
-                                .toggleStyle(.checkbox)
-                        }
-
-                        if showsPlaylistsBeta {
-                            LabeledField(
-                                title: "Device Playlist Folder",
-                                detail: selectedDeviceName.map { _ in "Choose where playlists are saved. Some devices require playlists to be stored in a separate folder." }
-                                    ?? "Connect a device to choose where its playlists are saved.",
-                                emphasizesTitle: true
-                            ) {
-                                chooserRow(
-                                    value: playlistDirectoryPath,
-                                    buttonTitle: "Choose Folder…",
-                                    clearTitle: nil
-                                ) {
-                                    choosePlaylistDirectory()
-                                } onClear: {}
-                                .disabled(selectedDeviceName == nil)
-                            }
                         }
                     }
 
@@ -426,13 +410,10 @@ public struct SettingsView: View {
                 ejectDeviceAfterSync: ejectDeviceAfterSync,
                 deleteDownloadedEpisodesAfterSync: deleteDownloadedEpisodesAfterSync,
                 inactivePodcastThreshold: inactivePodcastThreshold,
-                podcastSortOrder: podcastSortOrder,
-                showsPlaylistsBeta: showsPlaylistsBeta
+                podcastSortOrder: podcastSortOrder
             ),
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
-            playlistDirectoryPath: selectedDeviceName == nil || !showsPlaylistsBeta
-                ? nil
-                : playlistDirectoryPath,
+            playlistDirectoryPath: selectedDeviceName == nil ? nil : playlistDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates,
             migrationPlan: nil
         )
@@ -570,7 +551,7 @@ public struct SettingsView: View {
     }
 
     private func choosePlaylistDirectory() {
-        guard showsPlaylistsBeta, let selectedDeviceRootURL else { return }
+        guard let selectedDeviceRootURL else { return }
 
         let panel = NSOpenPanel()
         panel.title = "Choose Playlist Folder"

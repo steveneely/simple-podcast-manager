@@ -16,7 +16,8 @@ struct PodcastPlaylistViewModelTests {
 
         try viewModel.add(first, to: playlistID)
         try viewModel.add(second, to: playlistID)
-        try viewModel.moveEntry(in: playlistID, from: 1, to: 0)
+        try viewModel.moveEntries(in: playlistID, from: IndexSet(integer: 1), to: 0)
+        #expect(viewModel.playlist(id: playlistID)?.entries.map(\.episode.id) == ["second", "first"])
         try viewModel.remove(first, from: playlistID)
 
         #expect(viewModel.playlist(id: playlistID)?.entries.map(\.episode.id) == ["second"])
@@ -52,7 +53,7 @@ struct PodcastPlaylistViewModelTests {
         let viewModel = PodcastPlaylistViewModel(store: store)
         await viewModel.load()
 
-        try viewModel.renamePlaylist(id: original.id, to: "Garden")
+        try viewModel.updatePlaylist(id: original.id, name: "Garden", automaticRule: nil)
 
         #expect(viewModel.library.deviceStates["test-device"]?.pendingDeletedDeviceFileNames == ["Commute.m3u"])
         try viewModel.markDevicePlaylistSyncCompleted(

@@ -289,7 +289,7 @@ struct SyncPlanViewModelTests {
     }
 
     @Test
-    func disabledPlaylistsAreExcludedFromSyncAndCleanupProtection() async throws {
+    func playlistsAlwaysParticipateInSyncAndCleanupProtection() async throws {
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let subscription = PodcastSubscription(
             id: subscriptionID,
@@ -336,17 +336,15 @@ struct SyncPlanViewModelTests {
             subscriptions: [subscription],
             cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
             podcastPlaylistLibrary: PodcastPlaylistLibrary(playlists: [playlist]),
-            arePlaylistsEnabled: false,
             ejectAfterSync: false
         )
 
         let plan = try #require(viewModel.plan)
-        #expect(plan.cleanupCandidates.map(\.targetURL) == [playlistEpisodeURL])
-        #expect(plan.playlistProtectedCleanupCandidates.isEmpty)
+        #expect(plan.cleanupCandidates.isEmpty)
+        #expect(plan.playlistProtectedCleanupCandidates.map(\.targetURL) == [playlistEpisodeURL])
+        #expect(plan.writtenPodcastPlaylistFileNames == ["Keep.m3u"])
         #expect(!plan.actions.contains { action in
-            if case .writePodcastPlaylist = action { return true }
-            if case .deletePodcastPlaylist = action { return true }
-            if case .deleteEmptyPodcastPlaylist = action { return true }
+            if case .deleteFromDevice = action { return true }
             return false
         })
     }

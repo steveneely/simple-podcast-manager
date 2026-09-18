@@ -56,13 +56,6 @@ public final class PodcastPlaylistViewModel {
         return playlist.id
     }
 
-    public func renamePlaylist(id: PodcastPlaylist.ID, to name: String) throws {
-        var updatedLibrary = library
-        guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == id }) else { return }
-        guard try applyName(name, toPlaylistAt: index, in: &updatedLibrary) else { return }
-        try persist(updatedLibrary)
-    }
-
     public func updatePlaylist(
         id: PodcastPlaylist.ID,
         name: String,
@@ -136,20 +129,6 @@ public final class PodcastPlaylistViewModel {
         guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }),
               updatedLibrary.playlists[index].automaticRule != nil else { return }
         updatedLibrary.playlists[index].automaticExclusions.formUnion(exclusions)
-        try persist(updatedLibrary)
-    }
-
-    public func moveEntry(
-        in playlistID: PodcastPlaylist.ID,
-        from sourceIndex: Int,
-        to destinationIndex: Int
-    ) throws {
-        var updatedLibrary = library
-        guard let playlistIndex = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }) else { return }
-        guard updatedLibrary.playlists[playlistIndex].entries.indices.contains(sourceIndex) else { return }
-        let entry = updatedLibrary.playlists[playlistIndex].entries.remove(at: sourceIndex)
-        let insertionIndex = min(max(destinationIndex, 0), updatedLibrary.playlists[playlistIndex].entries.count)
-        updatedLibrary.playlists[playlistIndex].entries.insert(entry, at: insertionIndex)
         try persist(updatedLibrary)
     }
 
@@ -337,16 +316,15 @@ public final class PodcastPlaylistViewModel {
         }
     }
 
-    @discardableResult
     private func applyName(
         _ name: String,
         toPlaylistAt index: Int,
         in library: inout PodcastPlaylistLibrary
-    ) throws -> Bool {
+    ) throws {
         let playlistID = library.playlists[index].id
         let validatedName = try PodcastPlaylistName.validated(name)
         try ensureUniqueName(validatedName, excluding: playlistID, in: library.playlists)
-        guard library.playlists[index].name != validatedName else { return false }
+        guard library.playlists[index].name != validatedName else { return }
 
         let previousFileName = library.playlists[index].deviceFileName
         let updatedFileName = PodcastPlaylistName.deviceFileName(for: validatedName)
@@ -358,7 +336,6 @@ public final class PodcastPlaylistViewModel {
         }
         library.playlists[index].name = validatedName
         library.playlists[index].deviceFileName = updatedFileName
-        return true
     }
 
     private func validate(_ rule: PodcastPlaylistAutomaticRule) throws {

@@ -349,7 +349,6 @@ struct PodcastSidebarView: View {
 
     let subscriptions: [PodcastSubscription]
     @Binding var libraryMode: PodcastLibraryMode
-    let showsPlaylistsBeta: Bool
     @Binding var selectedPodcastID: PodcastSubscription.ID?
     @Binding var sortOrder: PodcastSortOrder
     let isRefreshing: Bool
@@ -372,12 +371,7 @@ struct PodcastSidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                if showsPlaylistsBeta {
-                    PodcastLibraryModePicker(selection: $libraryMode)
-                } else {
-                    Text("Podcasts")
-                        .font(.headline)
-                }
+                PodcastLibraryModePicker(selection: $libraryMode)
 
                 Spacer()
 

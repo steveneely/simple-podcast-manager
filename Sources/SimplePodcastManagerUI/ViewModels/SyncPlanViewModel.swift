@@ -37,7 +37,6 @@ public final class SyncPlanViewModel {
         selectedPlaylistProtectedDeletionTargets: Set<URL> = [],
         managedInventory: ManagedDeviceLibraryInventory? = nil,
         podcastPlaylistLibrary: PodcastPlaylistLibrary = PodcastPlaylistLibrary(),
-        arePlaylistsEnabled: Bool = true,
         ejectAfterSync: Bool
     ) async {
         planningTask?.cancel()
@@ -63,12 +62,6 @@ public final class SyncPlanViewModel {
 
         do {
             let planner = planner
-            let activePlaylistLibrary = arePlaylistsEnabled
-                ? podcastPlaylistLibrary
-                : PodcastPlaylistLibrary()
-            let activePlaylistProtectedDeletionTargets = arePlaylistsEnabled
-                ? selectedPlaylistProtectedDeletionTargets
-                : []
             let task = Task.detached(priority: .userInitiated) {
                 try planner.makePlan(
                     device: device,
@@ -78,9 +71,9 @@ public final class SyncPlanViewModel {
                     replacementTargets: replacementTargets,
                     cleanupPolicy: cleanupPolicy,
                     excludedCleanupTargets: excludedCleanupTargets,
-                    selectedPlaylistProtectedDeletionTargets: activePlaylistProtectedDeletionTargets,
+                    selectedPlaylistProtectedDeletionTargets: selectedPlaylistProtectedDeletionTargets,
                     managedInventory: managedInventory,
-                    podcastPlaylistLibrary: activePlaylistLibrary,
+                    podcastPlaylistLibrary: podcastPlaylistLibrary,
                     ejectAfterSync: ejectAfterSync
                 )
             }

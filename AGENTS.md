@@ -154,13 +154,15 @@ open -n "$PWD/dist/build/Simple Podcast Manager.app"
 
 ### Development App Isolation
 
-- Never launch, reopen, or use the installed app in `/Applications` or `~/Applications` for development or verification unless Steve explicitly requests testing that installed copy.
+- Development and verification must use only the app built from this checkout. Never launch, reopen, select, or interact with an installed copy in `/Applications`, `~/Applications`, or any other location outside this checkout.
 - Launch routine development sessions with `swift run "Simple Podcast Manager"` from this checkout. When a packaged app is needed, launch only the local `dist/build/Simple Podcast Manager.app` using its absolute path.
 - Never select or launch the app by display name or bundle identifier during development. This includes `open -a`, `cua.getApp("Simple Podcast Manager")`, and bundle-ID lookup: they can resolve to or reopen the installed app even when a development process is running.
-- For UI automation, select the local packaged `.app` by its absolute path. If the tool cannot target the unbundled `swift run` executable, build the local `.app` above; do not fall back to the installed app, a display name, or a bundle identifier.
-- Verify the running executable's absolute path belongs to this checkout before interacting with its UI. A matching window title or app name is not sufficient. Recheck after relaunching or changing the automation target, and discard tool bindings that selected the installed app.
+- Launch the development app explicitly before selecting it in an automation tool. Never rely on `cua.getApp(...)` or another UI automation lookup to launch or reopen the app, even when passing an absolute path.
+- Before attaching UI automation, record the development process PID and verify its executable's absolute path belongs to this checkout. For the packaged build, it must be `[checkout]/dist/build/Simple Podcast Manager.app/Contents/MacOS/Simple Podcast Manager`.
+- For UI automation, select the already-running local packaged `.app` by its absolute path, then verify the running process again before any UI action. A matching window title, app name, or bundle identifier is not sufficient proof. If the tool cannot reliably target that exact development instance, stop UI verification and report the blocker; never fall back to the installed app.
+- If the tool cannot target the unbundled `swift run` executable, build and explicitly launch the local `.app` above, then repeat the PID and executable-path checks. Recheck after every relaunch or automation target change. Discard any binding that resolved to an installed copy; do not operate on that copy to recover.
 - Quit other development/test copies before launching the local packaged build. Leave an already-running installed app alone; if it prevents reliable targeting of the local build, explain the blocker instead of operating on it.
-- After verification, close only the development/test instance started for the task. Do not launch or reopen the installed app as a cleanup step.
+- After verification, close only the verified development/test instance started for the task and confirm its recorded PID has exited. Do not launch or reopen the installed app as a cleanup step or call an automation lookup that might reopen it after quitting.
 
 ### Manual Disk-Image Device Test
 

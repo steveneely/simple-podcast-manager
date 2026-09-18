@@ -33,11 +33,13 @@ In one Terminal window, stream the app's startup milestone log:
 log stream --style compact --predicate 'subsystem == "com.steveneely.simple-podcast-manager" AND category == "StartupPerformance"'
 ```
 
-Quit every running copy, then launch the packaged app from another Terminal window:
+Quit only development/test copies, leaving any installed app alone. Follow the [development app isolation rules](../AGENTS.md#development-app-isolation), then explicitly launch the local packaged app from the checkout in another Terminal window:
 
 ```bash
-open -n "dist/build/Simple Podcast Manager.app"
+open -n "$PWD/dist/build/Simple Podcast Manager.app"
 ```
+
+Verify the development process PID and executable path before attaching any UI automation. Stop if the tool cannot reliably target that exact development instance.
 
 Record these elapsed times:
 

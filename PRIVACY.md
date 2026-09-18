@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: September 4, 2026
+Last updated: September 18, 2026
 
 Simple Podcast Manager is a community project. It is not built to gather information about you, track your behavior, or make money from your activity.
 
@@ -8,7 +8,7 @@ Simple Podcast Manager is a community project. It is not built to gather informa
 
 Nothing. Simple Podcast Manager has no accounts, advertising, analytics, telemetry, or developer-operated crash reporting. The developer does not receive your podcast library, listening activity, downloads, settings, or device contents. There is no Simple Podcast Manager server collecting this information.
 
-Your podcasts, settings, episode history, and download records are stored locally on your Mac. Exports and backups are created only when you request them and remain wherever you save them.
+Your podcasts, playlist definitions, settings, episode history, and download records are stored locally on your Mac. Exports and backups are created only when you request them and remain wherever you save them.
 
 ## When the app connects to the internet
 

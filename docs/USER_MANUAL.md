@@ -34,9 +34,9 @@ By default, an orange `Inactive` label marks a podcast whose latest dated episod
 
 Select a podcast to reveal its Refresh, Edit, and Remove controls. Select it again to clear the selection.
 
-To bring subscriptions from another podcast app, use `File > Import Subscriptions…` and choose its OPML export. OPML is a standard format for transferring lists of podcast RSS feed URLs between apps. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
+To bring subscriptions from another podcast app, use `File > Import Podcasts…` and choose its OPML export. OPML is a standard format for transferring lists of podcast RSS feed URLs between apps. Review the list before adding it. Existing subscriptions and duplicate entries are skipped.
 
-Use `File > Export Subscriptions…` to create an OPML file for another podcast app.
+Use `File > Export Podcasts…` to create an OPML file for another podcast app.
 
 ## Download episodes
 
@@ -58,6 +58,37 @@ Edit a podcast to change `Include in automatic downloads`. Turn off `Podcast ena
 
 While downloads are active, the progress beside the Device section reports only the current file preparation work. It disappears when that work finishes; use the persistent refresh summary in the lower-left corner to review the completed result.
 
+## Playlists
+
+Playlists are available without enabling a setting. Use the library selector above the podcast list to switch between `Podcasts` and `Playlists`, or press ⌘1 and ⌘2.
+
+### Create and edit a playlist
+
+1. Choose `File > Add Playlist…` (⇧⌘N), or click the plus button in the Playlists list.
+2. Enter a unique name, choose an icon, and click `Save`.
+3. Return to `Podcasts`, open the playlist menu beside an episode, and choose your playlist. If the episode is not downloaded or on the connected player, the app offers to download it before adding it.
+4. Open the playlist and drag manually added episodes into your preferred order.
+
+Select a playlist to reveal its Edit and Delete controls. Use Edit to change its name, icon, or automatic additions. Removing an episode from a playlist does not delete its audio. Deleting a playlist removes its definition from the app; its app-managed device playlist file is removed on the next successful sync.
+
+Deleting the last available local download also removes that episode from playlists after confirmation. Deleting local downloads after a successful sync keeps playlist membership because the device copy remains available.
+
+### Add episodes automatically
+
+In the playlist editor, turn on `Automatically add episodes` and select one or more podcasts. Optionally turn on `Limit automatically added episodes` and choose a count. The limit applies across the selected podcasts together, with newest episodes first; manually added episodes do not count toward it.
+
+Automatic additions use available episodes and do not start downloads. Use the separate `Settings > Episodes > Automatic Downloads` setting if you also want new episodes downloaded automatically.
+
+Automatically added episodes appear after manually added episodes. Pin an available episode to make it manually added so you can reorder it and protect it from automatic device cleanup. Remove an automatic entry to keep it out of that playlist; adding it manually again clears that exclusion.
+
+### Choose the device playlist folder
+
+Connect and select your player, then open `Settings > MP3 Player > Device Playlist Folder`. Click `Choose Folder…` and select a folder on that device. The app asks before creating a missing folder. This setting is separate from `Device Podcast Folder` and defaults to the podcast folder until you choose another location.
+
+Sync writes `.m3u` playlists that reference episodes on the player. Check your player's playlist support and required folder location. The app only replaces or removes playlist files it has recorded as its own in that exact folder; an unrelated file with the same name is not overwritten.
+
+Playlist updates and removals appear in the Sync review. Unavailable episodes are omitted from the device playlist. For unavailable manually added episodes, the app offers a download before opening the review. If no episodes are available for a playlist, its app-managed device file is removed while its definition stays in the app for a later sync.
+
 ## Limit episodes kept per podcast during Sync
 
 Device cleanup is optional and is off by default.
@@ -72,13 +103,15 @@ For example, if a podcast has five episodes on the player and two newer episodes
 
 Automatic cleanup is deliberately conservative. It considers only MP3 files with trustworthy publication dates that Simple Podcast Manager can associate with a current podcast subscription inside the configured device podcast folder. Undated files do not count toward the limit. If multiple episodes share the date at the keep-limit boundary, all episodes from that date are kept. Unrelated audio and files from unrecognized podcast folders are never selected automatically. You can still select recognized episodes manually from their podcast.
 
+Manually added or pinned playlist episodes are protected from automatic cleanup. The Sync review lists qualifying older episodes under `Older Episodes Kept by Playlists`, unselected by default. Select one only if you want to remove its device file and playlist membership. Automatically added episodes are subject to the normal cleanup limit.
+
 Age-based cleanup settings from earlier versions are ignored, so Device Cleanup starts Off. Choose a per-podcast limit in Settings if you want to use cleanup.
 
 ## Sync
 
 1. Connect the MP3 player and wait for it to appear in the Device section.
 2. Click `Sync`.
-3. Review the files that will be copied or deleted and their sizes.
+3. Review episode copies and deletions, their sizes, and playlist updates or removals.
 4. If cleanup suggested episodes beyond the per-podcast limit, uncheck any episode you want to keep.
 5. Choose whether to eject the player or delete local downloads when finished.
 6. Click `Sync`.
@@ -101,7 +134,7 @@ When Simple Podcast Manager detects unrelated audio inside the configured podcas
 - Restore app data: `Settings > App Data > Restore…`
 - Check for updates: `Simple Podcast Manager > Check for Updates…`
 
-Backups include subscriptions, settings, and history, but not downloaded audio files. Before restoring, the app asks for confirmation and backs up the current app data. Afterward, it confirms success, shows the backup location, and can reveal it in Finder.
+Backups include podcasts, playlist definitions and device ownership records, settings, and history, but not downloaded audio files. OPML exports contain only podcast subscriptions, not playlists. Restoring an older backup made before playlist support replaces the playlist library with an empty library. Before restoring, the app asks for confirmation and backs up the current app data. Afterward, it confirms success, shows the backup location, and can reveal it in Finder.
 
 ## Troubleshooting
 
@@ -118,6 +151,13 @@ Download fewer episodes, or select old episodes for deletion and open the sync p
 ### An episode beyond the limit was not suggested for cleanup
 
 Cleanup requires a publication date in a recognized Simple Podcast Manager filename and a matching current podcast subscription. Undated files do not count toward the limit. Unrelated audio and files in unrecognized folders must be reviewed manually.
+
+### A playlist is missing or incomplete on the player
+
+- Confirm the player supports M3U playlists and check its required playlist folder. Set that location under `Settings > MP3 Player > Device Playlist Folder`.
+- Run Sync after creating or changing a playlist; saving it in the app alone does not update the player.
+- Check for unavailable episodes. Only episodes present on the player after sync appear in its playlist. A playlist with no available episodes has no device file.
+- Review any filename collision error. The app will not overwrite a playlist it does not own; choose a different playlist name or folder.
 
 ### A non-MP3 episode does not download
 

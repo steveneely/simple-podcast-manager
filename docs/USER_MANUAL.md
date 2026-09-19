@@ -10,9 +10,9 @@ The app is not yet Developer ID signed or notarized. If macOS blocks it the firs
 
 ## Settings
 
-Open `Simple Podcast Manager > Settings…` (⌘,). Use the sidebar to choose General, Downloads, Device, or Advanced. Changes stay in the draft as you switch pages; click `Save` to apply them or `Cancel` to discard them. Appearance previews immediately and returns to its saved setting if you cancel.
+Open `Simple Podcast Manager > Settings…` (⌘,). Use the sidebar to choose General, Downloads, Device, or Advanced. Changes stay in the draft as you switch pages; click `Save` to apply them or `Cancel` to discard them. Save becomes available when a setting changes and becomes disabled again if you undo all your edits. Appearance previews immediately and returns to its saved setting if you cancel.
 
-Downloads groups title and genre options under `MP3 Metadata`. Choose `Advanced` in the sidebar for FFmpeg, HTTP download permissions, and app data backup and restore. Device keeps both folder settings together; connect a player to change them.
+Downloads groups title and genre options under `MP3 Metadata`. Choose `Advanced` in the sidebar for FFmpeg, HTTP download permissions, and app data backup and restore. Device keeps both folder settings together and identifies the connected device below the page heading; connect a player to change them. Hover over a compact path to see the full value, or right-click it and choose `Copy Path`.
 
 ## Prepare your MP3 player
 

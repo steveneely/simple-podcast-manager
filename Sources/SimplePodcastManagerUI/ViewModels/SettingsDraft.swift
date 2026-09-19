@@ -5,14 +5,47 @@ import SimplePodcastManagerCore
 struct SettingsDraft {
     var settings: AppSettings
     var ffmpegExecutablePath: String
+    var podcastDirectoryPath: String
+    var playlistDirectoryPath: String
+    var automaticallyChecksForUpdates: Bool
     var selectedPage: SettingsPage = .general
 
-    init(settings: AppSettings) {
+    private let savedSettings: AppSettings
+    private let savedPodcastDirectoryPath: String
+    private let savedPlaylistDirectoryPath: String
+    private let savedAutomaticallyChecksForUpdates: Bool?
+
+    init(
+        settings: AppSettings,
+        podcastDirectoryPath: String? = nil,
+        playlistDirectoryPath: String? = nil,
+        automaticallyChecksForUpdates: Bool? = nil
+    ) {
         self.settings = settings
         self.ffmpegExecutablePath = settings.ffmpegExecutablePath ?? ""
+        let podcastPath = podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath
+        let playlistPath = playlistDirectoryPath ?? podcastPath
+        self.podcastDirectoryPath = podcastPath
+        self.playlistDirectoryPath = playlistPath
+        self.automaticallyChecksForUpdates = automaticallyChecksForUpdates ?? false
+        self.savedSettings = Self.normalizedSettings(settings, ffmpegExecutablePath: settings.ffmpegExecutablePath ?? "")
+        self.savedPodcastDirectoryPath = podcastPath
+        self.savedPlaylistDirectoryPath = playlistPath
+        self.savedAutomaticallyChecksForUpdates = automaticallyChecksForUpdates
+    }
+
+    var hasChanges: Bool {
+        settingsForSaving != savedSettings
+            || podcastDirectoryPath != savedPodcastDirectoryPath
+            || playlistDirectoryPath != savedPlaylistDirectoryPath
+            || savedAutomaticallyChecksForUpdates.map { $0 != automaticallyChecksForUpdates } == true
     }
 
     var settingsForSaving: AppSettings {
+        Self.normalizedSettings(settings, ffmpegExecutablePath: ffmpegExecutablePath)
+    }
+
+    private static func normalizedSettings(_ settings: AppSettings, ffmpegExecutablePath: String) -> AppSettings {
         var saved = settings
         let path = ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines)
         saved.ffmpegExecutablePath = path.isEmpty ? nil : path

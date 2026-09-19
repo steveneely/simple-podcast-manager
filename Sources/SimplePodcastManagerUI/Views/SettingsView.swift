@@ -6,9 +6,6 @@ public struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft: SettingsDraft
-    @State private var podcastDirectoryPath: String
-    @State private var playlistDirectoryPath: String
-    @State private var automaticallyChecksForUpdates: Bool
     @State private var errorMessage: String?
     @State private var isShowingCreateFolderConfirmation = false
     @State private var folderPendingCreation: DeviceFolderKind = .podcast
@@ -54,14 +51,12 @@ public struct SettingsView: View {
         canRestoreAppData: Bool = true,
         onRestoreAppData: @escaping () -> Void = {}
     ) {
-        self._draft = State(initialValue: SettingsDraft(settings: settings))
-        self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
-        self._playlistDirectoryPath = State(
-            initialValue: playlistDirectoryPath
-                ?? podcastDirectoryPath
-                ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath
-        )
-        self._automaticallyChecksForUpdates = State(initialValue: automaticallyChecksForUpdates ?? false)
+        self._draft = State(initialValue: SettingsDraft(
+            settings: settings,
+            podcastDirectoryPath: podcastDirectoryPath,
+            playlistDirectoryPath: playlistDirectoryPath,
+            automaticallyChecksForUpdates: automaticallyChecksForUpdates
+        ))
         self._errorMessage = State(initialValue: nil)
         self.selectedDeviceName = selectedDeviceName
         self.selectedDeviceRootURL = selectedDeviceRootURL
@@ -97,9 +92,21 @@ public struct SettingsView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        Text(draft.selectedPage.rawValue)
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(draft.selectedPage.rawValue)
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            if draft.selectedPage == .device {
+                                if let selectedDeviceName, selectedDeviceRootURL != nil {
+                                    Label(selectedDeviceName, systemImage: "externaldrive")
+                                        .font(.subheadline)
+                                } else {
+                                    Text("Connect a device to choose its podcast and playlist folders.")
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                         pageContent
                     }
                     .frame(maxWidth: 520, alignment: .leading)
@@ -128,6 +135,7 @@ public struct SettingsView: View {
                     Button("Save", action: save)
                         .keyboardShortcut(.defaultAction)
                         .buttonStyle(.borderedProminent)
+                        .disabled(!draft.hasChanges)
                 }
             }
             .padding(16)
@@ -217,7 +225,7 @@ public struct SettingsView: View {
 
             if showsUpdateSettings {
                 SettingsField(title: "Updates") {
-                    Toggle("Check for updates on startup", isOn: $automaticallyChecksForUpdates)
+                    Toggle("Check for updates on startup", isOn: $draft.automaticallyChecksForUpdates)
                         .toggleStyle(.checkbox)
                 }
             }
@@ -273,7 +281,7 @@ public struct SettingsView: View {
                 detail: "FFmpeg is not included with the app. Install it and select its executable to convert non-MP3 podcast audio."
             ) {
                 chooserRow(
-                    value: draft.ffmpegExecutablePath.isEmpty ? "Not set" : draft.ffmpegExecutablePath,
+                    value: draft.ffmpegExecutablePath.isEmpty ? nil : draft.ffmpegExecutablePath,
                     buttonTitle: "Choose…",
                     clearTitle: draft.ffmpegExecutablePath.isEmpty ? nil : "Clear"
                 ) {
@@ -317,38 +325,32 @@ public struct SettingsView: View {
             }
 
             SettingsSection(title: "Device Folders") {
-                if let selectedDeviceName {
-                    Label(selectedDeviceName, systemImage: "externaldrive")
-                        .font(.subheadline)
-                }
                 SettingsField(
                     title: "Device Podcast Folder",
                     detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
-                        ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\"."
                 ) {
                     chooserRow(
-                        value: podcastDirectoryPath,
+                        value: draft.podcastDirectoryPath,
                         buttonTitle: "Choose Folder…",
-                        clearTitle: nil
+                        clearTitle: nil,
+                        isChoosingEnabled: selectedDeviceRootURL != nil
                     ) {
                         choosePodcastDirectory()
                     } onClear: {}
-                    .disabled(selectedDeviceRootURL == nil)
                 }
 
                 SettingsField(
                     title: "Device Playlist Folder",
                     detail: selectedDeviceName.map { _ in "Choose where playlists are saved. Some devices require playlists to be stored in a separate folder." }
-                        ?? "Connect a device to choose where its playlists are saved."
                 ) {
                     chooserRow(
-                        value: playlistDirectoryPath,
+                        value: draft.playlistDirectoryPath,
                         buttonTitle: "Choose Folder…",
-                        clearTitle: nil
+                        clearTitle: nil,
+                        isChoosingEnabled: selectedDeviceRootURL != nil
                     ) {
                         choosePlaylistDirectory()
                     } onClear: {}
-                    .disabled(selectedDeviceRootURL == nil)
                 }
             }
         }
@@ -357,6 +359,7 @@ public struct SettingsView: View {
     private var appDataSettings: some View {
         HStack(spacing: 8) {
             Button("Back Up…", systemImage: "archivebox", action: onBackUpAppData)
+            Spacer(minLength: 32)
             Button("Restore…", systemImage: "arrow.counterclockwise", action: onRestoreAppData)
                 .disabled(!canRestoreAppData)
                 .help(canRestoreAppData
@@ -366,20 +369,30 @@ public struct SettingsView: View {
     }
 
     private func chooserRow(
-        value: String,
+        value: String?,
         buttonTitle: String,
         clearTitle: String?,
+        isChoosingEnabled: Bool = true,
         onChoose: @escaping () -> Void,
         onClear: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 8) {
-            Text(value)
+            Text(value ?? "Not set")
                 .font(.system(.body, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .foregroundStyle(value.isEmpty ? .secondary : .primary)
+                .foregroundStyle(value == nil ? .secondary : .primary)
                 .frame(width: 240, alignment: .leading)
-                .help(value)
+                .help(value ?? "Not set")
+                .contentShape(Rectangle())
+                .contextMenu {
+                    if let value {
+                        Button("Copy Path") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(value, forType: .string)
+                        }
+                    }
+                }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .background(
@@ -389,6 +402,7 @@ public struct SettingsView: View {
                 )
 
             Button(buttonTitle, action: onChoose)
+                .disabled(!isChoosingEnabled)
 
             if let clearTitle {
                 Button(clearTitle, action: onClear)
@@ -399,9 +413,9 @@ public struct SettingsView: View {
     private var createFolderConfirmationMessage: String {
         let folder = switch folderPendingCreation {
         case .podcast:
-            pendingSave?.podcastDirectoryPath ?? podcastDirectoryPath
+            pendingSave?.podcastDirectoryPath ?? draft.podcastDirectoryPath
         case .playlist:
-            pendingSave?.playlistDirectoryPath ?? playlistDirectoryPath
+            pendingSave?.playlistDirectoryPath ?? draft.playlistDirectoryPath
         }
         let device = selectedDeviceName ?? "the selected device"
         return "The folder \"\(folder)\" does not exist on \(device). Create it and save this device setting?"
@@ -415,11 +429,12 @@ public struct SettingsView: View {
     }
 
     private func save() {
+        guard draft.hasChanges else { return }
         let pendingSave = PendingSave(
             settings: draft.settingsForSaving,
-            podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
-            playlistDirectoryPath: selectedDeviceName == nil ? nil : playlistDirectoryPath,
-            automaticallyChecksForUpdates: automaticallyChecksForUpdates,
+            podcastDirectoryPath: selectedDeviceName == nil ? nil : draft.podcastDirectoryPath,
+            playlistDirectoryPath: selectedDeviceName == nil ? nil : draft.playlistDirectoryPath,
+            automaticallyChecksForUpdates: draft.automaticallyChecksForUpdates,
             migrationPlan: nil
         )
 
@@ -540,7 +555,7 @@ public struct SettingsView: View {
         }
 
         do {
-            podcastDirectoryPath = try Self.relativeDevicePath(
+            draft.podcastDirectoryPath = try Self.relativeDevicePath(
                 for: selectedURL,
                 rootURL: selectedDeviceRootURL,
                 normalizer: DevicePodcastConfiguration.normalizedRelativeDirectoryPath
@@ -575,7 +590,7 @@ public struct SettingsView: View {
                 rootURL: selectedDeviceRootURL,
                 normalizer: DevicePodcastConfiguration.normalizedPlaylistDirectoryPath
             )
-            playlistDirectoryPath = relativePath
+            draft.playlistDirectoryPath = relativePath
             errorMessage = nil
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription

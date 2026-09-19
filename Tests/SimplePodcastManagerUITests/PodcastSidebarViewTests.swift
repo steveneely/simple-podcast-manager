@@ -1,10 +1,67 @@
 import Foundation
+import AppKit
+import SwiftUI
 import Testing
 import SimplePodcastManagerCore
 @testable import SimplePodcastManagerUI
 
 @MainActor
 struct PodcastSidebarViewTests {
+    @Test
+    func sortSegmentsKeepTheirActionsSeparate() {
+        var criterionChanges = 0
+        var directionChanges = 0
+        let view = PodcastSortControl(
+            criterionTitle: "Name",
+            criterionHelpText: "Sort criterion",
+            directionSystemName: "arrow.up",
+            directionHelpText: "Sort direction",
+            onChangeCriterion: { criterionChanges += 1 },
+            onReverseDirection: { directionChanges += 1 }
+        )
+        let coordinator = view.makeCoordinator()
+        let sender = NSSegmentedControl(labels: ["Name", "Direction"], trackingMode: .selectOne, target: nil, action: nil)
+        sender.selectedSegment = 0
+        coordinator.activateSegment(sender)
+        #expect(criterionChanges == 1)
+        #expect(directionChanges == 0)
+        sender.selectedSegment = 1
+        coordinator.activateSegment(sender)
+        #expect(criterionChanges == 1)
+        #expect(directionChanges == 1)
+    }
+
+    @Test
+    func sortControlKeepsTheSameSizeForEverySortOrder() throws {
+        let orders: [PodcastSortOrder] = [.alphabetic, .reverseAlphabetic, .recentlyUpdated, .leastRecentlyUpdated]
+        func findSegmentedControl(in view: NSView) -> NSSegmentedControl? {
+            if let control = view as? NSSegmentedControl { return control }
+            return view.subviews.lazy.compactMap { findSegmentedControl(in: $0) }.first
+        }
+        let measurements = try orders.map { order in
+            let view = NSHostingView(rootView: PodcastSortControl(
+                criterionTitle: PodcastSidebarView.sortCriterionTitle(for: order),
+                criterionHelpText: PodcastSidebarView.sortCriterionHelpText(for: order),
+                directionSystemName: PodcastSidebarView.sortDirectionIcon(for: order),
+                directionHelpText: PodcastSidebarView.sortDirectionHelpText(for: order),
+                onChangeCriterion: {},
+                onReverseDirection: {}
+            ))
+            view.setFrameSize(view.fittingSize)
+            view.layoutSubtreeIfNeeded()
+            let control = try #require(findSegmentedControl(in: view))
+            return (size: view.fittingSize, criterion: control.width(forSegment: 0), direction: control.width(forSegment: 1))
+        }
+        for measurement in measurements {
+            #expect(measurement.size.width > 0)
+            #expect(measurement.size == measurements[0].size)
+            #expect(measurement.criterion > 0)
+            #expect(measurement.criterion == measurements[0].criterion)
+            #expect(measurement.direction > 0)
+            #expect(measurement.direction == measurements[0].direction)
+        }
+    }
+
     @Test
     func libraryPickerOffersPodcastsAndPlaylists() {
         #expect(PodcastLibraryMode.allCases.map(\.rawValue) == ["Podcasts", "Playlists"])

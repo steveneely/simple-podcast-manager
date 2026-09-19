@@ -5,16 +5,19 @@ public struct SyncPlanner: Sendable {
     private let deviceLibrary: any DeviceLibraryInspecting
     private let storageInspector: any SyncStorageInspecting
     private let safetyValidator: SafetyValidator
+    private let readPlaylistContents: @Sendable (URL) throws -> Data
 
     public init(
         deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
         storageInspector: any SyncStorageInspecting = LocalSyncStorageInspector(),
-        safetyValidator: SafetyValidator = SafetyValidator()
+        safetyValidator: SafetyValidator = SafetyValidator(),
+        readPlaylistContents: @escaping @Sendable (URL) throws -> Data = { try Data(contentsOf: $0) }
     ) {
         self.deviceLibrary = deviceLibrary
         self.inventoryBuilder = ManagedDeviceLibraryInventoryBuilder(deviceLibrary: deviceLibrary)
         self.storageInspector = storageInspector
         self.safetyValidator = safetyValidator
+        self.readPlaylistContents = readPlaylistContents
     }
 
     public func makePlan(
@@ -184,14 +187,15 @@ public struct SyncPlanner: Sendable {
             }
         }
 
-        actions.append(contentsOf: try makePodcastPlaylistActions(
+        let playlistPlan = try makePodcastPlaylistActions(
             library: podcastPlaylistLibrary,
             device: device,
             subscriptions: subscriptions,
             preparedEpisodes: preparedEpisodes,
             deviceInventory: deviceInventory,
             mediaActions: actions
-        ))
+        )
+        actions.append(contentsOf: playlistPlan.actions)
 
         if ejectAfterSync {
             actions.append(.ejectDevice(deviceRootURL: device.rootURL))
@@ -206,7 +210,8 @@ public struct SyncPlanner: Sendable {
             playlistProtectedCleanupCandidates: playlistProtectedCleanupCandidates.sorted(
                 by: playlistProtectedCleanupCandidateSort
             ),
-            existingManagedEpisodeURLs: deviceInventory.allManagedFileURLs.sorted { $0.path < $1.path }
+            existingManagedEpisodeURLs: deviceInventory.allManagedFileURLs.sorted { $0.path < $1.path },
+            unchangedPodcastPlaylistFileNames: playlistPlan.unchangedFileNames
         )
     }
 
@@ -400,8 +405,8 @@ public struct SyncPlanner: Sendable {
         preparedEpisodes: [PreparedEpisode],
         deviceInventory: ManagedDeviceLibraryInventory,
         mediaActions: [SyncAction]
-    ) throws -> [SyncAction] {
-        guard !library.playlists.isEmpty || library.deviceStates[device.id] != nil else { return [] }
+    ) throws -> (actions: [SyncAction], unchangedFileNames: Set<String>) {
+        guard !library.playlists.isEmpty || library.deviceStates[device.id] != nil else { return ([], []) }
         let encoder = M3UPlaylistEncoder()
         let subscriptionsByID = Dictionary(uniqueKeysWithValues: subscriptions.map { ($0.id, $0) })
         let plannedDeletionURLs = Set(mediaActions.compactMap { action -> URL? in
@@ -446,6 +451,7 @@ public struct SyncPlanner: Sendable {
             ? Set(deviceState.ownedDeviceFileNames.map(PodcastPlaylistName.normalized))
             : []
         var playlistActions: [SyncAction] = []
+        var unchangedFileNames: Set<String> = []
 
         for playlist in library.playlists {
             try Task.checkCancellation()
@@ -501,6 +507,14 @@ public struct SyncPlanner: Sendable {
                 relativeTo: device.playlistDirectoryURL,
                 on: device
             )
+            // Only skip a validated, owned file when its bytes are known to match.
+            // If it cannot be read, keep the write in the reviewed plan.
+            if existingFileNames.contains(normalizedFileName),
+               ownedFileNames.contains(normalizedFileName),
+               (try? readPlaylistContents(destinationURL)) == contents {
+                unchangedFileNames.insert(playlist.deviceFileName)
+                continue
+            }
             playlistActions.append(.writePodcastPlaylist(
                 destinationURL: destinationURL,
                 contents: contents,
@@ -545,7 +559,7 @@ public struct SyncPlanner: Sendable {
                 ))
             }
         }
-        return playlistActions
+        return (playlistActions, unchangedFileNames)
     }
 
     private func automaticPlaylistFileURLs(

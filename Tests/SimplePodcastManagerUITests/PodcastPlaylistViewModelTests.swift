@@ -58,7 +58,7 @@ struct PodcastPlaylistViewModelTests {
         #expect(viewModel.library.deviceStates["test-device"]?.pendingDeletedDeviceFileNames == ["Commute.m3u"])
         try viewModel.markDevicePlaylistSyncCompleted(
             deviceID: "test-device",
-            writtenPlaylistFileNames: ["Garden.m3u"],
+            ownedPlaylistFileNames: ["Garden.m3u"],
             playlistDirectoryPath: "playlist_data"
         )
         #expect(viewModel.library.deviceStates["test-device"] == PodcastPlaylistDeviceState(
@@ -82,10 +82,37 @@ struct PodcastPlaylistViewModelTests {
 
         try viewModel.markDevicePlaylistSyncCompleted(
             deviceID: "test-device",
-            writtenPlaylistFileNames: []
+            ownedPlaylistFileNames: []
         )
 
         #expect(viewModel.library.deviceStates["test-device"] == PodcastPlaylistDeviceState())
+    }
+
+    @Test
+    func unchangedPlaylistRemainsOwnedAfterSyncAndCanBeDeletedLater() async throws {
+        let playlist = try PodcastPlaylist(name: "Keep")
+        let device = DeviceInfo(
+            name: "SPMTEST",
+            rootURL: URL(fileURLWithPath: "/Volumes/SPMTEST"),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/SPMTEST/music")
+        )
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [playlist],
+            deviceStates: [device.id: PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Keep.m3u"])]
+        ))
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+        let plan = SyncPlan(device: device, unchangedPodcastPlaylistFileNames: ["Keep.m3u"])
+
+        try viewModel.markDevicePlaylistSyncCompleted(
+            deviceID: device.id,
+            ownedPlaylistFileNames: plan.ownedPodcastPlaylistFileNamesAfterSync,
+            playlistDirectoryPath: "music"
+        )
+        #expect(store.library.deviceStates[device.id]?.ownedDeviceFileNames == ["Keep.m3u"])
+        #expect(store.library.deviceStates[device.id]?.playlistDirectoryPath == "music")
+        try viewModel.deletePlaylist(id: playlist.id)
+        #expect(store.library.deviceStates[device.id]?.pendingDeletedDeviceFileNames == ["Keep.m3u"])
     }
 
     @Test

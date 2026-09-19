@@ -1539,6 +1539,99 @@ struct SyncPlannerTests {
         #expect(!plan.actions.contains(.deletePodcastPlaylist(targetURL: playlistURL)))
     }
 
+    enum ExistingPlaylist: CaseIterable {
+        case identical, changed, reordered, missing, unreadable, unowned
+    }
+
+    @Test(arguments: [true, false], ExistingPlaylist.allCases)
+    func onlySkipsVerifiedUnchangedOwnedPlaylists(
+        automatic: Bool,
+        existing: ExistingPlaylist
+    ) throws {
+        let device = makeDevice()
+        let subscription = makeSubscription()
+        let directory = device.podcastDirectoryURL.appending(path: "Example Podcast")
+        let episodes = [2, 1].map { day in
+            Episode(
+                id: "episode-\(day)",
+                subscriptionID: subscription.id,
+                podcastTitle: subscription.title,
+                title: "Episode \(day)",
+                publicationDate: ISO8601DateFormatter().date(from: "2026-09-0\(day)T00:00:00Z"),
+                enclosureURL: URL(string: "https://example.com/\(day).mp3")!,
+                sourceFeedURL: subscription.rssURL
+            )
+        }
+        let audioURLs = episodes.map {
+            directory.appending(path: EpisodeFileName.fileStem(for: $0) + ".mp3")
+        }
+        let playlist = try PodcastPlaylist(
+            name: "Commute",
+            entries: automatic ? [] : episodes.compactMap(PodcastPlaylistEntry.init),
+            automaticRule: automatic ? PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts([subscription.id]), maximumEpisodeCount: 3
+            ) : nil
+        )
+        let playlistURL = device.playlistDirectoryURL.appending(path: playlist.deviceFileName)
+        let contents = try M3UPlaylistEncoder().encode(
+            fileURLs: audioURLs, relativeTo: device.playlistDirectoryURL, on: device
+        )
+        let reorderedContents = try M3UPlaylistEncoder().encode(
+            fileURLs: audioURLs.reversed(), relativeTo: device.playlistDirectoryURL, on: device
+        )
+        let planner = makeTestPlanner(
+            deviceLibrary: StubDeviceLibrary(filesByDirectory: [
+                directory.path: audioURLs,
+                device.playlistDirectoryURL.path: existing == .missing ? [] : [playlistURL],
+            ]),
+            storageInspector: TestSyncStorageInspector(availableBytes: existing == .identical ? 0 : .max),
+            readPlaylistContents: { url in
+                #expect(url == playlistURL)
+                switch existing {
+                case .identical: return contents
+                case .changed: return Data("#EXTM3U\nold-episode.mp3\n".utf8)
+                case .reordered: return reorderedContents
+                case .unreadable: throw CocoaError(.fileReadNoPermission)
+                case .missing, .unowned:
+                    Issue.record("Missing or unowned playlists must not be read")
+                    return contents
+                }
+            }
+        )
+        let library = PodcastPlaylistLibrary(
+            playlists: [playlist],
+            deviceStates: [device.id: PodcastPlaylistDeviceState(
+                ownedDeviceFileNames: existing == .unowned ? [] : [playlist.deviceFileName]
+            )]
+        )
+        if existing == .unowned {
+            #expect(throws: PodcastPlaylistPlanningError.fileNameCollision(playlistURL)) {
+                try planner.makePlan(
+                    device: device, preparedEpisodes: [], subscriptions: [subscription],
+                    podcastPlaylistLibrary: library, ejectAfterSync: false
+                )
+            }
+            return
+        }
+        let plan = try planner.makePlan(
+            device: device, preparedEpisodes: [], subscriptions: [subscription],
+            podcastPlaylistLibrary: library, ejectAfterSync: false
+        )
+        if existing == .identical {
+            #expect(plan.actions.isEmpty)
+            #expect(plan.writtenPodcastPlaylistFileNames.isEmpty)
+            #expect(plan.unchangedPodcastPlaylistFileNames == [playlist.deviceFileName])
+        } else {
+            #expect(plan.actions == [.writePodcastPlaylist(
+                destinationURL: playlistURL, contents: contents, episodeCount: 2
+            )])
+            #expect(plan.unchangedPodcastPlaylistFileNames.isEmpty)
+        }
+        #expect(plan.ownedPodcastPlaylistFileNamesAfterSync == [playlist.deviceFileName])
+        // Skipping the playlist write must retain scoped cleanup for its media.
+        #expect(Set(plan.metadataCleanupTargets) == Set(audioURLs))
+    }
+
     private func makeDevice() -> DeviceInfo {
         DeviceInfo(
             name: "SPM Test MP3 Player",

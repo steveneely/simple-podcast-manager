@@ -6,6 +6,40 @@ import Testing
 @MainActor
 struct SyncPlanViewModelTests {
     @Test
+    func unchangedAutomaticPlaylistDoesNotAppearAsAnUpdate() async throws {
+        let root = URL(fileURLWithPath: "/Volumes/SPMTEST")
+        let device = DeviceInfo(name: "SPMTEST", rootURL: root, podcastDirectoryURL: root.appending(path: "music"))
+        let subscription = PodcastSubscription(title: "Example Podcast", rssURL: URL(string: "https://example.com/feed.xml")!)
+        let audioURL = device.podcastDirectoryURL.appending(path: "Example Podcast/2026.09.01-Episode-(Example Podcast).mp3")
+        let playlist = try PodcastPlaylist(name: "News", automaticRule: PodcastPlaylistAutomaticRule(
+            source: .selectedPodcasts([subscription.id]), maximumEpisodeCount: 3
+        ))
+        let playlistURL = device.playlistDirectoryURL.appending(path: playlist.deviceFileName)
+        let contents = try M3UPlaylistEncoder().encode(fileURLs: [audioURL], relativeTo: device.playlistDirectoryURL, on: device)
+        let viewModel = SyncPlanViewModel(planner: makeTestPlanner(
+            deviceLibrary: StubPlanDeviceLibrary(filesByDirectory: [
+                audioURL.deletingLastPathComponent().path: [audioURL],
+                device.playlistDirectoryURL.path: [playlistURL],
+            ]),
+            readPlaylistContents: { _ in contents }
+        ))
+
+        await viewModel.buildPlan(
+            device: device, preparedEpisodes: [], subscriptions: [subscription],
+            podcastPlaylistLibrary: PodcastPlaylistLibrary(
+                playlists: [playlist],
+                deviceStates: [device.id: PodcastPlaylistDeviceState(ownedDeviceFileNames: [playlist.deviceFileName])]
+            ),
+            ejectAfterSync: false
+        )
+
+        let plan = try #require(viewModel.plan)
+        #expect(viewModel.lastErrorMessage == nil)
+        #expect(plan.actions.isEmpty)
+        #expect(plan.ownedPodcastPlaylistFileNamesAfterSync == [playlist.deviceFileName])
+    }
+
+    @Test
     func buildPlanProducesTypedActions() async {
         let device = DeviceInfo(
             name: "SPM Test MP3 Player",

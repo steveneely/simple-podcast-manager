@@ -14,10 +14,14 @@ struct TestUISyncStorageInspector: SyncStorageInspecting {
 
 func makeTestPlanner(
     deviceLibrary: any DeviceLibraryInspecting = FileSystemDeviceLibrary(),
-    storageInspector: any SyncStorageInspecting = TestUISyncStorageInspector()
+    storageInspector: any SyncStorageInspecting = TestUISyncStorageInspector(),
+    readPlaylistContents: @escaping @Sendable (URL) throws -> Data = { _ in
+        throw CocoaError(.fileReadNoSuchFile)
+    }
 ) -> SyncPlanner {
     SyncPlanner(
         deviceLibrary: deviceLibrary,
-        storageInspector: storageInspector
+        storageInspector: storageInspector,
+        readPlaylistContents: readPlaylistContents
     )
 }

@@ -1987,7 +1987,7 @@ public struct MainView: View {
             if let syncingDeviceID {
                 try? podcastPlaylistViewModel.markDevicePlaylistSyncCompleted(
                     deviceID: syncingDeviceID,
-                    writtenPlaylistFileNames: syncExecutionViewModel.lastPlan?.writtenPodcastPlaylistFileNames ?? [],
+                    ownedPlaylistFileNames: syncExecutionViewModel.lastPlan?.ownedPodcastPlaylistFileNamesAfterSync ?? [],
                     playlistDirectoryPath: syncExecutionViewModel.lastPlan.map {
                         devicePodcastConfigurationService.relativePlaylistDirectoryPath(on: $0.device)
                     }

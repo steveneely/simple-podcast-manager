@@ -291,12 +291,12 @@ public final class PodcastPlaylistViewModel {
 
     public func markDevicePlaylistSyncCompleted(
         deviceID: String,
-        writtenPlaylistFileNames: Set<String>,
+        ownedPlaylistFileNames: Set<String>,
         playlistDirectoryPath: String? = nil
     ) throws {
         var updatedLibrary = library
         updatedLibrary.deviceStates[deviceID] = PodcastPlaylistDeviceState(
-            ownedDeviceFileNames: writtenPlaylistFileNames,
+            ownedDeviceFileNames: ownedPlaylistFileNames,
             pendingDeletedDeviceFileNames: [],
             playlistDirectoryPath: playlistDirectoryPath
         )

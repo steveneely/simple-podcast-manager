@@ -7,19 +7,23 @@ public struct SyncPlan: Equatable, Sendable {
     public var playlistProtectedCleanupCandidates: [PlaylistProtectedCleanupCandidate]
     /// Explicit ownership inventory for sidecar cleanup, including episodes not copied this sync.
     public var existingManagedEpisodeURLs: [URL]
+    /// Validated, already-owned playlists retained without a write in this plan.
+    public var unchangedPodcastPlaylistFileNames: Set<String>
 
     public init(
         device: DeviceInfo,
         actions: [SyncAction] = [],
         cleanupCandidates: [DeviceCleanupCandidate] = [],
         playlistProtectedCleanupCandidates: [PlaylistProtectedCleanupCandidate] = [],
-        existingManagedEpisodeURLs: [URL] = []
+        existingManagedEpisodeURLs: [URL] = [],
+        unchangedPodcastPlaylistFileNames: Set<String> = []
     ) {
         self.device = device
         self.actions = actions
         self.cleanupCandidates = cleanupCandidates
         self.playlistProtectedCleanupCandidates = playlistProtectedCleanupCandidates
         self.existingManagedEpisodeURLs = existingManagedEpisodeURLs
+        self.unchangedPodcastPlaylistFileNames = unchangedPodcastPlaylistFileNames
     }
 
     public var hasWork: Bool {
@@ -49,6 +53,10 @@ public struct SyncPlan: Equatable, Sendable {
             guard case .writePodcastPlaylist(let destinationURL, _, _) = action else { return nil }
             return destinationURL.lastPathComponent
         })
+    }
+
+    public var ownedPodcastPlaylistFileNamesAfterSync: Set<String> {
+        writtenPodcastPlaylistFileNames.union(unchangedPodcastPlaylistFileNames)
     }
 
     /// Device files that remain absent after this plan completes.

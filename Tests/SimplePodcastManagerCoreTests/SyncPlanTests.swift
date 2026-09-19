@@ -37,9 +37,10 @@ struct SyncPlanTests {
         let plan = SyncPlan(device: device, actions: [
             .writePodcastPlaylist(destinationURL: commuteURL, contents: Data(), episodeCount: 1),
             .deleteEmptyPodcastPlaylist(targetURL: emptyURL),
-        ])
+        ], unchangedPodcastPlaylistFileNames: ["Keep.m3u"])
 
         #expect(plan.writtenPodcastPlaylistFileNames == ["Commute.m3u"])
+        #expect(plan.ownedPodcastPlaylistFileNamesAfterSync == ["Commute.m3u", "Keep.m3u"])
     }
 
     @Test

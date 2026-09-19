@@ -731,14 +731,14 @@
         <div>
           <p class="eyebrow">Podcasts from RSS to your MP3 player</p>
           <h1>Simple Podcast Manager</h1>
-          <p class="lede">RSS podcasts for your MP3 player. Add feeds, download new episodes automatically or choose them yourself, review the plan, and sync.</p>
+          <p class="lede">RSS podcasts for your MP3 player. Add podcasts, download episodes, organize playlists, review the plan, and sync.</p>
           <div class="actions">
             <a class="button primary" href="https://github.com/steveneely/simple-podcast-manager/releases">Download for macOS</a>
             <a class="button" href="https://github.com/steveneely/simple-podcast-manager">View source</a>
           </div>
         </div>
         <div class="hero-shot">
-          <button class="image-button" type="button" data-lightbox-src="assets/screenshots/main-window.png" data-lightbox-alt="Simple Podcast Manager main window showing podcast subscriptions and episodes." data-lightbox-caption="Main window with shows, episodes, and device state.">
+          <button class="image-button" type="button" data-lightbox-src="assets/screenshots/main-window.png" data-lightbox-alt="Simple Podcast Manager main window showing podcast subscriptions and episodes." data-lightbox-caption="Main window with podcasts, episodes, and device state.">
             <img src="assets/screenshots/main-window.png" alt="Simple Podcast Manager main window showing podcast subscriptions and episodes.">
           </button>
         </div>
@@ -752,7 +752,7 @@
           <h2>From RSS feed to MP3 player.</h2>
           <ol class="step-list">
             <li><span><strong>Install.</strong> Open the DMG and drag the app to Applications.</span></li>
-            <li><span><strong>Add a show.</strong> Search for a podcast, or paste its RSS feed URL.</span></li>
+            <li><span><strong>Add a podcast.</strong> Search for a podcast, or paste its RSS feed URL.</span></li>
             <li><span><strong>Download episodes.</strong> Download new episodes after feed refreshes, or choose individual episodes yourself.</span></li>
             <li><span><strong>Connect your player.</strong> Plug it in.</span></li>
             <li><span><strong>Sync.</strong> Review the plan, then click Sync.</span></li>
@@ -782,7 +782,8 @@
           <h2>Review every change before syncing.</h2>
           <p>The app shows the complete plan before it copies or removes anything.</p>
           <ul>
-            <li>Writes only inside the device’s podcast folder.</li>
+            <li>Saves episode audio in the configured podcast folder and M3U playlists in the configured playlist folder.</li>
+            <li>Replaces or removes only playlist files recorded as created by the app.</li>
             <li>Deletes app-managed episodes only when selected.</li>
             <li>Stops when device paths cannot be validated.</li>
           </ul>
@@ -806,7 +807,11 @@
           </li>
           <li>
             <h3>Do I need an account?</h3>
-            <p>No. Search for podcasts directly or add a show with its RSS feed URL; Spotify and Apple Podcasts are not required.</p>
+            <p>No. Search for podcasts directly or add a podcast with its RSS feed URL; Spotify and Apple Podcasts are not required.</p>
+          </li>
+          <li>
+            <h3>Can I create playlists?</h3>
+            <p>Yes. Add and reorder episodes yourself, or automatically include downloaded episodes from selected podcasts. Sync saves M3U playlists to your player. Choose its playlist folder in Settings and check that your player supports M3U files. See the <a href="https://github.com/steveneely/simple-podcast-manager/blob/main/docs/USER_MANUAL.md#playlists">playlist guide</a> for details.</p>
           </li>
           <li>
             <h3>Do I need ffmpeg?</h3>

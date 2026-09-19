@@ -22,6 +22,13 @@ Remove duplication when doing so improves clarity. Do not apply DRY mechanically
 
 ## UI, UX, and Terminology Standards
 
+### Approval for UI, UX, and Wording Changes
+
+- Ask Steve before implementing any UI, UX, or user-facing wording change that he has not already explicitly requested or approved. Do not silently include these changes in refactors, bug fixes, cleanup, or other work.
+- Proactively suggest improvements when you find them: describe the current experience, show the proposed wording or explain the proposed interaction or layout, and briefly explain why it could be better. Ask whether Steve likes the proposal and wants to use it, then wait for his approval before implementing it.
+- Keep approved changes within their agreed scope. Approval to change a layout does not authorize rewriting labels, descriptions, tooltips, or other copy; approval to change wording does not authorize changing appearance or behavior.
+- Preserve the existing UI, UX, and wording while a suggestion awaits approval. An explicit request or approval already given in the current conversation is sufficient; do not ask again for the same change.
+
 Keep the app visually and behaviorally consistent. New UI and changes to existing UI must follow these conventions:
 
 - Use `Podcast` for the product and domain concept in user-facing copy, type names, file names, variables, functions, tests, and comments.

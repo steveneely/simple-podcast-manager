@@ -8,6 +8,12 @@ Download the latest DMG from [GitHub Releases](https://github.com/steveneely/sim
 
 The app is not yet Developer ID signed or notarized. If macOS blocks it the first time you open it, follow Apple's guidance for [safely opening apps on your Mac](https://support.apple.com/en-us/102445) and allow it in System Settings > Privacy & Security.
 
+## Settings
+
+Open `Simple Podcast Manager > Settings…` (⌘,). Use the sidebar to choose General, Downloads, Device, or Advanced. Changes stay in the draft as you switch pages; click `Save` to apply them or `Cancel` to discard them. Appearance previews immediately and returns to its saved setting if you cancel.
+
+Downloads groups title and genre options under `MP3 Metadata`. Choose `Advanced` in the sidebar for FFmpeg, HTTP download permissions, and app data backup and restore. Device keeps both folder settings together; connect a player to change them.
+
 ## Prepare your MP3 player
 
 Connect the player.
@@ -30,7 +36,7 @@ The lower-left corner of the Podcasts list reports library refresh progress, inc
 
 The compact sort control beside `Podcasts` shows `Name` or `Updated` for the current sort field. Click that label to switch fields, or click its arrow to reverse the order. The app remembers both choices.
 
-By default, an orange `Inactive` label marks a podcast whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > Inactive Podcasts` to use three months, six months, one year, or turn this indicator off. Disabled podcasts, RSS feeds without trustworthy dates, and podcasts with a current refresh error are not marked inactive.
+By default, an orange `Inactive` label marks a podcast whose latest dated episode is more than six months old. Its tooltip shows the latest publication date. Choose `Settings > General > Inactive Podcasts` to use three months, six months, one year, or turn this indicator off. Disabled podcasts, RSS feeds without trustworthy dates, and podcasts with a current refresh error are not marked inactive.
 
 Select a podcast to reveal its Refresh, Edit, and Remove controls. Select it again to clear the selection.
 
@@ -50,9 +56,9 @@ If episode audio or artwork is available only over unencrypted HTTP, the app war
 
 When the feed provides a publication date, files copied to the player start with it in `yyyy.MM.dd` format so they sort reliably. Their embedded MP3 titles keep the original feed text, including special characters. Settings can add a shorter `MM.dd` date to new MP3 titles, such as `08.11 Original Title`.
 
-New downloads use `Podcast` in the MP3's ID3 genre field by default. Change `Settings > Episodes > MP3 Genre` to use a different genre on your player, or leave it blank to omit the genre field. Genre and title settings apply only to new downloads; existing downloads are unchanged.
+New downloads use `Podcast` in the MP3's ID3 genre field by default. Change `Settings > Downloads > MP3 Metadata > MP3 Genre` to use a different genre on your player, or leave it blank to omit the genre field. Genre and title settings apply only to new downloads; existing downloads are unchanged.
 
-Leave `Settings > Episodes > Automatic Downloads` set to `Off` for manual downloads, or choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new`. The limit applies separately to each included podcast after RSS feed refreshes. The first successful refresh records existing episodes without downloading them, so subscriptions do not create a backlog.
+Leave `Settings > Downloads > Automatic Downloads` set to `Off` for manual downloads, or choose `Latest 1`, `Latest 2`, `Latest 3`, or `All new`. The limit applies separately to each included podcast after RSS feed refreshes. The first successful refresh records existing episodes without downloading them, so subscriptions do not create a backlog.
 
 Edit a podcast to change `Include in automatic downloads`. Turn off `Podcast enabled` to stop refreshing that podcast. Automatic downloads prepare episodes on the Mac; syncing starts only when you click `Sync`.
 
@@ -77,13 +83,13 @@ Deleting the last available local download also removes that episode from playli
 
 In the playlist editor, turn on `Automatically add episodes` and select one or more podcasts. Optionally turn on `Limit automatically added episodes` and choose a count. The limit applies across the selected podcasts together, with newest episodes first; manually added episodes do not count toward it.
 
-Automatic additions use available episodes and do not start downloads. Use the separate `Settings > Episodes > Automatic Downloads` setting if you also want new episodes downloaded automatically.
+Automatic additions use available episodes and do not start downloads. Use the separate `Settings > Downloads > Automatic Downloads` setting if you also want new episodes downloaded automatically.
 
 Automatically added episodes appear after manually added episodes. Pin an available episode to make it manually added so you can reorder it and protect it from automatic device cleanup. Remove an automatic entry to keep it out of that playlist; adding it manually again clears that exclusion.
 
 ### Choose the device playlist folder
 
-Connect and select your player, then open `Settings > MP3 Player > Device Playlist Folder`. Click `Choose Folder…` and select a folder on that device. The app asks before creating a missing folder. This setting is separate from `Device Podcast Folder` and defaults to the podcast folder until you choose another location.
+Connect and select your player, then open `Settings > Device > Device Playlist Folder`. Click `Choose Folder…` and select a folder on that device. The app asks before creating a missing folder. This setting is separate from `Device Podcast Folder` and defaults to the podcast folder until you choose another location.
 
 Sync writes `.m3u` playlists that reference episodes on the player. Check your player's playlist support and required folder location. The app only replaces or removes playlist files it has recorded as its own in that exact folder; an unrelated file with the same name is not overwritten.
 
@@ -94,7 +100,7 @@ Playlist updates and removals appear in the Sync review. Unavailable episodes ar
 Device cleanup is optional and is off by default.
 
 1. Open Settings.
-2. Under `MP3 Player > Device Cleanup`, choose `Keep 3 episodes`, `Keep 5 episodes`, `Keep 10 episodes`, or `Keep 20 episodes` instead of `Off`.
+2. Under `Device > Device Cleanup`, choose `Keep 3 episodes`, `Keep 5 episodes`, `Keep 10 episodes`, or `Keep 20 episodes` instead of `Off`.
 3. Save the setting.
 
 When you next click `Sync`, the app considers both episodes already on the player and dated episodes being copied during that sync. It suggests existing episodes beyond the selected number for each podcast. Every suggested episode appears in the Sync window with its own checkbox. Uncheck anything you want to keep.
@@ -130,8 +136,8 @@ When Simple Podcast Manager detects unrelated audio inside the configured podcas
 
 ## Back up, restore, and update
 
-- Back up app data: `Settings > App Data > Back Up…`
-- Restore app data: `Settings > App Data > Restore…`
+- Back up app data: `Settings > Advanced > App Data > Back Up…`
+- Restore app data: `Settings > Advanced > App Data > Restore…`
 - Check for updates: `Simple Podcast Manager > Check for Updates…`
 
 Backups include podcasts, playlist definitions and device ownership records, settings, and history, but not downloaded audio files. OPML exports contain only podcast subscriptions, not playlists. Restoring an older backup made before playlist support replaces the playlist library with an empty library. Before restoring, the app asks for confirmation and backs up the current app data. Afterward, it confirms success, shows the backup location, and can reveal it in Finder.
@@ -154,7 +160,7 @@ Cleanup requires a publication date in a recognized Simple Podcast Manager filen
 
 ### A playlist is missing or incomplete on the player
 
-- Confirm the player supports M3U playlists and check its required playlist folder. Set that location under `Settings > MP3 Player > Device Playlist Folder`.
+- Confirm the player supports M3U playlists and check its required playlist folder. Set that location under `Settings > Device > Device Playlist Folder`.
 - Run Sync after creating or changing a playlist; saving it in the app alone does not update the player.
 - Check for unavailable episodes. Only episodes present on the player after sync appear in its playlist. A playlist with no available episodes has no device file.
 - Review any filename collision error. The app will not overwrite a playlist it does not own; choose a different playlist name or folder.

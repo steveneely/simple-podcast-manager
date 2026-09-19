@@ -5,14 +5,7 @@ import SimplePodcastManagerCore
 public struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var ffmpegExecutablePath: String
-    @State private var appearancePreference: AppearancePreference
-    @State private var allowsInsecureDownloads: Bool
-    @State private var prefixesPublicationDateInEpisodeTitles: Bool
-    @State private var mp3Genre: String
-    @State private var automaticDownloadLimit: AutomaticDownloadLimit
-    @State private var deviceCleanupPolicy: DeviceCleanupPolicy
-    @State private var inactivePodcastThreshold: InactivePodcastThreshold
+    @State private var draft: SettingsDraft
     @State private var podcastDirectoryPath: String
     @State private var playlistDirectoryPath: String
     @State private var automaticallyChecksForUpdates: Bool
@@ -25,9 +18,6 @@ public struct SettingsView: View {
     private let selectedDeviceName: String?
     private let selectedDeviceRootURL: URL?
     private let savedAppearancePreference: AppearancePreference
-    private let podcastSortOrder: PodcastSortOrder
-    private let ejectDeviceAfterSync: Bool
-    private let deleteDownloadedEpisodesAfterSync: Bool
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let shouldConfirmPlaylistDirectoryCreation: (String?) throws -> Bool
     private let makePodcastDirectoryMigrationPlan: (String?) throws -> DevicePodcastDirectoryMigrationPlan?
@@ -64,16 +54,7 @@ public struct SettingsView: View {
         canRestoreAppData: Bool = true,
         onRestoreAppData: @escaping () -> Void = {}
     ) {
-        self._ffmpegExecutablePath = State(initialValue: settings.ffmpegExecutablePath ?? "")
-        self._appearancePreference = State(initialValue: settings.appearancePreference)
-        self._allowsInsecureDownloads = State(initialValue: settings.allowsInsecureDownloads)
-        self._prefixesPublicationDateInEpisodeTitles = State(
-            initialValue: settings.prefixesPublicationDateInEpisodeTitles
-        )
-        self._mp3Genre = State(initialValue: settings.mp3Genre)
-        self._automaticDownloadLimit = State(initialValue: settings.automaticDownloadLimit)
-        self._deviceCleanupPolicy = State(initialValue: settings.deviceCleanupPolicy)
-        self._inactivePodcastThreshold = State(initialValue: settings.inactivePodcastThreshold)
+        self._draft = State(initialValue: SettingsDraft(settings: settings))
         self._podcastDirectoryPath = State(initialValue: podcastDirectoryPath ?? DevicePodcastConfiguration.defaultPodcastDirectoryPath)
         self._playlistDirectoryPath = State(
             initialValue: playlistDirectoryPath
@@ -85,9 +66,6 @@ public struct SettingsView: View {
         self.selectedDeviceName = selectedDeviceName
         self.selectedDeviceRootURL = selectedDeviceRootURL
         self.savedAppearancePreference = settings.appearancePreference
-        self.podcastSortOrder = settings.podcastSortOrder
-        self.ejectDeviceAfterSync = settings.ejectDeviceAfterSync
-        self.deleteDownloadedEpisodesAfterSync = settings.deleteDownloadedEpisodesAfterSync
         self.shouldConfirmPodcastDirectoryCreation = shouldConfirmPodcastDirectoryCreation
         self.shouldConfirmPlaylistDirectoryCreation = shouldConfirmPlaylistDirectoryCreation
         self.makePodcastDirectoryMigrationPlan = makePodcastDirectoryMigrationPlan
@@ -101,213 +79,61 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Settings")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    SettingsSection(title: "Episodes") {
-                        LabeledField(
-                            title: "Automatic Downloads",
-                            detail: "Downloads new episodes automatically after podcasts refresh. The selected limit applies separately to each included podcast.",
-                            emphasizesTitle: true
-                        ) {
-                            Picker("Automatic Downloads", selection: $automaticDownloadLimit) {
-                                Text("Off").tag(AutomaticDownloadLimit.off)
-                                Text("Latest 1").tag(AutomaticDownloadLimit.latest1)
-                                Text("Latest 2").tag(AutomaticDownloadLimit.latest2)
-                                Text("Latest 3").tag(AutomaticDownloadLimit.latest3)
-                                Text("All new").tag(AutomaticDownloadLimit.allNew)
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                        }
-
-                        LabeledField(
-                            title: "MP3 Episode Titles",
-                            detail: "Adds the date in MM.dd format, such as 08.11 Original Title. Applies to new downloads only.",
-                            emphasizesTitle: true
-                        ) {
-                            Toggle(
-                                "Prefix with publication date",
-                                isOn: $prefixesPublicationDateInEpisodeTitles
-                            )
-                            .toggleStyle(.checkbox)
-                        }
-
-                        LabeledField(
-                            title: "MP3 Genre",
-                            detail: "Writes this value to the MP3’s ID3 genre field. Leave blank to omit it. Applies to new downloads only.",
-                            emphasizesTitle: true
-                        ) {
-                            TextField("", text: $mp3Genre)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 180)
-                                .accessibilityLabel("MP3 Genre")
-                        }
-
-                        LabeledField(
-                            title: "Inactive Podcasts",
-                            detail: "Shows an orange Inactive label beside podcasts that have not published recently.",
-                            emphasizesTitle: true
-                        ) {
-                            Picker("Inactive Podcasts", selection: $inactivePodcastThreshold) {
-                                Text("Off").tag(InactivePodcastThreshold.off)
-                                Text("After 3 months").tag(InactivePodcastThreshold.threeMonths)
-                                Text("After 6 months").tag(InactivePodcastThreshold.sixMonths)
-                                Text("After 1 year").tag(InactivePodcastThreshold.oneYear)
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                        }
-                    }
-
-                    SettingsSection(title: "MP3 Player") {
-                        LabeledField(
-                            title: "Device Cleanup",
-                            detail: "Suggests deleting episodes beyond the selected number per podcast. You can review and keep any episode before syncing.",
-                            emphasizesTitle: true
-                        ) {
-                            Picker("Device Cleanup", selection: cleanupEpisodeLimitSelection) {
-                                Text("Off").tag(Int?.none)
-                                ForEach(DeviceCleanupPolicy.allowedMaximumEpisodesPerPodcast, id: \.self) { count in
-                                    Text("Keep \(count) episodes").tag(Int?.some(count))
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                        }
-
-                        LabeledField(
-                            title: "Device Podcast Folder",
-                            detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
-                                ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\".",
-                            emphasizesTitle: true
-                        ) {
-                            chooserRow(
-                                value: podcastDirectoryPath,
-                                buttonTitle: "Choose Folder…",
-                                clearTitle: nil
-                            ) {
-                                choosePodcastDirectory()
-                            } onClear: {}
-                            .disabled(selectedDeviceName == nil)
-                        }
-
-                        LabeledField(
-                            title: "Device Playlist Folder",
-                            detail: selectedDeviceName.map { _ in "Choose where playlists are saved. Some devices require playlists to be stored in a separate folder." }
-                                ?? "Connect a device to choose where its playlists are saved.",
-                            emphasizesTitle: true
-                        ) {
-                            chooserRow(
-                                value: playlistDirectoryPath,
-                                buttonTitle: "Choose Folder…",
-                                clearTitle: nil
-                            ) {
-                                choosePlaylistDirectory()
-                            } onClear: {}
-                            .disabled(selectedDeviceName == nil)
-                        }
-                    }
-
-                    SettingsSection(title: "General") {
-                        LabeledField(
-                            title: "Appearance",
-                            detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode.",
-                            emphasizesTitle: true
-                        ) {
-                            Picker("Appearance", selection: $appearancePreference) {
-                                Text("System").tag(AppearancePreference.system)
-                                Text("Light").tag(AppearancePreference.light)
-                                Text("Dark").tag(AppearancePreference.dark)
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.segmented)
-                        }
-
-                        if showsUpdateSettings {
-                            LabeledField(title: "Updates", emphasizesTitle: true) {
-                                Toggle(
-                                    "Check for updates on startup",
-                                    isOn: $automaticallyChecksForUpdates
-                                )
-                                .toggleStyle(.checkbox)
-                            }
-                        }
-                    }
-
-                    SettingsSection(title: "Advanced") {
-                        LabeledField(
-                            title: "FFmpeg Path",
-                            detail: "FFmpeg is not included with the app. Install it and select its executable to convert non-MP3 podcast audio.",
-                            emphasizesTitle: true
-                        ) {
-                            chooserRow(
-                                value: ffmpegExecutablePath.isEmpty ? "Not set" : ffmpegExecutablePath,
-                                buttonTitle: "Choose…",
-                                clearTitle: ffmpegExecutablePath.isEmpty ? nil : "Clear"
-                            ) {
-                                chooseFFmpegExecutable()
-                            } onClear: {
-                                ffmpegExecutablePath = ""
-                            }
-                        }
-
-                        LabeledField(
-                            title: "Insecure Downloads",
-                            detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit.",
-                            emphasizesTitle: true
-                        ) {
-                            Toggle(
-                                "Always allow HTTP podcast downloads",
-                                isOn: $allowsInsecureDownloads
-                            )
-                            .toggleStyle(.checkbox)
-                        }
-                    }
-
-                    SettingsSection(title: "App Data") {
-                        HStack(spacing: 8) {
-                            Button("Back Up…", systemImage: "archivebox") {
-                                onBackUpAppData()
-                            }
-
-                            Button("Restore…", systemImage: "arrow.counterclockwise") {
-                                onRestoreAppData()
-                            }
-                            .disabled(!canRestoreAppData)
-                            .help(canRestoreAppData ? "Restore podcasts, settings, and episode history" : "Wait for refreshes, downloads, and sync to finish before restoring app data")
-                        }
-                    }
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                List(selection: $draft.selectedPage) {
+                    ForEach(SettingsPage.allCases) { page in
+                        Label(page.rawValue, systemImage: page.systemImage)
+                            .listItemTint(.preferred(.primary))
+                            .tag(page)
+                            .padding(.vertical, 4)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .listStyle(.sidebar)
+                .accessibilityLabel("Settings sections")
+                .frame(width: 170)
+
+                Divider()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        Text(draft.selectedPage.rawValue)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        pageContent
+                    }
+                    .frame(maxWidth: 520, alignment: .leading)
+                    .padding(28)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .id(draft.selectedPage)
             }
 
-            HStack {
-                Spacer()
+            Divider()
 
-                Button("Cancel") {
-                    restoreSavedAppearancePreference()
-                    dismiss()
+            VStack(alignment: .leading, spacing: 12) {
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
                 }
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        restoreSavedAppearancePreference()
+                        dismiss()
+                    }
+                    .keyboardShortcut(.cancelAction)
 
-                Button("Save") {
-                    save()
+                    Button("Save", action: save)
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
                 }
-                .keyboardShortcut(.defaultAction)
             }
+            .padding(16)
         }
-        .padding(20)
-        .frame(width: 520, height: 600)
+        .frame(minWidth: 760, idealWidth: 800, maxWidth: .infinity,
+               minHeight: 560, idealHeight: 620, maxHeight: .infinity)
         .alert(createFolderConfirmationTitle, isPresented: $isShowingCreateFolderConfirmation) {
             Button("Cancel", role: .cancel) {
                 pendingSave = nil
@@ -341,11 +167,201 @@ public struct SettingsView: View {
                 )
             }
         }
-        .onChange(of: appearancePreference) { _, preference in
+        .onChange(of: draft.settings.appearancePreference) { _, preference in
             onAppearancePreferencePreview(preference)
         }
         .onDisappear {
             restoreSavedAppearancePreference()
+        }
+    }
+
+    @ViewBuilder
+    private var pageContent: some View {
+        switch draft.selectedPage {
+        case .general: generalSettings
+        case .downloads: downloadSettings
+        case .device: deviceSettings
+        case .advanced: advancedSettings
+        }
+    }
+
+    private var generalSettings: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            SettingsField(
+                title: "Appearance",
+                detail: "Choose whether the app follows macOS, always uses light mode, or always uses dark mode."
+            ) {
+                Picker("Appearance", selection: $draft.settings.appearancePreference) {
+                    Text("System").tag(AppearancePreference.system)
+                    Text("Light").tag(AppearancePreference.light)
+                    Text("Dark").tag(AppearancePreference.dark)
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 280, alignment: .leading)
+            }
+
+            SettingsField(
+                title: "Inactive Podcasts",
+                detail: "Shows an orange Inactive label beside podcasts that have not published recently."
+            ) {
+                Picker("Inactive Podcasts", selection: $draft.settings.inactivePodcastThreshold) {
+                    Text("Off").tag(InactivePodcastThreshold.off)
+                    Text("After 3 months").tag(InactivePodcastThreshold.threeMonths)
+                    Text("After 6 months").tag(InactivePodcastThreshold.sixMonths)
+                    Text("After 1 year").tag(InactivePodcastThreshold.oneYear)
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
+
+            if showsUpdateSettings {
+                SettingsField(title: "Updates") {
+                    Toggle("Check for updates on startup", isOn: $automaticallyChecksForUpdates)
+                        .toggleStyle(.checkbox)
+                }
+            }
+        }
+    }
+
+    private var downloadSettings: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            SettingsField(
+                title: "Automatic Downloads",
+                detail: "Downloads new episodes automatically after podcasts refresh. The selected limit applies separately to each included podcast."
+            ) {
+                Picker("Automatic Downloads", selection: $draft.settings.automaticDownloadLimit) {
+                    Text("Off").tag(AutomaticDownloadLimit.off)
+                    Text("Latest 1").tag(AutomaticDownloadLimit.latest1)
+                    Text("Latest 2").tag(AutomaticDownloadLimit.latest2)
+                    Text("Latest 3").tag(AutomaticDownloadLimit.latest3)
+                    Text("All new").tag(AutomaticDownloadLimit.allNew)
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
+
+            SettingsSection(title: "MP3 Metadata") {
+                SettingsField(
+                    title: "MP3 Episode Titles",
+                    detail: "Adds the date in MM.dd format, such as 08.11 Original Title. Applies to new downloads only."
+                ) {
+                    Toggle(
+                        "Prefix with publication date",
+                        isOn: $draft.settings.prefixesPublicationDateInEpisodeTitles
+                    )
+                    .toggleStyle(.checkbox)
+                }
+
+                SettingsField(
+                    title: "MP3 Genre",
+                    detail: "Writes this value to the MP3’s ID3 genre field. Leave blank to omit it. Applies to new downloads only."
+                ) {
+                    TextField("", text: $draft.settings.mp3Genre)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 180)
+                        .accessibilityLabel("MP3 Genre")
+                }
+            }
+        }
+    }
+
+    private var advancedSettings: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            SettingsField(
+                title: "FFmpeg Path",
+                detail: "FFmpeg is not included with the app. Install it and select its executable to convert non-MP3 podcast audio."
+            ) {
+                chooserRow(
+                    value: draft.ffmpegExecutablePath.isEmpty ? "Not set" : draft.ffmpegExecutablePath,
+                    buttonTitle: "Choose…",
+                    clearTitle: draft.ffmpegExecutablePath.isEmpty ? nil : "Clear"
+                ) {
+                    chooseFFmpegExecutable()
+                } onClear: {
+                    draft.ffmpegExecutablePath = ""
+                }
+            }
+
+            SettingsField(
+                title: "Insecure Downloads",
+                detail: "HTTPS is always tried first. HTTP audio and artwork are unencrypted and could be intercepted or changed in transit."
+            ) {
+                Toggle(
+                    "Always allow HTTP podcast downloads",
+                    isOn: $draft.settings.allowsInsecureDownloads
+                )
+                .toggleStyle(.checkbox)
+            }
+
+            SettingsSection(title: "App Data") {
+                appDataSettings
+            }
+        }
+    }
+
+    private var deviceSettings: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            SettingsField(
+                title: "Device Cleanup",
+                detail: "Suggests deleting episodes beyond the selected number per podcast. You can review and keep any episode before syncing."
+            ) {
+                Picker("Device Cleanup", selection: cleanupEpisodeLimitSelection) {
+                    Text("Off").tag(Int?.none)
+                    ForEach(DeviceCleanupPolicy.allowedMaximumEpisodesPerPodcast, id: \.self) { count in
+                        Text("Keep \(count) episodes").tag(Int?.some(count))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
+
+            SettingsSection(title: "Device Folders") {
+                if let selectedDeviceName {
+                    Label(selectedDeviceName, systemImage: "externaldrive")
+                        .font(.subheadline)
+                }
+                SettingsField(
+                    title: "Device Podcast Folder",
+                    detail: selectedDeviceName.map { "Choose where podcasts are saved on \($0). Defaults to \"music\"." }
+                        ?? "Connect a device to choose where its podcasts are saved. Defaults to \"music\"."
+                ) {
+                    chooserRow(
+                        value: podcastDirectoryPath,
+                        buttonTitle: "Choose Folder…",
+                        clearTitle: nil
+                    ) {
+                        choosePodcastDirectory()
+                    } onClear: {}
+                    .disabled(selectedDeviceRootURL == nil)
+                }
+
+                SettingsField(
+                    title: "Device Playlist Folder",
+                    detail: selectedDeviceName.map { _ in "Choose where playlists are saved. Some devices require playlists to be stored in a separate folder." }
+                        ?? "Connect a device to choose where its playlists are saved."
+                ) {
+                    chooserRow(
+                        value: playlistDirectoryPath,
+                        buttonTitle: "Choose Folder…",
+                        clearTitle: nil
+                    ) {
+                        choosePlaylistDirectory()
+                    } onClear: {}
+                    .disabled(selectedDeviceRootURL == nil)
+                }
+            }
+        }
+    }
+
+    private var appDataSettings: some View {
+        HStack(spacing: 8) {
+            Button("Back Up…", systemImage: "archivebox", action: onBackUpAppData)
+            Button("Restore…", systemImage: "arrow.counterclockwise", action: onRestoreAppData)
+                .disabled(!canRestoreAppData)
+                .help(canRestoreAppData
+                    ? "Restore podcasts, settings, and episode history"
+                    : "Wait for refreshes, downloads, and sync to finish before restoring app data")
         }
     }
 
@@ -362,7 +378,8 @@ public struct SettingsView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(value.isEmpty ? .secondary : .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 240, alignment: .leading)
+                .help(value)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .background(
@@ -399,19 +416,7 @@ public struct SettingsView: View {
 
     private func save() {
         let pendingSave = PendingSave(
-            settings: AppSettings(
-                ffmpegExecutablePath: ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : ffmpegExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines),
-                appearancePreference: appearancePreference,
-                allowsInsecureDownloads: allowsInsecureDownloads,
-                prefixesPublicationDateInEpisodeTitles: prefixesPublicationDateInEpisodeTitles,
-                mp3Genre: normalizedMP3Genre,
-                automaticDownloadLimit: automaticDownloadLimit,
-                deviceCleanupPolicy: deviceCleanupPolicy,
-                ejectDeviceAfterSync: ejectDeviceAfterSync,
-                deleteDownloadedEpisodesAfterSync: deleteDownloadedEpisodesAfterSync,
-                inactivePodcastThreshold: inactivePodcastThreshold,
-                podcastSortOrder: podcastSortOrder
-            ),
+            settings: draft.settingsForSaving,
             podcastDirectoryPath: selectedDeviceName == nil ? nil : podcastDirectoryPath,
             playlistDirectoryPath: selectedDeviceName == nil ? nil : playlistDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates,
@@ -455,15 +460,11 @@ public struct SettingsView: View {
         }
     }
 
-    private var normalizedMP3Genre: String {
-        mp3Genre.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private var cleanupEpisodeLimitSelection: Binding<Int?> {
         Binding(
-            get: { deviceCleanupPolicy.maximumEpisodesPerPodcast },
+            get: { draft.settings.deviceCleanupPolicy.maximumEpisodesPerPodcast },
             set: { maximumEpisodesPerPodcast in
-                deviceCleanupPolicy = DeviceCleanupPolicy(
+                draft.settings.deviceCleanupPolicy = DeviceCleanupPolicy(
                     maximumEpisodesPerPodcast: maximumEpisodesPerPodcast
                 )
             }
@@ -506,7 +507,7 @@ public struct SettingsView: View {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
 
-        let currentURL = ffmpegExecutablePath.isEmpty ? URL(fileURLWithPath: "/opt/homebrew/bin", isDirectory: true) : URL(fileURLWithPath: ffmpegExecutablePath).deletingLastPathComponent()
+        let currentURL = draft.ffmpegExecutablePath.isEmpty ? URL(fileURLWithPath: "/opt/homebrew/bin", isDirectory: true) : URL(fileURLWithPath: draft.ffmpegExecutablePath).deletingLastPathComponent()
         if FileManager.default.fileExists(atPath: currentURL.path) {
             panel.directoryURL = currentURL
         }
@@ -516,7 +517,7 @@ public struct SettingsView: View {
             return
         }
 
-        ffmpegExecutablePath = selectedURL.path
+        draft.ffmpegExecutablePath = selectedURL.path
         errorMessage = nil
     }
 
@@ -683,9 +684,33 @@ private struct SettingsSection<Content: View>: View {
                 Divider()
             }
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 18) {
                 content
             }
         }
+    }
+}
+
+/// Settings keep a consistent rhythm between labels and controls.
+private struct SettingsField<Content: View>: View {
+    let title: String
+    var detail: String? = nil
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .fontWeight(.semibold)
+                if let detail {
+                    Text(detail)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            content
+        }
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
     }
 }

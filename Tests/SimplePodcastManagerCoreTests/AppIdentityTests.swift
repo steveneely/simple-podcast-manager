@@ -4,6 +4,17 @@ import Foundation
 
 struct AppIdentityTests {
     @Test
+    func testRunnerOutsideCheckoutResolvesDevelopmentData() {
+        let support = AppIdentity.developmentSupportDirectory(bundleURL: Bundle.main.bundleURL)
+
+        #expect(support.path.contains("/.dev-data/"))
+        #expect(FileManager.default.fileExists(
+            atPath: support.deletingLastPathComponent().deletingLastPathComponent()
+                .appending(path: "Package.swift").path
+        ))
+    }
+
+    @Test
     func packagedDevelopmentAppUsesItsOwnCheckoutData() throws {
         let root = try makeCheckout()
         defer { try? FileManager.default.removeItem(at: root) }

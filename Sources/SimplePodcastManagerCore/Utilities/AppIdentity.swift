@@ -85,6 +85,12 @@ public enum AppIdentity {
                 return candidateURL.resolvingSymlinksInPath()
             }
 
+            // Stop explicitly at the filesystem root. Foundation URL variants can
+            // append ".." when deleting its last component instead of staying put.
+            if candidateURL.path == "/" || candidateURL.path.isEmpty {
+                return nil
+            }
+
             let parentURL = candidateURL.deletingLastPathComponent()
             if parentURL.path == candidateURL.path {
                 return nil

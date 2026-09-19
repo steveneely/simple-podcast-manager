@@ -1,5 +1,5 @@
-# Simple Podcast Manager v1.21.2
+# Simple Podcast Manager v1.22.0
 
-- Gives playlists a clean set of flat icons using familiar macOS symbols.
-- Corrects alignment and window-edge spacing in the New and Edit Playlist window.
-- Uses device-neutral guidance for choosing a custom playlist folder.
+- Makes playlists available to everyone, with no Beta setting required.
+- Organizes Settings into General, Downloads, Device, and Advanced, with clearer device information, easy path copying, and Save enabled only after changes.
+- Keeps podcast sort controls the same size when switching between Name and Updated.

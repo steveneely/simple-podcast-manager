@@ -43,14 +43,17 @@ Run tests:
 Run from source:
 
 ```bash
-swift run "Simple Podcast Manager"
+swift run --build-system native "Simple Podcast Manager"
 ```
 
-Build a local DMG without generating a Sparkle appcast:
+Build an isolated local development app:
 
 ```bash
-SKIP_SPARKLE_APPCAST=1 ./scripts/build-release.sh
+./scripts/build-dev.sh
+open -n "$PWD/dist/dev/Simple Podcast Manager Dev.app"
 ```
+
+Development runs use `.dev-data/SimplePodcastManager` inside their own checkout. Packaged dev apps have a separate app identity and disable updates. Never use installed app data or launch release artifacts for testing.
 
 ## License
 

@@ -15,7 +15,11 @@ final class AppUpdater: NSObject, ObservableObject {
     @Published private(set) var automaticallyChecksForUpdates: Bool
 
     init(bundle: Bundle = .main) {
-        self.isInstalledApp = bundle.bundleURL.pathExtension == "app"
+        self.isInstalledApp = !AppIdentity.isDevelopmentBuild(
+            bundleURL: bundle.bundleURL,
+            isDistributionBuild: bundle.object(forInfoDictionaryKey: "SPMDistributionBuild") as? Bool ?? false,
+            isMarkedDevelopment: bundle.object(forInfoDictionaryKey: "SPMDevelopmentBuild") as? Bool ?? false
+        )
         self.updaterController = nil
         self.canCheckForUpdates = false
         self.automaticallyChecksForUpdates = false

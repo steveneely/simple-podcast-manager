@@ -24,7 +24,7 @@ The normal test suite explicitly reports these tests as skipped unless `SPM_RUN_
 Build the same packaged app used for manual device testing:
 
 ```bash
-SKIP_SPARKLE_APPCAST=1 ./scripts/build-release.sh
+./scripts/build-dev.sh
 ```
 
 In one Terminal window, stream the app's startup milestone log:
@@ -36,7 +36,7 @@ log stream --style compact --predicate 'subsystem == "com.steveneely.simple-podc
 Quit only development/test copies, leaving any installed app alone. Follow the [development app isolation rules](../AGENTS.md#development-app-isolation), then explicitly launch the local packaged app from the checkout in another Terminal window:
 
 ```bash
-open -n "$PWD/dist/build/Simple Podcast Manager.app"
+open -n "$PWD/dist/dev/Simple Podcast Manager Dev.app"
 ```
 
 Verify the development process PID and executable path before attaching any UI automation. Stop if the tool cannot reliably target that exact development instance.
@@ -50,7 +50,7 @@ Record these elapsed times:
 - network feeds refreshed
 - background startup work complete
 
-Measure at least five fresh-process launches and compare medians. Keep the same subscriptions, network, mounted volumes, and app data for before/after comparisons. Treat network refresh completion separately from interactive/cache-visible time because internet latency is not controlled by the app.
+Measure at least five fresh-process launches and compare medians. Use only synthetic or independently created development data; never copy the installed library. Keep the same development podcasts, network, mounted test volumes, and development data for before/after comparisons. Treat network refresh completion separately from interactive/cache-visible time because internet latency is not controlled by the app.
 
 For deeper diagnosis, record the packaged app with Instruments using the App Launch, Time Profiler, SwiftUI, and File Activity templates. Check that the main thread is not performing mounted-volume discovery, recursive device inventory, SQLite reads, or feed-cache file reads.
 

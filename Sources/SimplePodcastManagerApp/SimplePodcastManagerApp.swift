@@ -13,7 +13,7 @@ struct SimplePodcastManagerDesktopApp: App {
     )
 
     var body: some Scene {
-        WindowGroup("Simple Podcast Manager") {
+        WindowGroup(AppIdentity.isDevelopmentBuild() ? "Simple Podcast Manager Dev" : "Simple Podcast Manager") {
             MainView(
                 viewModel: viewModel,
                 automaticallyChecksForUpdates: Binding(

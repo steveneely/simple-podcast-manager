@@ -28,6 +28,16 @@ fi
 /usr/bin/plutil -lint "$info_plist" >/dev/null
 /usr/bin/xmllint --noout "$appcast_path"
 
+distribution_build=$(/usr/libexec/PlistBuddy -c "Print :SPMDistributionBuild" "$info_plist")
+if [[ "$distribution_build" != true ]]; then
+  echo "Release app must be explicitly marked SPMDistributionBuild." >&2
+  exit 1
+fi
+if /usr/libexec/PlistBuddy -c "Print :SPMDevelopmentBuild" "$info_plist" >/dev/null 2>&1; then
+  echo "A development app must never be published as a release." >&2
+  exit 1
+fi
+
 bundle_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$info_plist")
 release_tag=$(/usr/libexec/PlistBuddy -c "Print :SPMReleaseTag" "$info_plist")
 short_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$info_plist")

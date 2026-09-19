@@ -29,10 +29,11 @@ rm -rf "$build_dir" "$dmg_path"
 mkdir -p "$macos_dir" "$resources_dir" "$frameworks_dir" "$dmg_root" "$dist_dir" "$background_dir" "$updates_dir"
 
 cd "$repo_root"
-swift build -c release --product "$app_name"
+swift build --build-system native -c release --product "$app_name"
 
 cp "${repo_root}/.build/release/${app_name}" "${macos_dir}/${app_name}"
 cp "${repo_root}/Packaging/Info.plist" "${contents_dir}/Info.plist"
+/usr/bin/plutil -insert SPMDistributionBuild -bool true "${contents_dir}/Info.plist"
 cp "${repo_root}/THIRD_PARTY_NOTICES.md" "${resources_dir}/THIRD_PARTY_NOTICES.md"
 chmod 755 "${macos_dir}/${app_name}"
 

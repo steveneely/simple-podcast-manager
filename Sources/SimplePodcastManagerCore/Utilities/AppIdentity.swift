@@ -6,21 +6,53 @@ public enum AppIdentity {
     public static let developmentDataDirectoryName = ".dev-data"
     private static let sourceFilePath = #filePath
 
+    /// Only explicitly marked distribution bundles outside a checkout may use live data.
+    /// Missing metadata defaults to development, including ad-hoc packaged test apps.
+    public static func isDevelopmentBuild(
+        fileManager: FileManager = .default,
+        bundleURL: URL = Bundle.main.bundleURL,
+        isDistributionBuild: Bool = Bundle.main.object(forInfoDictionaryKey: "SPMDistributionBuild") as? Bool ?? false,
+        isMarkedDevelopment: Bool = Bundle.main.object(forInfoDictionaryKey: "SPMDevelopmentBuild") as? Bool ?? false
+    ) -> Bool {
+        isMarkedDevelopment
+            || !isDistributionBuild
+            || bundleURL.pathExtension != "app"
+            || checkoutRoot(containing: bundleURL, fileManager: fileManager) != nil
+    }
+
     public static func applicationSupportDirectory(
+        fileManager: FileManager = .default,
+        bundleURL: URL = Bundle.main.bundleURL,
+        isDistributionBuild: Bool = Bundle.main.object(forInfoDictionaryKey: "SPMDistributionBuild") as? Bool ?? false,
+        isMarkedDevelopment: Bool = Bundle.main.object(forInfoDictionaryKey: "SPMDevelopmentBuild") as? Bool ?? false
+    ) -> URL {
+        if isDevelopmentBuild(
+            fileManager: fileManager,
+            bundleURL: bundleURL,
+            isDistributionBuild: isDistributionBuild,
+            isMarkedDevelopment: isMarkedDevelopment
+        ) {
+            return developmentSupportDirectory(fileManager: fileManager, bundleURL: bundleURL)
+        }
+        return installedApplicationSupportDirectory(fileManager: fileManager)
+    }
+
+    public static func developmentSupportDirectory(
         fileManager: FileManager = .default,
         bundleURL: URL = Bundle.main.bundleURL
     ) -> URL {
-        if isApplicationBundle(bundleURL) {
-            return installedApplicationSupportDirectory(fileManager: fileManager)
-        }
-
-        return developmentSupportDirectory(fileManager: fileManager)
-    }
-
-    public static func developmentSupportDirectory(fileManager: FileManager = .default) -> URL {
-        repositoryRootURL(fileManager: fileManager)
+        let rootURL = checkoutRoot(containing: bundleURL, fileManager: fileManager)
+            ?? repositoryRootURL(fileManager: fileManager)
+        return rootURL
             .appending(path: developmentDataDirectoryName, directoryHint: .isDirectory)
             .appending(path: supportDirectoryName, directoryHint: .isDirectory)
+    }
+
+    private static func checkoutRoot(containing bundleURL: URL, fileManager: FileManager) -> URL? {
+        firstAncestorContainingPackageManifest(
+            startingAt: bundleURL.deletingLastPathComponent().resolvingSymlinksInPath(),
+            fileManager: fileManager
+        )
     }
 
     private static func installedApplicationSupportDirectory(fileManager: FileManager) -> URL {
@@ -28,10 +60,6 @@ public enum AppIdentity {
             ?? fileManager.homeDirectoryForCurrentUser.appending(path: "Library/Application Support", directoryHint: .isDirectory)
 
         return appSupportRootURL.appending(path: supportDirectoryName, directoryHint: .isDirectory)
-    }
-
-    private static func isApplicationBundle(_ bundleURL: URL) -> Bool {
-        bundleURL.pathExtension == "app"
     }
 
     private static func repositoryRootURL(fileManager: FileManager) -> URL {
@@ -54,7 +82,7 @@ public enum AppIdentity {
         while true {
             let manifestURL = candidateURL.appending(path: "Package.swift", directoryHint: .notDirectory)
             if fileManager.fileExists(atPath: manifestURL.path) {
-                return candidateURL
+                return candidateURL.resolvingSymlinksInPath()
             }
 
             let parentURL = candidateURL.deletingLastPathComponent()

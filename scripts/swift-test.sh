@@ -20,7 +20,7 @@ run_tests() {
   env \
     CLANG_MODULE_CACHE_PATH="${cache_root}/clang-module-cache" \
     SWIFTPM_CACHE_PATH="${cache_root}/swiftpm-cache" \
-    swift test --build-path "${cache_root}/build" "$@"
+    swift test --build-system native --build-path "${cache_root}/build" "$@"
 }
 
 if (( test_timeout_seconds == 0 )); then

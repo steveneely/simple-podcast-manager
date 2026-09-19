@@ -63,7 +63,7 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 - `SyncExecutionViewModel`: execute the selected plan and expose progress in the sync dialog
 - `DeviceViewModel`: monitor device availability and selected target
 - `DeviceLibraryViewModel`: inspect app-managed files already on the selected device
-- `AppUpdater`: app-target wrapper around Sparkle for installed-app updates; disabled for local `swift run` builds
+- `AppUpdater`: app-target wrapper around Sparkle for installed-app updates; disabled for all development builds, including packaged dev apps
 
 ### Core Layer
 
@@ -191,6 +191,10 @@ Refresh behavior:
 The feed cache is derived data. It should not be included in app data export/import, and deleting or retargeting a subscription should remove its stale cache file.
 
 ## Local Persistence
+
+Development data is isolated by `AppIdentity`: source runs, bundles inside a checkout, explicitly marked development apps, and unmarked bundles use `[checkout]/.dev-data/SimplePodcastManager`. A containing checkout takes precedence over the compiled source path so separate worktrees remain isolated. Only `.app` bundles marked `SPMDistributionBuild=true`, outside any checkout, and without a development marker may use the existing user Application Support directory. This routing covers configuration, SQLite, RSS cache, prepared media, and backup services; development never imports or copies production data.
+
+`scripts/build-dev.sh` creates `dist/dev/Simple Podcast Manager Dev.app` with `SPMDevelopmentBuild=true`, a checkout-specific bundle identifier and preference domain, and no update feed. It uses the native Swift build engine to preserve the actual SDK metadata. `scripts/build-release.sh` explicitly marks distribution artifacts; `verify-release.sh` rejects development markers. Release artifacts must not be launched for development checks.
 
 Small configuration data remains in `config.json`. Growing episode state is stored in `episodes.sqlite3` through GRDB and the SQLite library supplied by macOS:
 
@@ -322,7 +326,7 @@ Update design:
 - Settings reads and writes Sparkle's own automatic-check preference rather than maintaining a parallel app setting
 - when automatic checks are enabled, the installed app checks once per launch and shows Sparkle's update window only when a newer version is available
 - `SUAllowsAutomaticUpdates` is false so a background check can notify the user but cannot silently download, install, or relaunch the app
-- local development builds launched with `swift run "Simple Podcast Manager"` disable update checks
+- all development runs disable update checks through the same `AppIdentity` policy used for data routing; only explicitly marked distribution bundles outside a checkout can initialize Sparkle
 - Sparkle reads an HTTPS appcast from `SUFeedURL`
 - Sparkle verifies update archives with the public EdDSA key in `SUPublicEDKey`
 - Sparkle compares the numeric `CFBundleVersion` to determine whether an update is newer

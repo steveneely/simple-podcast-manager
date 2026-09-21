@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.22.1</title>
-            <pubDate>Fri, 18 Sep 2026 20:41:10 -0600</pubDate>
-            <sparkle:version>107</sparkle:version>
-            <sparkle:shortVersionString>1.22.1</sparkle:shortVersionString>
+            <title>1.22.2</title>
+            <pubDate>Mon, 21 Sep 2026 13:33:05 -0600</pubDate>
+            <sparkle:version>108</sparkle:version>
+            <sparkle:shortVersionString>1.22.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,15 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="108" data-release-tag="v1.22.2">
+            <h2>v1.22.2</h2>
+            <ul>
+                <li>Gives episode review more room in the Sync Podcasts window with one shared scrolling area.</li>
+                <li>Keeps cleanup expanded while playlist-kept episodes and planned actions open on demand, with counts in each section heading.</li>
+                <li>Keeps the plan summary and sync controls visible while reviewing episodes.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="107" data-release-tag="v1.22.1">
             <h2>v1.22.1</h2>
             <ul>
@@ -716,7 +725,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.22.1/SimplePodcastManager-v1.22.1.dmg" length="7947411" type="application/octet-stream" sparkle:edSignature="CXkU8ga9bFBrUBgbsOem6mSDwz7KVQfO86M2+SLKiYMPvmipiL1WSCuhwoakxcBV/ZkeltCRrMAiorzjHCDGDQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.22.2/SimplePodcastManager-v1.22.2.dmg" length="7950470" type="application/octet-stream" sparkle:edSignature="9g0wOV+WoObLBpDsACgbRk9vEAsgEfFoz3Vox4cMbQWaVUnZbYkYnkr/1COBmpi5qfHmWeW2IXTM9YFl58TtCA=="/>
         </item>
     </channel>
 </rss>

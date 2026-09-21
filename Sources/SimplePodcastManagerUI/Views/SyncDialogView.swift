@@ -26,6 +26,10 @@ struct SyncDialogView: View {
     let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
 
+    @State private var isCleanupExpanded = true
+    @State private var isPlaylistProtectedExpanded = false
+    @State private var isPlannedActionsExpanded = false
+
     private var hasSuccessfulResult: Bool {
         !isSyncing && lastErrorMessage == nil && lastResult != nil
     }
@@ -110,20 +114,42 @@ struct SyncDialogView: View {
 
                 planSummary
 
-                if plan?.cleanupCandidates.isEmpty == false {
-                    cleanupReview
-                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if plan?.cleanupCandidates.isEmpty == false {
+                            DisclosureGroup(isExpanded: $isCleanupExpanded) {
+                                cleanupReview
+                            } label: {
+                                reviewHeading("Episodes Suggested for Cleanup", count: plan?.cleanupCandidates.count ?? 0)
+                            }
+                        }
 
-                if plan?.playlistProtectedCleanupCandidates.isEmpty == false {
-                    playlistProtectedCleanupReview
-                }
+                        if plan?.playlistProtectedCleanupCandidates.isEmpty == false {
+                            DisclosureGroup(isExpanded: $isPlaylistProtectedExpanded) {
+                                playlistProtectedCleanupReview
+                            } label: {
+                                reviewHeading("Older Episodes Kept by Playlists", count: plan?.playlistProtectedCleanupCandidates.count ?? 0)
+                            }
+                        }
 
-                if plan?.actions.isEmpty == false {
-                    plannedActions
+                        if plan?.actions.isEmpty == false {
+                            DisclosureGroup(isExpanded: $isPlannedActionsExpanded) {
+                                plannedActions
+                            } label: {
+                                reviewHeading("Planned Actions", count: plan?.actions.count ?? 0)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, 8)
                 }
+                .frame(minHeight: 160, maxHeight: .infinity)
+
             }
 
-            Spacer(minLength: 4)
+            if hasSuccessfulResult {
+                Spacer(minLength: 4)
+            }
 
             HStack {
                 Spacer()
@@ -142,7 +168,13 @@ struct SyncDialogView: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 560, minHeight: 420, alignment: .topLeading)
+        .frame(minWidth: 560, idealWidth: 680, minHeight: 420, idealHeight: 720, alignment: .topLeading)
+    }
+
+    private func reviewHeading(_ title: String, count: Int) -> some View {
+        Text("\(title) (\(count))")
+            .font(.headline)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var deletionNotice: some View {
@@ -172,93 +204,85 @@ struct SyncDialogView: View {
 
     private var cleanupReview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Episodes Suggested for Cleanup")
-                .font(.headline)
             Text("Uncheck any episode you want to keep on the MP3 player.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(plan?.cleanupCandidates ?? []) { candidate in
-                        Toggle(
-                            isOn: Binding(
-                                get: { plannedDeletionTargets.contains(candidate.targetURL.standardizedFileURL) },
-                                set: { _ in onToggleCleanupDeletion(candidate.targetURL) }
-                            )
-                        ) {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(candidate.episodeTitle)
-                                        .lineLimit(1)
-                                    Text("\(candidate.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer()
-                                Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
-                                    .font(.caption)
-                                    .monospacedDigit()
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(plan?.cleanupCandidates ?? []) { candidate in
+                    Toggle(
+                        isOn: Binding(
+                            get: { plannedDeletionTargets.contains(candidate.targetURL.standardizedFileURL) },
+                            set: { _ in onToggleCleanupDeletion(candidate.targetURL) }
+                        )
+                    ) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(candidate.episodeTitle)
+                                    .lineLimit(1)
+                                Text("\(candidate.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(1)
                             }
+                            Spacer()
+                            Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
+                                .font(.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
                         }
-                        .toggleStyle(.checkbox)
                     }
+                    .toggleStyle(.checkbox)
                 }
             }
-            .frame(maxHeight: 150)
         }
     }
 
     private var playlistProtectedCleanupReview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Older Episodes Kept by Playlists")
-                .font(.headline)
             Text("These episodes would normally be removed by your cleanup settings, but they are being kept because they appear in playlists. Select any episodes you no longer want to keep.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(plan?.playlistProtectedCleanupCandidates ?? []) { candidate in
-                        Toggle(
-                            isOn: Binding(
-                                get: {
-                                    plannedDeletionTargets.contains(
-                                        candidate.targetURL.standardizedFileURL
-                                    )
-                                },
-                                set: { _ in
-                                    onTogglePlaylistProtectedDeletion(candidate.targetURL)
-                                }
-                            )
-                        ) {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(candidate.episode.title)
-                                        .lineLimit(1)
-                                    Text("\(candidate.episode.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                    Text("Kept by \(playlistDescription(candidate.playlistNames))")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer()
-                                Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
-                                    .font(.caption)
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(plan?.playlistProtectedCleanupCandidates ?? []) { candidate in
+                    Toggle(
+                        isOn: Binding(
+                            get: {
+                                plannedDeletionTargets.contains(
+                                    candidate.targetURL.standardizedFileURL
+                                )
+                            },
+                            set: { _ in
+                                onTogglePlaylistProtectedDeletion(candidate.targetURL)
                             }
+                        )
+                    ) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(candidate.episode.title)
+                                    .lineLimit(1)
+                                Text("\(candidate.episode.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                Text("Kept by \(playlistDescription(candidate.playlistNames))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
+                                .font(.caption)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
                         }
-                        .toggleStyle(.checkbox)
                     }
+                    .toggleStyle(.checkbox)
                 }
             }
-            .frame(maxHeight: 150)
         }
     }
 
@@ -367,31 +391,26 @@ struct SyncDialogView: View {
 
     private var plannedActions: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Planned Actions")
-                .font(.headline)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array((plan?.actions ?? []).enumerated()), id: \.offset) { _, action in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: SyncPresentation.iconName(for: action))
-                                .foregroundStyle(SyncPresentation.iconColor(for: action))
-                                .frame(width: 14)
-                            Text(action.summaryDescription)
+            LazyVStack(alignment: .leading, spacing: 6) {
+                ForEach(Array((plan?.actions ?? []).enumerated()), id: \.offset) { _, action in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: SyncPresentation.iconName(for: action))
+                            .foregroundStyle(SyncPresentation.iconColor(for: action))
+                            .frame(width: 14)
+                        Text(action.summaryDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if let fileSizeBytes = action.fileSizeBytes {
+                            Text(SyncPresentation.formattedFileSize(fileSizeBytes))
                                 .font(.caption)
+                                .monospacedDigit()
                                 .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            if let fileSizeBytes = action.fileSizeBytes {
-                                Text(SyncPresentation.formattedFileSize(fileSizeBytes))
-                                    .font(.caption)
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize()
-                            }
+                                .fixedSize()
                         }
                     }
                 }
             }
-            .frame(minHeight: 100, maxHeight: 180)
         }
     }
 

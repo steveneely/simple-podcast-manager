@@ -59,7 +59,7 @@ The complete implementation and review checklist lives in `AGENTS.md` under **UI
 - `PodcastActivityViewModel`: maintain independent new-episode and last-publication state for sidebar indicators
 - `PodcastPlaylistViewModel`: create, configure, rename, delete, order, and persist playlists, their automatic settings, and per-device file ownership state
 - `PodcastPlaylistPresentationViewModel`: resolve automatic membership and playlist counts asynchronously after source data changes so library navigation never performs device matching or whole-library playlist resolution
-- `SyncDialogView`: review the plan in one shared scrolling area. Cleanup starts expanded; playlist-protected episodes and planned actions start collapsed, with counts in each disclosure heading. Expansion survives selection-driven replanning. The summary, deletion notice, and trailing Close/Sync actions stay outside the scrolling content; selection and execution semantics are unchanged.
+- `SyncDialogView`: review the plan in one shared scrolling area. Planned actions start expanded; cleanup and playlist-protected episodes start collapsed, with counts in each disclosure heading. Expansion survives selection-driven replanning. The summary, deletion notice, and trailing Close/Sync actions stay outside the scrolling content; selection and execution semantics are unchanged.
 - `SyncPlanViewModel`: build the full-device plan shown before execution
 - `SyncExecutionViewModel`: execute the selected plan and expose progress in the sync dialog
 - `DeviceViewModel`: monitor device availability and selected target

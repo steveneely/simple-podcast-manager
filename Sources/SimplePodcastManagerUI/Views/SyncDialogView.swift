@@ -26,9 +26,9 @@ struct SyncDialogView: View {
     let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
 
-    @State private var isCleanupExpanded = true
-    @State private var isPlaylistProtectedExpanded = false
-    @State private var isPlannedActionsExpanded = false
+    @State private(set) var isCleanupExpanded = false
+    @State private(set) var isPlaylistProtectedExpanded = false
+    @State private(set) var isPlannedActionsExpanded = true
 
     private var hasSuccessfulResult: Bool {
         !isSyncing && lastErrorMessage == nil && lastResult != nil

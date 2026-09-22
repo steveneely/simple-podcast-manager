@@ -7,7 +7,7 @@ import SimplePodcastManagerCore
 @MainActor
 struct SyncDialogLayoutTests {
     @Test
-    func crowdedReviewUsesOneLargeScrollingArea() throws {
+    func crowdedReviewOpensPlannedActionsInOneLargeScrollingArea() throws {
         let root = URL(fileURLWithPath: "/Volumes/SyntheticReview")
         let podcastID = UUID()
         let date = Date(timeIntervalSince1970: 1_700_000_000)
@@ -39,7 +39,7 @@ struct SyncDialogLayoutTests {
             cleanupCandidates: candidates,
             playlistProtectedCleanupCandidates: [protected]
         )
-        let view = NSHostingView(rootView: SyncDialogView(
+        let dialog = SyncDialogView(
             plan: plan, progress: nil, isSyncing: false, isPlanning: false,
             planningErrorTitle: nil, planningErrorMessage: nil,
             incompleteCopyRecoveryTarget: nil, isReplacementPlanReady: false,
@@ -51,7 +51,11 @@ struct SyncDialogLayoutTests {
             onEjectAfterSyncChange: {}, onDeleteDownloadsAfterSyncChange: {},
             onToggleCleanupDeletion: { _ in }, onTogglePlaylistProtectedDeletion: { _ in },
             onReplaceIncompleteCopy: { _ in }, onSync: {}
-        ))
+        )
+        #expect(!dialog.isCleanupExpanded)
+        #expect(!dialog.isPlaylistProtectedExpanded)
+        #expect(dialog.isPlannedActionsExpanded)
+        let view = NSHostingView(rootView: dialog)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 720),
             styleMask: [.borderless], backing: .buffered, defer: false

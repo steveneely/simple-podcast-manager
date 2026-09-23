@@ -6,6 +6,43 @@ import Testing
 @MainActor
 struct PodcastRefreshCoordinatorTests {
     @Test
+    func newPodcastAndLaterRefreshUpdateVisibleEpisodesWithoutReloadingCache() async throws {
+        let subscription = makeSubscription(number: 1)
+        let firstEpisode = makeEpisode(number: 1, subscription: subscription)
+        let secondEpisode = makeEpisode(number: 2, subscription: subscription)
+        let service = RefreshEpisodeSequence(results: [
+            FeedFetchResult(allEpisodes: [firstEpisode]),
+            FeedFetchResult(allEpisodes: [secondEpisode, firstEpisode]),
+        ])
+        let cacheDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+        let preview = PodcastPreviewViewModel(
+            service: service,
+            cacheStore: JSONFeedCacheStore(directoryURL: cacheDirectory)
+        )
+        let library = StubPodcastRefreshSubscriptionLibrary(
+            podcastSubscriptions: [subscription], settings: AppSettings()
+        )
+        let activity = StubPodcastRefreshActivity()
+        let downloads = StubPodcastRefreshAutomaticDownloads()
+        let preparation = StubPodcastRefreshPreparation()
+        // Recreate the coordinator between actions, retaining the models rendered by the view.
+        func coordinator() -> PodcastRefreshCoordinator {
+            PodcastRefreshCoordinator(
+                podcastPreview: preview, podcastLibrary: library, podcastActivity: activity,
+                automaticDownloads: downloads, episodePreparation: preparation
+            )
+        }
+
+        #expect(preview.episodes(for: subscription.id).isEmpty)
+        _ = await coordinator().refresh(.newPodcasts([subscription]))
+        #expect(preview.episodesIncludingDownloads(for: subscription.id, preparedEpisodes: []) == [firstEpisode])
+        _ = await coordinator().refresh(.podcast(subscription))
+        #expect(Set(preview.episodes(for: subscription.id).map(\.id)) == [firstEpisode.id, secondEpisode.id])
+        #expect(preview.failures.isEmpty)
+    }
+
+    @Test
     func topLevelRefreshFailureIsAppliedToActivityAndAutomaticDownloads() async {
         let subscription = makeSubscription(number: 1)
         let episode = makeEpisode(number: 1, subscription: subscription)
@@ -265,5 +302,15 @@ private final class StubPodcastRefreshPreparation: PodcastRefreshEpisodePreparin
 
     func requiresInsecureDownloadPermission(for episode: Episode) -> Bool {
         insecurePermissionEpisodeIDs.contains(episode.id)
+    }
+}
+
+private actor RefreshEpisodeSequence: FeedService {
+    private var results: [FeedFetchResult]
+
+    init(results: [FeedFetchResult]) { self.results = results }
+
+    func fetchLatestEpisodes(for subscriptions: [PodcastSubscription]) async throws -> FeedFetchResult {
+        results.removeFirst()
     }
 }

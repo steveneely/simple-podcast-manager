@@ -28,7 +28,6 @@ public struct MainView: View {
     @State private var podcastActivityViewModel: PodcastActivityViewModel
     @State private var podcastPlaylistViewModel: PodcastPlaylistViewModel
     @State private var podcastPlaylistPresentationViewModel: PodcastPlaylistPresentationViewModel
-    private let podcastRefreshCoordinator: PodcastRefreshCoordinator
     @State private var removedEpisodeHistoryViewModel: RemovedEpisodeHistoryViewModel
     @State private var syncPlanViewModel: SyncPlanViewModel
     @State private var syncExecutionViewModel: SyncExecutionViewModel
@@ -106,13 +105,6 @@ public struct MainView: View {
         self._podcastPlaylistViewModel = State(initialValue: podcastPlaylistViewModel)
         self._podcastPlaylistPresentationViewModel = State(
             initialValue: PodcastPlaylistPresentationViewModel()
-        )
-        self.podcastRefreshCoordinator = PodcastRefreshCoordinator(
-            podcastPreview: podcastPreviewViewModel,
-            podcastLibrary: viewModel,
-            podcastActivity: podcastActivityViewModel,
-            automaticDownloads: automaticDownloadViewModel,
-            episodePreparation: preparationPreviewViewModel
         )
         self._removedEpisodeHistoryViewModel = State(initialValue: RemovedEpisodeHistoryViewModel())
         self._syncPlanViewModel = State(initialValue: SyncPlanViewModel())
@@ -1336,6 +1328,18 @@ public struct MainView: View {
             episodeStateLoadError = error.localizedDescription
             appDataMessage = "Could not load episode history: \(error.localizedDescription). Restart the app to retry."
         }
+    }
+
+    // Resolve these dependencies after SwiftUI has restored the retained State models.
+    // Capturing init's temporary models can refresh the cache without updating the screen.
+    private var podcastRefreshCoordinator: PodcastRefreshCoordinator {
+        PodcastRefreshCoordinator(
+            podcastPreview: podcastPreviewViewModel,
+            podcastLibrary: viewModel,
+            podcastActivity: podcastActivityViewModel,
+            automaticDownloads: automaticDownloadViewModel,
+            episodePreparation: preparationPreviewViewModel
+        )
     }
 
     private var appDataWorkflow: AppDataWorkflow {

@@ -97,6 +97,12 @@ Write commit messages that make the change understandable without opening the di
 - Mention important user-visible behavior, compatibility, migration, or safety implications
 - Avoid vague or overly compressed messages
 
+## Push and Release Authorization
+
+- Never push code, branches, or tags to a remote without Steve's explicit direction. Requests to investigate, fix, test, or commit changes do not authorize a push.
+- Never publish a release or deploy updates to the appcast or website without Steve's explicit direction. A request to push code does not authorize a release or deployment.
+- The release and website publishing workflows below describe how to carry out explicitly authorized work; they do not themselves grant permission to push or publish.
+
 ## Release Workflow
 
 ### Versioning
@@ -152,7 +158,15 @@ Complete every step before calling a release finished:
 
 ## Testing Expectations
 
-Use `swift run --build-system native "Simple Podcast Manager"` for routine local development and UI checks. Test with a packaged local `.app` when behavior depends on the application bundle, including App Transport Security, Sparkle, `Info.plist`, bundled resources, code signing, or installer behavior:
+Steve prefers to run the isolated development app himself from this checkout:
+
+```bash
+swift run --build-system native "Simple Podcast Manager"
+```
+
+Do not build a packaged development app or launch the app unless Steve explicitly asks. Continue running the required automated tests. Leave interactive verification to Steve by default, and report what remains to be checked.
+
+If verification depends on the application bundle, including App Transport Security, Sparkle, `Info.plist`, bundled resources, code signing, or installer behavior, explain why and ask before building or launching a packaged app. Only when explicitly authorized, use:
 
 ```bash
 ./scripts/build-dev.sh
@@ -162,17 +176,17 @@ open -n "$PWD/dist/dev/Simple Podcast Manager Dev.app"
 ### Development App Isolation
 
 - Never read, copy, seed from, restore from, write, or use the installed app's database, configuration, downloads, cache, backups, or preferences for development or tests. This includes read-only inspection and visual comparisons using installed data. Use synthetic fixtures or independently created development data only.
-- A path inside the checkout is not sufficient proof of isolation. Before any launch, verify the dev bundle has `SPMDevelopmentBuild=true`, no `SPMDistributionBuild`, and a checkout-specific `com.steveneely.simple-podcast-manager.dev.*` bundle identifier. Its data must resolve to `[checkout]/.dev-data/SimplePodcastManager`; never `~/Library/Application Support/SimplePodcastManager`.
+- A path inside the checkout is not sufficient proof of isolation. For `swift run`, verify that `AppIdentity` treats the unbundled executable as a development build and resolves its data to `[checkout]/.dev-data/SimplePodcastManager`. For an explicitly authorized packaged launch, verify the dev bundle has `SPMDevelopmentBuild=true`, no `SPMDistributionBuild`, and a checkout-specific `com.steveneely.simple-podcast-manager.dev.*` bundle identifier. Its data must resolve to `[checkout]/.dev-data/SimplePodcastManager`; never `~/Library/Application Support/SimplePodcastManager`.
 - Build packaged development apps only with `./scripts/build-dev.sh`. Never launch `dist/build`, `dist/build/dmg-root`, or a mounted release DMG for development, and never use `SKIP_SPARKLE_APPCAST=1 ./scripts/build-release.sh` as a dev packaging shortcut. Release artifact verification must remain static or use isolated development packaging.
 - Development apps must disable Sparkle and use their own preference domain. Do not copy production preferences or change system-wide preferences to make a test match.
 
 - Development and verification must use only the app built from this checkout. Never launch, reopen, select, or interact with an installed copy in `/Applications`, `~/Applications`, or any other location outside this checkout.
-- Launch routine development sessions with `swift run --build-system native "Simple Podcast Manager"` from this checkout. When a packaged app is needed, launch only the local `dist/dev/Simple Podcast Manager Dev.app` using its absolute path.
+- When Steve explicitly asks the agent to launch a routine development session, use `swift run --build-system native "Simple Podcast Manager"` from this checkout. When a packaged launch is explicitly authorized, launch only the local `dist/dev/Simple Podcast Manager Dev.app` using its absolute path.
 - Never select or launch the app by display name or bundle identifier during development. This includes `open -a`, `cua.getApp("Simple Podcast Manager")`, and bundle-ID lookup: they can resolve to or reopen the installed app even when a development process is running.
 - Launch the development app explicitly before selecting it in an automation tool. Never rely on `cua.getApp(...)` or another UI automation lookup to launch or reopen the app, even when passing an absolute path.
 - Before attaching UI automation, record the development process PID and verify its executable's absolute path belongs to this checkout. For the packaged build, it must be `[checkout]/dist/dev/Simple Podcast Manager Dev.app/Contents/MacOS/Simple Podcast Manager`.
 - For UI automation, select the already-running local packaged `.app` by its absolute path, then verify the running process again before any UI action. A matching window title, app name, or bundle identifier is not sufficient proof. If the tool cannot reliably target that exact development instance, stop UI verification and report the blocker; never fall back to the installed app.
-- If the tool cannot target the unbundled `swift run` executable, build and explicitly launch the local `.app` above, then repeat the PID and executable-path checks. Recheck after every relaunch or automation target change. Discard any binding that resolved to an installed copy; do not operate on that copy to recover.
+- If the tool cannot target the unbundled `swift run` executable reliably, stop UI automation and leave manual verification to Steve. Do not automatically build or launch a packaged app as a fallback. If Steve explicitly authorizes that fallback, use the local `.app` above and repeat the PID and executable-path checks. Recheck after every relaunch or automation target change. Discard any binding that resolved to an installed copy; do not operate on that copy to recover.
 - Quit other development/test copies before launching the local packaged build. Leave an already-running installed app alone; if it prevents reliable targeting of the local build, explain the blocker instead of operating on it.
 - After verification, close only the verified development/test instance started for the task and confirm its recorded PID has exited. Do not launch or reopen the installed app as a cleanup step or call an automation lookup that might reopen it after quitting.
 

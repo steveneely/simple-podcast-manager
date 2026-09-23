@@ -15,25 +15,23 @@ struct PodcastDeletionConfirmation: Equatable {
         automaticPlaylistCount: Int = 0
     ) {
         subscriptionIDs = subscriptions.map(\.id)
-        let localDownloadMessage = localDownloadCount > 0
-            ? "\n\nThis will also delete \(localDownloadCount) downloaded episode\(localDownloadCount == 1 ? "" : "s") stored on this Mac."
-            : ""
-        let deviceMessage = "\n\nEpisodes already copied to a device will not be deleted."
-        let playlistMessage = playlistEntryCount > 0
-            ? "\n\nThis will also remove \(playlistEntryCount) episode entr\(playlistEntryCount == 1 ? "y" : "ies") from your playlists."
-            : ""
-        let automaticPlaylistMessage = automaticPlaylistCount > 0
-            ? "\n\nThis will also update automatic additions in \(automaticPlaylistCount) playlist\(automaticPlaylistCount == 1 ? "" : "s")."
-            : ""
-
-        if subscriptions.count == 1, let subscription = subscriptions.first {
-            title = "Delete Podcast?"
-            message = "Are you sure you want to delete “\(subscription.title)”?\(localDownloadMessage)\(playlistMessage)\(automaticPlaylistMessage)\(deviceMessage)"
-            deleteButtonTitle = "Delete Podcast"
+        let isSinglePodcast = subscriptions.count == 1
+        let subject = isSinglePodcast ? "“\(subscriptions[0].title)”" : "these \(subscriptions.count) podcasts"
+        let possessive = isSinglePodcast ? "its" : "their"
+        let hasPlaylistChanges = playlistEntryCount > 0 || automaticPlaylistCount > 0
+        let podcastNoun = isSinglePodcast ? "the podcast" : "the podcasts"
+        let effects: String
+        if localDownloadCount > 0 {
+            let downloads = "\(possessive) \(localDownloadCount) downloaded episode\(localDownloadCount == 1 ? "" : "s")"
+            effects = " also removes \(downloads)" + (hasPlaylistChanges ? " and excludes \(podcastNoun) from playlists" : "")
+        } else if hasPlaylistChanges {
+            effects = " excludes \(podcastNoun) from playlists"
         } else {
-            title = "Delete Podcasts?"
-            message = "Are you sure you want to delete these \(subscriptions.count) podcasts?\(localDownloadMessage)\(playlistMessage)\(automaticPlaylistMessage)\(deviceMessage)"
-            deleteButtonTitle = "Delete Podcasts"
+            effects = " removes \(isSinglePodcast ? "it" : "them") from your library"
         }
+
+        title = ""
+        message = "Deleting \(subject)\(effects).\n\nEpisodes already copied to your device will remain."
+        deleteButtonTitle = isSinglePodcast ? "Delete Podcast" : "Delete Podcasts"
     }
 }

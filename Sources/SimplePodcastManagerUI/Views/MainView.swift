@@ -324,7 +324,7 @@ public struct MainView: View {
             syncPlanViewModel.cancelPlanning()
         }
         .alert(
-            pendingPodcastDeletionConfirmation?.title ?? "Delete Podcast?",
+            pendingPodcastDeletionConfirmation?.title ?? "",
             isPresented: Binding(
                 get: { pendingPodcastDeletionConfirmation != nil },
                 set: { if !$0 { pendingPodcastDeletionConfirmation = nil } }
@@ -1780,6 +1780,7 @@ public struct MainView: View {
         )
         guard !offsets.isEmpty else { return }
         viewModel.removePodcasts(at: offsets)
+        podcastPreviewViewModel.removePodcasts(withIDs: subscriptionIDs)
         selectedPodcastID = PodcastSelectionPolicy.selectionAfterRemovingPodcasts(
             currentSelection: selectedPodcastID,
             remainingSubscriptions: viewModel.podcastSubscriptions
@@ -1794,7 +1795,14 @@ public struct MainView: View {
             subscriptions: viewModel.podcastSubscriptions,
             limit: viewModel.settings.automaticDownloadLimit
         )
-        await refreshAllContent()
+        await deviceLibraryViewModel.updateAfterRemovingPodcasts(
+            device: deviceViewModel.selectedDevice,
+            subscriptions: viewModel.podcastSubscriptions,
+            episodes: viewModel.podcastSubscriptions.flatMap { allEpisodes(for: $0) }
+        )
+        pruneManualDeletionTargets()
+        pruneOtherAudioDeletionTargets()
+        rebuildSyncPlan()
     }
 
     private func allEpisodes(for subscription: PodcastSubscription) -> [Episode] {

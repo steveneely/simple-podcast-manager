@@ -125,6 +125,30 @@ public final class DeviceLibraryViewModel {
         }
     }
 
+    public func updateAfterRemovingPodcasts(
+        device: DeviceInfo?,
+        subscriptions: [PodcastSubscription],
+        episodes: [Episode]
+    ) async {
+        guard !isRefreshingManagedInventory,
+              let device,
+              let previousInventory = managedInventory,
+              let retainedInventory = previousInventory.retaining(subscriptions: subscriptions, on: device) else {
+            await refresh(device: device, subscriptions: subscriptions, episodes: episodes)
+            return
+        }
+
+        cancelOtherAudioReview(clearResults: true)
+        // Removed Podcasts leave their device files untouched. They can now be reviewed as other audio.
+        let newlyUnmanagedFiles = previousInventory.allManagedFileURLs.subtracting(retainedInventory.allManagedFileURLs)
+        hasOtherAudioAvailable = hasOtherAudioAvailable || newlyUnmanagedFiles.contains(where: DeviceAudioFile.isSupported)
+        managedInventory = retainedInventory
+        filesBySubscriptionID = Dictionary(uniqueKeysWithValues: subscriptions.map {
+            ($0.id, retainedInventory.files(for: $0))
+        })
+        rebuildFileIndex(subscriptions: subscriptions, episodes: episodes)
+    }
+
     public func reviewOtherAudio(on device: DeviceInfo?) async {
         cancelOtherAudioReview(clearResults: true)
         guard let device else { return }

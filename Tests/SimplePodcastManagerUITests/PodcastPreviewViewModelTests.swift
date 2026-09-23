@@ -6,6 +6,63 @@ import Testing
 @MainActor
 struct PodcastPreviewViewModelTests {
     @Test
+    func explicitlyRestoredPodcastCanLoadAgainWithTheSameIdentifier() async {
+        let podcast = PodcastSubscription(title: "Restored", rssURL: URL(string: "https://example.com/rss")!)
+        let episode = retainedTestEpisode(id: "restored", podcastID: podcast.id, day: 1)
+        let result = FeedFetchResult(allEpisodes: [episode])
+        let model = PodcastPreviewViewModel(service: MockFeedService(result: result), cacheStore: InMemoryFeedCacheStore())
+        model.removePodcasts(withIDs: [podcast.id])
+        await model.refreshPreview(for: [podcast])
+        #expect(model.episodes(for: podcast.id) == [episode])
+        model.removePodcasts(withIDs: [podcast.id])
+        await model.refreshPreview(forNewSubscriptions: [podcast])
+        #expect(model.episodes(for: podcast.id) == [episode])
+    }
+
+    @Test
+    func completedRefreshDoesNotRestorePodcastRemovedWhileLoading() async {
+        let podcast = PodcastSubscription(title: "Removed", rssURL: URL(string: "https://example.com/rss")!)
+        let episode = retainedTestEpisode(id: "removed", podcastID: podcast.id, day: 1)
+        let service = SuspendedDeletionFeedService()
+        let model = PodcastPreviewViewModel(service: service, cacheStore: InMemoryFeedCacheStore())
+        let refresh = Task { await model.refreshPreview(for: podcast) }
+        await service.waitUntilRequested()
+        model.removePodcasts(withIDs: [podcast.id])
+        await service.complete(with: FeedFetchResult(allEpisodes: [episode],
+            feedSummaries: [FeedSummary(subscriptionID: podcast.id, title: podcast.title)]))
+        await refresh.value
+        #expect(model.allEpisodes.isEmpty)
+        #expect(model.episodes(for: podcast.id).isEmpty)
+        #expect(model.feedSummaries.isEmpty)
+    }
+
+    @Test
+    func removingPodcastPreservesOtherEpisodesAndDoesNotFetchAgain() async {
+        let removed = PodcastSubscription(title: "Removed", rssURL: URL(string: "https://example.com/removed")!)
+        let retained = PodcastSubscription(title: "Retained", rssURL: URL(string: "https://example.com/retained")!)
+        let removedEpisode = retainedTestEpisode(id: "removed", podcastID: removed.id, day: 1)
+        let retainedEpisode = retainedTestEpisode(id: "retained", podcastID: retained.id, day: 2)
+        let service = SequencedFeedService(results: [FeedFetchResult(
+            allEpisodes: [removedEpisode, retainedEpisode],
+            failures: [FeedFetchFailure(subscriptionID: removed.id, subscriptionTitle: removed.title, message: "Offline")],
+            feedSummaries: [removed, retained].map { FeedSummary(subscriptionID: $0.id, title: $0.title) }
+        )])
+        let model = PodcastPreviewViewModel(service: service, cacheStore: InMemoryFeedCacheStore())
+        await model.refreshPreview(for: [removed, retained])
+
+        model.removePodcasts(withIDs: [removed.id])
+
+        #expect(service.requestedSubscriptionIDs == [[removed.id, retained.id]])
+        #expect(model.allEpisodes == [retainedEpisode])
+        #expect(model.episodes(for: removed.id).isEmpty)
+        #expect(model.episodes(for: retained.id) == [retainedEpisode])
+        #expect(model.failures.isEmpty)
+        #expect(model.failures(for: removed.id).isEmpty)
+        #expect(model.feedSummaries[removed.id] == nil)
+        #expect(model.feedSummaries[retained.id]?.title == retained.title)
+    }
+
+    @Test
     func includesRetainedDownloadsInDateOrderWithoutChangingFeedData() async {
         let podcastID = UUID()
         let current = retainedTestEpisode(id: "current", podcastID: podcastID, day: 3)
@@ -306,5 +363,28 @@ private final class InMemoryFeedCacheStore: FeedCacheStore, @unchecked Sendable 
 
     func deleteCachedFeed(for subscriptionID: UUID) throws {
         cachedFeeds[subscriptionID] = nil
+    }
+}
+
+private actor SuspendedDeletionFeedService: FeedService {
+    private var response: CheckedContinuation<FeedFetchResult, Never>?
+    private var started: CheckedContinuation<Void, Never>?
+
+    func fetchLatestEpisodes(for subscriptions: [PodcastSubscription]) async throws -> FeedFetchResult {
+        await withCheckedContinuation { continuation in
+            response = continuation
+            started?.resume()
+            started = nil
+        }
+    }
+
+    func waitUntilRequested() async {
+        if response != nil { return }
+        await withCheckedContinuation { started = $0 }
+    }
+
+    func complete(with result: FeedFetchResult) {
+        response?.resume(returning: result)
+        response = nil
     }
 }

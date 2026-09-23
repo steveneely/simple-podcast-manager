@@ -6,6 +6,67 @@ import Testing
 @MainActor
 struct DeviceLibraryViewModelTests {
     @Test
+    func removingPodcastReusesInventoryAndLeavesDeviceFilesForExplicitReview() async {
+        let removed = PodcastSubscription(title: "Removed", rssURL: URL(string: "https://example.com/removed")!)
+        let retained = PodcastSubscription(title: "Retained", rssURL: URL(string: "https://example.com/retained")!)
+        let device = DeviceInfo(name: "Test", rootURL: URL(fileURLWithPath: "/Volumes/TEST"),
+                                podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST/music"))
+        let removedDirectory = device.podcastDirectoryURL.appendingPathComponent("Removed")
+        let retainedDirectory = device.podcastDirectoryURL.appendingPathComponent("Retained")
+        let removedFile = removedDirectory.appendingPathComponent("Episode-(Removed).mp3")
+        let retainedFile = retainedDirectory.appendingPathComponent("Episode-(Retained).mp3")
+        let library = CountingDeviceLibrary(directories: [removedDirectory, retainedDirectory],
+            filesByDirectory: [removedDirectory: [removedFile], retainedDirectory: [retainedFile]])
+        let fileSystem = CapturingFileSystem(existingFiles: [removedFile, retainedFile])
+        let model = DeviceLibraryViewModel(deviceLibrary: library, fileSystem: fileSystem)
+        await model.refresh(device: device, subscriptions: [removed, retained])
+        #expect(!model.hasOtherAudioAvailable)
+
+        await model.updateAfterRemovingPodcasts(device: device, subscriptions: [retained], episodes: [])
+
+        #expect(library.directoryRequestCount == 1)
+        #expect(library.directFileRequestCount == 2)
+        #expect(library.audioPresenceRequestCount == 1)
+        #expect(library.recursiveFileRequestCount == 0)
+        #expect(model.managedInventory?.canBeUsed(on: device, subscriptions: [retained]) == true)
+        #expect(model.files(for: removed).isEmpty)
+        #expect(model.files(for: retained) == [retainedFile])
+        #expect(model.hasOtherAudioAvailable)
+        #expect(model.otherAudioFiles.isEmpty)
+        #expect(fileSystem.removedItems.isEmpty)
+
+        await model.reviewOtherAudio(on: device)
+        #expect(model.otherAudioFiles == [removedFile])
+        #expect(fileSystem.removedItems.isEmpty)
+
+        await model.updateAfterRemovingPodcasts(device: device, subscriptions: [], episodes: [])
+        #expect(model.managedInventory?.canBeUsed(on: device, subscriptions: []) == true)
+        #expect(model.managedInventory?.allManagedFileURLs.isEmpty == true)
+        #expect(model.otherAudioFiles.isEmpty)
+        #expect(model.hasOtherAudioAvailable)
+        #expect(library.directFileRequestCount == 2)
+    }
+
+    @Test
+    func removalWithoutReusableInventoryRefreshesOrClearsDeviceState() async {
+        let device = DeviceInfo(name: "Test", rootURL: URL(fileURLWithPath: "/Volumes/TEST"),
+                                podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST/music"))
+        let library = CountingDeviceLibrary(directories: [], filesByDirectory: [:])
+        let model = DeviceLibraryViewModel(deviceLibrary: library)
+        await model.updateAfterRemovingPodcasts(device: device, subscriptions: [], episodes: [])
+        #expect(library.directoryRequestCount == 1)
+        var changedDevice = device
+        changedDevice.podcastDirectoryURL = device.rootURL.appendingPathComponent("podcasts")
+        await model.updateAfterRemovingPodcasts(device: changedDevice, subscriptions: [], episodes: [])
+        #expect(library.directoryRequestCount == 2)
+        #expect(model.managedInventory?.canBeUsed(on: changedDevice, subscriptions: []) == true)
+        await model.updateAfterRemovingPodcasts(device: nil, subscriptions: [], episodes: [])
+        #expect(model.managedInventory == nil)
+        #expect(!model.hasOtherAudioAvailable)
+        #expect(library.directoryRequestCount == 2)
+    }
+
+    @Test
     func matchesCurrentEpisodesAndKeepsOlderDeviceFilesSeparate() async throws {
         let subscription = PodcastSubscription(
             title: "Connected",

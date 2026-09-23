@@ -26,6 +26,23 @@ public struct ManagedDeviceLibraryInventory: Sendable {
             && subscriptionIDs == Set(subscriptions.map(\.id))
     }
 
+    /// Reuse a completed inventory only when removing subscriptions on the same device and folder.
+    public func retaining(
+        subscriptions: [PodcastSubscription],
+        on device: DeviceInfo
+    ) -> ManagedDeviceLibraryInventory? {
+        let retainedIDs = Set(subscriptions.map(\.id))
+        guard deviceID == device.id,
+              podcastDirectoryURL == device.podcastDirectoryURL.standardizedFileURL,
+              retainedIDs.isSubset(of: subscriptionIDs) else { return nil }
+        return ManagedDeviceLibraryInventory(
+            device: device,
+            subscriptions: subscriptions,
+            managedDirectoryURLsBySubscriptionID: managedDirectoryURLsBySubscriptionID.filter { retainedIDs.contains($0.key) },
+            filesBySubscriptionID: filesBySubscriptionID.filter { retainedIDs.contains($0.key) }
+        )
+    }
+
     public func managedDirectoryURL(for subscription: PodcastSubscription, on device: DeviceInfo) -> URL {
         managedDirectoryURLsBySubscriptionID[subscription.id]
             ?? device.podcastDirectoryURL.appendingPathComponent(

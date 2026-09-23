@@ -16,6 +16,7 @@ public final class PodcastPreviewViewModel {
     private let cacheStore: any FeedCacheStore
     private var episodesBySubscriptionID: [UUID: [Episode]]
     private var episodeIDsBySubscriptionID: [UUID: Set<String>]
+    private var removedSubscriptionIDs: Set<UUID> = []
     private var failuresBySubscriptionID: [UUID: [FeedFetchFailure]]
 
     public init(
@@ -40,6 +41,8 @@ public final class PodcastPreviewViewModel {
     }
 
     public func loadCachedPreview(for subscriptions: [PodcastSubscription]) async {
+        // An explicit load may restore the same subscription IDs from an app-data backup.
+        removedSubscriptionIDs.subtract(subscriptions.map(\.id))
         let cacheStore = self.cacheStore
         let enabledSubscriptions = subscriptions.filter(\.isEnabled)
         let cachedFeeds = await Task.detached(priority: .userInitiated) {
@@ -91,6 +94,7 @@ public final class PodcastPreviewViewModel {
 
     public func refreshPreview(forNewSubscriptions subscriptions: [PodcastSubscription]) async {
         guard !subscriptions.isEmpty else { return }
+        removedSubscriptionIDs.subtract(subscriptions.map(\.id))
         let enabledCount = subscriptions.count(where: \.isEnabled)
         refreshProgress = PodcastRefreshProgress(completedCount: 0, totalCount: enabledCount)
         isLoading = true
@@ -113,6 +117,11 @@ public final class PodcastPreviewViewModel {
         } catch {
             self.lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    public func removePodcasts(withIDs subscriptionIDs: Set<UUID>) {
+        removedSubscriptionIDs.formUnion(subscriptionIDs)
+        rebuildIndexes()
     }
 
     public func artworkURL(for subscriptionID: UUID) -> URL? {
@@ -173,6 +182,10 @@ public final class PodcastPreviewViewModel {
     }
 
     private func rebuildIndexes() {
+        // A refresh already in flight must not restore a Podcast deleted while it was loading.
+        allEpisodes.removeAll { $0.subscriptionID.map(removedSubscriptionIDs.contains) == true }
+        failures.removeAll { removedSubscriptionIDs.contains($0.subscriptionID) }
+        feedSummaries = feedSummaries.filter { !removedSubscriptionIDs.contains($0.key) }
         episodesBySubscriptionID = Dictionary(grouping: allEpisodes.compactMap { episode in
             episode.subscriptionID.map { ($0, episode) }
         }, by: \.0).mapValues { $0.map(\.1) }

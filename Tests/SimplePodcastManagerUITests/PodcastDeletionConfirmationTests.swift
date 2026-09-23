@@ -4,6 +4,19 @@ import Testing
 @testable import SimplePodcastManagerUI
 
 struct PodcastDeletionConfirmationTests {
+    @Test(arguments: [0, 1, 2])
+    func onlyMentionsApplicablePlaylistChanges(kind: Int) {
+        let podcast = PodcastSubscription(title: "News", rssURL: URL(string: "https://example.com/rss")!)
+        let confirmation = PodcastDeletionConfirmation(
+            subscriptions: [podcast], localDownloadCount: 1,
+            playlistEntryCount: kind == 1 ? 2 : 0,
+            automaticPlaylistCount: kind == 2 ? 1 : 0
+        )
+        let playlistText = kind == 0 ? "" : " and excludes the podcast from playlists"
+        #expect(confirmation.title.isEmpty)
+        #expect(confirmation.message == "Deleting “News” also removes its 1 downloaded episode\(playlistText).\n\nEpisodes already copied to your device will remain.")
+    }
+
     @Test
     func namesThePodcastAndRequiresAnExplicitDelete() {
         let subscription = PodcastSubscription(
@@ -17,13 +30,11 @@ struct PodcastDeletionConfirmationTests {
         )
 
         #expect(confirmation.subscriptionIDs == [subscription.id])
-        #expect(confirmation.title == "Delete Podcast?")
+        #expect(confirmation.title.isEmpty)
         #expect(confirmation.message == """
-        Are you sure you want to delete “Connected”?
+        Deleting “Connected” also removes its 2 downloaded episodes.
 
-        This will also delete 2 downloaded episodes stored on this Mac.
-
-        Episodes already copied to a device will not be deleted.
+        Episodes already copied to your device will remain.
         """)
         #expect(confirmation.cancelButtonTitle == "Cancel")
         #expect(confirmation.deleteButtonTitle == "Delete Podcast")
@@ -39,11 +50,11 @@ struct PodcastDeletionConfirmationTests {
         let confirmation = PodcastDeletionConfirmation(subscriptions: subscriptions)
 
         #expect(confirmation.subscriptionIDs == subscriptions.map(\.id))
-        #expect(confirmation.title == "Delete Podcasts?")
+        #expect(confirmation.title.isEmpty)
         #expect(confirmation.message == """
-        Are you sure you want to delete these 2 podcasts?
+        Deleting these 2 podcasts removes them from your library.
 
-        Episodes already copied to a device will not be deleted.
+        Episodes already copied to your device will remain.
         """)
         #expect(confirmation.deleteButtonTitle == "Delete Podcasts")
     }
@@ -62,13 +73,9 @@ struct PodcastDeletionConfirmationTests {
         )
 
         #expect(confirmation.message == """
-        Are you sure you want to delete “Connected”?
+        Deleting “Connected” excludes the podcast from playlists.
 
-        This will also remove 1 episode entry from your playlists.
-
-        This will also update automatic additions in 2 playlists.
-
-        Episodes already copied to a device will not be deleted.
+        Episodes already copied to your device will remain.
         """)
     }
 }

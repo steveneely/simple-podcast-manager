@@ -1,3 +1,4 @@
-# Simple Podcast Manager v1.22.4
+# Simple Podcast Manager v1.22.5
 
-- Fixes newly added podcasts sometimes showing zero episodes after refresh until the app is restarted.
+- Deleting a podcast no longer refreshes every remaining podcast and avoids rescanning the device when its current inventory can be reused.
+- Simplifies the podcast deletion confirmation while keeping clear that episodes already copied to your device remain.

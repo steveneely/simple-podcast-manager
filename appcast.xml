@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.22.5</title>
-            <pubDate>Tue, 22 Sep 2026 22:04:16 -0600</pubDate>
-            <sparkle:version>111</sparkle:version>
-            <sparkle:shortVersionString>1.22.5</sparkle:shortVersionString>
+            <title>1.22.6</title>
+            <pubDate>Thu, 24 Sep 2026 12:18:37 -0600</pubDate>
+            <sparkle:version>112</sparkle:version>
+            <sparkle:shortVersionString>1.22.6</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,15 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="112" data-release-tag="v1.22.6">
+            <h2>v1.22.6</h2>
+            <ul>
+                <li>Browse the full episode list by scrolling, without clicking Show more.</li>
+                <li>Add episodes to playlists directly from cleanup review. Adding an episode unchecks it for cleanup and keeps its row in place during the review.</li>
+                <li>Download errors now include useful explanations returned by the server, such as geographic restrictions.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="111" data-release-tag="v1.22.5">
             <h2>v1.22.5</h2>
             <ul>
@@ -747,7 +756,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.22.5/SimplePodcastManager-v1.22.5.dmg" length="7968312" type="application/octet-stream" sparkle:edSignature="S1Dclz/rUOW2ZdzD2jG0rvSvp+bMVihCae59pxaZSb/S7U7mlmMCJxuWHlaXODofoDtuyfjw3JNk/yQrBBRWBg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.22.6/SimplePodcastManager-v1.22.6.dmg" length="7981160" type="application/octet-stream" sparkle:edSignature="v43pDXvpYqxT6KyUKPXOneQqDAD6jaaXUkq5mntyUqfoMqah4zw32nJjDJcNuG6OVwQqalUBRHhxPUB02OfbDg=="/>
         </item>
     </channel>
 </rss>

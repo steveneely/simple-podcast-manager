@@ -176,6 +176,52 @@ struct URLSessionDownloadServiceTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: workspaceURL.path).isEmpty)
     }
 
+    @Test(arguments: [false, true])
+    func includesServerDetailsForMediaAndEmbedFailures(embed: Bool) async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [DownloadURLProtocolStub.self]
+        let url = URL(string: embed
+            ? "https://share.transistor.fm/e/server-detail/"
+            : "https://example.invalid/server-detail.mp3")!
+        DownloadURLProtocolStub.stub(
+            url: url, bodyData: Data(#"{"result":"geolocation"}"#.utf8),
+            contentType: "application/json", statusCode: 403
+        )
+        let workspace = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: workspace) }
+        let service = URLSessionDownloadService(session: URLSession(configuration: configuration))
+        await #expect(throws: DownloadServiceError.requestFailed(statusCode: 403, detail: "geolocation")) {
+            try await service.download(episode(enclosureURL: url), into: workspace)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: workspace.path).isEmpty)
+    }
+
+    @Test
+    func approvedHTTPFailureIncludesServerDetailsAndRemovesResponseFile() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [DownloadURLProtocolStub.self]
+        let httpURL = URL(string: "http://example.invalid/fallback-details.mp3")!
+        DownloadURLProtocolStub.stub(
+            url: HTTPSFirstDataLoader.secureVersion(of: httpURL), bodyData: Data(),
+            contentType: "text/plain", statusCode: 404
+        )
+        let recorder = DownloadCommandRecorder(
+            downloadedData: Data(#"{"message":"Episode expired"}"#.utf8),
+            terminationStatus: 22, standardOutput: "403\napplication/json"
+        )
+        let service = URLSessionDownloadService(
+            session: URLSession(configuration: configuration),
+            commandRunner: StubDownloadCommandRunner(recorder: recorder)
+        )
+        let workspace = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: workspace) }
+        await #expect(throws: DownloadServiceError.requestFailed(statusCode: 403, detail: "Episode expired")) {
+            try await service.download(episode(enclosureURL: httpURL), into: workspace, allowsInsecureHTTP: true)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: workspace.path).isEmpty)
+        #expect(recorder.arguments.contains("--fail-with-body"))
+    }
+
     private func makeWorkspace() throws -> URL {
         let workspaceURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
@@ -260,7 +306,7 @@ private struct StubDownloadCommandRunner: CommandRunning {
         try recorder.record(arguments: arguments)
         return CommandRunResult(
             terminationStatus: recorder.terminationStatus,
-            standardOutput: "",
+            standardOutput: recorder.standardOutput,
             standardError: ""
         )
     }
@@ -270,11 +316,13 @@ private final class DownloadCommandRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private let downloadedData: Data
     let terminationStatus: Int32
+    let standardOutput: String
     private var recordedArguments: [String] = []
 
-    init(downloadedData: Data, terminationStatus: Int32 = 0) {
+    init(downloadedData: Data, terminationStatus: Int32 = 0, standardOutput: String = "") {
         self.downloadedData = downloadedData
         self.terminationStatus = terminationStatus
+        self.standardOutput = standardOutput
     }
 
     var arguments: [String] {

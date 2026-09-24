@@ -62,6 +62,7 @@ public struct MainView: View {
     @State private var expandedDescriptionPodcastIDs: Set<UUID> = []
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
     @State private var replacementTargets: Set<URL> = []
+    @State private var cleanupReview = SyncCleanupReview()
     @State private var excludedCleanupDeletionTargets: Set<URL> = []
     @State private var selectedPlaylistProtectedDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
@@ -778,7 +779,13 @@ public struct MainView: View {
             onToggleCleanupDeletion: toggleCleanupDeletionSelection,
             onTogglePlaylistProtectedDeletion: togglePlaylistProtectedDeletionSelection,
             onReplaceIncompleteCopy: selectIncompleteCopyForReplacement,
-            onSync: { Task { await runSync() } }
+            onSync: { Task { await runSync() } },
+            cleanupCandidates: cleanupReview.candidates,
+            playlists: podcastPlaylistViewModel.playlists,
+            playlistErrorMessage: cleanupReview.lastErrorMessage,
+            cleanupEpisode: cleanupPlaylistEpisode,
+            automaticPlaylistIDs: { podcastPlaylistPresentationViewModel.presentation.automaticPlaylistIDs(containing: $0) },
+            onToggleCleanupPlaylist: toggleCleanupPlaylist
         )
     }
 
@@ -1477,6 +1484,9 @@ public struct MainView: View {
                 podcastPlaylistLibrary: podcastPlaylistViewModel.library,
                 ejectAfterSync: isEjectAfterSyncEnabled
             )
+            if isShowingSyncDialog, let plan = syncPlanViewModel.plan {
+                cleanupReview.update(plan: plan)
+            }
             refreshPodcastPlaylistPresentation()
         }
     }
@@ -1956,6 +1966,7 @@ public struct MainView: View {
     }
 
     private func openSyncDialog() {
+        cleanupReview = SyncCleanupReview()
         syncExecutionViewModel.clearLastResult()
         excludedCleanupDeletionTargets = []
         selectedPlaylistProtectedDeletionTargets = []
@@ -2101,6 +2112,30 @@ public struct MainView: View {
         rebuildSyncPlan()
     }
 
+    private func cleanupPlaylistEpisode(_ candidate: DeviceCleanupCandidate) -> Episode? {
+        cleanupReview.episode(
+            for: candidate,
+            subscriptions: viewModel.podcastSubscriptions,
+            knownEpisodes: podcastPreviewViewModel.allEpisodes
+                + preparationPreviewViewModel.preparedEpisodes.map(\.episode)
+                + podcastPlaylistViewModel.playlists.flatMap { $0.entries.map(\.episode) },
+            deviceFile: playlistDeviceFileURL
+        )
+    }
+
+    private func toggleCleanupPlaylist(_ candidate: DeviceCleanupCandidate, _ playlist: PodcastPlaylist) {
+        guard !syncExecutionViewModel.isSyncing, !syncPlanViewModel.isPlanning,
+              syncPlanViewModel.plan != nil,
+              let episode = cleanupPlaylistEpisode(candidate) else { return }
+        guard cleanupReview.togglePlaylist(
+            for: episode, candidate: candidate, playlist: playlist, playlists: podcastPlaylistViewModel,
+            excludedCleanupTargets: &excludedCleanupDeletionTargets,
+            manualDeletionTargets: &manuallySelectedDeletionTargets,
+            protectedDeletionTargets: &selectedPlaylistProtectedDeletionTargets
+        ) else { return }
+        rebuildSyncPlan()
+    }
+
     private func toggleCleanupDeletionSelection(for fileURL: URL) {
         let fileURL = fileURL.standardizedFileURL
         let isCurrentlySelected = syncPlanViewModel.plan?.actions.contains(where: { action in
@@ -2108,6 +2143,10 @@ public struct MainView: View {
             return targetURL.standardizedFileURL == fileURL
         }) == true
 
+        if syncPlanViewModel.plan?.playlistProtectedCleanupCandidates.contains(where: { $0.id == fileURL }) == true {
+            togglePlaylistProtectedDeletionSelection(for: fileURL)
+            return
+        }
         if isCurrentlySelected {
             excludedCleanupDeletionTargets.insert(fileURL)
             manuallySelectedDeletionTargets.remove(fileURL)

@@ -50,7 +50,7 @@ struct SyncDialogLayoutTests {
             deleteDownloadsAfterSync: .constant(false),
             onEjectAfterSyncChange: {}, onDeleteDownloadsAfterSyncChange: {},
             onToggleCleanupDeletion: { _ in }, onTogglePlaylistProtectedDeletion: { _ in },
-            onReplaceIncompleteCopy: { _ in }, onSync: {}
+            onReplaceIncompleteCopy: { _ in }, onSync: {}, cleanupCandidates: candidates
         )
         #expect(!dialog.isCleanupExpanded)
         #expect(!dialog.isPlaylistProtectedExpanded)

@@ -478,8 +478,8 @@ struct PreparationPreviewViewModelTests {
         #expect(viewModel.preparedEpisode(for: completedEpisode) != nil)
     }
 
-    @Test
-    func preparationFailureIsScopedToItsPodcast() async {
+    @Test(arguments: [false, true])
+    func preparationFailureIsScopedToItsPodcast(includesServerDetail: Bool) async {
         let firstPodcastEpisode = Episode(
             id: "shared-guid",
             subscriptionID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
@@ -498,7 +498,9 @@ struct PreparationPreviewViewModelTests {
         )
         let viewModel = PreparationPreviewViewModel(
             service: MediaPreparationService(
-                downloadService: FailingPreparationDownloadService(),
+                downloadService: FailingPreparationDownloadService(error: includesServerDetail
+                    ? DownloadServiceError.requestFailed(statusCode: 403, detail: "geolocation")
+                    : TestPreparationError.downloadFailed),
                 audioConversionService: StubPreparationAudioConversionService(),
                 workspaceProvider: StubPreparationWorkspaceProvider(
                     workspaceURL: URL(fileURLWithPath: "/tmp/simple-podcast-manager-workspace", isDirectory: true)
@@ -510,7 +512,8 @@ struct PreparationPreviewViewModelTests {
 
         await viewModel.prepare([firstPodcastEpisode], settings: AppSettings())
 
-        #expect(viewModel.failure(for: firstPodcastEpisode)?.message == "Download failed.")
+        #expect(viewModel.failure(for: firstPodcastEpisode)?.message == (includesServerDetail
+            ? "The episode download failed with HTTP 403. geolocation" : "Download failed."))
         #expect(viewModel.failure(for: secondPodcastEpisode) == nil)
     }
 
@@ -617,8 +620,9 @@ private struct StubPreparationDownloadService: DownloadService {
 }
 
 private struct FailingPreparationDownloadService: DownloadService {
+    var error: any Error = TestPreparationError.downloadFailed
     func download(_ episode: Episode, into workspaceURL: URL, allowsInsecureHTTP: Bool) async throws -> URL {
-        throw TestPreparationError.downloadFailed
+        throw error
     }
 }
 

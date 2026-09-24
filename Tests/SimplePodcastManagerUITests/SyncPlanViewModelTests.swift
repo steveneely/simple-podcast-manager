@@ -322,8 +322,8 @@ struct SyncPlanViewModelTests {
         #expect(viewModel.plan?.actions.isEmpty == true)
     }
 
-    @Test
-    func playlistsAlwaysParticipateInSyncAndCleanupProtection() async throws {
+    @Test(arguments: [false, true])
+    func playlistsAlwaysParticipateInSyncAndCleanupProtection(deviceOnly: Bool) async throws {
         let subscriptionID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let subscription = PodcastSubscription(
             id: subscriptionID,
@@ -339,7 +339,7 @@ struct SyncPlanViewModelTests {
             subscription.title,
             isDirectory: true
         )
-        let playlistEpisode = Episode(
+        var playlistEpisode = Episode(
             id: "playlist-episode",
             subscriptionID: subscriptionID,
             podcastTitle: subscription.title,
@@ -356,6 +356,10 @@ struct SyncPlanViewModelTests {
                 "2026.01.0\(day)-Episode \(day)-(Example Podcast).mp3"
             )
         }
+        if deviceOnly {
+            playlistEpisode.id = "device-file::\(playlistEpisodeURL.lastPathComponent)"
+            playlistEpisode.enclosureURL = playlistEpisodeURL
+        }
         let playlistEntry = try #require(PodcastPlaylistEntry(episode: playlistEpisode))
         let playlist = try PodcastPlaylist(name: "Keep", entries: [playlistEntry])
         let viewModel = SyncPlanViewModel(planner: makeTestPlanner(
@@ -363,6 +367,16 @@ struct SyncPlanViewModelTests {
                 managedDirectory.path: [playlistEpisodeURL] + newerEpisodeURLs,
             ])
         ))
+
+        await viewModel.buildPlan(
+            device: device, preparedEpisodes: [], subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
+            ejectAfterSync: false
+        )
+        let initialPlan = try #require(viewModel.plan)
+        #expect(initialPlan.removalTargetURLs == [playlistEpisodeURL])
+        var review = SyncCleanupReview()
+        review.update(plan: initialPlan)
 
         await viewModel.buildPlan(
             device: device,
@@ -381,6 +395,19 @@ struct SyncPlanViewModelTests {
             if case .deleteFromDevice = action { return true }
             return false
         })
+        review.update(plan: plan)
+        #expect(review.candidates.map(\.targetURL) == [playlistEpisodeURL])
+
+        // Removing membership after saving never reselects the episode for cleanup.
+        await viewModel.buildPlan(
+            device: device, preparedEpisodes: [], subscriptions: [subscription],
+            cleanupPolicy: DeviceCleanupPolicy(maximumEpisodesPerPodcast: 3),
+            excludedCleanupTargets: [playlistEpisodeURL], ejectAfterSync: false
+        )
+        let removedMembershipPlan = try #require(viewModel.plan)
+        #expect(removedMembershipPlan.removalTargetURLs.isEmpty)
+        #expect(removedMembershipPlan.cleanupCandidates.map(\.targetURL) == [playlistEpisodeURL])
+
     }
 
     @Test

@@ -56,7 +56,8 @@ public struct URLSessionDownloadService: DownloadService {
         into workspaceURL: URL
     ) async throws -> URL {
         let (temporaryURL, response) = try await session.download(for: URLRequest(url: mediaURL))
-        try validate(response)
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+        try validate(response, body: { DownloadResponseDetail.read(from: temporaryURL) })
 
         let destinationURL = workspaceURL.appending(
             path: fileName(for: episode, mediaURL: mediaURL),
@@ -80,7 +81,8 @@ public struct URLSessionDownloadService: DownloadService {
         let result = try await commandRunner.run(
             executableURL: curlExecutableURL,
             arguments: [
-                "--fail",
+                "--fail-with-body",
+                "--write-out", "%{http_code}\n%{content_type}",
                 "--location",
                 "--silent",
                 "--show-error",
@@ -90,6 +92,16 @@ public struct URLSessionDownloadService: DownloadService {
                 mediaURL.absoluteString,
             ]
         )
+        let responseFields = result.standardOutput.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        if let first = responseFields.first, let statusCode = Int(first), statusCode >= 400 {
+            let contentType = responseFields.count > 1 ? String(responseFields[1]) : nil
+            throw DownloadServiceError.requestFailed(
+                statusCode: statusCode,
+                detail: DownloadResponseDetail.extract(
+                    from: DownloadResponseDetail.read(from: temporaryURL), contentType: contentType
+                )
+            )
+        }
         guard result.terminationStatus == 0,
               FileManager.default.fileExists(atPath: temporaryURL.path) else {
             throw DownloadServiceError.insecureDownloadFailed
@@ -102,13 +114,16 @@ public struct URLSessionDownloadService: DownloadService {
         return try moveDownloadedFile(from: temporaryURL, to: destinationURL)
     }
 
-    private func validate(_ response: URLResponse) throws {
+    private func validate(_ response: URLResponse, body: () -> Data?) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DownloadServiceError.invalidResponse
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw DownloadServiceError.requestFailed(statusCode: httpResponse.statusCode)
+            throw DownloadServiceError.requestFailed(
+                statusCode: httpResponse.statusCode,
+                detail: DownloadResponseDetail.extract(from: body(), contentType: httpResponse.mimeType)
+            )
         }
     }
 
@@ -136,13 +151,7 @@ public struct URLSessionDownloadService: DownloadService {
 
         let (data, response) = try await session.data(for: URLRequest(url: enclosureURL))
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw DownloadServiceError.invalidResponse
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw DownloadServiceError.requestFailed(statusCode: httpResponse.statusCode)
-        }
+        try validate(response, body: { data })
 
         guard
             let html = String(data: data, encoding: .utf8),

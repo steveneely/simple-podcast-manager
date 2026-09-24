@@ -26,6 +26,18 @@ struct SyncDialogView: View {
     let onReplaceIncompleteCopy: (URL) -> Void
     let onSync: () -> Void
 
+    let cleanupCandidates: [DeviceCleanupCandidate]
+    var playlists: [PodcastPlaylist] = []
+    var playlistErrorMessage: String? = nil
+    var cleanupEpisode: (DeviceCleanupCandidate) -> Episode? = { _ in nil }
+    var automaticPlaylistIDs: (Episode) -> Set<PodcastPlaylist.ID> = { _ in [] }
+    var onToggleCleanupPlaylist: (DeviceCleanupCandidate, PodcastPlaylist) -> Void = { _, _ in }
+
+    private var protectedCleanupCandidates: [PlaylistProtectedCleanupCandidate] {
+        let reviewedIDs = Set(cleanupCandidates.map(\.id))
+        return (plan?.playlistProtectedCleanupCandidates ?? []).filter { !reviewedIDs.contains($0.id) }
+    }
+
     @State private(set) var isCleanupExpanded = false
     @State private(set) var isPlaylistProtectedExpanded = false
     @State private(set) var isPlannedActionsExpanded = true
@@ -51,8 +63,7 @@ struct SyncDialogView: View {
     }
 
     private var selectedCleanupDeletionCount: Int {
-        guard let plan else { return 0 }
-        return plan.cleanupCandidates.count {
+        return cleanupCandidates.count {
             plannedDeletionTargets.contains($0.targetURL.standardizedFileURL)
         }
     }
@@ -116,19 +127,19 @@ struct SyncDialogView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        if plan?.cleanupCandidates.isEmpty == false {
+                        if !cleanupCandidates.isEmpty {
                             DisclosureGroup(isExpanded: $isCleanupExpanded) {
                                 cleanupReview
                             } label: {
-                                reviewHeading("Episodes Suggested for Cleanup", count: plan?.cleanupCandidates.count ?? 0)
+                                reviewHeading("Episodes Suggested for Cleanup", count: cleanupCandidates.count)
                             }
                         }
 
-                        if plan?.playlistProtectedCleanupCandidates.isEmpty == false {
+                        if !protectedCleanupCandidates.isEmpty {
                             DisclosureGroup(isExpanded: $isPlaylistProtectedExpanded) {
                                 playlistProtectedCleanupReview
                             } label: {
-                                reviewHeading("Older Episodes Kept by Playlists", count: plan?.playlistProtectedCleanupCandidates.count ?? 0)
+                                reviewHeading("Older Episodes Kept by Playlists", count: protectedCleanupCandidates.count)
                             }
                         }
 
@@ -209,31 +220,48 @@ struct SyncDialogView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
+            if let playlistErrorMessage {
+                Text(playlistErrorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
             LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(plan?.cleanupCandidates ?? []) { candidate in
-                    Toggle(
-                        isOn: Binding(
-                            get: { plannedDeletionTargets.contains(candidate.targetURL.standardizedFileURL) },
-                            set: { _ in onToggleCleanupDeletion(candidate.targetURL) }
-                        )
-                    ) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(candidate.episodeTitle)
-                                    .lineLimit(1)
-                                Text("\(candidate.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
-                                    .font(.caption2)
+                ForEach(cleanupCandidates) { candidate in
+                    HStack(spacing: 8) {
+                        Toggle(
+                            isOn: Binding(
+                                get: { plannedDeletionTargets.contains(candidate.targetURL.standardizedFileURL) },
+                                set: { _ in onToggleCleanupDeletion(candidate.targetURL) }
+                            )
+                        ) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(candidate.episodeTitle)
+                                        .lineLimit(1)
+                                    Text("\(candidate.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
+                                    .font(.caption)
+                                    .monospacedDigit()
                                     .foregroundStyle(.secondary)
-                                    .lineLimit(1)
                             }
-                            Spacer()
-                            Text(SyncPresentation.formattedFileSize(candidate.fileSizeBytes))
-                                .font(.caption)
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
+                        }
+                        .toggleStyle(.checkbox)
+                        if !playlists.isEmpty, let episode = cleanupEpisode(candidate) {
+                            EpisodePlaylistMenu(
+                                episode: episode,
+                                playlists: playlists,
+                                automaticPlaylistIDs: automaticPlaylistIDs(episode),
+                                onTogglePlaylist: { onToggleCleanupPlaylist(candidate, $0) }
+                            )
                         }
                     }
-                    .toggleStyle(.checkbox)
+                    .disabled(isSyncing || isPlanning || plan == nil)
                 }
             }
         }
@@ -247,7 +275,7 @@ struct SyncDialogView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(plan?.playlistProtectedCleanupCandidates ?? []) { candidate in
+                ForEach(protectedCleanupCandidates) { candidate in
                     Toggle(
                         isOn: Binding(
                             get: {

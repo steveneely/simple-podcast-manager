@@ -205,7 +205,7 @@ hdiutil create \
   -volname SPMTEST \
   "$SPM_TEST_IMAGE"
 
-hdiutil attach "$SPM_TEST_IMAGE"
+diskutil image attach "$SPM_TEST_IMAGE"
 mkdir -p /Volumes/SPMTEST/music
 ```
 

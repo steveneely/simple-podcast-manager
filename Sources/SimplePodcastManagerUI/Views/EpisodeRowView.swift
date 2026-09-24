@@ -105,34 +105,12 @@ struct EpisodeRowView<Details: View>: View {
                 Spacer()
 
                 if !playlists.isEmpty {
-                    let playlistIndicator = EpisodePlaylistIndicatorPresentation(
+                    EpisodePlaylistMenu(
                         episode: episode,
                         playlists: playlists,
-                        automaticPlaylistIDs: automaticPlaylistIDs
+                        automaticPlaylistIDs: automaticPlaylistIDs,
+                        onTogglePlaylist: onTogglePlaylist
                     )
-                    HoverIconMenu(
-                        systemName: playlistIndicator.systemName,
-                        helpText: playlistIndicator.helpText,
-                        isActive: playlistIndicator.isIncluded
-                    ) {
-                        ForEach(playlists) { playlist in
-                            Button {
-                                onTogglePlaylist(playlist)
-                            } label: {
-                                switch playlistIndicator.membership(for: playlist.id) {
-                                case .manual:
-                                    Label(playlist.name, systemImage: "checkmark")
-                                case .automatic:
-                                    Label(
-                                        "\(playlist.name) — Automatically added",
-                                        systemImage: "gearshape"
-                                    )
-                                case .none:
-                                    Text(playlist.name)
-                                }
-                            }
-                        }
-                    }
                 }
 
                 if isPrepared {

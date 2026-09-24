@@ -58,7 +58,6 @@ public struct MainView: View {
     @State private var isEjectAfterSyncEnabled = true
     @State private var isDeleteDownloadedAfterSyncEnabled = true
     @State private var isShowingDeviceDetails = false
-    @State private var visibleEpisodeCountsByPodcastID: [UUID: Int] = [:]
     @State private var expandedEpisodeIDs: Set<String> = []
     @State private var expandedDescriptionPodcastIDs: Set<UUID> = []
     @State private var manuallySelectedDeletionTargets: Set<URL> = []
@@ -521,6 +520,7 @@ public struct MainView: View {
     private var episodeDetailSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let selectedSubscription {
+                let episodes = allEpisodes(for: selectedSubscription)
                 HStack(alignment: .top, spacing: 12) {
                     PodcastArtworkView(
                         artworkURL: artworkURL(for: selectedSubscription),
@@ -558,7 +558,7 @@ public struct MainView: View {
                         .foregroundStyle(.red)
                 }
 
-                if allEpisodes(for: selectedSubscription).isEmpty,
+                if episodes.isEmpty,
                    unmatchedDeviceFiles(for: selectedSubscription).isEmpty {
                     if podcastPreviewViewModel.isLoading {
                         VStack(spacing: 10) {
@@ -578,15 +578,11 @@ public struct MainView: View {
                     }
                 } else {
                     List {
-                        ForEach(displayedEpisodes(for: selectedSubscription)) { episode in
+                        ForEach(episodes) { episode in
                             episodeRow(for: episode)
                         }
 
                         olderDeviceFilesSection(for: selectedSubscription)
-
-                        if shouldOfferEpisodeFooter(for: selectedSubscription) {
-                            episodeListFooter(for: selectedSubscription)
-                        }
                     }
                     .listStyle(.plain)
                 }
@@ -605,6 +601,8 @@ public struct MainView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        // Align the list bottom with the sidebar above its refresh-status footer.
+        .padding(.bottom, PodcastLibraryLayout.footerReservedHeight)
         .padding(14)
     }
 
@@ -1108,38 +1106,6 @@ public struct MainView: View {
             for: subscription,
             episodes: allEpisodes(for: subscription)
         )
-    }
-
-    private func episodeListFooter(for subscription: PodcastSubscription) -> some View {
-        let visibleCount = displayedEpisodes(for: subscription).count
-        let totalCount = allEpisodes(for: subscription).count
-        let isShowingAll = visibleCount >= totalCount
-
-        return Button {
-            if isShowingAll {
-                showRecentEpisodes(for: subscription)
-            } else {
-                showMoreEpisodes(for: subscription)
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Spacer()
-
-                Image(systemName: isShowingAll ? "chevron.up.circle" : "chevron.down.circle")
-                    .font(.body)
-
-                Text(isShowingAll ? "Show recent only" : "\(visibleCount) of \(totalCount) episodes shown · Show more")
-                    .font(.caption)
-                    .fontWeight(.medium)
-
-                Spacer()
-            }
-            .foregroundStyle(.secondary)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .listRowSeparator(.hidden)
     }
 
     private var selectedSubscription: PodcastSubscription? {
@@ -1728,7 +1694,6 @@ public struct MainView: View {
         selectedPlaylistID = podcastPlaylistViewModel.playlists.first?.id
         manuallySelectedDeletionTargets = []
         selectedOtherAudioDeletionTargets = []
-        visibleEpisodeCountsByPodcastID = [:]
         expandedEpisodeIDs = []
         expandedDescriptionPodcastIDs = []
         await refreshAllContent()
@@ -1810,29 +1775,6 @@ public struct MainView: View {
             for: subscription.id,
             preparedEpisodes: preparationPreviewViewModel.preparedEpisodes
         )
-    }
-
-    private func displayedEpisodes(for subscription: PodcastSubscription) -> [Episode] {
-        let episodes = allEpisodes(for: subscription)
-        return Array(episodes.prefix(visibleEpisodeCount(for: subscription)))
-    }
-
-    private func visibleEpisodeCount(for subscription: PodcastSubscription) -> Int {
-        min(visibleEpisodeCountsByPodcastID[subscription.id] ?? 8, allEpisodes(for: subscription).count)
-    }
-
-    private func shouldOfferEpisodeFooter(for subscription: PodcastSubscription) -> Bool {
-        allEpisodes(for: subscription).count > 8
-    }
-
-    private func showMoreEpisodes(for subscription: PodcastSubscription) {
-        let totalCount = allEpisodes(for: subscription).count
-        let nextCount = min(visibleEpisodeCount(for: subscription) + 8, totalCount)
-        visibleEpisodeCountsByPodcastID[subscription.id] = nextCount
-    }
-
-    private func showRecentEpisodes(for subscription: PodcastSubscription) {
-        visibleEpisodeCountsByPodcastID[subscription.id] = nil
     }
 
     private func isEpisodeExpanded(_ episode: Episode) -> Bool {

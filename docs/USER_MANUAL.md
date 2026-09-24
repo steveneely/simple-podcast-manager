@@ -64,6 +64,8 @@ Edit a podcast to change `Include in automatic downloads`. Turn off `Podcast ena
 
 While downloads are active, the progress beside the Device section reports only the current file preparation work. It disappears when that work finishes; use the persistent refresh summary in the lower-left corner to review the completed result.
 
+Scroll through the episode list to browse all available episodes, newest first. There is no need to load additional pages.
+
 ## Playlists
 
 Playlists are available without enabling a setting. Use the library selector above the podcast list to switch between `Podcasts` and `Playlists`, or press ⌘1 and ⌘2.

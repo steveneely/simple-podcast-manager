@@ -6,6 +6,26 @@ import Testing
 @MainActor
 struct PodcastPreviewViewModelTests {
     @Test
+    func largeCatalogueIncludesEveryEpisodeInDateOrder() async {
+        let podcastID = UUID()
+        let episodes = (1...1_000).map {
+            retainedTestEpisode(id: "episode-\($0)", podcastID: podcastID, day: $0)
+        }
+        let retained = retainedTestEpisode(id: "retained", podcastID: podcastID, day: 0)
+        let model = PodcastPreviewViewModel(
+            service: MockFeedService(result: FeedFetchResult(allEpisodes: episodes)),
+            cacheStore: InMemoryFeedCacheStore()
+        )
+        await model.refreshPreview(for: [])
+        let rows = model.episodesIncludingDownloads(
+            for: podcastID,
+            preparedEpisodes: [retainedTestDownload(retained), retainedTestDownload(episodes[0])]
+        )
+        #expect(rows == Array(episodes.reversed()) + [retained])
+        #expect(Set(rows.map(\.id)).count == 1_001)
+    }
+
+    @Test
     func explicitlyRestoredPodcastCanLoadAgainWithTheSameIdentifier() async {
         let podcast = PodcastSubscription(title: "Restored", rssURL: URL(string: "https://example.com/rss")!)
         let episode = retainedTestEpisode(id: "restored", podcastID: podcast.id, day: 1)

@@ -344,6 +344,12 @@ enum PodcastRefreshStatus: Equatable {
     }
 }
 
+enum PodcastLibraryLayout {
+    static let sectionSpacing: CGFloat = 12
+    static let footerHeight: CGFloat = 30
+    static let footerReservedHeight = sectionSpacing + footerHeight
+}
+
 struct PodcastSidebarView: View {
     @State private var isShowingDownloadedEpisodes = false
 
@@ -369,7 +375,7 @@ struct PodcastSidebarView: View {
     let onDeleteSubscriptions: ([PodcastSubscription]) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: PodcastLibraryLayout.sectionSpacing) {
             HStack {
                 PodcastLibraryModePicker(selection: $libraryMode)
 
@@ -596,7 +602,7 @@ struct PodcastSidebarView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: PodcastLibraryLayout.footerHeight, maxHeight: PodcastLibraryLayout.footerHeight, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 

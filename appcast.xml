@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.22.6</title>
-            <pubDate>Thu, 24 Sep 2026 12:18:37 -0600</pubDate>
-            <sparkle:version>112</sparkle:version>
-            <sparkle:shortVersionString>1.22.6</sparkle:shortVersionString>
+            <title>1.23.0</title>
+            <pubDate>Fri, 25 Sep 2026 20:32:17 -0600</pubDate>
+            <sparkle:version>113</sparkle:version>
+            <sparkle:shortVersionString>1.23.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,14 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="113" data-release-tag="v1.23.0">
+            <h2>v1.23.0</h2>
+            <ul>
+                <li>Get a macOS notification with sound when a sync finishes successfully while you work in another app.</li>
+                <li>See a bulleted summary of episode and playlist changes, including confirmation when your device was ejected.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="112" data-release-tag="v1.22.6">
             <h2>v1.22.6</h2>
             <ul>
@@ -756,7 +764,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.22.6/SimplePodcastManager-v1.22.6.dmg" length="7981160" type="application/octet-stream" sparkle:edSignature="v43pDXvpYqxT6KyUKPXOneQqDAD6jaaXUkq5mntyUqfoMqah4zw32nJjDJcNuG6OVwQqalUBRHhxPUB02OfbDg=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.23.0/SimplePodcastManager-v1.23.0.dmg" length="7997941" type="application/octet-stream" sparkle:edSignature="/ITy0RlmCu36AzKxim0iNlUiwDK+5288QkUX5RRSYcchBN4dR0n25LZSkp6wjN8yqAQgCc4pBZK7NawDhfF+AQ=="/>
         </item>
     </channel>
 </rss>

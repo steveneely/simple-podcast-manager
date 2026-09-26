@@ -13,9 +13,14 @@ public final class SyncExecutionViewModel {
 
     private var activeSyncID: UUID?
     private let executor: any SyncExecuting
+    private let completionNotifier: any SyncCompletionNotifying
 
-    public init(executor: any SyncExecuting = SyncExecutor()) {
+    public init(
+        executor: any SyncExecuting = SyncExecutor(),
+        completionNotifier: any SyncCompletionNotifying = SyncCompletionNotifier()
+    ) {
         self.executor = executor
+        self.completionNotifier = completionNotifier
         self.isSyncing = false
         self.progress = nil
         self.lastResult = nil
@@ -42,6 +47,7 @@ public final class SyncExecutionViewModel {
                 isSyncing = false
                 progress = nil
             }
+            await completionNotifier.prepareForSync()
             let executor = self.executor
             let result = try await Task.detached(priority: .userInitiated) { [weak self] in
                 try executor.execute(plan: plan) { progress in
@@ -53,6 +59,7 @@ public final class SyncExecutionViewModel {
             }.value
             lastResult = result
             lastErrorMessage = nil
+            await completionNotifier.syncSucceeded(result: result)
         } catch let failure as SyncExecutionFailure {
             lastResult = failure.result
             lastErrorMessage = failure.localizedDescription

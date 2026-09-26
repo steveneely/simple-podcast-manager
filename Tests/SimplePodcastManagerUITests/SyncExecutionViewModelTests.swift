@@ -91,7 +91,8 @@ struct SyncExecutionViewModelTests {
             .failure(CocoaError(.fileWriteUnknown)),
             .success(SyncResult(copiedCount: 1))
         ])
-        let model = SyncExecutionViewModel(executor: executor)
+        let notifier = RecordingSyncCompletionNotifier()
+        let model = SyncExecutionViewModel(executor: executor, completionNotifier: notifier)
         await model.sync(plan: plan)
         #expect(model.lastResult?.copiedCount == 3)
         await model.sync(plan: plan)
@@ -107,6 +108,9 @@ struct SyncExecutionViewModelTests {
         await model.sync(plan: nil)
         #expect(model.lastResult == nil)
         #expect(model.lastPlan == nil)
+        #expect(notifier.preparationCount == 4)
+        #expect(notifier.successCount == 2)
+        #expect(notifier.results.map(\.copiedCount) == [3, 1])
     }
 
 }
@@ -149,5 +153,18 @@ private final class SequenceSyncExecutor: SyncExecuting, @unchecked Sendable {
     init(results: [Result<SyncResult, any Error>]) { self.results = results }
     func execute(plan: SyncPlan, progress: (@Sendable (SyncExecutionProgress) -> Void)?) throws -> SyncResult {
         try results.removeFirst().get()
+    }
+}
+
+@MainActor
+private final class RecordingSyncCompletionNotifier: SyncCompletionNotifying {
+    var preparationCount = 0
+    var successCount = 0
+    var results: [SyncResult] = []
+
+    func prepareForSync() async { preparationCount += 1 }
+    func syncSucceeded(result: SyncResult) async {
+        successCount += 1
+        results.append(result)
     }
 }

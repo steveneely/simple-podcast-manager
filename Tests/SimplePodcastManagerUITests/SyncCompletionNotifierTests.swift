@@ -10,7 +10,7 @@ struct SyncCompletionNotifierTests {
     func completionNotificationIncludesSoundAndRequestsImmediateDelivery() {
         let request = SyncCompletionNotifier.makeNotificationRequest(result: SyncResult(copiedCount: 1))
         #expect(request.content.title == "Sync complete")
-        #expect(request.content.body == "\n• 1 episode copied")
+        #expect(request.content.body == "• 1 episode copied")
         #expect(request.content.sound == UNNotificationSound.default)
         #expect(request.trigger == nil)
         #expect(request.identifier != SyncCompletionNotifier.makeNotificationRequest(result: SyncResult(copiedCount: 1)).identifier)
@@ -35,7 +35,7 @@ struct SyncCompletionNotifierTests {
             copiedCount: 3, updatedPlaylistCount: 2, deletedPlaylistCount: 1, ejected: true
         )
         #expect(SyncCompletionNotifier.makeNotificationRequest(result: result).content.body
-            == "\n• 3 episodes copied\n• 2 playlists updated\n• 1 playlist deleted\n• Device ejected.")
+            == "• 3 episodes copied\n• 2 playlists updated\n• 1 playlist deleted\n• Device ejected.")
     }
 
     @Test

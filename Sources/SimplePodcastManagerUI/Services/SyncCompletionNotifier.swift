@@ -70,8 +70,7 @@ public final class SyncCompletionNotifier: SyncCompletionNotifying {
     static func makeNotificationRequest(result: SyncResult) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = "Sync complete"
-        let summary = summary(for: result)
-        content.body = summary.isEmpty ? "" : "\n\(summary)"
+        content.body = summary(for: result)
         content.sound = UNNotificationSound.default
         return UNNotificationRequest(
             identifier: "sync-complete-\(UUID().uuidString)",

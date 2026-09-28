@@ -5,6 +5,87 @@ import Testing
 
 @MainActor
 struct PodcastPlaylistViewModelTests {
+    @Test(arguments: [false, true], [false, true])
+    func uncheckingMembershipExcludesAutomaticReadditionAtomically(manuallyAdded: Bool, saveFails: Bool) async throws {
+        let episode = makeEpisode(id: "included", title: "Included")
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(
+            name: "News", entries: manuallyAdded ? [entry] : [],
+            automaticRule: PodcastPlaylistAutomaticRule(source: .selectedPodcasts([entry.id.subscriptionID]))
+        )
+        let otherPlaylist = try PodcastPlaylist(name: "Other", entries: [entry])
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(playlists: [playlist, otherPlaylist]))
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+        let original = viewModel.library
+        let deviceURL = URL(fileURLWithPath: "/Volumes/Synthetic/music/Example Podcast/legacy.mp3")
+        store.saveFails = saveFails
+
+        if saveFails {
+            #expect(throws: CocoaError.self) {
+                try viewModel.removeMembership(episode, from: playlist.id, deviceFileURL: deviceURL)
+            }
+            #expect(viewModel.library == original)
+            #expect(store.library == original)
+        } else {
+            try viewModel.removeMembership(episode, from: playlist.id, deviceFileURL: deviceURL)
+            let updated = try #require(viewModel.playlist(id: playlist.id))
+            #expect(updated.entries.isEmpty)
+            #expect(updated.automaticExclusions == [
+                PodcastPlaylistAutomaticExclusion(subscriptionID: entry.id.subscriptionID, episodeFileStem: EpisodeFileName.fileStem(for: episode)),
+                PodcastPlaylistAutomaticExclusion(subscriptionID: entry.id.subscriptionID, episodeFileStem: "legacy"),
+            ])
+            #expect(viewModel.playlist(id: otherPlaylist.id) == otherPlaylist)
+            #expect(store.library == viewModel.library)
+            try viewModel.add(episode, to: playlist.id, deviceFileURL: deviceURL)
+            #expect(viewModel.playlist(id: playlist.id)?.entries == [entry])
+            #expect(viewModel.playlist(id: playlist.id)?.automaticExclusions.isEmpty == true)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func removesOnlyReviewedUnavailablePlaylistEntries(saveFails: Bool) async throws {
+        let missing = makeEpisode(id: "missing", title: "Missing")
+        let available = makeEpisode(id: "available", title: "Available")
+        let missingEntry = try #require(PodcastPlaylistEntry(episode: missing))
+        let availableEntry = try #require(PodcastPlaylistEntry(episode: available))
+        let first = try PodcastPlaylist(name: "First", entries: [missingEntry, availableEntry])
+        let second = try PodcastPlaylist(name: "Second", entries: [missingEntry])
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [first, second]
+        ))
+        let viewModel = PodcastPlaylistViewModel(store: store)
+        await viewModel.load()
+        let preflight = try #require(PodcastPlaylistSyncPreflight.make(
+            playlists: viewModel.playlists,
+            isAvailable: { $0.id == available.id }
+        ))
+        // Membership added after the prompt was presented is outside the reviewed scope.
+        let laterPlaylistID = try viewModel.createPlaylist(named: "Later")
+        try viewModel.add(missing, to: laterPlaylistID)
+        let originalLibrary = viewModel.library
+        store.saveFails = saveFails
+
+        if saveFails {
+            #expect(throws: CocoaError.self) {
+                try viewModel.removeUnavailableEntries(for: preflight)
+            }
+            #expect(viewModel.library == originalLibrary)
+            #expect(store.library == originalLibrary)
+            #expect(viewModel.lastErrorMessage != nil)
+        } else {
+            try viewModel.removeUnavailableEntries(for: preflight)
+            #expect(viewModel.playlist(id: first.id)?.entries == [availableEntry])
+            #expect(viewModel.playlist(id: second.id)?.entries.isEmpty == true)
+            #expect(viewModel.playlist(id: laterPlaylistID)?.entries == [missingEntry])
+            #expect(store.library == viewModel.library)
+            #expect(PodcastPlaylistSyncPreflight.make(
+                playlists: viewModel.playlists.filter { $0.id != laterPlaylistID },
+                isAvailable: { $0.id == available.id }
+            ) == nil)
+        }
+    }
+
     @Test
     func createsOrdersAndRemovesPlaylistEntries() async throws {
         let store = InMemoryPodcastPlaylistStore()
@@ -468,6 +549,7 @@ struct PodcastPlaylistViewModelTests {
 
 private final class InMemoryPodcastPlaylistStore: PodcastPlaylistStore, @unchecked Sendable {
     var library: PodcastPlaylistLibrary
+    var saveFails = false
 
     init(library: PodcastPlaylistLibrary = PodcastPlaylistLibrary()) {
         self.library = library
@@ -478,6 +560,7 @@ private final class InMemoryPodcastPlaylistStore: PodcastPlaylistStore, @uncheck
     }
 
     func savePodcastPlaylistLibrary(_ library: PodcastPlaylistLibrary) throws {
+        if saveFails { throw CocoaError(.fileWriteUnknown) }
         self.library = library
     }
 }

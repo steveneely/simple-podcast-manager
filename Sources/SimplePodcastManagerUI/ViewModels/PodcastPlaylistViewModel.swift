@@ -116,6 +116,34 @@ public final class PodcastPlaylistViewModel {
         try persist(updatedLibrary)
     }
 
+    /// Removes checked membership, including automatic membership, in one save.
+    func removeMembership(
+        _ episode: Episode,
+        from playlistID: PodcastPlaylist.ID,
+        deviceFileURL: URL? = nil
+    ) throws {
+        guard let entryID = PodcastPlaylistEpisodeID(episode: episode) else { return }
+        var updatedLibrary = library
+        guard let index = updatedLibrary.playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        updatedLibrary.playlists[index].entries.removeAll { $0.id == entryID }
+        if updatedLibrary.playlists[index].automaticRule != nil {
+            updatedLibrary.playlists[index].automaticExclusions.formUnion(
+                automaticExclusions(for: episode, deviceFileURL: deviceFileURL)
+            )
+        }
+        try persist(updatedLibrary)
+    }
+
+    func removeUnavailableEntries(for preflight: PodcastPlaylistSyncPreflight) throws {
+        var updatedLibrary = library
+        for index in updatedLibrary.playlists.indices {
+            let playlistID = updatedLibrary.playlists[index].id
+            guard let entryIDs = preflight.unavailableEntryIDsByPlaylist[playlistID] else { continue }
+            updatedLibrary.playlists[index].entries.removeAll { entryIDs.contains($0.id) }
+        }
+        try persist(updatedLibrary)
+    }
+
     public func excludeAutomaticEpisode(
         _ episode: Episode,
         from playlistID: PodcastPlaylist.ID,

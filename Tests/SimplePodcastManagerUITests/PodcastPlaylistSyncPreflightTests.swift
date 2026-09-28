@@ -5,6 +5,24 @@ import Testing
 
 struct PodcastPlaylistSyncPreflightTests {
     @Test
+    func continueButtonNamesTheSelectedAction() {
+        #expect(PodcastPlaylistSyncChoice.download.continueButtonTitle == "Download and Continue")
+        #expect(PodcastPlaylistSyncChoice.remove.continueButtonTitle == "Remove and Continue")
+        #expect(PodcastPlaylistSyncChoice.skip.continueButtonTitle == "Skip and Continue")
+    }
+
+    @Test(arguments: PodcastPlaylistSyncChoice.allCases)
+    func continuesOnlyWithTheSelectedAction(choice: PodcastPlaylistSyncChoice) {
+        var actions: [PodcastPlaylistSyncChoice] = []
+        choice.perform(
+            download: { actions.append(.download) },
+            remove: { actions.append(.remove) },
+            skip: { actions.append(.skip) }
+        )
+        #expect(actions == [choice])
+    }
+
+    @Test
     func findsOnlyUnavailableManualEntries() throws {
         let availableEpisode = makeEpisode(id: "available", title: "Available")
         let unavailableEpisode = makeEpisode(id: "unavailable", title: "Unavailable")
@@ -25,8 +43,9 @@ struct PodcastPlaylistSyncPreflightTests {
 
         #expect(preflight?.unavailableEpisodes == [unavailableEpisode])
         #expect(preflight?.affectedPlaylistNames == ["News"])
-        #expect(preflight?.title == "Download Playlist Episode?")
-        #expect(preflight?.message == "“News” contains “Unavailable,” which is unavailable. Download it so it can be included when you sync?")
+        #expect(preflight?.title == "1 Playlist Episode Is Unavailable")
+        #expect(preflight?.choiceTitle(.remove) == "Remove from playlist")
+        #expect(preflight?.message == "This episode in “News” isn’t on the device or downloaded locally:")
     }
 
     @Test
@@ -43,10 +62,12 @@ struct PodcastPlaylistSyncPreflightTests {
 
         #expect(preflight?.unavailableEpisodes == [episode])
         #expect(preflight?.affectedPlaylistNames == ["News", "Commute"])
+        #expect(preflight?.choiceTitle(.remove) == "Remove from playlists")
+        #expect(preflight?.unavailableEntryIDsByPlaylist == [news.id: [entry.id], commute.id: [entry.id]])
     }
 
     @Test
-    func summarizesSeveralUnavailableEpisodeTitlesBriefly() throws {
+    func retainsEveryUnavailableEpisodeForTheScrollableList() throws {
         let first = makeEpisode(id: "first", title: "First")
         let second = makeEpisode(id: "second", title: "Second")
         let third = makeEpisode(id: "third", title: "Third")
@@ -62,7 +83,9 @@ struct PodcastPlaylistSyncPreflightTests {
             isAvailable: { _ in false }
         )
 
-        #expect(preflight?.message == "“News” contains 3 unavailable manually added episodes: “First” and “Second”, and 1 more. Download them so they can be included when you sync?")
+        #expect(preflight?.title == "3 Playlist Episodes Are Unavailable")
+        #expect(preflight?.message == "These episodes in “News” aren’t on the device or downloaded locally:")
+        #expect(preflight?.unavailableEpisodes.map(\.title) == ["First", "Second", "Third"])
     }
 
     @Test

@@ -91,7 +91,7 @@ struct PodcastPlaylistPresentationViewModelTests {
 
         #expect(presentation.isIncluded)
         #expect(presentation.systemName == "text.badge.checkmark")
-        #expect(presentation.helpText == "In 2 playlists — click to manage")
+        #expect(presentation.helpText == "In playlists: Saved, News — click to manage")
         #expect(presentation.membership(for: manualPlaylist.id) == .manual)
         #expect(presentation.membership(for: automaticPlaylist.id) == .automatic)
         #expect(presentation.membership(for: unrelatedPlaylist.id) == .none)

@@ -65,9 +65,11 @@ struct HoverIconLabel: View {
     @ViewBuilder
     private var icon: some View {
         if isActive {
+            // Use explicit colors for both symbol layers in the native menu label.
             Image(systemName: systemName)
+                .renderingMode(.original)
                 .symbolRenderingMode(.palette)
-                .foregroundStyle(Color.blue, foregroundColor)
+                .foregroundStyle(foregroundColor, foregroundColor)
         } else {
             Image(systemName: systemName)
                 .symbolRenderingMode(.monochrome)
@@ -81,6 +83,9 @@ struct HoverIconLabel: View {
         }
         if isDestructive && isHovered {
             return Color.red
+        }
+        if isActive {
+            return Color.accentColor
         }
         if isHovered {
             return Color.primary

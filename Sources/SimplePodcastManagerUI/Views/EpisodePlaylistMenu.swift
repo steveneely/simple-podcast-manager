@@ -19,20 +19,13 @@ struct EpisodePlaylistMenu: View {
             isActive: playlistIndicator.isIncluded
         ) {
             ForEach(playlists) { playlist in
-                Button {
-                    onTogglePlaylist(playlist)
-                } label: {
-                    switch playlistIndicator.membership(for: playlist.id) {
-                    case .manual:
-                        Label(playlist.name, systemImage: "checkmark")
-                    case .automatic:
-                        Label(
-                            "\(playlist.name) — Automatically added",
-                            systemImage: "gearshape"
-                        )
-                    case .none:
-                        Text(playlist.name)
-                    }
+                Toggle(isOn: Binding(
+                    get: { playlistIndicator.membership(for: playlist.id) != .none },
+                    set: { _ in onTogglePlaylist(playlist) }
+                )) {
+                    Text(playlistIndicator.membership(for: playlist.id) == .automatic
+                        ? "\(playlist.name) (Auto)"
+                        : playlist.name)
                 }
             }
         }

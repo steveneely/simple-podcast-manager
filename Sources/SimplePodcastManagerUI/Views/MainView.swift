@@ -348,6 +348,7 @@ public struct MainView: View {
             onDeletePlaylist: deletePodcastPlaylist,
             onDownloadAndAdd: downloadAndAddToPlaylist,
             onDownloadAndContinueSync: downloadPlaylistEpisodesAndContinueSync,
+            onRemoveFromPlaylistAndContinueSync: removeUnavailablePlaylistEpisodesAndContinueSync,
             onContinueSyncWithoutDownload: presentSyncDialog,
             onDeleteLocalDownload: { deleteLocalDownloadAndPlaylistMembership($0.episode) },
             onRemoveFromDevice: { request in
@@ -852,8 +853,11 @@ public struct MainView: View {
 
     private func togglePlaylistMembership(for episode: Episode, playlist: PodcastPlaylist) {
         do {
-            if playlist.contains(episode) {
-                try podcastPlaylistViewModel.remove(episode, from: playlist.id)
+            if playlist.contains(episode)
+                || podcastPlaylistPresentationViewModel.presentation.automaticPlaylistIDs(containing: episode).contains(playlist.id) {
+                try podcastPlaylistViewModel.removeMembership(
+                    episode, from: playlist.id, deviceFileURL: playlistDeviceFileURL(for: episode)
+                )
                 rebuildSyncPlan()
                 return
             }
@@ -1993,6 +1997,18 @@ public struct MainView: View {
         isShowingSyncDialog = true
     }
 
+    private func removeUnavailablePlaylistEpisodesAndContinueSync(
+        _ preflight: PodcastPlaylistSyncPreflight
+    ) {
+        pendingPlaylistSyncDownload = nil
+        do {
+            try podcastPlaylistViewModel.removeUnavailableEntries(for: preflight)
+            presentSyncDialog()
+        } catch {
+            // The playlist view model exposes the save error through the existing status.
+        }
+    }
+
     private func downloadPlaylistEpisodesAndContinueSync(
         _ preflight: PodcastPlaylistSyncPreflight
     ) {
@@ -2129,6 +2145,8 @@ public struct MainView: View {
               let episode = cleanupPlaylistEpisode(candidate) else { return }
         guard cleanupReview.togglePlaylist(
             for: episode, candidate: candidate, playlist: playlist, playlists: podcastPlaylistViewModel,
+            isAutomaticallyIncluded: podcastPlaylistPresentationViewModel.presentation
+                .automaticPlaylistIDs(containing: episode).contains(playlist.id),
             excludedCleanupTargets: &excludedCleanupDeletionTargets,
             manualDeletionTargets: &manuallySelectedDeletionTargets,
             protectedDeletionTargets: &selectedPlaylistProtectedDeletionTargets
@@ -2398,6 +2416,7 @@ struct PendingPlaylistEpisodeAction {
 }
 
 private struct PodcastPlaylistAlertsModifier: ViewModifier {
+    @State private var syncChoiceToContinue: (PodcastPlaylistSyncPreflight, PodcastPlaylistSyncChoice)?
     @Binding var pendingPlaylistDeletion: PodcastPlaylist?
     @Binding var pendingDownload: PendingPlaylistDownload?
     @Binding var pendingSyncDownload: PodcastPlaylistSyncPreflight?
@@ -2407,6 +2426,7 @@ private struct PodcastPlaylistAlertsModifier: ViewModifier {
     let onDeletePlaylist: (PodcastPlaylist) -> Void
     let onDownloadAndAdd: (PendingPlaylistDownload) -> Void
     let onDownloadAndContinueSync: (PodcastPlaylistSyncPreflight) -> Void
+    let onRemoveFromPlaylistAndContinueSync: (PodcastPlaylistSyncPreflight) -> Void
     let onContinueSyncWithoutDownload: () -> Void
     let onDeleteLocalDownload: (PendingPlaylistEpisodeAction) -> Void
     let onRemoveFromDevice: (PendingPlaylistEpisodeAction) -> Void
@@ -2433,18 +2453,21 @@ private struct PodcastPlaylistAlertsModifier: ViewModifier {
             } message: { request in
                 Text("“\(request.episode.title)” must be downloaded before it can be added to “\(request.playlistName).”")
             }
-            .alert(
-                pendingSyncDownload?.title ?? "Download Playlist Episodes?",
-                isPresented: isPresenting($pendingSyncDownload),
-                presenting: pendingSyncDownload
-            ) { preflight in
-                Button("Cancel", role: .cancel) {}
-                Button("Continue Without") { onContinueSyncWithoutDownload() }
-                Button(preflight.downloadButtonTitle) {
-                    onDownloadAndContinueSync(preflight)
+            .sheet(isPresented: isPresenting($pendingSyncDownload), onDismiss: {
+                guard let (preflight, choice) = syncChoiceToContinue else { return }
+                syncChoiceToContinue = nil
+                choice.perform(
+                    download: { onDownloadAndContinueSync(preflight) },
+                    remove: { onRemoveFromPlaylistAndContinueSync(preflight) },
+                    skip: onContinueSyncWithoutDownload
+                )
+            }) {
+                if let preflight = pendingSyncDownload {
+                    PodcastPlaylistSyncPreflightView(preflight: preflight) { choice in
+                        syncChoiceToContinue = (preflight, choice)
+                        pendingSyncDownload = nil
+                    }
                 }
-            } message: { preflight in
-                Text(preflight.message)
             }
             .alert(
                 pendingSyncDownloadFailure?.title ?? "Episodes Couldn’t Be Downloaded",

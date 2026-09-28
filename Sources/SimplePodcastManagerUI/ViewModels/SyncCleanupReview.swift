@@ -54,13 +54,14 @@ struct SyncCleanupReview {
         candidate: DeviceCleanupCandidate,
         playlist: PodcastPlaylist,
         playlists: PodcastPlaylistViewModel,
+        isAutomaticallyIncluded: Bool = false,
         excludedCleanupTargets: inout Set<URL>,
         manualDeletionTargets: inout Set<URL>,
         protectedDeletionTargets: inout Set<URL>
     ) -> Bool {
         do {
-            if playlist.contains(episode) {
-                try playlists.remove(episode, from: playlist.id)
+            if playlist.contains(episode) || isAutomaticallyIncluded {
+                try playlists.removeMembership(episode, from: playlist.id, deviceFileURL: candidate.targetURL)
             } else {
                 try playlists.add(episode, to: playlist.id, deviceFileURL: candidate.targetURL)
             }

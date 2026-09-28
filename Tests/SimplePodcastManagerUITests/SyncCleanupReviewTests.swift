@@ -29,6 +29,32 @@ struct SyncCleanupReviewTests {
     }
 
     @Test
+    func uncheckingAutomaticCleanupMembershipExcludesInsteadOfPinning() async throws {
+        let store = CleanupPlaylistStore()
+        let playlists = PodcastPlaylistViewModel(store: store)
+        await playlists.load()
+        let playlistID = try playlists.createPlaylist(
+            named: "Automatic", automaticRule: PodcastPlaylistAutomaticRule(source: .selectedPodcasts([subscription.id]))
+        )
+        let target = candidate("Old Episode")
+        let episode = try deviceEpisode(for: target)
+        var review = SyncCleanupReview()
+        var excluded: Set<URL> = []
+        var manual: Set<URL> = [target.id]
+        var protected: Set<URL> = []
+        #expect(review.togglePlaylist(
+            for: episode, candidate: target, playlist: try #require(playlists.playlist(id: playlistID)),
+            playlists: playlists, isAutomaticallyIncluded: true, excludedCleanupTargets: &excluded,
+            manualDeletionTargets: &manual, protectedDeletionTargets: &protected
+        ))
+        let updated = try #require(playlists.playlist(id: playlistID))
+        #expect(updated.entries.isEmpty)
+        #expect(!updated.automaticExclusions.isEmpty)
+        #expect(manual.isEmpty)
+        #expect(excluded == [target.id])
+    }
+
+    @Test
     func playlistChangesPersistAndOnlyClearTheChosenDeletionAfterSuccess() async throws {
         let store = CleanupPlaylistStore()
         let playlists = PodcastPlaylistViewModel(store: store)

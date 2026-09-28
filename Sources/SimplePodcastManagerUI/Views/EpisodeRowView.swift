@@ -201,7 +201,7 @@ struct EpisodePlaylistIndicatorPresentation: Equatable {
         case 1:
             "In playlist “\(includedPlaylistNames[0])” — click to manage"
         default:
-            "In \(includedPlaylistNames.count) playlists — click to manage"
+            "In playlists: \(includedPlaylistNames.joined(separator: ", ")) — click to manage"
         }
     }
 

@@ -34,6 +34,13 @@ For technical context, see [Architecture](ARCHITECTURE.md).
 
 Contributions should follow the UI, UX, terminology, compatibility, and testing standards in [AGENTS.md](AGENTS.md), plus the system boundaries in [ARCHITECTURE.md](ARCHITECTURE.md).
 
+Development requirements:
+
+- macOS 14 or later, matching the minimum platform in [Package.swift](Package.swift).
+- Swift 6.1 or later, matching the package's minimum Swift tools version.
+
+Builds and the current test suite require macOS. The core target imports Apple frameworks such as `ImageIO` and `UniformTypeIdentifiers` for artwork preparation, so a Linux Swift toolchain alone is not sufficient.
+
 Run tests:
 
 ```bash

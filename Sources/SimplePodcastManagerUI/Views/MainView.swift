@@ -66,7 +66,6 @@ public struct MainView: View {
     @State private var excludedCleanupDeletionTargets: Set<URL> = []
     @State private var selectedPlaylistProtectedDeletionTargets: Set<URL> = []
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
-    @State private var isShowingOtherAudioDeletionConfirmation = false
     @State private var isShowingOtherAudioReview = false
     @State private var episodeStateLoadError: String?
     @State private var isRestoringAppData = false
@@ -357,14 +356,6 @@ public struct MainView: View {
                 }
             }
         ))
-        .alert("Delete Selected Other Audio?", isPresented: $isShowingOtherAudioDeletionConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete Files", role: .destructive) {
-                deleteSelectedOtherAudio()
-            }
-        } message: {
-            Text(otherAudioDeletionConfirmationMessage)
-        }
         .alert(
             "Allow Insecure Download?",
             isPresented: Binding(
@@ -747,7 +738,7 @@ public struct MainView: View {
                 onToggleSelection: toggleOtherAudioDeletionSelection,
                 onReview: startOtherAudioReview,
                 onCancelReview: deviceLibraryViewModel.cancelOtherAudioReview,
-                onDeleteSelected: { isShowingOtherAudioDeletionConfirmation = true },
+                onDeleteSelected: deleteSelectedOtherAudio,
                 onClose: { isShowingOtherAudioReview = false }
             )
         }
@@ -2223,9 +2214,9 @@ public struct MainView: View {
         }
     }
 
-    private func deleteSelectedOtherAudio() {
+    private func deleteSelectedOtherAudio(_ selectedFiles: Set<URL>) {
         deviceLibraryViewModel.deleteOtherAudioFiles(
-            selectedOtherAudioDeletionTargets,
+            selectedFiles,
             on: deviceViewModel.selectedDevice
         )
         selectedOtherAudioDeletionTargets = []
@@ -2243,11 +2234,6 @@ public struct MainView: View {
     private func pruneOtherAudioDeletionTargets() {
         let allOtherAudioFiles = Set(deviceLibraryViewModel.otherAudioFiles.map(\.standardizedFileURL))
         selectedOtherAudioDeletionTargets = selectedOtherAudioDeletionTargets.intersection(allOtherAudioFiles)
-    }
-
-    private var otherAudioDeletionConfirmationMessage: String {
-        let count = selectedOtherAudioDeletionTargets.count
-        return "Delete \(count) selected file\(count == 1 ? "" : "s") from the MP3 player? These files are not associated with a podcast in Simple Podcast Manager. They will be deleted directly from the MP3 player. This cannot be undone."
     }
 
     private var selectedDevicePodcastDirectoryPath: String? {

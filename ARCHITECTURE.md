@@ -274,7 +274,7 @@ Automatic device refresh inventories only the immediate app-managed directory fo
 
 Device episode status and sync planning prefer the exact filename generated from current RSS metadata. For files created before a podcast title change, they may fall back to a unique match within the resolved app-managed podcast directory using the publication day, episode title, and the subscription's current or previous titles. Ambiguous candidates remain unmatched. This compatibility matching only interprets inventory, prevents duplicate copies under a new title, and never renames, moves, or deletes a device file.
 
-The `Scan for Other Audio` button appears only when the presence probe finds a candidate. Choosing it opens a dedicated review sheet and starts a cancellable background operation that recursively inventories the configured podcast directory, excludes files from the current managed inventory, and reports progress without blocking the UI. Large result sets render lazily. Disconnecting, changing the configured directory, or refreshing the device invalidates the review.
+The `Scan for Other Audio` button appears only when the presence probe finds a candidate. Choosing it opens a dedicated review sheet and starts a cancellable background operation that recursively inventories the configured podcast directory, excludes files from the current managed inventory, and reports progress without blocking the UI. Large result sets render lazily. After explicit per-file selection, the red `Delete Selected` button confirms and immediately deletes only the checked files without an additional popup. The button is disabled when nothing is selected. Closing the sheet clears the selection without deleting anything. Disconnecting, changing the configured directory, or refreshing the device invalidates the review.
 
 When the user changes the configured podcast directory, Settings previews every app-managed episode that is currently known in the old directory. The user may move those exact files, leave them in place, or cancel. A confirmed migration preserves the relative per-podcast layout, rejects destination collisions and files without clear app ownership, rolls completed moves back if a later move or the config write fails, then updates `[device root]/.spmconfig`. After success, it removes only source podcast subdirectories proven empty and their matching macOS metadata sidecars; it never removes either podcast-directory root. Other audio is never included in a folder migration.
 
@@ -359,6 +359,6 @@ All device mutations pass through `SafetyValidator` and the scoped file services
 - delete files only after explicit selection in the current plan review; retention cleanup may preselect only proven app-managed files and must allow per-file opt-out
 - keep the plan shown to the user identical to the plan passed to the executor
 - validate every action again immediately before execution
-- other audio also requires a separate explicit selection and confirmation
+- other audio requires explicit per-file selection in its review sheet, followed by confirmation through the red `Delete Selected` button
 - never touch the Mac's Trash, sibling device folders, or other files at the device root
 - refuse the mutation when a path cannot be proven safe

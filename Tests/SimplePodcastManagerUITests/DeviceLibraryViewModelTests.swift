@@ -6,6 +6,61 @@ import Testing
 @MainActor
 struct DeviceLibraryViewModelTests {
     @Test
+    func deletingRemovedPodcastAudioDeletesOnlyTheReviewedSelection() async {
+        let podcast = PodcastSubscription(title: "Removed", rssURL: URL(string: "https://example.com/removed")!)
+        let root = URL(fileURLWithPath: "/Volumes/TEST")
+        let device = DeviceInfo(name: "Test", rootURL: root, podcastDirectoryURL: root.appendingPathComponent("music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent("Removed")
+        let selectedFile = directory.appendingPathComponent("First-(Removed).mp3")
+        let unselectedFile = directory.appendingPathComponent("Second-(Removed).mp3")
+        let fileSystem = CapturingFileSystem(existingFiles: [selectedFile, unselectedFile])
+        let model = DeviceLibraryViewModel(
+            deviceLibrary: CountingDeviceLibrary(
+                directories: [directory], filesByDirectory: [directory: [selectedFile, unselectedFile]]
+            ),
+            fileSystem: fileSystem
+        )
+        await model.refresh(device: device, subscriptions: [podcast])
+        await model.updateAfterRemovingPodcasts(device: device, subscriptions: [], episodes: [])
+        await model.reviewOtherAudio(on: device)
+
+        let selectedFiles: Set<URL> = [selectedFile]
+        #expect(fileSystem.removedItems.isEmpty)
+
+        model.deleteOtherAudioFiles([], on: device)
+        #expect(fileSystem.removedItems.isEmpty)
+        #expect(model.otherAudioFiles.count == 2)
+
+        model.deleteOtherAudioFiles(selectedFiles, on: device)
+
+        #expect(fileSystem.removedItems == [selectedFile])
+        #expect(model.otherAudioFiles == [unselectedFile])
+        #expect(model.hasOtherAudioAvailable)
+        #expect(model.lastErrorMessage == nil)
+    }
+
+    @Test
+    func invalidatedReviewCannotDeletePreviouslySelectedFiles() async {
+        let root = URL(fileURLWithPath: "/Volumes/TEST")
+        let device = DeviceInfo(name: "Test", rootURL: root, podcastDirectoryURL: root.appendingPathComponent("music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent("Removed")
+        let file = directory.appendingPathComponent("Episode-(Removed).mp3")
+        let fileSystem = CapturingFileSystem(existingFiles: [file])
+        let model = DeviceLibraryViewModel(
+            deviceLibrary: CountingDeviceLibrary(directories: [directory], filesByDirectory: [directory: [file]]),
+            fileSystem: fileSystem
+        )
+        await model.refresh(device: device, subscriptions: [])
+        await model.reviewOtherAudio(on: device)
+        let selectedFiles: Set<URL> = [file]
+
+        await model.refresh(device: device, subscriptions: [])
+        model.deleteOtherAudioFiles(selectedFiles, on: device)
+
+        #expect(fileSystem.removedItems.isEmpty)
+    }
+
+    @Test
     func removingPodcastReusesInventoryAndLeavesDeviceFilesForExplicitReview() async {
         let removed = PodcastSubscription(title: "Removed", rssURL: URL(string: "https://example.com/removed")!)
         let retained = PodcastSubscription(title: "Retained", rssURL: URL(string: "https://example.com/retained")!)

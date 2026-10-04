@@ -866,7 +866,7 @@ struct OtherAudioReviewView: View {
     let onToggleSelection: (URL) -> Void
     let onReview: () -> Void
     let onCancelReview: () -> Void
-    let onDeleteSelected: () -> Void
+    let onDeleteSelected: (Set<URL>) -> Void
     let onClose: () -> Void
 
     private var selectionDescription: String {
@@ -1050,10 +1050,12 @@ struct OtherAudioReviewView: View {
                 Button("Close", action: onClose)
 
                 if !files.isEmpty {
-                    Button("Delete Selected…", role: .destructive, action: onDeleteSelected)
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
-                        .disabled(selectedFiles.isEmpty)
+                    Button("Delete Selected", role: .destructive) {
+                        onDeleteSelected(selectedFiles)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .disabled(selectedFiles.isEmpty)
                 }
             }
         }

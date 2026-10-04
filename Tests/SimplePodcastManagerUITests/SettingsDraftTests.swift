@@ -5,6 +5,22 @@ import Testing
 
 struct SettingsDraftTests {
     @Test
+    func restoreReplacesStaleDraftAndItsSavedBaseline() {
+        var draft = SettingsDraft(settings: AppSettings(mp3Genre: "Changed After Backup"))
+        draft.selectedPage = .advanced
+        draft.ffmpegExecutablePath = "/unsaved/tool"
+        let restored = SettingsDraft(settings: AppSettings(mp3Genre: "UI Test Genre"),
+            podcastDirectoryPath: "podcasts", playlistDirectoryPath: "lists")
+        draft.reload(from: restored)
+        #expect(draft.selectedPage == .advanced)
+        #expect(!draft.hasChanges)
+        #expect(draft.ffmpegExecutablePath.isEmpty)
+        #expect(draft.podcastDirectoryPath == "podcasts")
+        draft.settings.prefixesPublicationDateInEpisodeTitles.toggle()
+        #expect(draft.settingsForSaving.mp3Genre == "UI Test Genre")
+    }
+
+    @Test
     func openingAndNavigatingSettingsDoesNotEnableSave() {
         var draft = SettingsDraft(settings: AppSettings())
         for page in SettingsPage.allCases {

@@ -48,15 +48,18 @@ public final class MainViewModel {
     }
 
     @discardableResult
-    public func addPodcast(from draft: PodcastDraft) throws -> PodcastSubscription.ID {
+    public func addPodcast(from draft: PodcastDraft) async throws -> PodcastSubscription.ID {
         do {
             let rssURL = try draft.resolvedRSSURL()
-            let subscription = try draft.makeSubscription(
-                title: provisionalTitle(for: rssURL),
-                artworkURL: draft.artworkURL,
-                description: nil
-            )
-            return try addSubscriptions([subscription])[0]
+            let candidate = try draft.makeSubscription(title: rssURL.absoluteString, artworkURL: draft.artworkURL, description: nil)
+            try ensureUniqueSubscription(candidate, in: podcastSubscriptions)
+            let resolved = try await resolveFeed(from: draft)
+            try Task.checkCancellation()
+            let id = try addSubscriptions([resolved.subscription])[0]
+            try? feedCacheStore.saveCachedFeed(resolved.cachedFeed)
+            return id
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             self.lastErrorMessage = error.localizedDescription
             throw error
@@ -79,6 +82,7 @@ public final class MainViewModel {
             }
 
             let resolvedFeed = try await resolveFeed(from: draft)
+            try Task.checkCancellation()
             try saveUpdatedSubscription(resolvedFeed.subscription)
             try? feedCacheStore.saveCachedFeed(resolvedFeed.cachedFeed)
         } catch {
@@ -241,13 +245,7 @@ public final class MainViewModel {
         }
     }
 
-    private func provisionalTitle(for rssURL: URL) -> String {
-        guard let host = rssURL.host(percentEncoded: false), !host.isEmpty else {
-            return rssURL.absoluteString
-        }
 
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-    }
 }
 
 public enum MainViewModelError: LocalizedError, Equatable, Sendable {

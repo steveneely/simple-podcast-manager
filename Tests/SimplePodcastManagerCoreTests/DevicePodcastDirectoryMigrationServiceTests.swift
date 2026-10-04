@@ -3,6 +3,85 @@ import Testing
 @testable import SimplePodcastManagerCore
 
 struct DevicePodcastDirectoryMigrationServiceTests {
+    @Test(arguments: ["lists", "unowned"])
+    func separatePlaylistDirectoryRequiresMatchingRecordedOwnership(recordedDirectory: String) throws {
+        let fixture = MigrationFixture()
+        var device = fixture.device
+        device.playlistDirectoryURL = device.rootURL.appendingPathComponent("lists", isDirectory: true)
+        let playlist = device.playlistDirectoryURL.appendingPathComponent("Favorites.m3u")
+        let fs = RecordingMigrationFileSystem(existingURLs: [fixture.managedFile, playlist])
+        let original = try M3UPlaylistEncoder().encode(fileURLs: [fixture.managedFile], relativeTo: device.playlistDirectoryURL, on: device)
+        fs.playlistData[playlist] = original
+        let state = PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Favorites.m3u"], playlistDirectoryPath: recordedDirectory)
+        let service = fixture.makeService(fileSystem: fs)
+        let plan = try service.makePlan(podcastDirectoryPath: "Podcast", on: device,
+            managedFileURLs: [fixture.managedFile], subscriptions: [fixture.subscription], playlistState: state)
+        try service.execute(plan, subscriptions: [fixture.subscription], playlistState: state, playlistDirectoryPath: "lists")
+        if recordedDirectory == "lists" {
+            let expected = try M3UPlaylistEncoder().encode(fileURLs: [fixture.newManagedFile], relativeTo: device.playlistDirectoryURL, on: device)
+            #expect(fs.playlistData[playlist] == expected)
+        } else {
+            #expect(plan.playlistUpdates.isEmpty)
+            #expect(fs.playlistData[playlist] == original)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func migrationUpdatesOnlyOwnedPlaylistLinksAndRollsThemBackOnConfigFailure(failConfig: Bool) throws {
+        let fixture = MigrationFixture()
+        let playlist = fixture.device.playlistDirectoryURL.appendingPathComponent("Favorites.m3u")
+        let unrelated = fixture.device.playlistDirectoryURL.appendingPathComponent("User.m3u")
+        let fs = RecordingMigrationFileSystem(existingURLs: [fixture.managedFile, playlist, unrelated],
+                                              failsConfigurationWrite: failConfig)
+        let original = try M3UPlaylistEncoder().encode(fileURLs: [fixture.managedFile],
+            relativeTo: fixture.device.playlistDirectoryURL, on: fixture.device)
+        fs.playlistData = [playlist: original, unrelated: original]
+        let state = PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Favorites.m3u"], playlistDirectoryPath: "music")
+        let service = fixture.makeService(fileSystem: fs)
+        let plan = try service.makePlan(podcastDirectoryPath: "Podcast", on: fixture.device,
+            managedFileURLs: [fixture.managedFile], subscriptions: [fixture.subscription], playlistState: state)
+        #expect(plan.playlistUpdates.count == 1)
+        if failConfig {
+            #expect(throws: (any Error).self) {
+                try service.execute(plan, subscriptions: [fixture.subscription], playlistState: state)
+            }
+            #expect(fs.playlistData[playlist] == original)
+            #expect(fs.fileExists(at: fixture.managedFile))
+            #expect(!fs.fileExists(at: fixture.newManagedFile))
+        } else {
+            try service.execute(plan, subscriptions: [fixture.subscription], playlistState: state)
+            let expected = try M3UPlaylistEncoder().encode(fileURLs: [fixture.newManagedFile],
+                relativeTo: fixture.device.playlistDirectoryURL, on: fixture.device)
+            #expect(fs.playlistData[playlist] == expected)
+            #expect(fs.fileExists(at: fixture.newManagedFile))
+        }
+        #expect(fs.playlistData[unrelated] == original)
+    }
+
+    @Test(arguments: ["changed", "ownership", "write"])
+    func migrationRefusesStalePlaylistUpdatesAndRollsBackFailedWrites(failure: String) throws {
+        let fixture = MigrationFixture()
+        let playlist = fixture.device.playlistDirectoryURL.appendingPathComponent("Favorites.m3u")
+        let fs = RecordingMigrationFileSystem(existingURLs: [fixture.managedFile, playlist])
+        let original = try M3UPlaylistEncoder().encode(fileURLs: [fixture.managedFile],
+            relativeTo: fixture.device.playlistDirectoryURL, on: fixture.device)
+        fs.playlistData[playlist] = original
+        var state = PodcastPlaylistDeviceState(ownedDeviceFileNames: ["Favorites.m3u"], playlistDirectoryPath: "music")
+        let service = fixture.makeService(fileSystem: fs)
+        let plan = try service.makePlan(podcastDirectoryPath: "Podcast", on: fixture.device,
+            managedFileURLs: [fixture.managedFile], subscriptions: [fixture.subscription], playlistState: state)
+        if failure == "changed" { fs.playlistData[playlist] = original + Data("#edited\n".utf8) }
+        if failure == "ownership" { state.ownedDeviceFileNames = [] }
+        if failure == "write" { fs.failingPlaylistWrite = playlist }
+        #expect(throws: (any Error).self) {
+            try service.execute(plan, subscriptions: [fixture.subscription], playlistState: state)
+        }
+        #expect(fs.fileExists(at: fixture.managedFile))
+        #expect(!fs.fileExists(at: fixture.newManagedFile))
+        #expect(fs.writtenFiles.isEmpty)
+        if failure != "write" { #expect(fs.moves.isEmpty) }
+    }
+
     @Test
     func plansOnlyExactManagedFileMovesIntoMatchingPodcastFolders() throws {
         let fixture = MigrationFixture()
@@ -278,6 +357,8 @@ private final class RecordingMigrationFileSystem:
         let contents: String
     }
 
+    var playlistData: [URL: Data] = [:]
+    var failingPlaylistWrite: URL?
     private(set) var existingURLs: Set<URL>
     private(set) var moves: [Move] = []
     private(set) var writtenFiles: [WrittenFile] = []
@@ -293,6 +374,15 @@ private final class RecordingMigrationFileSystem:
         self.existingURLs = Set(existingURLs.map(\.standardizedFileURL))
         self.failsConfigurationWrite = failsConfigurationWrite
         self.failingMoveDestination = failingMoveDestination?.standardizedFileURL
+    }
+
+    func readData(at url: URL) throws -> Data {
+        try #require(playlistData[url.standardizedFileURL])
+    }
+
+    func writeData(_ data: Data, to url: URL) throws {
+        if url == failingPlaylistWrite { throw MigrationTestError.configurationWriteFailed }
+        playlistData[url.standardizedFileURL] = data
     }
 
     func fileExists(at url: URL) -> Bool {

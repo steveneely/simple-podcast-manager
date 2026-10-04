@@ -5,6 +5,23 @@ import Testing
 
 @MainActor
 struct PodcastPlaylistViewModelTests {
+    @Test
+    func deletedDeviceSnapshotIsRemovedEvenWithoutExplicitMembership() async throws {
+        var episode = makeEpisode(id: "device-file::old.mp3", title: "Old")
+        episode.enclosureURL = URL(fileURLWithPath: "/Volumes/TEST/music/old.mp3")
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(name: "Automatic", automaticRule: PodcastPlaylistAutomaticRule())
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [playlist], recentlyDownloadedEntries: [entry]))
+        let model = PodcastPlaylistViewModel(store: store)
+        await model.load()
+        let ids = model.episodeIDsByDeviceURL { $0.enclosureURL }
+        #expect(ids[episode.enclosureURL] == [entry.id])
+        try model.removeFromAllPlaylists(entryIDs: ids[episode.enclosureURL] ?? [])
+        #expect(model.library.recentlyDownloadedEntries.isEmpty)
+        #expect(store.library.recentlyDownloadedEntries.isEmpty)
+    }
+
     @Test(arguments: [false, true], [false, true])
     func uncheckingMembershipExcludesAutomaticReadditionAtomically(manuallyAdded: Bool, saveFails: Bool) async throws {
         let episode = makeEpisode(id: "included", title: "Included")

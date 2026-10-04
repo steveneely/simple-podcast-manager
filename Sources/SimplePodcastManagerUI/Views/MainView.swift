@@ -68,6 +68,7 @@ public struct MainView: View {
     @State private var selectedOtherAudioDeletionTargets: Set<URL> = []
     @State private var isShowingOtherAudioReview = false
     @State private var episodeStateLoadError: String?
+    @State private var settingsRestoreRevision = 0
     @State private var isRestoringAppData = false
     @State private var appDataMessage: String?
     @State private var opmlImportPreview: OPMLSubscriptionImportPreview?
@@ -236,6 +237,7 @@ public struct MainView: View {
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
                 settings: viewModel.settings,
+                restoreRevision: settingsRestoreRevision,
                 selectedDeviceName: deviceViewModel.selectedDevice?.name,
                 selectedDeviceRootURL: deviceViewModel.selectedDevice?.rootURL,
                 podcastDirectoryPath: selectedDevicePodcastDirectoryPath,
@@ -1129,7 +1131,7 @@ public struct MainView: View {
     @MainActor
     private func savePodcast(_ updatedDraft: PodcastDraft) async throws {
         if updatedDraft.id == nil {
-            let subscriptionID = try viewModel.addPodcast(from: updatedDraft)
+            let subscriptionID = try await viewModel.addPodcast(from: updatedDraft)
             refreshAddedSubscriptions(withIDs: [subscriptionID])
             return
         }
@@ -1648,6 +1650,7 @@ public struct MainView: View {
             do {
                 let previousBackupURL = try await appDataWorkflow.restore(from: backupURL)
                 episodeStateLoadError = nil
+                settingsRestoreRevision += 1
                 await refreshRestoredAppData()
                 appDataMessage = nil
                 showAppDataRestoreSuccess(previousBackupURL: previousBackupURL)
@@ -1839,15 +1842,10 @@ public struct MainView: View {
     }
 
     private func isPlaylistEpisodeOnDevice(_ episode: Episode) -> Bool {
-        episode.id.hasPrefix(Self.playlistDeviceEpisodeIDPrefix)
-            || deviceLibraryViewModel.file(for: episode) != nil
+        deviceLibraryViewModel.file(for: episode) != nil
     }
 
     private func playlistDeviceFileURL(for episode: Episode) -> URL? {
-        if episode.id.hasPrefix(Self.playlistDeviceEpisodeIDPrefix),
-           episode.enclosureURL.isFileURL {
-            return episode.enclosureURL
-        }
         return deviceLibraryViewModel.file(for: episode)
     }
 
@@ -1900,14 +1898,9 @@ public struct MainView: View {
     private func runSync() async {
         guard hasLoadedEpisodeState, !isRestoringAppData else { return }
         let syncingDeviceID = deviceViewModel.selectedDevice?.id
-        let playlistEpisodeIDsByDeviceURL = Dictionary(
-            podcastPlaylistViewModel.playlists.flatMap(\.entries).compactMap {
-                entry -> (URL, PodcastPlaylistEpisodeID)? in
-                guard let fileURL = deviceLibraryViewModel.file(for: entry.episode) else { return nil }
-                return (fileURL.standardizedFileURL, entry.id)
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
+        let playlistEpisodeIDsByDeviceURL = podcastPlaylistViewModel.episodeIDsByDeviceURL {
+            deviceLibraryViewModel.file(for: $0)
+        }
         let playlistProtectedCandidates = syncPlanViewModel.plan?
             .playlistProtectedCleanupCandidates ?? []
         let workflow = SyncWorkflow(
@@ -1924,6 +1917,10 @@ public struct MainView: View {
             deleteDownloadsAfterSync: isDeleteDownloadedAfterSyncEnabled
         )
 
+        if isEjectAfterSyncEnabled {
+            await deviceViewModel.refresh()
+        }
+        await refreshDeviceLibrary()
         if let result = syncExecutionViewModel.lastResult {
             let deletedTargetURLs = Set(result.deletedTargetURLs.map(\.standardizedFileURL))
             let deletedPlaylistProtectedCandidates = playlistProtectedCandidates.filter {
@@ -1935,8 +1932,8 @@ public struct MainView: View {
             let handledEntryIDs = Set(deletedPlaylistProtectedCandidates.compactMap {
                 PodcastPlaylistEpisodeID(episode: $0.episode)
             })
-            let removedPlaylistEpisodeIDs = Set(result.deletedTargetURLs.compactMap {
-                playlistEpisodeIDsByDeviceURL[$0.standardizedFileURL]
+            let removedPlaylistEpisodeIDs = Set(result.deletedTargetURLs.flatMap {
+                playlistEpisodeIDsByDeviceURL[$0.standardizedFileURL] ?? []
             }).subtracting(handledEntryIDs)
             try? podcastPlaylistViewModel.removeFromAllPlaylists(entryIDs: removedPlaylistEpisodeIDs)
         }
@@ -1954,10 +1951,7 @@ public struct MainView: View {
             }
         }
 
-        if isEjectAfterSyncEnabled {
-            await deviceViewModel.refresh()
-        }
-        await refreshDeviceLibrary()
+        rebuildSyncPlan()
     }
 
     private func openSyncDialog() {
@@ -2219,7 +2213,7 @@ public struct MainView: View {
             selectedFiles,
             on: deviceViewModel.selectedDevice
         )
-        selectedOtherAudioDeletionTargets = []
+        selectedOtherAudioDeletionTargets = selectedFiles.intersection(Set(deviceLibraryViewModel.otherAudioFiles))
     }
 
     private func pruneManualDeletionTargets() {
@@ -2261,15 +2255,10 @@ public struct MainView: View {
             if let migrationPlan {
                 updatedDevice = try devicePodcastDirectoryMigrationService.execute(
                     migrationPlan,
-                    subscriptions: viewModel.podcastSubscriptions
+                    subscriptions: viewModel.podcastSubscriptions,
+                    playlistState: podcastPlaylistViewModel.library.deviceStates[selectedDevice.id],
+                    playlistDirectoryPath: playlistDirectoryPath
                 )
-                if let playlistDirectoryPath, let migratedDevice = updatedDevice {
-                    updatedDevice = try devicePodcastConfigurationService.saveDirectoryPaths(
-                        podcastDirectoryPath: podcastDirectoryPath,
-                        playlistDirectoryPath: playlistDirectoryPath,
-                        on: migratedDevice
-                    )
-                }
             } else if let playlistDirectoryPath {
                 updatedDevice = try devicePodcastConfigurationService.saveDirectoryPaths(
                     podcastDirectoryPath: podcastDirectoryPath,
@@ -2335,7 +2324,8 @@ public struct MainView: View {
             podcastDirectoryPath: podcastDirectoryPath,
             on: selectedDevice,
             managedFileURLs: managedFileURLs,
-            subscriptions: viewModel.podcastSubscriptions
+            subscriptions: viewModel.podcastSubscriptions,
+            playlistState: podcastPlaylistViewModel.library.deviceStates[selectedDevice.id]
         )
     }
 

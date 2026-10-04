@@ -12,6 +12,10 @@ public final class RSSFeedParser: Sendable {
             throw FeedServiceError.invalidFeedData
         }
 
+        guard rssFeed.channel != nil else {
+            throw FeedServiceError.invalidFeedData
+        }
+
         return Self.makeParsedRSSFeed(from: rssFeed, sourceFeedURL: sourceFeedURL, subscriptionID: subscriptionID)
     }
 }

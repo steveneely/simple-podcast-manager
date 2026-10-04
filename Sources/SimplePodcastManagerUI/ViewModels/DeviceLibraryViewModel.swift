@@ -282,9 +282,16 @@ public final class DeviceLibraryViewModel {
     public func deleteOtherAudioFiles(_ fileURLs: Set<URL>, on device: DeviceInfo?) {
         guard let device else { return }
 
+        var deletedURLs: Set<URL> = []
+        defer {
+            otherAudioFiles.removeAll { deletedURLs.contains($0.standardizedFileURL) }
+            if otherAudioFiles.isEmpty {
+                hasOtherAudioAvailable = false
+                otherAudioReviewMessage = "No other audio found."
+            }
+        }
         do {
             let knownOtherAudioFiles = Set(otherAudioFiles.map(\.standardizedFileURL))
-            var deletedURLs: Set<URL> = []
 
             for standardizedURL in fileURLs.map(\.standardizedFileURL) {
                 guard knownOtherAudioFiles.contains(standardizedURL) else {
@@ -295,11 +302,6 @@ public final class DeviceLibraryViewModel {
                 deletedURLs.insert(standardizedURL)
             }
 
-            otherAudioFiles.removeAll { deletedURLs.contains($0.standardizedFileURL) }
-            if otherAudioFiles.isEmpty {
-                hasOtherAudioAvailable = false
-                otherAudioReviewMessage = "No other audio found."
-            }
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription

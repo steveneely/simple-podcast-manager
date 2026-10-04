@@ -34,6 +34,12 @@ struct SettingsDraft {
         self.savedAutomaticallyChecksForUpdates = automaticallyChecksForUpdates
     }
 
+    mutating func reload(from saved: SettingsDraft) {
+        let page = selectedPage
+        self = saved
+        selectedPage = page
+    }
+
     var hasChanges: Bool {
         settingsForSaving != savedSettings
             || podcastDirectoryPath != savedPodcastDirectoryPath

@@ -214,6 +214,15 @@ public final class PodcastPlaylistViewModel {
         try persist(updatedLibrary)
     }
 
+    func episodeIDsByDeviceURL(deviceFile: (Episode) -> URL?) -> [URL: Set<PodcastPlaylistEpisodeID>] {
+        var result: [URL: Set<PodcastPlaylistEpisodeID>] = [:]
+        for entry in playlists.flatMap(\.entries) + library.recentlyDownloadedEntries {
+            guard let url = deviceFile(entry.episode)?.standardizedFileURL else { continue }
+            result[url, default: []].insert(entry.id)
+        }
+        return result
+    }
+
     public func removeFromAllPlaylists(_ episode: Episode) throws {
         guard let entryID = PodcastPlaylistEpisodeID(episode: episode) else { return }
         try removeFromAllPlaylists(entryIDs: [entryID])

@@ -6,6 +6,65 @@ import Testing
 @MainActor
 struct DeviceLibraryViewModelTests {
     @Test
+    func partialDeletionRemovesSuccessfulFilesFromReviewButRetainsFailures() async {
+        let root = URL(fileURLWithPath: "/Volumes/TEST")
+        let device = DeviceInfo(name: "Test", rootURL: root, podcastDirectoryURL: root.appendingPathComponent("music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent("Other")
+        let files = [directory.appendingPathComponent("a.mp3"), directory.appendingPathComponent("b.mp3")]
+        let fs = CapturingFileSystem(existingFiles: Set(files))
+        fs.failAfterRemovalCount = 1
+        let model = DeviceLibraryViewModel(deviceLibrary: CountingDeviceLibrary(
+            directories: [directory], filesByDirectory: [directory: files]), fileSystem: fs)
+        await model.refresh(device: device, subscriptions: [])
+        await model.reviewOtherAudio(on: device)
+        model.deleteOtherAudioFiles(Set(files), on: device)
+        #expect(fs.removedItems.count == 1)
+        #expect(model.otherAudioFiles.count == 1)
+        #expect(Set(model.otherAudioFiles).isDisjoint(with: fs.removedItems))
+        #expect(model.lastErrorMessage != nil)
+    }
+
+    @Test
+    func failedOtherAudioDeletionRetainsRetryableFileAndReportsError() async {
+        let root = URL(fileURLWithPath: "/Volumes/TEST")
+        let device = DeviceInfo(name: "Test", rootURL: root, podcastDirectoryURL: root.appendingPathComponent("music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent("Other")
+        let file = directory.appendingPathComponent("audio.mp3")
+        let fs = CapturingFileSystem(existingFiles: [file])
+        fs.failsRemoval = true
+        let model = DeviceLibraryViewModel(deviceLibrary: CountingDeviceLibrary(
+            directories: [directory], filesByDirectory: [directory: [file]]), fileSystem: fs)
+        await model.refresh(device: device, subscriptions: [])
+        await model.reviewOtherAudio(on: device)
+        model.deleteOtherAudioFiles([file], on: device)
+        #expect(model.otherAudioFiles == [file])
+        #expect(model.lastErrorMessage != nil)
+        #expect(fs.removedItems.isEmpty)
+        fs.failsRemoval = false
+        model.deleteOtherAudioFiles([file], on: device)
+        #expect(model.otherAudioFiles.isEmpty)
+        #expect(model.lastErrorMessage == nil)
+    }
+
+    @Test
+    func deviceOnlyEpisodePresenceRequiresCurrentInventory() async throws {
+        let podcast = PodcastSubscription(title: "Test", rssURL: URL(string: "https://example.com/rss")!)
+        let root = URL(fileURLWithPath: "/Volumes/TEST")
+        let device = DeviceInfo(name: "Test", rootURL: root, podcastDirectoryURL: root.appendingPathComponent("music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent("Test")
+        let file = directory.appendingPathComponent("2026.08.30-Episode-(Test).mp3")
+        let episode = Episode(id: "device-file::" + file.lastPathComponent, subscriptionID: podcast.id,
+            podcastTitle: "Test", title: "Episode", publicationDate: try #require(EpisodeFileName.parsedMetadata(from: file)?.publicationDate),
+            enclosureURL: file, sourceFeedURL: podcast.rssURL)
+        let model = DeviceLibraryViewModel(deviceLibrary: CountingDeviceLibrary(
+            directories: [directory], filesByDirectory: [directory: [file]]))
+        await model.refresh(device: device, subscriptions: [podcast])
+        #expect(model.file(for: episode) == file)
+        await model.refresh(device: nil, subscriptions: [podcast])
+        #expect(model.file(for: episode) == nil)
+    }
+
+    @Test
     func deletingRemovedPodcastAudioDeletesOnlyTheReviewedSelection() async {
         let podcast = PodcastSubscription(title: "Removed", rssURL: URL(string: "https://example.com/removed")!)
         let root = URL(fileURLWithPath: "/Volumes/TEST")
@@ -916,6 +975,8 @@ private final class ThreadCapturingDeviceLibrary: DeviceLibraryInspecting, @unch
 
 private final class CapturingFileSystem: FileSystemOperating, @unchecked Sendable {
     private let existingFiles: Set<URL>
+    var failsRemoval = false
+    var failAfterRemovalCount: Int?
     private(set) var removedItems: [URL] = []
 
     init(existingFiles: Set<URL> = []) {
@@ -935,6 +996,7 @@ private final class CapturingFileSystem: FileSystemOperating, @unchecked Sendabl
     func copyItem(at sourceURL: URL, to destinationURL: URL) throws {}
 
     func removeItem(at url: URL) throws {
+        if failsRemoval || removedItems.count == failAfterRemovalCount { throw CocoaError(.fileWriteVolumeReadOnly) }
         removedItems.append(url.standardizedFileURL)
     }
 

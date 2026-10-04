@@ -3,6 +3,22 @@ import Testing
 @testable import SimplePodcastManagerCore
 
 struct RSSFeedParserTests {
+    @Test(arguments: ["<html>Not an RSS document</html>", "<rss version=\"2.0\"></rss>", "garbage"])
+    func rejectsDocumentsWithoutAnRSSChannel(document: String) {
+        #expect(throws: FeedServiceError.invalidFeedData) {
+            try RSSFeedParser().parse(data: Data(document.utf8),
+                sourceFeedURL: URL(string: "https://example.com/feed.xml")!, subscriptionID: nil)
+        }
+    }
+
+    @Test
+    func acceptsAValidEmptyPodcast() throws {
+        let parsed = try RSSFeedParser().parse(data: Data("<rss version=\"2.0\"><channel><title>Empty</title></channel></rss>".utf8),
+            sourceFeedURL: URL(string: "https://example.com/feed.xml")!, subscriptionID: nil)
+        #expect(parsed.title == "Empty")
+        #expect(parsed.episodes.isEmpty)
+    }
+
     @Test
     func parsesRSSAfterLongXMLPreamble() throws {
         let preamble = """

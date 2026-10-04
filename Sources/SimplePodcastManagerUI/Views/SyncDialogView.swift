@@ -239,7 +239,7 @@ struct SyncDialogView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(candidate.episodeTitle)
                                         .lineLimit(1)
-                                    Text("\(candidate.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
+                                    Text("\(candidate.podcastTitle) · \(SyncPresentation.formattedPublicationDay(candidate.publicationDate))")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
@@ -292,7 +292,7 @@ struct SyncDialogView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(candidate.episode.title)
                                     .lineLimit(1)
-                                Text("\(candidate.episode.podcastTitle) · \(candidate.publicationDate.formatted(date: .abbreviated, time: .omitted))")
+                                Text("\(candidate.episode.podcastTitle) · \(SyncPresentation.formattedPublicationDay(candidate.publicationDate))")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
@@ -462,6 +462,16 @@ struct SyncProgressView: View {
 }
 
 enum SyncPresentation {
+    // Filename dates represent a UTC calendar day, not an instant in the user's zone.
+    static func formattedPublicationDay(_ date: Date, locale: Locale = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
     static func deletionNoticeTitle(selectedCleanupDeletionCount: Int) -> String {
         selectedCleanupDeletionCount > 0
             ? "Episodes Selected for Cleanup"

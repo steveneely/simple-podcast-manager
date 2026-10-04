@@ -150,6 +150,14 @@ enum PodcastPlaylistPresentationBuilder {
         let subscribedPodcastIDs = Set(subscriptions.map(\.id))
         var availableEpisodeIDs = Set(availableEpisodes.compactMap(PodcastPlaylistEpisodeID.init))
         for snapshot in downloadedEpisodeSnapshots {
+            // A mounted inventory is authoritative for device-only snapshots. Keep
+            // offline history, but never resurrect a file known to be absent.
+            if snapshot.episode.enclosureURL.isFileURL, let managedInventory {
+                let stem = snapshot.episode.enclosureURL.deletingPathExtension().lastPathComponent
+                let files = subscriptions.first(where: { $0.id == snapshot.id.subscriptionID })
+                    .map { managedInventory.files(for: $0) } ?? []
+                guard files.contains(where: { $0.deletingPathExtension().lastPathComponent == stem }) else { continue }
+            }
             let snapshotKey = PodcastPlaylistAutomaticExclusion(episode: snapshot.episode)
             let isSelectedForRemoval = snapshotKey.map(unavailableEpisodeKeys.contains) ?? false
             guard subscribedPodcastIDs.contains(snapshot.id.subscriptionID),

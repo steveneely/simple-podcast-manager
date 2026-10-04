@@ -1,7 +1,16 @@
+import Foundation
+import SimplePodcastManagerCore
 import Testing
 @testable import SimplePodcastManagerUI
 
 struct SyncPresentationTests {
+    @Test
+    func filenamePublicationDayIsDisplayedWithoutLocalTimezoneShift() throws {
+        let file = URL(fileURLWithPath: "/Volumes/PLAYER/music/Podcast/2026.08.30-Episode-(Podcast).mp3")
+        let date = try #require(EpisodeFileName.parsedMetadata(from: file)?.publicationDate)
+        #expect(SyncPresentation.formattedPublicationDay(date, locale: Locale(identifier: "en_US")) == "Aug 30, 2026")
+    }
+
     @Test
     func cleanupNoticeNamesTheConfiguredPerPodcastLimit() {
         let notice = SyncPresentation.deletionNotice(

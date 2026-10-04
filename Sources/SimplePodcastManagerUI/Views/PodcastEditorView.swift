@@ -7,6 +7,7 @@ public struct PodcastEditorView: View {
     @State private var draft: PodcastDraft
     @State private var errorMessage: String?
     @State private var isSaving = false
+    @State private var saveTask: Task<Void, Never>?
     @State private var addMethod: AddMethod
     @State private var selectedSearchResult: PodcastSearchResult?
     @State private var searchViewModel: PodcastSearchViewModel
@@ -91,6 +92,7 @@ public struct PodcastEditorView: View {
                 Spacer()
 
                 Button("Cancel") {
+                    saveTask?.cancel()
                     dismiss()
                 }
 
@@ -106,6 +108,7 @@ public struct PodcastEditorView: View {
             minWidth: isCreatingPodcast ? 560 : 460,
             minHeight: isCreatingPodcast ? 520 : nil
         )
+        .onDisappear { saveTask?.cancel() }
         .onAppear {
             draft = initialDraft
             rssFeedURLString = initialDraft.rssURLString
@@ -191,13 +194,16 @@ public struct PodcastEditorView: View {
     }
 
     private func save() {
-        Task {
-            isSaving = true
+        guard !isSaving else { return }
+        isSaving = true
+        saveTask = Task {
             defer { isSaving = false }
 
             do {
                 try await onSave(draft)
                 dismiss()
+            } catch is CancellationError {
+                return
             } catch {
                 errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }

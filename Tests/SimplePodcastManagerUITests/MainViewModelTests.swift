@@ -6,6 +6,19 @@ import Testing
 @MainActor
 struct MainViewModelTests {
     @Test
+    func cancelledPodcastValidationCannotAddAnEntryLater() async {
+        let store = InMemoryConfigurationStore()
+        let url = "https://example.com/rss"
+        let model = MainViewModel(store: store,
+            feedResolver: MockFeedResolver(summariesByURL: [url: FeedSummary(subscriptionID: UUID(), title: "Valid")]),
+            feedCacheStore: InMemoryFeedCacheStore())
+        let task = Task { try await model.addPodcast(from: PodcastDraft(rssURLString: url)) }
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(store.configuration.podcastSubscriptions.isEmpty)
+    }
+
+    @Test
     func loadReflectsStoredConfiguration() async throws {
         let store = InMemoryConfigurationStore(
             configuration: AppConfiguration(
@@ -43,6 +56,7 @@ struct MainViewModelTests {
             store: store,
             feedResolver: MockFeedResolver(
                 summariesByURL: [
+                    "https://relay.fm/connected/feed": FeedSummary(subscriptionID: UUID(), title: "Initial Podcast"),
                     "https://relay.fm/connected/updated-feed": FeedSummary(
                         subscriptionID: UUID(),
                         title: "Connected",
@@ -53,7 +67,7 @@ struct MainViewModelTests {
             )
         )
 
-        try viewModel.addPodcast(
+        try await viewModel.addPodcast(
             from: PodcastDraft(
                 rssURLString: "https://relay.fm/connected/feed"
             )
@@ -61,7 +75,7 @@ struct MainViewModelTests {
 
         #expect(viewModel.podcastSubscriptions.count == 1)
         #expect(store.configuration.podcastSubscriptions.count == 1)
-        #expect(viewModel.podcastSubscriptions.first?.title == "relay.fm")
+        #expect(viewModel.podcastSubscriptions.first?.title == "Initial Podcast")
 
         let existingSubscription = try #require(viewModel.podcastSubscriptions.first)
         try await viewModel.updatePodcast(
@@ -115,25 +129,25 @@ struct MainViewModelTests {
     }
 
     @Test
-    func addPodcastPersistsBeforeResolvingRSSMetadata() throws {
+    func invalidPodcastIsNotPersistedAndValidMetadataIsCached() async throws {
         let store = InMemoryConfigurationStore()
         let cacheStore = InMemoryFeedCacheStore()
-        let viewModel = MainViewModel(
-            store: store,
-            feedResolver: MockFeedResolver(summariesByURL: [:]),
-            feedCacheStore: cacheStore
-        )
-
-        let subscriptionID = try viewModel.addPodcast(
-            from: PodcastDraft(rssURLString: "https://www.example.com/podcast.xml")
-        )
-
-        let subscription = try #require(viewModel.podcastSubscriptions.first)
-        #expect(subscription.id == subscriptionID)
-        #expect(subscription.title == "example.com")
-        #expect(subscription.rssURL.absoluteString == "https://www.example.com/podcast.xml")
-        #expect(store.configuration.podcastSubscriptions == [subscription])
+        let url = "https://example.com/valid.xml"
+        let viewModel = MainViewModel(store: store,
+            feedResolver: MockFeedResolver(summariesByURL: [url: FeedSummary(subscriptionID: UUID(), title: "Valid")]),
+            feedCacheStore: cacheStore)
+        await #expect(throws: FeedServiceError.invalidFeedData) {
+            try await viewModel.addPodcast(from: PodcastDraft(rssURLString: "https://example.com/invalid.xml"))
+        }
+        #expect(store.configuration.podcastSubscriptions.isEmpty)
+        #expect(viewModel.podcastSubscriptions.isEmpty)
         #expect(cacheStore.savedFeeds.isEmpty)
+        let id = try await viewModel.addPodcast(from: PodcastDraft(rssURLString: url))
+        let subscription = try #require(viewModel.podcastSubscriptions.first)
+        #expect(subscription.id == id)
+        #expect(subscription.title == "Valid")
+        #expect(store.configuration.podcastSubscriptions == [subscription])
+        #expect(cacheStore.savedFeeds.count == 1)
     }
 
     @Test
@@ -213,8 +227,8 @@ struct MainViewModelTests {
         let viewModel = MainViewModel(store: store)
         await viewModel.load()
 
-        #expect(throws: MainViewModelError.duplicateSubscription) {
-            try viewModel.addPodcast(
+        await #expect(throws: MainViewModelError.duplicateSubscription) {
+            try await viewModel.addPodcast(
                 from: PodcastDraft(rssURLString: "http://feeds.example.com:80/show#episodes")
             )
         }
@@ -437,7 +451,7 @@ private struct MockFeedResolver: FeedResolving {
 
     func resolveFeed(for rssURL: URL, subscriptionID: UUID) async throws -> CachedFeed {
         guard let summary = summariesByURL[rssURL.absoluteString] else {
-            throw FeedServiceError.invalidResponse
+            throw FeedServiceError.invalidFeedData
         }
 
         return CachedFeed(

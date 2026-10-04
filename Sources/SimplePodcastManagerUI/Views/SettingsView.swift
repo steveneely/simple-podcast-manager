@@ -14,6 +14,8 @@ public struct SettingsView: View {
     @State private var hasSettledAppearancePreference = false
     private let selectedDeviceName: String?
     private let selectedDeviceRootURL: URL?
+    private let restoreRevision: Int
+    private let savedDraft: SettingsDraft
     private let savedAppearancePreference: AppearancePreference
     private let shouldConfirmPodcastDirectoryCreation: (String?) throws -> Bool
     private let shouldConfirmPlaylistDirectoryCreation: (String?) throws -> Bool
@@ -36,6 +38,7 @@ public struct SettingsView: View {
 
     public init(
         settings: AppSettings,
+        restoreRevision: Int = 0,
         selectedDeviceName: String? = nil,
         selectedDeviceRootURL: URL? = nil,
         podcastDirectoryPath: String? = nil,
@@ -51,12 +54,15 @@ public struct SettingsView: View {
         canRestoreAppData: Bool = true,
         onRestoreAppData: @escaping () -> Void = {}
     ) {
-        self._draft = State(initialValue: SettingsDraft(
+        let savedDraft = SettingsDraft(
             settings: settings,
             podcastDirectoryPath: podcastDirectoryPath,
             playlistDirectoryPath: playlistDirectoryPath,
             automaticallyChecksForUpdates: automaticallyChecksForUpdates
-        ))
+        )
+        self._draft = State(initialValue: savedDraft)
+        self.savedDraft = savedDraft
+        self.restoreRevision = restoreRevision
         self._errorMessage = State(initialValue: nil)
         self.selectedDeviceName = selectedDeviceName
         self.selectedDeviceRootURL = selectedDeviceRootURL
@@ -174,6 +180,11 @@ public struct SettingsView: View {
                     }
                 )
             }
+        }
+        .onChange(of: restoreRevision) { _, _ in
+            draft.reload(from: savedDraft)
+            pendingSave = nil
+            errorMessage = nil
         }
         .onChange(of: draft.settings.appearancePreference) { _, preference in
             onAppearancePreferencePreview(preference)
@@ -635,8 +646,13 @@ private struct PodcastDirectoryMigrationReviewView: View {
                 .fontWeight(.semibold)
 
             Text(
-                "These \(plan.items.count) app-managed podcast file\(plan.items.count == 1 ? "" : "s") are in \"\(sourceFolderName)\". Move them to \"\(destinationFolderName)\"?"
+                "\(plan.items.count == 1 ? "This 1 app-managed podcast file is" : "These \(plan.items.count) app-managed podcast files are") in \"\(sourceFolderName)\". Move \(plan.items.count == 1 ? "it" : "them") to \"\(destinationFolderName)\"?"
             )
+
+            if !plan.playlistUpdates.isEmpty {
+                Text("\(plan.playlistUpdates.count) app-managed playlist\(plan.playlistUpdates.count == 1 ? "" : "s") will be updated to use the new folder.")
+                    .font(.callout)
+            }
 
             List(relativePaths, id: \.self) { path in
                 Text(path)

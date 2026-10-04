@@ -10,22 +10,31 @@ public struct DevicePodcastDirectoryMigrationItem: Equatable, Sendable {
     }
 }
 
+public struct DevicePodcastDirectoryPlaylistUpdate: Equatable, Sendable {
+    public let url: URL
+    public let originalData: Data
+    public let updatedData: Data
+}
+
 public struct DevicePodcastDirectoryMigrationPlan: Equatable, Sendable {
     public var currentDevice: DeviceInfo
     public var updatedDevice: DeviceInfo
     public var podcastDirectoryPath: String
     public var items: [DevicePodcastDirectoryMigrationItem]
+    public var playlistUpdates: [DevicePodcastDirectoryPlaylistUpdate]
 
     public init(
         currentDevice: DeviceInfo,
         updatedDevice: DeviceInfo,
         podcastDirectoryPath: String,
-        items: [DevicePodcastDirectoryMigrationItem]
+        items: [DevicePodcastDirectoryMigrationItem],
+        playlistUpdates: [DevicePodcastDirectoryPlaylistUpdate] = []
     ) {
         self.currentDevice = currentDevice
         self.updatedDevice = updatedDevice
         self.podcastDirectoryPath = podcastDirectoryPath
         self.items = items
+        self.playlistUpdates = playlistUpdates
     }
 }
 
@@ -48,7 +57,8 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
         podcastDirectoryPath: String,
         on device: DeviceInfo,
         managedFileURLs: [URL],
-        subscriptions: [PodcastSubscription]
+        subscriptions: [PodcastSubscription],
+        playlistState: PodcastPlaylistDeviceState? = nil
     ) throws -> DevicePodcastDirectoryMigrationPlan {
         let configuration = try DevicePodcastConfiguration(podcastDirectoryPath: podcastDirectoryPath)
         let updatedDevice = DeviceInfo(
@@ -87,14 +97,17 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
             currentDevice: device,
             updatedDevice: updatedDevice,
             podcastDirectoryPath: configuration.podcastDirectoryPath,
-            items: items
+            items: items,
+            playlistUpdates: try makePlaylistUpdates(items: items, on: device, playlistState: playlistState)
         )
     }
 
     @discardableResult
     public func execute(
         _ plan: DevicePodcastDirectoryMigrationPlan,
-        subscriptions: [PodcastSubscription]
+        subscriptions: [PodcastSubscription],
+        playlistState: PodcastPlaylistDeviceState? = nil,
+        playlistDirectoryPath: String? = nil
     ) throws -> DeviceInfo {
         try validateMigrationDevices(
             currentDevice: plan.currentDevice,
@@ -130,6 +143,14 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
             }
         }
 
+        // Rebuild from current ownership and bytes; never trust a stale reviewed write.
+        let expectedUpdates = try makePlaylistUpdates(
+            items: plan.items, on: plan.currentDevice, playlistState: playlistState
+        )
+        guard expectedUpdates == plan.playlistUpdates else {
+            throw DevicePodcastDirectoryMigrationError.invalidPlan
+        }
+        var completedPlaylistUpdates: [DevicePodcastDirectoryPlaylistUpdate] = []
         var completedItems: [DevicePodcastDirectoryMigrationItem] = []
         do {
             for item in plan.items {
@@ -138,22 +159,87 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
                 completedItems.append(item)
             }
 
-            let updatedDevice = try configurationService.savePodcastDirectoryPath(
-                plan.podcastDirectoryPath,
-                on: plan.currentDevice
-            )
+            for update in plan.playlistUpdates {
+                try validatePlaylistTarget(update.url, on: plan.currentDevice)
+                guard try fileSystem.readData(at: update.url) == update.originalData else {
+                    throw DevicePodcastDirectoryMigrationError.invalidPlan
+                }
+                try fileSystem.writeData(update.updatedData, to: update.url)
+                completedPlaylistUpdates.append(update)
+            }
+            let updatedDevice: DeviceInfo
+            if let playlistDirectoryPath {
+                updatedDevice = try configurationService.saveDirectoryPaths(
+                    podcastDirectoryPath: plan.podcastDirectoryPath,
+                    playlistDirectoryPath: playlistDirectoryPath,
+                    on: plan.currentDevice
+                )
+            } else {
+                updatedDevice = try configurationService.savePodcastDirectoryPath(
+                    plan.podcastDirectoryPath, on: plan.currentDevice
+                )
+            }
             cleanupEmptySourceDirectories(
                 afterMoving: plan.items,
                 on: plan.currentDevice
             )
             return updatedDevice
         } catch {
-            do {
-                try rollback(completedItems)
-            } catch {
+            var rollbackFailed = false
+            for update in completedPlaylistUpdates.reversed() {
+                do {
+                    try validatePlaylistTarget(update.url, on: plan.currentDevice)
+                    try fileSystem.writeData(update.originalData, to: update.url)
+                } catch { rollbackFailed = true }
+            }
+            do { try rollback(completedItems) } catch { rollbackFailed = true }
+            if rollbackFailed {
                 throw DevicePodcastDirectoryMigrationError.rollbackFailed
             }
             throw error
+        }
+    }
+
+    private func validatePlaylistTarget(_ url: URL, on device: DeviceInfo) throws {
+        try safetyValidator.validatePodcastPlaylistTarget(url, on: device)
+        guard url.resolvingSymlinksInPath().standardizedFileURL == url.standardizedFileURL else {
+            throw DevicePodcastDirectoryMigrationError.invalidPlaylist(url)
+        }
+    }
+
+    private func makePlaylistUpdates(
+        items: [DevicePodcastDirectoryMigrationItem],
+        on device: DeviceInfo,
+        playlistState: PodcastPlaylistDeviceState?
+    ) throws -> [DevicePodcastDirectoryPlaylistUpdate] {
+        guard !items.isEmpty, let playlistState,
+              let ownedDirectoryPath = playlistState.playlistDirectoryPath,
+              device.rootURL.appendingPathComponent(ownedDirectoryPath, isDirectory: true).standardizedFileURL
+                == device.playlistDirectoryURL.standardizedFileURL else { return [] }
+        let encoder = M3UPlaylistEncoder()
+        var replacements: [String: String] = [:]
+        for item in items {
+            func entry(_ url: URL) throws -> String {
+                let data = try encoder.encode(fileURLs: [url], relativeTo: device.playlistDirectoryURL, on: device)
+                return String(decoding: data, as: UTF8.self).components(separatedBy: "\n")[1]
+            }
+            replacements[try entry(item.sourceURL)] = try entry(item.destinationURL)
+        }
+        return try playlistState.ownedDeviceFileNames.sorted().compactMap { name in
+            guard name == URL(fileURLWithPath: name).lastPathComponent else {
+                throw DevicePodcastDirectoryMigrationError.invalidPlan
+            }
+            let url = device.playlistDirectoryURL.appendingPathComponent(name)
+            try validatePlaylistTarget(url, on: device)
+            guard fileSystem.fileExists(at: url) else { return nil }
+            let original = try fileSystem.readData(at: url)
+            guard let text = String(data: original, encoding: .utf8), text.hasPrefix("#EXTM3U\n") else {
+                throw DevicePodcastDirectoryMigrationError.invalidPlaylist(url)
+            }
+            let updated = text.components(separatedBy: "\n").map { replacements[$0] ?? $0 }.joined(separator: "\n")
+            let data = Data(updated.utf8)
+            guard data != original else { return nil }
+            return DevicePodcastDirectoryPlaylistUpdate(url: url, originalData: original, updatedData: data)
         }
     }
 
@@ -268,6 +354,7 @@ public struct DevicePodcastDirectoryMigrationService: Sendable {
 
 public enum DevicePodcastDirectoryMigrationError: Error, Equatable, LocalizedError, Sendable {
     case invalidPlan
+    case invalidPlaylist(URL)
     case fileIsNotAppManaged(URL)
     case sourceFileMissing(URL)
     case destinationAlreadyExists(URL)
@@ -275,6 +362,8 @@ public enum DevicePodcastDirectoryMigrationError: Error, Equatable, LocalizedErr
 
     public var errorDescription: String? {
         switch self {
+        case .invalidPlaylist(let url):
+            return "The playlist \"\(url.lastPathComponent)\" could not be updated safely. No files were moved."
         case .invalidPlan:
             return "The podcast folder migration plan is no longer valid. No files were moved."
         case .fileIsNotAppManaged(let url):
@@ -290,6 +379,8 @@ public enum DevicePodcastDirectoryMigrationError: Error, Equatable, LocalizedErr
 }
 
 public protocol DevicePodcastDirectoryMigrationFileSystem: Sendable {
+    func readData(at url: URL) throws -> Data
+    func writeData(_ data: Data, to url: URL) throws
     func fileExists(at url: URL) -> Bool
     func createDirectory(at url: URL) throws
     func moveItem(at sourceURL: URL, to destinationURL: URL) throws
@@ -299,6 +390,12 @@ public protocol DevicePodcastDirectoryMigrationFileSystem: Sendable {
 
 public struct LocalDevicePodcastDirectoryMigrationFileSystem: DevicePodcastDirectoryMigrationFileSystem {
     public init() {}
+
+    public func readData(at url: URL) throws -> Data { try Data(contentsOf: url) }
+
+    public func writeData(_ data: Data, to url: URL) throws {
+        try data.write(to: url, options: .atomic)
+    }
 
     public func fileExists(at url: URL) -> Bool {
         FileManager.default.fileExists(atPath: url.path)

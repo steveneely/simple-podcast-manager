@@ -5,6 +5,25 @@ import Testing
 
 struct PodcastPlaylistPresentationViewModelTests {
     @Test
+    func missingDeviceOnlySnapshotCannotReappearAfterCleanup() throws {
+        let subscription = PodcastSubscription(title: "Example Podcast", rssURL: URL(string: "https://example.com/rss")!)
+        let device = DeviceInfo(name: "Player", rootURL: URL(fileURLWithPath: "/Volumes/PLAYER"),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/PLAYER/music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent(subscription.title)
+        let file = directory.appendingPathComponent("2026.09.01-Old-(Example Podcast).mp3")
+        var episode = makeEpisode(id: "device-file::" + file.lastPathComponent, title: "Old", day: 1, subscription: subscription)
+        episode.enclosureURL = file
+        let snapshot = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(name: "Automatic", automaticRule: PodcastPlaylistAutomaticRule())
+        let inventory = ManagedDeviceLibraryInventory(device: device, subscriptions: [subscription],
+            managedDirectoryURLsBySubscriptionID: [subscription.id: directory], filesBySubscriptionID: [:])
+        let presentation = PodcastPlaylistPresentationBuilder.build(playlists: [playlist], subscriptions: [subscription],
+            episodes: [], preparedEpisodeIDs: [], recentlyDownloadedEntries: [snapshot], managedInventory: inventory,
+            plannedRemovalURLs: [], replacementTargets: [])
+        #expect(presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+    }
+
+    @Test
     func builderResolvesPreparedAndDeviceEpisodesOutsideTheRenderPath() throws {
         let subscription = PodcastSubscription(
             title: "Example Podcast",

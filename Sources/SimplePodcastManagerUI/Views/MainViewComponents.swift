@@ -961,6 +961,13 @@ struct OtherAudioReviewView: View {
             .background(Color.blue.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Deletion failed: \(errorMessage)")
+            }
+
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(files, id: \.path) { fileURL in

@@ -14,9 +14,9 @@ After the first install, enable automatic updates in Settings or use `Simple Pod
 
 ## What It Does
 
-- Find podcasts by title or creator, add them with RSS feed URLs, or import subscriptions from an OPML file—a standard format for transferring lists of podcast RSS feed URLs between apps.
-- Download episodes manually or automatically after feed refreshes, write player-friendly MP3 metadata with a genre that defaults to `Podcast` and can be customized or omitted, add podcast artwork, and convert non-MP3 audio with a separately installed [FFmpeg](https://www.ffmpeg.org/download.html) executable when needed.
-- Create playlists with manually ordered episodes or automatic additions from selected podcasts, then sync M3U files to a configurable device playlist folder. See [Playlists](docs/USER_MANUAL.md#playlists).
+- Find podcasts by title or creator, add RSS feed URLs, or import subscriptions from another app using OPML.
+- Download episodes manually or automatically, with podcast artwork and player-friendly MP3 tags. Non-MP3 audio requires a separately installed [FFmpeg](https://www.ffmpeg.org/download.html) executable.
+- Create playlists with manual ordering or automatic additions, then sync them to your player. See [Playlists](docs/USER_MANUAL.md#playlists).
 - Review every copy, deletion, and playlist update before sync and confirm the complete plan will fit.
 - Optionally suggest app-managed episodes beyond a chosen per-podcast limit, with per-episode review before deletion.
 - Remember download and removal history.

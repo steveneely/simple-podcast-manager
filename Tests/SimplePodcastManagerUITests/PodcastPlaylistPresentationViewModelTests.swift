@@ -4,6 +4,210 @@ import Testing
 @testable import SimplePodcastManagerUI
 
 struct PodcastPlaylistPresentationViewModelTests {
+    @Test @MainActor
+    func identicalRefreshesShareWorkAndPlaylistEditsReuseAvailability() async throws {
+        let subscription = PodcastSubscription(title: "Example Podcast", rssURL: URL(string: "https://example.com/rss")!)
+        let episode = makeEpisode(id: "episode", title: "Episode", day: 1, subscription: subscription)
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let input = PodcastPlaylistAvailabilityInput(
+            subscriptions: [subscription], episodes: [episode], preparedEpisodeIDs: [entry.id],
+            recentlyDownloadedEntries: [], managedInventory: nil, plannedRemovalURLs: [], replacementTargets: []
+        )
+        var playlist = try PodcastPlaylist(name: "Automatic", automaticRule: PodcastPlaylistAutomaticRule(
+            source: .selectedPodcasts([subscription.id])))
+        let counter = PlaylistAvailabilityCounter()
+        let model = PodcastPlaylistPresentationViewModel(resolveAvailableEpisodes: counter.resolve)
+        var obsoleteCallbacks = 0
+        var latestCallbacks = 0
+        let first = refresh(model, input: input, playlists: [playlist]) { _ in obsoleteCallbacks += 1 }
+        let duplicate = refresh(model, input: input, playlists: [playlist]) { _ in latestCallbacks += 1 }
+        await first.value
+        await duplicate.value
+        #expect(counter.count == 1)
+        #expect(obsoleteCallbacks == 0)
+        #expect(latestCallbacks == 1)
+        #expect(model.presentation.entriesByPlaylistID[playlist.id]?.automatic == [entry])
+
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(counter.count == 1)
+        playlist.automaticExclusions.insert(try #require(PodcastPlaylistAutomaticExclusion(episode: episode)))
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(counter.count == 1)
+        #expect(model.presentation.entriesByPlaylistID[playlist.id]?.all.isEmpty == true)
+
+        playlist.automaticExclusions = []
+        playlist.entries = [entry]
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(counter.count == 1)
+        #expect(model.presentation.entriesByPlaylistID[playlist.id]?.explicit == [entry])
+        #expect(model.presentation.entriesByPlaylistID[playlist.id]?.automatic.isEmpty == true)
+
+        playlist.entries = []
+        playlist.automaticRule = nil
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(counter.count == 1)
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+    }
+
+    @Test @MainActor
+    func changedAvailabilityAndSupersededRefreshesCannotKeepStaleEntries() async throws {
+        let subscription = PodcastSubscription(title: "Example Podcast", rssURL: URL(string: "https://example.com/rss")!)
+        let episode = makeEpisode(id: "episode", title: "Episode", day: 1, subscription: subscription)
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(name: "Automatic", automaticRule: PodcastPlaylistAutomaticRule(
+            source: .selectedPodcasts([subscription.id])))
+        let device = DeviceInfo(name: "Player", rootURL: URL(fileURLWithPath: "/Volumes/TEST"),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST/music"))
+        let directory = device.podcastDirectoryURL.appendingPathComponent(subscription.title)
+        let file = directory.appendingPathComponent(EpisodeFileName.fileName(for: episode, fileExtension: "mp3"))
+        let counter = PlaylistAvailabilityCounter()
+        let model = PodcastPlaylistPresentationViewModel(resolveAvailableEpisodes: counter.resolve)
+        var input = PodcastPlaylistAvailabilityInput(
+            subscriptions: [subscription], episodes: [episode], preparedEpisodeIDs: [entry.id],
+            recentlyDownloadedEntries: [], managedInventory: nil, plannedRemovalURLs: [], replacementTargets: []
+        )
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 1)
+
+        input.preparedEpisodeIDs = []
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+        #expect(counter.count == 2)
+
+        input.recentlyDownloadedEntries = [entry]
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 1)
+        #expect(counter.count == 3)
+
+        input.managedInventory = ManagedDeviceLibraryInventory(device: device, subscriptions: [subscription],
+            managedDirectoryURLsBySubscriptionID: [subscription.id: directory], filesBySubscriptionID: [subscription.id: [file]])
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(counter.count == 4)
+
+        input.plannedRemovalURLs = [file]
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+        #expect(counter.count == 5)
+
+        input.replacementTargets = [file]
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 1)
+        #expect(counter.count == 6)
+
+        input.recentlyDownloadedEntries = []
+        input.replacementTargets = []
+        input.plannedRemovalURLs = []
+        input.managedInventory = ManagedDeviceLibraryInventory(device: device, subscriptions: [subscription],
+            managedDirectoryURLsBySubscriptionID: [subscription.id: directory], filesBySubscriptionID: [:])
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+        #expect(counter.count == 7)
+
+        input.preparedEpisodeIDs = [entry.id]
+        let obsolete = refresh(model, input: input, playlists: [playlist]) { _ in
+            Issue.record("An obsolete refresh published its result")
+        }
+        input.subscriptions = []
+        let current = refresh(model, input: input, playlists: [playlist])
+        await obsolete.value
+        await current.value
+        #expect(model.presentation.episodeCountsByPlaylistID[playlist.id] == 0)
+
+        input.subscriptions = [subscription]
+        input.managedInventory = nil
+        await refresh(model, input: input, playlists: [playlist]).value
+        let beforeMetadataChange = counter.count
+        input.episodes[0].title = "Updated title"
+        await refresh(model, input: input, playlists: [playlist]).value
+        #expect(counter.count == beforeMetadataChange + 1)
+        #expect(model.presentation.entriesByPlaylistID[playlist.id]?.automatic.first?.episode.title == "Updated title")
+    }
+
+    @Test
+    func deviceSnapshotLookupKeepsPodcastOwnershipSeparate() throws {
+        let subscriptions = ["First", "Second"].map {
+            PodcastSubscription(title: $0, rssURL: URL(string: "https://example.com/\($0)/rss")!)
+        }
+        let device = DeviceInfo(name: "Player", rootURL: URL(fileURLWithPath: "/Volumes/TEST"),
+            podcastDirectoryURL: URL(fileURLWithPath: "/Volumes/TEST/music"))
+        let directories = subscriptions.map { device.podcastDirectoryURL.appendingPathComponent($0.title) }
+        let files = directories.map { $0.appendingPathComponent("2026.09.01-Episode-(Shared).mp3") }
+        let snapshots = zip(subscriptions, files).compactMap { subscription, file in
+            PodcastPlaylistEntry(episode: Episode(id: "device-file::\(file.lastPathComponent)",
+                subscriptionID: subscription.id, podcastTitle: "Shared", title: "Episode",
+                publicationDate: Date(timeIntervalSince1970: 1_788_220_800),
+                enclosureURL: file, sourceFeedURL: subscription.rssURL))
+        }
+        let playlist = try PodcastPlaylist(name: "Automatic", automaticRule: PodcastPlaylistAutomaticRule(
+            source: .selectedPodcasts(Set(subscriptions.map(\.id)))))
+        let inventory = ManagedDeviceLibraryInventory(device: device, subscriptions: subscriptions,
+            managedDirectoryURLsBySubscriptionID: Dictionary(uniqueKeysWithValues: zip(subscriptions.map(\.id), directories)),
+            filesBySubscriptionID: [subscriptions[0].id: [files[0]]])
+
+        let presentation = PodcastPlaylistPresentationBuilder.build(playlists: [playlist], subscriptions: subscriptions,
+            episodes: [], preparedEpisodeIDs: [], recentlyDownloadedEntries: snapshots, managedInventory: inventory,
+            plannedRemovalURLs: [], replacementTargets: [])
+
+        #expect(presentation.entriesByPlaylistID[playlist.id]?.all.map(\.id.subscriptionID) == [subscriptions[0].id])
+    }
+
+    @Test @MainActor
+    func largeLibraryReusesAvailabilityAndMatchesFreshResolutionAfterAnExclusion() async throws {
+        let subscriptions = (0..<200).map {
+            PodcastSubscription(title: "Podcast \($0)", rssURL: URL(string: "https://example.com/\($0)/rss")!)
+        }
+        let episodes = subscriptions.flatMap { subscription in
+            (0..<50).map { index in
+                Episode(id: "episode-\(index)", subscriptionID: subscription.id, podcastTitle: subscription.title,
+                    title: "Episode \(index)", publicationDate: Date(timeIntervalSince1970: Double(index * 86_400)),
+                    enclosureURL: URL(string: "https://example.com/\(index).mp3")!, sourceFeedURL: subscription.rssURL)
+            }
+        }
+        let entries = episodes.compactMap(PodcastPlaylistEntry.init(episode:))
+        let input = PodcastPlaylistAvailabilityInput(subscriptions: subscriptions, episodes: episodes,
+            preparedEpisodeIDs: [], recentlyDownloadedEntries: entries, managedInventory: nil,
+            plannedRemovalURLs: [], replacementTargets: [])
+        var playlists = try (0..<8).map { index in
+            try PodcastPlaylist(name: "Playlist \(index)", automaticRule: PodcastPlaylistAutomaticRule(
+                source: .selectedPodcasts(Set(subscriptions.enumerated()
+                    .filter { $0.offset % 8 == index }.map { $0.element.id })), maximumEpisodeCount: 25))
+        }
+        let counter = PlaylistAvailabilityCounter()
+        let model = PodcastPlaylistPresentationViewModel(resolveAvailableEpisodes: counter.resolve)
+        await refresh(model, input: input, playlists: playlists).value
+        #expect(counter.count == 1)
+        #expect(model.presentation.episodeCountsByPlaylistID.values.allSatisfy { $0 == 25 })
+        let excluded = try #require(model.presentation.entriesByPlaylistID[playlists[0].id]?.automatic.first)
+        playlists[0].automaticExclusions.insert(try #require(PodcastPlaylistAutomaticExclusion(episode: excluded.episode)))
+        await refresh(model, input: input, playlists: playlists).value
+        await refresh(model, input: input, playlists: playlists).value
+        #expect(counter.count == 1)
+        #expect(model.presentation.entriesByPlaylistID[playlists[0].id]?.automatic.contains { $0.id == excluded.id } == false)
+        #expect(model.presentation == PodcastPlaylistPresentationBuilder.build(playlists: playlists,
+            subscriptions: subscriptions, episodes: episodes, preparedEpisodeIDs: [], recentlyDownloadedEntries: entries,
+            managedInventory: nil, plannedRemovalURLs: [], replacementTargets: []))
+    }
+
+    @MainActor
+    private func refresh(
+        _ model: PodcastPlaylistPresentationViewModel,
+        input: PodcastPlaylistAvailabilityInput,
+        playlists: [PodcastPlaylist],
+        onResolved: @escaping @MainActor ([Episode]) -> Void = { _ in }
+    ) -> Task<Void, Never> {
+        let prepared = input.episodes.filter {
+            PodcastPlaylistEpisodeID(episode: $0).map(input.preparedEpisodeIDs.contains) ?? false
+        }.map {
+            PreparedEpisode(episode: $0, sourceFileURL: URL(fileURLWithPath: "/tmp/synthetic-source.mp3"),
+                preparedFileURL: URL(fileURLWithPath: "/tmp/synthetic-prepared.mp3"),
+                preparationAction: .passthroughMP3, preparedAt: Date(timeIntervalSince1970: 0))
+        }
+        return model.refresh(playlists: playlists, subscriptions: input.subscriptions, episodes: input.episodes,
+            preparedEpisodes: prepared, recentlyDownloadedEntries: input.recentlyDownloadedEntries,
+            managedInventory: input.managedInventory, plannedRemovalURLs: input.plannedRemovalURLs,
+            replacementTargets: input.replacementTargets, onResolvedAutomaticEpisodes: onResolved)
+    }
+
     @Test
     func missingDeviceOnlySnapshotCannotReappearAfterCleanup() throws {
         let subscription = PodcastSubscription(title: "Example Podcast", rssURL: URL(string: "https://example.com/rss")!)
@@ -379,5 +583,17 @@ struct PodcastPlaylistPresentationViewModelTests {
             enclosureURL: URL(string: "https://example.com/\(id).mp3")!,
             sourceFeedURL: subscription.rssURL
         )
+    }
+}
+
+private final class PlaylistAvailabilityCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var resolutionCount = 0
+
+    var count: Int { lock.withLock { resolutionCount } }
+
+    func resolve(_ input: PodcastPlaylistAvailabilityInput) -> [Episode] {
+        lock.withLock { resolutionCount += 1 }
+        return input.availableEpisodes()
     }
 }

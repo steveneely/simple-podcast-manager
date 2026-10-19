@@ -34,6 +34,28 @@ struct PodcastPlaylistPresentation: Equatable, Sendable {
     }
 }
 
+struct PodcastPlaylistAvailabilityInput: Equatable, Sendable {
+    var subscriptions: [PodcastSubscription]
+    var episodes: [Episode]
+    var preparedEpisodeIDs: Set<PodcastPlaylistEpisodeID>
+    var recentlyDownloadedEntries: [PodcastPlaylistEntry]
+    var managedInventory: ManagedDeviceLibraryInventory?
+    var plannedRemovalURLs: Set<URL>
+    var replacementTargets: Set<URL>
+
+    func availableEpisodes() -> [Episode] {
+        PodcastPlaylistPresentationBuilder.availableEpisodes(
+            subscriptions: subscriptions,
+            episodes: episodes,
+            preparedEpisodeIDs: preparedEpisodeIDs,
+            downloadedEpisodeSnapshots: recentlyDownloadedEntries,
+            managedInventory: managedInventory,
+            plannedRemovalURLs: plannedRemovalURLs,
+            replacementTargets: replacementTargets
+        )
+    }
+}
+
 enum PodcastPlaylistPresentationBuilder {
     static func build(
         playlists: [PodcastPlaylist],
@@ -54,6 +76,18 @@ enum PodcastPlaylistPresentationBuilder {
             plannedRemovalURLs: plannedRemovalURLs,
             replacementTargets: replacementTargets
         )
+        return build(
+            playlists: playlists,
+            availableEpisodes: availableEpisodes,
+            recentlyDownloadedEntries: recentlyDownloadedEntries
+        )
+    }
+
+    static func build(
+        playlists: [PodcastPlaylist],
+        availableEpisodes: [Episode],
+        recentlyDownloadedEntries: [PodcastPlaylistEntry]
+    ) -> PodcastPlaylistPresentation {
         var entriesByPlaylistID: [PodcastPlaylist.ID: ResolvedPodcastPlaylistEntries] = [:]
         for playlist in playlists {
             guard !Task.isCancelled else { return .empty }
@@ -69,7 +103,7 @@ enum PodcastPlaylistPresentationBuilder {
         )
     }
 
-    private static func availableEpisodes(
+    fileprivate static func availableEpisodes(
         subscriptions: [PodcastSubscription],
         episodes: [Episode],
         preparedEpisodeIDs: Set<PodcastPlaylistEpisodeID>,
@@ -88,6 +122,7 @@ enum PodcastPlaylistPresentationBuilder {
         var availableEpisodes: [Episode] = []
         var unavailableEpisodeIDs: Set<PodcastPlaylistEpisodeID> = []
         var unavailableEpisodeKeys: Set<PodcastPlaylistAutomaticExclusion> = []
+        var deviceFileStemsBySubscriptionID: [PodcastSubscription.ID: Set<String>] = [:]
 
         for subscription in subscriptions {
             guard !Task.isCancelled else { return [] }
@@ -107,6 +142,7 @@ enum PodcastPlaylistPresentationBuilder {
                     deviceFilesByStem[fileStem] = fileURL
                 }
             }
+            deviceFileStemsBySubscriptionID[subscription.id] = Set(deviceFilesByStem.keys)
             let conservativeMatches = EpisodeFileName.uniqueConservativeMatches(
                 in: deviceFiles,
                 to: currentEpisodes,
@@ -154,13 +190,14 @@ enum PodcastPlaylistPresentationBuilder {
         let subscribedPodcastIDs = Set(subscriptions.map(\.id))
         var availableEpisodeIDs = Set(availableEpisodes.compactMap(PodcastPlaylistEpisodeID.init))
         for snapshot in downloadedEpisodeSnapshots {
+            guard !Task.isCancelled else { return [] }
             // A mounted inventory is authoritative for device-only snapshots. Keep
             // offline history, but never resurrect a file known to be absent.
-            if snapshot.episode.enclosureURL.isFileURL, let managedInventory {
+            if snapshot.episode.enclosureURL.isFileURL, managedInventory != nil {
                 let stem = snapshot.episode.enclosureURL.deletingPathExtension().lastPathComponent
-                let files = subscriptions.first(where: { $0.id == snapshot.id.subscriptionID })
-                    .map { managedInventory.files(for: $0) } ?? []
-                guard files.contains(where: { $0.deletingPathExtension().lastPathComponent == stem }) else { continue }
+                guard deviceFileStemsBySubscriptionID[snapshot.id.subscriptionID]?.contains(stem) == true else {
+                    continue
+                }
             }
             let snapshotKey = PodcastPlaylistAutomaticExclusion(episode: snapshot.episode)
             let isSelectedForRemoval = snapshotKey.map(unavailableEpisodeKeys.contains) ?? false
@@ -179,10 +216,30 @@ enum PodcastPlaylistPresentationBuilder {
 final class PodcastPlaylistPresentationViewModel {
     private(set) var presentation = PodcastPlaylistPresentation.empty
 
+    private struct Resolution: Sendable {
+        var presentation: PodcastPlaylistPresentation
+        var availableEpisodes: [Episode]
+    }
+
+    private let resolveAvailableEpisodes: @Sendable (PodcastPlaylistAvailabilityInput) -> [Episode]
+    private var latestAvailabilityInput: PodcastPlaylistAvailabilityInput?
+    private var latestPlaylists: [PodcastPlaylist]?
+    private var cachedAvailabilityInput: PodcastPlaylistAvailabilityInput?
+    private var cachedAvailableEpisodes: [Episode] = []
+    private var onResolvedAutomaticEpisodes: @MainActor ([Episode]) -> Void = { _ in }
     private var latestRefreshID: UUID?
-    private var workerTask: Task<PodcastPlaylistPresentation, Never>?
+    private var workerTask: Task<Resolution, Never>?
     private var resultTask: Task<Void, Never>?
 
+    init(
+        resolveAvailableEpisodes: @escaping @Sendable (PodcastPlaylistAvailabilityInput) -> [Episode] = {
+            $0.availableEpisodes()
+        }
+    ) {
+        self.resolveAvailableEpisodes = resolveAvailableEpisodes
+    }
+
+    @discardableResult
     func refresh(
         playlists: [PodcastPlaylist],
         subscriptions: [PodcastSubscription],
@@ -193,39 +250,63 @@ final class PodcastPlaylistPresentationViewModel {
         plannedRemovalURLs: Set<URL>,
         replacementTargets: Set<URL>,
         onResolvedAutomaticEpisodes: @escaping @MainActor ([Episode]) -> Void = { _ in }
-    ) {
+    ) -> Task<Void, Never> {
+        let availabilityInput = PodcastPlaylistAvailabilityInput(
+            subscriptions: subscriptions,
+            episodes: episodes,
+            preparedEpisodeIDs: Set(preparedEpisodes.compactMap {
+                PodcastPlaylistEpisodeID(episode: $0.episode)
+            }),
+            recentlyDownloadedEntries: recentlyDownloadedEntries,
+            managedInventory: managedInventory,
+            plannedRemovalURLs: plannedRemovalURLs,
+            replacementTargets: replacementTargets
+        )
+        self.onResolvedAutomaticEpisodes = onResolvedAutomaticEpisodes
+        // Keep identical work in flight rather than cancelling and starting it again.
+        if latestAvailabilityInput == availabilityInput, latestPlaylists == playlists {
+            if let resultTask { return resultTask }
+            publishResolvedAutomaticEpisodes()
+            return Task {}
+        }
+
         workerTask?.cancel()
         resultTask?.cancel()
         let refreshID = UUID()
         latestRefreshID = refreshID
-        let preparedEpisodeIDs = Set(preparedEpisodes.compactMap {
-            PodcastPlaylistEpisodeID(episode: $0.episode)
-        })
+        latestAvailabilityInput = availabilityInput
+        latestPlaylists = playlists
+        let reusableEpisodes = cachedAvailabilityInput == availabilityInput ? cachedAvailableEpisodes : nil
+        let resolveAvailableEpisodes = resolveAvailableEpisodes
 
         let workerTask = Task.detached(priority: .userInitiated) {
-            PodcastPlaylistPresentationBuilder.build(
+            let availableEpisodes = reusableEpisodes ?? resolveAvailableEpisodes(availabilityInput)
+            return Resolution(presentation: PodcastPlaylistPresentationBuilder.build(
                 playlists: playlists,
-                subscriptions: subscriptions,
-                episodes: episodes,
-                preparedEpisodeIDs: preparedEpisodeIDs,
-                recentlyDownloadedEntries: recentlyDownloadedEntries,
-                managedInventory: managedInventory,
-                plannedRemovalURLs: plannedRemovalURLs,
-                replacementTargets: replacementTargets
-            )
+                availableEpisodes: availableEpisodes,
+                recentlyDownloadedEntries: recentlyDownloadedEntries
+            ), availableEpisodes: availableEpisodes)
         }
         self.workerTask = workerTask
-        resultTask = Task { [weak self] in
-            let updatedPresentation = await workerTask.value
-            guard !Task.isCancelled, self?.latestRefreshID == refreshID else { return }
-            self?.presentation = updatedPresentation
-            self?.workerTask = nil
-            self?.resultTask = nil
-            onResolvedAutomaticEpisodes(
-                updatedPresentation.entriesByPlaylistID.values.flatMap { entries in
-                    entries.automatic.map(\.episode)
-                }
-            )
+        let resultTask = Task { [weak self] in
+            let resolution = await workerTask.value
+            guard !Task.isCancelled, let self, self.latestRefreshID == refreshID else { return }
+            self.cachedAvailabilityInput = availabilityInput
+            self.cachedAvailableEpisodes = resolution.availableEpisodes
+            self.presentation = resolution.presentation
+            self.workerTask = nil
+            self.resultTask = nil
+            self.publishResolvedAutomaticEpisodes()
         }
+        self.resultTask = resultTask
+        return resultTask
+    }
+
+    private func publishResolvedAutomaticEpisodes() {
+        let onResolved = onResolvedAutomaticEpisodes
+        onResolvedAutomaticEpisodes = { _ in }
+        onResolved(
+            presentation.entriesByPlaylistID.values.flatMap { $0.automatic.map(\.episode) }
+        )
     }
 }

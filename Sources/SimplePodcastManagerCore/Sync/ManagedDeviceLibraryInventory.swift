@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ManagedDeviceLibraryInventory: Sendable {
+public struct ManagedDeviceLibraryInventory: Equatable, Sendable {
     public let deviceID: String
     public let podcastDirectoryURL: URL
     public let subscriptionIDs: Set<UUID>

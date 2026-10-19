@@ -21,7 +21,11 @@ struct PodcastPlaylistPresentation: Equatable, Sendable {
     func entries(reflecting playlist: PodcastPlaylist) -> ResolvedPodcastPlaylistEntries {
         let explicitEntryIDs = Set(playlist.entries.map(\.id))
         let automaticEntries = entriesByPlaylistID[playlist.id]?.automatic.filter {
-            !explicitEntryIDs.contains($0.id)
+            guard !explicitEntryIDs.contains($0.id) else { return false }
+            guard let exclusion = PodcastPlaylistAutomaticExclusion(episode: $0.episode) else {
+                return false
+            }
+            return !playlist.automaticExclusions.contains(exclusion)
         } ?? []
         return ResolvedPodcastPlaylistEntries(
             explicit: playlist.entries,

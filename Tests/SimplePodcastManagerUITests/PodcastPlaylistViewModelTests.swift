@@ -5,6 +5,40 @@ import Testing
 
 @MainActor
 struct PodcastPlaylistViewModelTests {
+    @Test(arguments: [false, true])
+    func automaticRemovalReflectsSavedStateBeforeBackgroundRefresh(saveFails: Bool) async throws {
+        let episode = makeEpisode(id: "excluded", title: "Excluded")
+        let retained = makeEpisode(id: "retained", title: "Retained")
+        let entries = try [episode, retained].map { try #require(PodcastPlaylistEntry(episode: $0)) }
+        let playlist = try PodcastPlaylist(
+            name: "Automatic",
+            automaticRule: PodcastPlaylistAutomaticRule(source: .selectedPodcasts([entries[0].id.subscriptionID]))
+        )
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(playlists: [playlist]))
+        let model = PodcastPlaylistViewModel(store: store)
+        await model.load()
+        let cachedPresentation = PodcastPlaylistPresentation(
+            entriesByPlaylistID: [playlist.id: ResolvedPodcastPlaylistEntries(explicit: [], automatic: entries)],
+            episodeCountsByPlaylistID: [playlist.id: 2]
+        )
+        store.saveFails = saveFails
+
+        if saveFails {
+            #expect(throws: CocoaError.self) {
+                try model.excludeAutomaticEpisode(episode, from: playlist.id)
+            }
+        } else {
+            try model.excludeAutomaticEpisode(episode, from: playlist.id)
+        }
+
+        let savedPlaylist = try #require(model.playlist(id: playlist.id))
+        let displayed = cachedPresentation.entries(reflecting: savedPlaylist)
+        #expect(displayed.automatic.map(\.id) == (saveFails ? entries.map(\.id) : [entries[1].id]))
+        #expect(displayed.explicit.isEmpty)
+        #expect(store.library == model.library)
+        #expect(PodcastPlaylistResolver.entries(for: savedPlaylist, from: [episode, retained]) == displayed)
+    }
+
     @Test
     func deletedDeviceSnapshotIsRemovedEvenWithoutExplicitMembership() async throws {
         var episode = makeEpisode(id: "device-file::old.mp3", title: "Old")

@@ -610,6 +610,20 @@ public struct MainView: View {
             } ?? ResolvedPodcastPlaylistEntries(explicit: [], automatic: []),
             isOnDevice: isPlaylistEpisodeOnDevice,
             isDownloaded: { preparationPreviewViewModel.preparedEpisode(for: $0) != nil },
+            playlists: podcastPlaylistViewModel.playlists,
+            automaticPlaylistIDs: podcastPlaylistPresentationViewModel.presentation.automaticPlaylistIDs,
+            onTogglePlaylist: { entry, playlist in
+                do {
+                    try podcastPlaylistViewModel.toggleMembership(
+                        entry.episode,
+                        in: playlist.id,
+                        isAutomaticallyIncluded: podcastPlaylistPresentationViewModel.presentation
+                            .automaticPlaylistIDs(containing: entry.episode).contains(playlist.id),
+                        deviceFileURL: playlistDeviceFileURL(for: entry.episode)
+                    )
+                    rebuildSyncPlan()
+                } catch {}
+            },
             onAddPlaylist: presentNewPlaylistEditor,
             onMove: { sourceIndexes, destinationIndex in
                 guard let selectedPlaylistID else { return }
@@ -632,8 +646,6 @@ public struct MainView: View {
             onPinAutomatic: { entry in
                 guard let selectedPlaylistID else { return }
                 let deviceFileURL = playlistDeviceFileURL(for: entry.episode)
-                guard preparationPreviewViewModel.preparedEpisode(for: entry.episode) != nil
-                        || deviceFileURL != nil else { return }
                 do {
                     try podcastPlaylistViewModel.add(
                         entry.episode,

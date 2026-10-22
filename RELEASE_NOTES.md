@@ -1,4 +1,4 @@
-# Simple Podcast Manager v1.24.3
+# Simple Podcast Manager v1.25.0
 
-- Removing an automatically added episode now updates the playlist immediately.
-- Improve playlist responsiveness for large podcast libraries and avoid unnecessary refresh work.
+- Add episodes to other playlists directly from playlist rows using the familiar playlist menu.
+- Pin automatic episodes and add existing playlist entries to other playlists while the player is disconnected, even when no local download is available.

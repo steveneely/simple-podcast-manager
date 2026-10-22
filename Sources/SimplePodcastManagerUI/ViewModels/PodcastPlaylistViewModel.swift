@@ -104,6 +104,21 @@ public final class PodcastPlaylistViewModel {
         try persist(updatedLibrary)
     }
 
+    /// Curates an existing playlist episode without requiring its audio to be available.
+    func toggleMembership(
+        _ episode: Episode,
+        in playlistID: PodcastPlaylist.ID,
+        isAutomaticallyIncluded: Bool,
+        deviceFileURL: URL? = nil
+    ) throws {
+        guard let playlist = playlist(id: playlistID) else { return }
+        if playlist.contains(episode) || isAutomaticallyIncluded {
+            try removeMembership(episode, from: playlistID, deviceFileURL: deviceFileURL)
+        } else {
+            try add(episode, to: playlistID, deviceFileURL: deviceFileURL)
+        }
+    }
+
     public func remove(_ episode: Episode, from playlistID: PodcastPlaylist.ID) throws {
         guard let entryID = PodcastPlaylistEpisodeID(episode: episode) else { return }
         try remove(entryID, from: playlistID)

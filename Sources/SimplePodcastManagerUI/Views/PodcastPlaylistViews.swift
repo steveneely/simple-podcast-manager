@@ -368,6 +368,9 @@ struct PodcastPlaylistDetailView: View {
     let entries: ResolvedPodcastPlaylistEntries
     let isOnDevice: (Episode) -> Bool
     let isDownloaded: (Episode) -> Bool
+    let playlists: [PodcastPlaylist]
+    let automaticPlaylistIDs: (Episode) -> Set<PodcastPlaylist.ID>
+    let onTogglePlaylist: (PodcastPlaylistEntry, PodcastPlaylist) -> Void
     let onAddPlaylist: () -> Void
     let onMove: (IndexSet, Int) -> Void
     let onRemoveExplicit: (PodcastPlaylistEntry) -> Void
@@ -483,6 +486,7 @@ struct PodcastPlaylistDetailView: View {
                     .foregroundStyle(isOnDevice(entry.episode) ? .green : .secondary)
             }
             Spacer()
+            episodeActions(for: entry)
             HoverIconButton(
                 systemName: "minus.circle",
                 helpText: "Remove from playlist",
@@ -505,20 +509,57 @@ struct PodcastPlaylistDetailView: View {
                     .foregroundStyle(isOnDevice(entry.episode) ? .green : .secondary)
             }
             Spacer()
-            let canPin = isDownloaded(entry.episode) || isOnDevice(entry.episode)
-            HoverIconButton(
-                systemName: "pin",
-                helpText: canPin
-                    ? "Pin as manually added"
-                    : "Download this episode before pinning",
-                isDisabled: !canPin
-            ) { onPinAutomatic(entry) }
+            episodeActions(for: entry, onPin: { onPinAutomatic(entry) })
             HoverIconButton(
                 systemName: "minus.circle",
                 helpText: "Keep this episode out of the playlist"
             ) { onExcludeAutomatic(entry) }
         }
         .padding(.vertical, 4)
+    }
+
+    private func episodeActions(
+        for entry: PodcastPlaylistEntry,
+        onPin: (() -> Void)? = nil
+    ) -> PodcastPlaylistEpisodeActions {
+        PodcastPlaylistEpisodeActions(
+            episode: entry.episode,
+            playlists: playlists,
+            automaticPlaylistIDs: automaticPlaylistIDs(entry.episode),
+            onTogglePlaylist: { onTogglePlaylist(entry, $0) },
+            onPin: onPin
+        )
+    }
+}
+
+struct PodcastPlaylistEpisodeActions: View {
+    let episode: Episode
+    let playlists: [PodcastPlaylist]
+    let automaticPlaylistIDs: Set<PodcastPlaylist.ID>
+    let onTogglePlaylist: (PodcastPlaylist) -> Void
+    var onPin: (() -> Void)? = nil
+
+    var playlistMenu: EpisodePlaylistMenu {
+        EpisodePlaylistMenu(
+            episode: episode,
+            playlists: playlists,
+            automaticPlaylistIDs: automaticPlaylistIDs,
+            onTogglePlaylist: onTogglePlaylist
+        )
+    }
+
+    var pinButton: HoverIconButton? {
+        guard let onPin else { return nil }
+        return HoverIconButton(systemName: "pin", helpText: "Pin as manually added", action: onPin)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            playlistMenu
+            if let pinButton {
+                pinButton
+            }
+        }
     }
 }
 

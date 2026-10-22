@@ -5,6 +5,120 @@ import Testing
 
 @MainActor
 struct PodcastPlaylistViewModelTests {
+    @Test(arguments: [false, true], [false, true])
+    func curatingAnOfflineEpisodePreservesItsSourcePlaylist(manuallyAdded: Bool, saveFails: Bool) async throws {
+        let episode = makeEpisode(id: "offline", title: "Keep for later")
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let source = try PodcastPlaylist(
+            name: "History",
+            entries: manuallyAdded ? [entry] : [],
+            automaticRule: manuallyAdded ? nil : PodcastPlaylistAutomaticRule(source: .selectedPodcasts([entry.id.subscriptionID]))
+        )
+        let destination = try PodcastPlaylist(name: "For Later")
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [source, destination], recentlyDownloadedEntries: [entry]
+        ))
+        let model = PodcastPlaylistViewModel(store: store)
+        await model.load()
+        let original = model.library
+        store.saveFails = saveFails
+
+        if saveFails {
+            #expect(throws: CocoaError.self) {
+                try model.toggleMembership(episode, in: destination.id, isAutomaticallyIncluded: false)
+            }
+            #expect(model.library == original)
+            #expect(store.library == original)
+            return
+        }
+
+        try model.toggleMembership(episode, in: destination.id, isAutomaticallyIncluded: false)
+        #expect(model.playlist(id: destination.id)?.entries == [entry])
+        #expect(model.playlist(id: source.id) == source)
+        #expect(model.library.recentlyDownloadedEntries == [entry])
+        #expect(store.library == model.library)
+
+        let preflight = try #require(PodcastPlaylistSyncPreflight.make(playlists: model.playlists, isAvailable: { _ in false }))
+        #expect(preflight.unavailableEpisodes == [episode])
+        #expect(preflight.unavailableEntryIDsByPlaylist[destination.id] == [entry.id])
+
+        let reloaded = PodcastPlaylistViewModel(store: store)
+        await reloaded.load()
+        #expect(reloaded.playlist(id: destination.id)?.entries == [entry])
+
+        try model.toggleMembership(episode, in: destination.id, isAutomaticallyIncluded: false)
+        #expect(model.playlist(id: destination.id)?.entries.isEmpty == true)
+        #expect(model.playlist(id: source.id) == source)
+    }
+
+    @Test(arguments: [false, true])
+    func offlineMembershipMenuCanExcludeAndRestoreAutomaticMembership(saveFails: Bool) async throws {
+        let episode = makeEpisode(id: "automatic", title: "Automatic")
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(name: "History", automaticRule: PodcastPlaylistAutomaticRule(
+            source: .selectedPodcasts([entry.id.subscriptionID])))
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [playlist], recentlyDownloadedEntries: [entry]))
+        let model = PodcastPlaylistViewModel(store: store)
+        await model.load()
+        let original = model.library
+        store.saveFails = saveFails
+
+        if saveFails {
+            #expect(throws: CocoaError.self) {
+                try model.toggleMembership(episode, in: playlist.id, isAutomaticallyIncluded: true)
+            }
+            #expect(model.library == original)
+            #expect(store.library == original)
+            return
+        }
+
+        try model.toggleMembership(episode, in: playlist.id, isAutomaticallyIncluded: true)
+        let excluded = try #require(model.playlist(id: playlist.id))
+        #expect(PodcastPlaylistResolver.entries(for: excluded, from: [], recentlyDownloadedEntries: [entry]).all.isEmpty)
+        #expect(excluded.automaticExclusions == [try #require(PodcastPlaylistAutomaticExclusion(episode: episode))])
+        #expect(model.library.recentlyDownloadedEntries == [entry])
+
+        try model.toggleMembership(episode, in: playlist.id, isAutomaticallyIncluded: false)
+        let restored = try #require(model.playlist(id: playlist.id))
+        #expect(restored.entries == [entry])
+        #expect(restored.automaticExclusions.isEmpty)
+        #expect(store.library == model.library)
+    }
+
+    @Test(arguments: [false, true])
+    func pinsAnUnavailableAutomaticSnapshotAndRetainsSyncPreflight(saveFails: Bool) async throws {
+        var episode = makeEpisode(id: "device-file::Episode.mp3", title: "Episode")
+        episode.enclosureURL = URL(fileURLWithPath: "/Volumes/Synthetic/music/Episode.mp3")
+        let entry = try #require(PodcastPlaylistEntry(episode: episode))
+        let playlist = try PodcastPlaylist(name: "History", automaticRule: PodcastPlaylistAutomaticRule(
+            source: .selectedPodcasts([entry.id.subscriptionID])))
+        let store = InMemoryPodcastPlaylistStore(library: PodcastPlaylistLibrary(
+            playlists: [playlist], recentlyDownloadedEntries: [entry]))
+        let model = PodcastPlaylistViewModel(store: store)
+        await model.load()
+        let original = model.library
+        store.saveFails = saveFails
+
+        if saveFails {
+            #expect(throws: CocoaError.self) { try model.add(episode, to: playlist.id) }
+            #expect(model.library == original)
+            #expect(store.library == original)
+            return
+        }
+
+        try model.add(episode, to: playlist.id)
+        let pinned = try #require(model.playlist(id: playlist.id))
+        let resolved = PodcastPlaylistResolver.entries(for: pinned, from: [], recentlyDownloadedEntries: [entry])
+        #expect(resolved.explicit == [entry])
+        #expect(resolved.automatic.isEmpty)
+        #expect(model.library.recentlyDownloadedEntries == [entry])
+        #expect(store.library == model.library)
+        #expect(PodcastPlaylistSyncPreflight.make(playlists: model.playlists, isAvailable: { _ in false })?
+            .unavailableEntryIDsByPlaylist == [playlist.id: [entry.id]])
+        #expect(PodcastPlaylistSyncPreflight.make(playlists: model.playlists, isAvailable: { _ in true }) == nil)
+    }
+
     @Test(arguments: [false, true])
     func automaticRemovalReflectsSavedStateBeforeBackgroundRefresh(saveFails: Bool) async throws {
         let episode = makeEpisode(id: "excluded", title: "Excluded")

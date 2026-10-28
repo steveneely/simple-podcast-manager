@@ -256,6 +256,10 @@ SPM records playlist filenames and the directory written or verified unchanged b
 
 Playlist writes and removals delete only verified AppleDouble sidecars with the exact matching `._<playlist-name>.m3u` name.
 
+## Manual Downloads
+
+The selected Podcast’s sidebar controls offer `Download Multiple Episodes…` between Edit and Remove, following Refresh. The action is disabled until local download state has loaded or when every episode is already downloaded or queued. Its sheet captures the displayed episode order, starts without a selection, and uses a lazy native list with checkboxes, Shift-click ranges, and one Select All checkbox that selects or clears every available episode. Already prepared or queued episodes are labeled and unavailable for selection; Select All covers the full list, including offscreen rows. Selection and confirmation exclude episodes that become prepared or queued while the sheet is open. Cancel discards the selection. The fixed footer confirms the selected count before adding episodes to the existing shared preparation queue. Single and bulk manual downloads share activity acknowledgement, refresh-summary reconciliation, HTTP permission handling, and sync-plan rebuilding. Bulk download does not start device sync or change retention settings.
+
 ## Automatic Downloads
 
 Automatic downloads run after startup, full, targeted, and new-subscription refreshes. They prepare files on the Mac but do not start a device sync.

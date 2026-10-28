@@ -371,6 +371,8 @@ struct PodcastSidebarView: View {
     let onRefresh: () -> Void
     let onRefreshSubscription: (PodcastSubscription) -> Void
     let onEdit: (PodcastSubscription) -> Void
+    let canDownloadEpisodes: (PodcastSubscription) -> Bool
+    let onDownloadEpisodes: (PodcastSubscription) -> Void
     let onDelete: (PodcastSubscription) -> Void
     let onDeleteSubscriptions: ([PodcastSubscription]) -> Void
 
@@ -512,6 +514,13 @@ struct PodcastSidebarView: View {
                                 }
                                 HoverIconButton(systemName: "pencil", helpText: "Edit") {
                                     onEdit(subscription)
+                                }
+                                HoverIconButton(
+                                    systemName: "arrow.down.circle",
+                                    helpText: "Download Multiple Episodes…",
+                                    isDisabled: !canDownloadEpisodes(subscription)
+                                ) {
+                                    onDownloadEpisodes(subscription)
                                 }
                                 HoverIconButton(
                                     systemName: "trash",

@@ -38,6 +38,7 @@ public struct MainView: View {
     private let automaticallyChecksForUpdates: Binding<Bool>?
     private let appearancePreference: Binding<AppearancePreference>?
     @State private var selectedPodcastID = PodcastSelectionPolicy.initialSelection
+    @State private var podcastEpisodeDownloadPresentation: PodcastEpisodeDownloadPresentation?
     @State private var selectedPlaylistID: PodcastPlaylist.ID?
     @State private var libraryMode = PodcastLibraryMode.podcasts
     @State private var podcastRefreshStatus: PodcastRefreshStatus?
@@ -195,6 +196,21 @@ public struct MainView: View {
             async let deviceLibrary: Void = refreshDeviceLibrary()
             _ = await (refreshedFeeds, deviceLibrary)
             startupPerformanceTracker.mark("background startup work complete")
+        }
+        .sheet(item: $podcastEpisodeDownloadPresentation) { presentation in
+            PodcastEpisodeDownloadView(
+                presentation: presentation,
+                downloadedIDs: Set(presentation.episodes.filter {
+                    preparationPreviewViewModel.preparedEpisode(for: $0) != nil
+                }.map(\.id)),
+                queuedIDs: Set(presentation.episodes.filter {
+                    preparationPreviewViewModel.isPreparing($0)
+                }.map(\.id)),
+                onDownload: { episodes in
+                    podcastEpisodeDownloadPresentation = nil
+                    downloadEpisodes(episodes)
+                }
+            )
         }
         .sheet(item: $podcastEditorPresentation) { presentation in
             PodcastEditorView(
@@ -504,6 +520,19 @@ public struct MainView: View {
             },
             onEdit: { subscription in
                 podcastEditorPresentation = PodcastEditorPresentation(subscription: subscription)
+            },
+            canDownloadEpisodes: { subscription in
+                preparationPreviewViewModel.hasLoadedPreparedEpisodes
+                    && allEpisodes(for: subscription).contains {
+                        preparationPreviewViewModel.preparedEpisode(for: $0) == nil
+                            && !preparationPreviewViewModel.isPreparing($0)
+                    }
+            },
+            onDownloadEpisodes: { subscription in
+                podcastEpisodeDownloadPresentation = PodcastEpisodeDownloadPresentation(
+                    podcastTitle: subscription.title,
+                    episodes: allEpisodes(for: subscription)
+                )
             },
             onDelete: { subscription in
                 requestPodcastDeletion(for: [subscription])
@@ -837,17 +866,7 @@ public struct MainView: View {
                 preparationPreviewViewModel.cancelPreparation(for: episode)
             },
             onDownload: {
-                Task {
-                    await preparationPreviewViewModel.prepare([episode], settings: viewModel.settings)
-                    let downloadedEpisodes = successfullyDownloadedEpisodes(from: [episode])
-                    await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
-                    await podcastActivityViewModel.acknowledge(downloadedEpisodes)
-                    showDownloadSummary(downloadedEpisodes)
-                    if preparationPreviewViewModel.requiresInsecureDownloadPermission(for: episode) {
-                        enqueueInsecureDownloadPermissions(for: [episode])
-                    }
-                    rebuildSyncPlan()
-                }
+                downloadEpisodes([episode])
             },
             onTogglePlaylist: { playlist in
                 togglePlaylistMembership(for: episode, playlist: playlist)
@@ -1004,6 +1023,27 @@ public struct MainView: View {
             rebuildSyncPlan()
             showNextInsecureDownloadPrompt()
             finishPlaylistSyncDownloadIfReady()
+        }
+    }
+
+    private func downloadEpisodes(_ episodes: [Episode]) {
+        // Recheck at confirmation: automatic downloads may have started while the sheet was open.
+        let requestedEpisodes = episodes.filter {
+            preparationPreviewViewModel.preparedEpisode(for: $0) == nil
+                && !preparationPreviewViewModel.isPreparing($0)
+        }
+        guard !requestedEpisodes.isEmpty else { return }
+        Task {
+            await preparationPreviewViewModel.prepare(requestedEpisodes, settings: viewModel.settings)
+            let downloadedEpisodes = successfullyDownloadedEpisodes(from: requestedEpisodes)
+            await automaticDownloadViewModel.markDownloaded(downloadedEpisodes)
+            await podcastActivityViewModel.acknowledge(downloadedEpisodes)
+            showDownloadSummary(downloadedEpisodes)
+            let permissionEpisodes = requestedEpisodes.filter {
+                preparationPreviewViewModel.requiresInsecureDownloadPermission(for: $0)
+            }
+            enqueueInsecureDownloadPermissions(for: permissionEpisodes)
+            rebuildSyncPlan()
         }
     }
 

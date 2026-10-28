@@ -26,6 +26,10 @@ Podcasts already in your library are marked `Added`. If search fails, click `Try
 2. Click the download button beside each episode you want.
 3. Wait for the downloads to finish.
 
+To download several episodes, click the download icon in the selected podcast's sidebar controls (`Download Multiple Episodes…`). Use checkboxes, Shift-click for ranges, or `Select All`, then click `Download [count] Episodes`. Already downloaded or queued episodes cannot be selected.
+
+Downloading does not start Sync. Click `Sync` separately when ready.
+
 Non-MP3 episodes require a separately installed [FFmpeg](https://www.ffmpeg.org/download.html). Select its `ffmpeg` executable under `Settings > Advanced > FFmpeg Path`.
 
 If audio or artwork requires unencrypted HTTP, the app asks permission. Allow it once for that episode, or save permission for future downloads in Settings.
@@ -44,7 +48,7 @@ The app checks that the selected plan fits before changing the player. Uncheckin
 
 ## Manage podcasts
 
-Select a podcast to reveal its Refresh, Edit, and Remove controls. In Edit, turn off `Podcast enabled` to stop refreshing it.
+Select a podcast to reveal its Refresh, Edit, Download Multiple Episodes, and Remove controls. In Edit, turn off `Podcast enabled` to stop refreshing it.
 
 After the first refresh establishes a baseline, blue `new` marks episodes not yet downloaded or synced. Selecting a podcast does not clear it. New indicators appear after refresh and automatic downloads finish.
 

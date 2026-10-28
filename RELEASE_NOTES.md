@@ -1,4 +1,3 @@
-# Simple Podcast Manager v1.25.0
+# Simple Podcast Manager v1.26.0
 
-- Add episodes to other playlists directly from playlist rows using the familiar playlist menu.
-- Pin automatic episodes and add existing playlist entries to other playlists while the player is disconnected, even when no local download is available.
+- Download multiple episodes at once using the selected podcast’s download icon. Choose individual episodes, Shift-click a range, or select all available episodes.

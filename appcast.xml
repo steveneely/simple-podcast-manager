@@ -3,10 +3,10 @@
     <channel>
         <title>Simple Podcast Manager</title>
         <item>
-            <title>1.25.0</title>
-            <pubDate>Wed, 21 Oct 2026 20:28:18 -0600</pubDate>
-            <sparkle:version>118</sparkle:version>
-            <sparkle:shortVersionString>1.25.0</sparkle:shortVersionString>
+            <title>1.26.0</title>
+            <pubDate>Tue, 27 Oct 2026 22:37:43 -0600</pubDate>
+            <sparkle:version>119</sparkle:version>
+            <sparkle:shortVersionString>1.26.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<!doctype html>
@@ -82,6 +82,13 @@
 <body>
     <main>
         <h1>What’s new</h1>
+        <section class="release" data-sparkle-version="119" data-release-tag="v1.26.0">
+            <h2>v1.26.0</h2>
+            <ul>
+                <li>Download multiple episodes at once using the selected podcast’s download icon. Choose individual episodes, Shift-click a range, or select all available episodes.</li>
+            </ul>
+        </section>
+
         <section class="release" data-sparkle-version="118" data-release-tag="v1.25.0">
             <h2>v1.25.0</h2>
             <ul>
@@ -807,7 +814,7 @@
 </body>
 </html>
 ]]></description>
-            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.25.0/SimplePodcastManager-v1.25.0.dmg" length="8056884" type="application/octet-stream" sparkle:edSignature="kegUvyadasFjpZ5FpsT7K81tugcvHJ+ubL3JP1HBF5QAVVVDSMk3nhJ445sDvfVuzW/pkTqULnt5HtHdkjPkBQ=="/>
+            <enclosure url="https://github.com/steveneely/simple-podcast-manager/releases/download/v1.26.0/SimplePodcastManager-v1.26.0.dmg" length="8095655" type="application/octet-stream" sparkle:edSignature="WASDyF8tXxJrbGOIba/XV0QWzqrkjRYyh7WW7M8/ZJ6c2d4WBMUEL1yLtr/h3GwMEO5LdJHE7NI7uxx0JvfHBw=="/>
         </item>
     </channel>
 </rss>
